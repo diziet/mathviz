@@ -9,6 +9,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from mathviz.cli_grid import grid_app
 from mathviz.cli_output import (
     error_exit,
     print_result_rich,
@@ -17,8 +18,8 @@ from mathviz.cli_output import (
     serialize_checks,
     write_report,
 )
-from mathviz.cli_grid import grid_app
 from mathviz.cli_preview import register_preview_command
+from mathviz.cli_render import register_render_commands
 from mathviz.core.config import (
     deep_merge,
     load_object_config,
@@ -388,6 +389,7 @@ def validate(
 
 
 register_preview_command(app, _parse_params, _configure_logging, console)
+register_render_commands(app, _parse_params, _configure_logging, _run_pipeline, console)
 app.add_typer(grid_app)
 
 
