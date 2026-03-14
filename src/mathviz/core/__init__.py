@@ -21,9 +21,17 @@ from mathviz.core.math_object import (
     PointCloud,
 )
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.core.validator import (
+    CheckResult,
+    Severity,
+    ValidationResult,
+    validate_engraving,
+    validate_mesh,
+)
 
 __all__ = [
     "BoundingBox",
+    "CheckResult",
     "Container",
     "CoordSpace",
     "Curve",
@@ -37,9 +45,13 @@ __all__ = [
     "PointCloud",
     "RepresentationConfig",
     "RepresentationType",
+    "Severity",
+    "ValidationResult",
     "clear_registry",
     "get_generator",
     "get_generator_meta",
     "list_generators",
     "register",
+    "validate_engraving",
+    "validate_mesh",
 ]
