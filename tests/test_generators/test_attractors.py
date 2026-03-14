@@ -170,6 +170,7 @@ def test_metadata_recorded(lorenz: LorenzGenerator) -> None:
     assert obj.parameters["sigma"] == 10.0
     assert obj.parameters["rho"] == 28.0
     assert obj.parameters["beta"] == pytest.approx(8.0 / 3.0)
+    assert obj.parameters["integration_steps"] == _TEST_STEPS
     assert obj.seed == 42
 
 
@@ -242,10 +243,21 @@ def test_transient_steps_exceeds_integration_raises(
     lorenz: LorenzGenerator,
 ) -> None:
     """transient_steps >= integration_steps raises ValueError."""
-    with pytest.raises(ValueError, match="transient_steps.*must be <"):
+    with pytest.raises(ValueError, match="integration_steps - transient_steps must be"):
         lorenz.generate(
             params={"transient_steps": 5000},
             integration_steps=5000,
+        )
+
+
+def test_too_few_trajectory_points_raises(
+    lorenz: LorenzGenerator,
+) -> None:
+    """Fewer than 10 trajectory points after transient raises ValueError."""
+    with pytest.raises(ValueError, match="integration_steps - transient_steps must be"):
+        lorenz.generate(
+            params={"transient_steps": 995},
+            integration_steps=1000,
         )
 
 
@@ -255,3 +267,17 @@ def test_integration_steps_below_minimum_raises(
     """integration_steps below minimum raises ValueError."""
     with pytest.raises(ValueError, match="integration_steps must be >= 100"):
         lorenz.generate(integration_steps=50)
+
+
+def test_integration_steps_in_params_warns(
+    lorenz: LorenzGenerator,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """integration_steps passed in params is ignored with a warning."""
+    obj = lorenz.generate(
+        params={"integration_steps": 999},
+        integration_steps=_TEST_STEPS,
+    )
+    assert "should be passed as a resolution kwarg" in caplog.text
+    # The resolution kwarg value is used, not the params value
+    assert obj.parameters["integration_steps"] == _TEST_STEPS

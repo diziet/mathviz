@@ -24,6 +24,7 @@ _DEFAULT_TRANSIENT_STEPS = 1000
 _DEFAULT_INTEGRATION_STEPS = 100_000
 _DEFAULT_INITIAL_CONDITION = (1.0, 1.0, 1.0)
 _MIN_INTEGRATION_STEPS = 100
+_MIN_TRAJECTORY_POINTS = 10
 _PERTURBATION_SCALE = 1e-3
 _T_SPAN_END = 100.0
 
@@ -103,10 +104,11 @@ def _validate_params(
         raise ValueError(
             f"transient_steps must be >= 0, got {transient_steps}"
         )
-    if transient_steps >= integration_steps:
+    trajectory_points = integration_steps - transient_steps
+    if trajectory_points < _MIN_TRAJECTORY_POINTS:
         raise ValueError(
-            f"transient_steps ({transient_steps}) must be < "
-            f"integration_steps ({integration_steps})"
+            f"integration_steps - transient_steps must be >= "
+            f"{_MIN_TRAJECTORY_POINTS}, got {trajectory_points}"
         )
 
 
@@ -142,6 +144,14 @@ class LorenzGenerator(GeneratorBase):
         if params:
             merged.update(params)
 
+        # integration_steps is a resolution kwarg, not a regular param
+        if "integration_steps" in merged:
+            logger.warning(
+                "integration_steps should be passed as a resolution kwarg, "
+                "not inside params; ignoring params value"
+            )
+            merged.pop("integration_steps")
+
         sigma = float(merged["sigma"])
         rho = float(merged["rho"])
         beta = float(merged["beta"])
@@ -151,6 +161,9 @@ class LorenzGenerator(GeneratorBase):
         )
 
         _validate_params(sigma, rho, beta, integration_steps, transient_steps)
+
+        # Record integration_steps so output is self-describing
+        merged["integration_steps"] = integration_steps
 
         # Perturb initial condition with seed for variation
         rng = default_rng(seed)
