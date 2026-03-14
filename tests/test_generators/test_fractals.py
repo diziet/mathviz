@@ -179,8 +179,10 @@ def test_height_scale_affects_mesh_z_range(tmp_path: Path) -> None:
     mesh_2x = representation_strategy.apply(obj_2x, config)
 
     assert mesh_1x.mesh is not None and mesh_2x.mesh is not None
-    z_range_1x = mesh_1x.mesh.vertices[:, 2].ptp()
-    z_range_2x = mesh_2x.mesh.vertices[:, 2].ptp()
+    z_vals_1x = mesh_1x.mesh.vertices[:, 2]
+    z_vals_2x = mesh_2x.mesh.vertices[:, 2]
+    z_range_1x = z_vals_1x.max() - z_vals_1x.min()
+    z_range_2x = z_vals_2x.max() - z_vals_2x.min()
 
     assert z_range_1x > 0
     np.testing.assert_allclose(
