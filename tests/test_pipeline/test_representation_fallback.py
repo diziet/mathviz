@@ -94,10 +94,17 @@ class TestGetFallback:
         config = _get_fallback(obj)
         assert config.type == RepresentationType.SURFACE_SHELL
 
+    def test_scalar_field_only_gets_heightmap(self) -> None:
+        """MathObject with only scalar_field gets HEIGHTMAP_RELIEF fallback."""
+        field = np.ones((10, 10), dtype=np.float64)
+        obj = MathObject(scalar_field=field, generator_name="unknown_heightmap")
+        config = _get_fallback(obj)
+        assert config.type == RepresentationType.HEIGHTMAP_RELIEF
+
     def test_no_geometry_raises(self) -> None:
         """MathObject with no geometry raises a clear error."""
         obj = MathObject(generator_name="empty")
-        with pytest.raises(ValueError, match="no mesh, curves, or point_cloud"):
+        with pytest.raises(ValueError, match="no mesh, curves, point_cloud, or scalar_field"):
             _get_fallback(obj)
 
     def test_tube_radius_based_on_bbox(self) -> None:

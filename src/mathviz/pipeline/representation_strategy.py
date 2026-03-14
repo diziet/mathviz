@@ -38,9 +38,11 @@ def _get_fallback(obj: MathObject) -> RepresentationConfig:
         )
     if obj.point_cloud is not None:
         return RepresentationConfig(type=RepresentationType.SPARSE_SHELL)
+    if obj.scalar_field is not None:
+        return RepresentationConfig(type=RepresentationType.HEIGHTMAP_RELIEF)
     raise ValueError(
         "Cannot determine fallback representation: "
-        "MathObject has no mesh, curves, or point_cloud"
+        "MathObject has no mesh, curves, point_cloud, or scalar_field"
     )
 
 
@@ -287,6 +289,10 @@ def _apply_sparse_shell(
     For point-cloud-only inputs: passes through the existing cloud.
     """
     if obj.mesh is None and obj.point_cloud is not None:
+        logger.info(
+            "SPARSE_SHELL: passing through existing point cloud with %d points",
+            len(obj.point_cloud.points),
+        )
         return replace(obj)
     if obj.mesh is None:
         raise ValueError(
