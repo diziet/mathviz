@@ -20,13 +20,24 @@ from mathviz.pipeline.timer import PipelineTimer
 logger = logging.getLogger(__name__)
 
 
+_VALID_EXPORT_TYPES = frozenset({"mesh", "point_cloud"})
+
+
 @dataclass
 class ExportConfig:
     """Configuration for the export stage."""
 
     path: Path
     fmt: str | None = None
-    export_type: str = "point_cloud"  # "mesh" or "point_cloud"
+    export_type: str = "point_cloud"
+
+    def __post_init__(self) -> None:
+        """Validate export_type."""
+        if self.export_type not in _VALID_EXPORT_TYPES:
+            raise ValueError(
+                f"export_type must be one of {sorted(_VALID_EXPORT_TYPES)}, "
+                f"got {self.export_type!r}"
+            )
 
 
 @dataclass
@@ -36,6 +47,7 @@ class PipelineResult:
     math_object: MathObject
     validation: ValidationResult
     timings: dict[str, float] = field(default_factory=dict)
+    export_path: Path | None = None
 
 
 def run(
@@ -93,14 +105,16 @@ def run(
         validation = _run_validation(obj, container, engraving_profile)
 
     # --- Export (optional) ---
+    export_path: Path | None = None
     if export_config is not None:
         with timer.stage("export"):
-            _run_export(obj, export_config)
+            export_path = _run_export(obj, export_config)
 
     return PipelineResult(
         math_object=obj,
         validation=validation,
         timings=timer.timings,
+        export_path=export_path,
     )
 
 
@@ -118,14 +132,23 @@ def _run_validation(
     engraving_profile: EngravingProfile | None,
 ) -> ValidationResult:
     """Run mesh and/or engraving validation on the final object."""
+    result = ValidationResult()
+
     if obj.mesh is not None:
-        result = validate_mesh(obj.mesh, container=container)
-    elif obj.point_cloud is not None and engraving_profile is not None:
-        result = validate_engraving(
+        mesh_result = validate_mesh(obj.mesh, container=container)
+        result.checks.extend(mesh_result.checks)
+
+    if obj.point_cloud is not None and engraving_profile is not None:
+        engraving_result = validate_engraving(
             obj.point_cloud, engraving_profile, container=container
         )
-    else:
-        result = ValidationResult()
+        result.checks.extend(engraving_result.checks)
+    elif obj.point_cloud is not None:
+        logger.warning(
+            "Point cloud present but no engraving profile provided; "
+            "skipping engraving validation"
+        )
+
     return result
 
 

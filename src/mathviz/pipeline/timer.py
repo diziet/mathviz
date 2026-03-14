@@ -27,6 +27,8 @@ class PipelineTimer:
 
     def _begin(self, name: str) -> None:
         """Record the start of a stage."""
+        if name in self._timings:
+            logger.warning("Stage %r already timed; overwriting previous timing", name)
         self._current_stage = name
         self._start_time = time.monotonic()
 

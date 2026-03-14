@@ -1,16 +1,18 @@
 """Tests for the pipeline runner with timing and validation at stage boundaries."""
 
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np
 import pytest
 
 from mathviz.core.container import Container, PlacementPolicy
+from mathviz.core.engraving import EngravingProfile
 from mathviz.core.generator import GeneratorBase, clear_registry, register
-from mathviz.core.math_object import MathObject, Mesh, PointCloud
+from mathviz.core.math_object import MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.core.validator import ValidationResult
-from mathviz.pipeline.runner import PipelineResult, run
+from mathviz.pipeline.runner import ExportConfig, PipelineResult, run
 from mathviz.pipeline.sampler import SamplerConfig
 from mathviz.pipeline.timer import PipelineTimer
 
@@ -85,33 +87,6 @@ class _CubeGenerator(GeneratorBase):
         )
 
 
-class _InvalidGenerator(GeneratorBase):
-    """Generator that produces invalid geometry (NaN vertices)."""
-
-    name = "test_invalid"
-    category = "test"
-    description = "Generator that produces invalid geometry"
-
-    def get_default_params(self) -> dict[str, Any]:
-        return {}
-
-    def generate(
-        self,
-        params: dict[str, Any] | None = None,
-        seed: int = 42,
-        **resolution_kwargs: Any,
-    ) -> MathObject:
-        vertices = np.array(
-            [[float("nan"), 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
-            dtype=np.float64,
-        )
-        faces = np.array([[0, 1, 2]], dtype=np.int64)
-        return MathObject(
-            mesh=Mesh(vertices=vertices, faces=faces),
-            generator_name="test_invalid",
-        )
-
-
 class _EmptyGenerator(GeneratorBase):
     """Generator that produces a MathObject with no geometry."""
 
@@ -129,6 +104,19 @@ class _EmptyGenerator(GeneratorBase):
         **resolution_kwargs: Any,
     ) -> MathObject:
         return MathObject(generator_name="test_empty")
+
+
+@pytest.fixture
+def run_cube() -> Callable[..., PipelineResult]:
+    """Register CubeGenerator and return a run() wrapper with defaults."""
+    register(_CubeGenerator)
+
+    def _run(**kwargs: Any) -> PipelineResult:
+        kwargs.setdefault("container", _default_container())
+        kwargs.setdefault("placement", _default_placement())
+        return run("test_cube", **kwargs)
+
+    return _run
 
 
 # --- PipelineTimer tests ---
@@ -167,6 +155,18 @@ class TestPipelineTimer:
         assert t1 is not t2
         assert t1 == t2
 
+    def test_duplicate_stage_overwrites(self) -> None:
+        """Duplicate stage name overwrites previous timing."""
+        timer = PipelineTimer()
+        with timer.stage("a"):
+            pass
+        first_time = timer.timings["a"]
+        with timer.stage("a"):
+            _ = sum(range(10000))
+        # Overwrites, doesn't crash
+        assert "a" in timer.timings
+        assert isinstance(timer.timings["a"], float)
+
 
 # --- Pipeline runner tests ---
 
@@ -174,40 +174,35 @@ class TestPipelineTimer:
 class TestPipelineRunner:
     """Test the pipeline runner."""
 
-    def test_full_pipeline_produces_valid_output_and_timing(self) -> None:
+    def test_full_pipeline_produces_valid_output_and_timing(
+        self, run_cube: Callable[..., PipelineResult]
+    ) -> None:
         """Full pipeline with all stages produces valid output and timing."""
-        register(_CubeGenerator)
-        result = run(
-            "test_cube",
-            container=_default_container(),
-            placement=_default_placement(),
+        result = run_cube(
             representation_config=RepresentationConfig(
                 type=RepresentationType.SURFACE_SHELL,
             ),
             sampler_config=SamplerConfig(num_points=100, seed=42),
+            engraving_profile=EngravingProfile(),
         )
         assert isinstance(result, PipelineResult)
         assert result.math_object is not None
         assert result.math_object.point_cloud is not None
         assert isinstance(result.validation, ValidationResult)
-        # Timing should have entries for all stages that ran
         for stage in ("generate", "represent", "transform", "sample", "validate"):
             assert stage in result.timings, f"Missing timing for stage: {stage}"
             assert result.timings[stage] >= 0.0
 
-    def test_pipeline_skips_sampling_when_no_config(self) -> None:
+    def test_pipeline_skips_sampling_when_no_config(
+        self, run_cube: Callable[..., PipelineResult]
+    ) -> None:
         """Pipeline with no sampling config skips sampling stage."""
-        register(_CubeGenerator)
-        result = run(
-            "test_cube",
-            container=_default_container(),
-            placement=_default_placement(),
+        result = run_cube(
             representation_config=RepresentationConfig(
                 type=RepresentationType.SURFACE_SHELL,
             ),
         )
         assert "sample" not in result.timings
-        # Should still have mesh from generate
         assert result.math_object.mesh is not None
 
     def test_validate_or_raise_fires_between_stages(self) -> None:
@@ -220,35 +215,27 @@ class TestPipelineRunner:
                 placement=_default_placement(),
             )
 
-    def test_timing_has_entries_for_ran_stages_only(self) -> None:
+    def test_timing_has_entries_for_ran_stages_only(
+        self, run_cube: Callable[..., PipelineResult]
+    ) -> None:
         """Timing dict has entries for every stage that ran, none for skipped."""
-        register(_CubeGenerator)
-        result = run(
-            "test_cube",
-            container=_default_container(),
-            placement=_default_placement(),
+        result = run_cube(
             representation_config=RepresentationConfig(
                 type=RepresentationType.SURFACE_SHELL,
             ),
         )
-        # Without sampler_config, sample should not appear
         assert "sample" not in result.timings
-        # Without export_config, export should not appear
         assert "export" not in result.timings
-        # These should always be present
         assert "generate" in result.timings
         assert "represent" in result.timings
         assert "transform" in result.timings
         assert "validate" in result.timings
 
-    def test_pipeline_result_includes_math_object_and_validation(self) -> None:
+    def test_pipeline_result_includes_math_object_and_validation(
+        self, run_cube: Callable[..., PipelineResult]
+    ) -> None:
         """Pipeline result includes final MathObject and ValidationResult."""
-        register(_CubeGenerator)
-        result = run(
-            "test_cube",
-            container=_default_container(),
-            placement=_default_placement(),
-        )
+        result = run_cube()
         assert isinstance(result.math_object, MathObject)
         assert isinstance(result.validation, ValidationResult)
 
@@ -262,14 +249,38 @@ class TestPipelineRunner:
         )
         assert result.math_object.generator_name == "test_cube"
 
-    def test_pipeline_uses_default_representation_when_none(self) -> None:
+    def test_pipeline_uses_default_representation_when_none(
+        self, run_cube: Callable[..., PipelineResult]
+    ) -> None:
         """Pipeline uses get_default() when no representation_config given."""
-        register(_CubeGenerator)
-        # No representation_config — should use default (surface_shell fallback)
-        result = run(
-            "test_cube",
-            container=_default_container(),
-            placement=_default_placement(),
-        )
+        result = run_cube()
         assert result.math_object is not None
         assert "represent" in result.timings
+
+    def test_export_path_in_result(
+        self, run_cube: Callable[..., PipelineResult], tmp_path: Any
+    ) -> None:
+        """Export path is included in PipelineResult."""
+        out = tmp_path / "output.stl"
+        result = run_cube(
+            representation_config=RepresentationConfig(
+                type=RepresentationType.SURFACE_SHELL,
+            ),
+            export_config=ExportConfig(path=out, export_type="mesh"),
+        )
+        assert result.export_path == out
+        assert out.exists()
+
+    def test_export_path_none_when_no_export(
+        self, run_cube: Callable[..., PipelineResult]
+    ) -> None:
+        """Export path is None when no export config is provided."""
+        result = run_cube()
+        assert result.export_path is None
+
+    def test_invalid_export_type_raises(self) -> None:
+        """ExportConfig rejects invalid export_type values."""
+        from pathlib import Path
+
+        with pytest.raises(ValueError, match="export_type must be one of"):
+            ExportConfig(path=Path("out.stl"), export_type="msh")
