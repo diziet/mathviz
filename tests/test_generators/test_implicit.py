@@ -37,8 +37,8 @@ _TEST_VOXEL_RESOLUTION = 32
 # ---------------------------------------------------------------------------
 
 
-def test_default_gyroid_non_empty_manifold(gyroid: GyroidGenerator) -> None:
-    """Default gyroid produces a non-empty manifold mesh."""
+def test_default_gyroid_non_empty_mesh(gyroid: GyroidGenerator) -> None:
+    """Default gyroid produces a non-empty valid mesh."""
     obj = gyroid.generate(voxel_resolution=_TEST_VOXEL_RESOLUTION)
     obj.validate_or_raise()
 
@@ -51,8 +51,9 @@ def test_default_gyroid_non_empty_manifold(gyroid: GyroidGenerator) -> None:
         faces=obj.mesh.faces,
         process=False,
     )
-    # Gyroid is a manifold surface (each edge shared by exactly 2 faces)
-    assert tri_mesh.is_volume or len(tri_mesh.faces) > 0
+    # The gyroid is an open surface (intersects the bounding box edges),
+    # so it won't be watertight. Check that it has non-degenerate area.
+    assert tri_mesh.area > 0
 
 
 # ---------------------------------------------------------------------------
@@ -184,6 +185,7 @@ def test_metadata_recorded(gyroid: GyroidGenerator) -> None:
     assert obj.category == "implicit"
     assert obj.parameters["cell_size"] == 1.0
     assert obj.parameters["periods"] == 2
+    assert obj.parameters["voxel_resolution"] == _TEST_VOXEL_RESOLUTION
 
 
 def test_seed_recorded(gyroid: GyroidGenerator) -> None:

@@ -92,6 +92,9 @@ class GyroidGenerator(GeneratorBase):
     Evaluates the gyroid scalar field sin(x)cos(y) + sin(y)cos(z) +
     sin(z)cos(x) on an N³ voxel grid and extracts the isosurface via
     marching cubes. Cost is O(N³) in voxel_resolution.
+
+    Seed has no effect on output; the gyroid is fully deterministic
+    for given cell_size, periods, and voxel_resolution.
     """
 
     name = "gyroid"
@@ -127,6 +130,9 @@ class GyroidGenerator(GeneratorBase):
         )
 
         _validate_params(cell_size, periods, voxel_resolution)
+
+        # Record voxel_resolution so output is self-describing
+        merged["voxel_resolution"] = voxel_resolution
 
         bounds = _compute_bounds(cell_size, periods)
         field = _evaluate_gyroid_field(voxel_resolution, bounds)
