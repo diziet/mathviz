@@ -9,7 +9,7 @@ import logging
 from typing import Any
 
 import numpy as np
-from scipy.special import sph_harm  # type: ignore[import-untyped]
+from scipy.special import sph_harm_y  # type: ignore[import-untyped]
 
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject, Mesh
@@ -32,8 +32,9 @@ def _real_spherical_harmonic(
     """Compute real-valued spherical harmonic Y_l^m(theta, phi).
 
     theta is polar angle [0, pi], phi is azimuthal [0, 2*pi).
+    Uses scipy.special.sph_harm_y(l, m, theta, phi).
     """
-    y_complex = sph_harm(abs(m_ord), l_deg, phi, theta)
+    y_complex = sph_harm_y(l_deg, abs(m_ord), theta, phi)
     if m_ord > 0:
         return np.real(y_complex) * np.sqrt(2)
     if m_ord < 0:

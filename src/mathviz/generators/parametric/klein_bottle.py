@@ -70,8 +70,8 @@ def _validate_params(scale: float, grid_resolution: int) -> None:
 
 def _compute_bounding_box(scale: float) -> BoundingBox:
     """Compute axis-aligned bounding box for the Klein bottle."""
-    xy_extent = scale * 3.0
-    z_extent = scale * 2.0
+    xy_extent = scale * 3.5
+    z_extent = scale * 1.5
     return BoundingBox(
         min_corner=(-xy_extent, -xy_extent, -z_extent),
         max_corner=(xy_extent, xy_extent, z_extent),
