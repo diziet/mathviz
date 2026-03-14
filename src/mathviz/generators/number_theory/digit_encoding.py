@@ -6,7 +6,6 @@ layout. Default representation: WEIGHTED_CLOUD.
 """
 
 import logging
-import math
 from typing import Any
 
 import numpy as np
