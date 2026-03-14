@@ -11,8 +11,9 @@ from typing import Any
 import numpy as np
 
 from mathviz.core.generator import GeneratorBase, register
-from mathviz.core.math_object import BoundingBox, MathObject
+from mathviz.core.math_object import MathObject
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.procedural._utils import compute_heightmap_bounding_box
 from mathviz.generators.procedural.simplex import evaluate_2d_grid
 
 logger = logging.getLogger(__name__)
@@ -56,16 +57,6 @@ def _compute_noise_field(
         seed=seed,
     )
     return field * height_scale
-
-
-def _compute_bounding_box(field: np.ndarray) -> BoundingBox:
-    """Compute bounding box for the noise heightmap."""
-    z_min = float(np.min(field))
-    z_max = float(np.max(field))
-    return BoundingBox(
-        min_corner=(0.0, 0.0, z_min),
-        max_corner=(1.0, 1.0, z_max),
-    )
 
 
 @register
@@ -113,13 +104,13 @@ class NoiseSurfaceGenerator(GeneratorBase):
         merged["pixel_resolution"] = pixel_resolution
 
         field = _compute_noise_field(frequency, height_scale, pixel_resolution, seed)
-        bbox = _compute_bounding_box(field)
+        bbox = compute_heightmap_bounding_box(field)
 
         logger.info(
             "Generated noise_surface: freq=%.2f, height_scale=%.2f, "
             "pixel_res=%d, field_range=[%.4f, %.4f]",
             frequency, height_scale, pixel_resolution,
-            float(np.min(field)), float(np.max(field)),
+            bbox.min_corner[2], bbox.max_corner[2],
         )
 
         return MathObject(

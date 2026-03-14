@@ -54,12 +54,12 @@ def _noise2d_single(x: float, y: float, perm: np.ndarray) -> float:
     jj = j & 255
 
     n = 0.0
-    for dx, dy in [(x0, y0), (x1, y1), (x2, y2)]:
+    for corner_idx, (dx, dy) in enumerate([(x0, y0), (x1, y1), (x2, y2)]):
         t_val = 0.5 - dx * dx - dy * dy
         if t_val > 0:
-            if dx is x0:
+            if corner_idx == 0:
                 gi = perm[ii + perm[jj]] % 8
-            elif dx is x1:
+            elif corner_idx == 1:
                 gi = perm[ii + i1 + perm[jj + j1]] % 8
             else:
                 gi = perm[ii + 1 + perm[jj + 1]] % 8

@@ -12,8 +12,9 @@ import numpy as np
 from numpy.random import default_rng
 
 from mathviz.core.generator import GeneratorBase, register
-from mathviz.core.math_object import BoundingBox, MathObject
+from mathviz.core.math_object import MathObject
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.procedural._utils import compute_heightmap_bounding_box
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,8 @@ def _validate_params(
     diffusion_v: float,
     timesteps: int,
     grid_size: int,
+    dt: float,
+    height_scale: float,
 ) -> None:
     """Validate reaction-diffusion parameters."""
     if feed_rate <= 0:
@@ -47,6 +50,10 @@ def _validate_params(
         raise ValueError(f"diffusion_u must be positive, got {diffusion_u}")
     if diffusion_v <= 0:
         raise ValueError(f"diffusion_v must be positive, got {diffusion_v}")
+    if dt <= 0:
+        raise ValueError(f"dt must be positive, got {dt}")
+    if height_scale <= 0:
+        raise ValueError(f"height_scale must be positive, got {height_scale}")
     if timesteps < _MIN_TIMESTEPS:
         raise ValueError(
             f"timesteps must be >= {_MIN_TIMESTEPS}, got {timesteps}"
@@ -125,16 +132,6 @@ def _run_gray_scott(
     return v
 
 
-def _compute_bounding_box(field: np.ndarray) -> BoundingBox:
-    """Compute bounding box for the reaction-diffusion heightmap."""
-    z_min = float(np.min(field))
-    z_max = float(np.max(field))
-    return BoundingBox(
-        min_corner=(0.0, 0.0, z_min),
-        max_corner=(1.0, 1.0, z_max),
-    )
-
-
 @register
 class ReactionDiffusionGenerator(GeneratorBase):
     """Gray-Scott reaction-diffusion pattern generator.
@@ -188,7 +185,7 @@ class ReactionDiffusionGenerator(GeneratorBase):
 
         _validate_params(
             feed_rate, kill_rate, diffusion_u, diffusion_v,
-            timesteps, grid_size,
+            timesteps, grid_size, dt, height_scale,
         )
 
         merged["grid_size"] = grid_size
@@ -199,13 +196,13 @@ class ReactionDiffusionGenerator(GeneratorBase):
             diffusion_u, diffusion_v, timesteps, dt,
         )
         field = field * height_scale
-        bbox = _compute_bounding_box(field)
+        bbox = compute_heightmap_bounding_box(field)
 
         logger.info(
             "Generated reaction_diffusion: feed=%.4f, kill=%.4f, "
             "steps=%d, grid=%d, field_range=[%.4f, %.4f]",
             feed_rate, kill_rate, timesteps, grid_size,
-            float(np.min(field)), float(np.max(field)),
+            bbox.min_corner[2], bbox.max_corner[2],
         )
 
         return MathObject(

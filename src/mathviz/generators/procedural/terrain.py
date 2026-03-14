@@ -11,8 +11,9 @@ from typing import Any
 import numpy as np
 
 from mathviz.core.generator import GeneratorBase, register
-from mathviz.core.math_object import BoundingBox, MathObject
+from mathviz.core.math_object import MathObject
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.procedural._utils import compute_heightmap_bounding_box
 from mathviz.generators.procedural.simplex import evaluate_2d_grid_octaves
 
 logger = logging.getLogger(__name__)
@@ -83,18 +84,14 @@ def _compute_terrain_field(
         lacunarity=lacunarity,
     )
     # Shift to non-negative range and scale
-    field = (field - field.min()) / (field.max() - field.min() + 1e-12)
+    field_range = float(field.max()) - float(field.min())
+    if field_range < 1e-12:
+        logger.warning(
+            "Terrain field is uniform (range=%.2e); returning flat field", field_range,
+        )
+        return np.zeros_like(field)
+    field = (field - field.min()) / field_range
     return field * height_scale
-
-
-def _compute_bounding_box(field: np.ndarray) -> BoundingBox:
-    """Compute bounding box for the terrain heightmap."""
-    z_min = float(np.min(field))
-    z_max = float(np.max(field))
-    return BoundingBox(
-        min_corner=(0.0, 0.0, z_min),
-        max_corner=(1.0, 1.0, z_max),
-    )
 
 
 @register
@@ -154,13 +151,13 @@ class TerrainGenerator(GeneratorBase):
             octaves, persistence, lacunarity,
             base_frequency, height_scale, pixel_resolution, seed,
         )
-        bbox = _compute_bounding_box(field)
+        bbox = compute_heightmap_bounding_box(field)
 
         logger.info(
             "Generated terrain: octaves=%d, persistence=%.2f, "
             "base_freq=%.2f, pixel_res=%d, field_range=[%.4f, %.4f]",
             octaves, persistence, base_frequency, pixel_resolution,
-            float(np.min(field)), float(np.max(field)),
+            bbox.min_corner[2], bbox.max_corner[2],
         )
 
         return MathObject(
