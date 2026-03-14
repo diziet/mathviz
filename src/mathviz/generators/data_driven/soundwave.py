@@ -1,8 +1,8 @@
 """Soundwave generator from audio files.
 
 Reads a WAV file via scipy.io.wavfile, extracts the amplitude envelope,
-and maps it to a 3D curve or point cloud. The waveform is laid out along
-the x-axis with amplitude on y and optional z modulation.
+and maps it to a 3D curve. The waveform is laid out along the x-axis with
+amplitude on the y-axis.
 """
 
 import logging
@@ -15,6 +15,7 @@ from scipy.io import wavfile
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, Curve, MathObject
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.data_driven._file_utils import validate_input_file
 
 logger = logging.getLogger(__name__)
 
@@ -26,31 +27,19 @@ _MIN_NUM_SAMPLES = 16
 _MAX_NUM_SAMPLES = 65536
 
 
-def _validate_input_file(input_file: str) -> Path:
-    """Validate that the input file exists and has a supported extension."""
-    path = Path(input_file)
-    if not path.exists():
-        raise FileNotFoundError(f"Input file not found: {input_file}")
-    suffix = path.suffix.lower()
-    if suffix not in _SUPPORTED_EXTENSIONS:
-        raise ValueError(
-            f"Unsupported file format '{suffix}'. "
-            f"Supported formats: {sorted(_SUPPORTED_EXTENSIONS)}"
-        )
-    return path
-
-
 def _load_wav(path: Path) -> tuple[int, np.ndarray]:
     """Load a WAV file and return (sample_rate, mono_samples)."""
     sample_rate, data = wavfile.read(str(path))
 
-    # Convert to float64
+    # Convert to float64 in [-1, 1] range
     if data.dtype.kind == "i":
         max_val = float(np.iinfo(data.dtype).max)
         data = data.astype(np.float64) / max_val
     elif data.dtype.kind == "u":
-        max_val = float(np.iinfo(data.dtype).max)
-        data = data.astype(np.float64) / max_val * 2.0 - 1.0
+        # Unsigned: midpoint is at half of max+1 (e.g. 128 for uint8)
+        bits = data.dtype.itemsize * 8
+        midpoint = 2 ** (bits - 1)
+        data = (data.astype(np.float64) - midpoint) / midpoint
     else:
         data = data.astype(np.float64)
 
@@ -62,21 +51,22 @@ def _load_wav(path: Path) -> tuple[int, np.ndarray]:
 
 
 def _compute_envelope(samples: np.ndarray, num_output: int) -> np.ndarray:
-    """Compute amplitude envelope by chunking and taking max absolute value."""
+    """Compute amplitude envelope by chunking and taking max absolute value.
+
+    Uses np.array_split to distribute all samples evenly across chunks,
+    ensuring no trailing samples are discarded.
+    """
     total = len(samples)
     if total <= num_output:
-        # Not enough samples to chunk — use absolute values directly
+        # Not enough samples to chunk — interpolate to desired length
         envelope = np.abs(samples)
-        # Pad or interpolate to desired length
         x_orig = np.linspace(0, 1, len(envelope))
         x_new = np.linspace(0, 1, num_output)
         envelope = np.interp(x_new, x_orig, envelope)
         return envelope
 
-    chunk_size = total // num_output
-    trimmed = samples[: chunk_size * num_output]
-    chunks = trimmed.reshape(num_output, chunk_size)
-    return np.max(np.abs(chunks), axis=1)
+    chunks = np.array_split(samples, num_output)
+    return np.array([np.max(np.abs(chunk)) for chunk in chunks])
 
 
 def _build_waveform_curve(
@@ -98,7 +88,8 @@ class SoundwaveGenerator(GeneratorBase):
 
     Extracts the amplitude envelope from an audio file and maps it to
     a 3D curve. The waveform extends along the x-axis with amplitude
-    on the y-axis.
+    on the y-axis. The seed parameter is accepted for interface conformance
+    but unused — output is fully determined by the input file.
     """
 
     name = "soundwave"
@@ -123,7 +114,11 @@ class SoundwaveGenerator(GeneratorBase):
         seed: int = 42,
         **resolution_kwargs: Any,
     ) -> MathObject:
-        """Generate a 3D waveform curve from a WAV file."""
+        """Generate a 3D waveform curve from a WAV file.
+
+        The seed parameter is accepted for interface conformance but does
+        not affect output — the result is fully determined by the input file.
+        """
         merged = self.get_default_params()
         if params:
             merged.update(params)
@@ -152,7 +147,7 @@ class SoundwaveGenerator(GeneratorBase):
                 f"num_samples must be <= {_MAX_NUM_SAMPLES}, got {num_samples}"
             )
 
-        path = _validate_input_file(input_file)
+        path = validate_input_file(input_file, _SUPPORTED_EXTENSIONS)
         sample_rate, samples = _load_wav(path)
         merged["num_samples"] = num_samples
         merged["sample_rate"] = sample_rate

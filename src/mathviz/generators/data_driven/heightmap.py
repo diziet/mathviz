@@ -14,6 +14,7 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.data_driven._file_utils import validate_input_file
 
 logger = logging.getLogger(__name__)
 
@@ -25,27 +26,10 @@ _MAX_PIXEL_DIMENSION = 4096
 _MIN_PIXEL_DIMENSION = 2
 
 
-def _validate_input_file(input_file: str) -> Path:
-    """Validate that the input file exists and has a supported extension."""
-    path = Path(input_file)
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Input file not found: {input_file}"
-        )
-    suffix = path.suffix.lower()
-    all_supported = _SUPPORTED_IMAGE_EXTENSIONS | _SUPPORTED_GEOTIFF_EXTENSIONS
-    if suffix not in all_supported:
-        raise ValueError(
-            f"Unsupported file format '{suffix}'. "
-            f"Supported formats: {sorted(all_supported)}"
-        )
-    return path
-
-
 def _try_load_geotiff(path: Path) -> np.ndarray | None:
     """Attempt to load a GeoTIFF via rasterio. Returns None if unavailable."""
     try:
-        import rasterio  # noqa: F401
+        import rasterio
     except ImportError:
         return None
 
@@ -57,7 +41,11 @@ def _try_load_geotiff(path: Path) -> np.ndarray | None:
         with rasterio.open(path) as dataset:
             band = dataset.read(1).astype(np.float64)
             return band
-    except Exception:
+    except rasterio.errors.RasterioIOError:
+        logger.warning(
+            "rasterio failed to open %s, falling back to PIL", path,
+            exc_info=True,
+        )
         return None
 
 
@@ -71,7 +59,7 @@ def _load_image_as_array(path: Path) -> np.ndarray:
 
 
 def _validate_dimensions(arr: np.ndarray) -> None:
-    """Validate that image dimensions are reasonable."""
+    """Validate that field dimensions are reasonable after processing."""
     if arr.ndim != 2:
         raise ValueError(
             f"Expected 2D array from image, got shape {arr.shape}"
@@ -84,7 +72,7 @@ def _validate_dimensions(arr: np.ndarray) -> None:
         )
     if height > _MAX_PIXEL_DIMENSION or width > _MAX_PIXEL_DIMENSION:
         raise ValueError(
-            f"Image too large: {width}x{height}, "
+            f"Image too large after downsampling: {width}x{height}, "
             f"maximum is {_MAX_PIXEL_DIMENSION}x{_MAX_PIXEL_DIMENSION}"
         )
 
@@ -108,13 +96,27 @@ def _normalize_and_scale(arr: np.ndarray, height_scale: float) -> np.ndarray:
     return normalized * height_scale
 
 
+def _compute_aspect_bbox(field: np.ndarray, z_min: float, z_max: float) -> BoundingBox:
+    """Compute bounding box preserving image aspect ratio in XY."""
+    height, width = field.shape
+    max_dim = max(width, height)
+    x_extent = width / max_dim
+    y_extent = height / max_dim
+    return BoundingBox(
+        min_corner=(0.0, 0.0, z_min),
+        max_corner=(x_extent, y_extent, z_max),
+    )
+
+
 @register
 class HeightmapGenerator(GeneratorBase):
     """Heightmap from image or GeoTIFF file.
 
     Reads pixel luminance from an image file and produces a scalar field
     for HEIGHTMAP_RELIEF representation. Supports PNG, JPEG, BMP, and
-    optionally GeoTIFF (requires rasterio).
+    optionally GeoTIFF (requires rasterio). The seed parameter is accepted
+    for interface conformance but unused — output is fully determined by
+    the input file.
     """
 
     name = "heightmap"
@@ -137,7 +139,11 @@ class HeightmapGenerator(GeneratorBase):
         seed: int = 42,
         **resolution_kwargs: Any,
     ) -> MathObject:
-        """Generate a heightmap scalar field from an image file."""
+        """Generate a heightmap scalar field from an image file.
+
+        The seed parameter is accepted for interface conformance but does
+        not affect output — the result is fully determined by the input file.
+        """
         merged = self.get_default_params()
         if params:
             merged.update(params)
@@ -153,23 +159,23 @@ class HeightmapGenerator(GeneratorBase):
         if downsample < 1:
             raise ValueError(f"downsample must be >= 1, got {downsample}")
 
-        path = _validate_input_file(input_file)
+        all_supported = _SUPPORTED_IMAGE_EXTENSIONS | _SUPPORTED_GEOTIFF_EXTENSIONS
+        path = validate_input_file(input_file, all_supported)
 
         # Try GeoTIFF first, fall back to PIL
         arr = _try_load_geotiff(path)
         if arr is None:
             arr = _load_image_as_array(path)
 
-        _validate_dimensions(arr)
+        # Downsample before dimension validation so large images with high
+        # downsample factors are not unnecessarily rejected.
         arr = _downsample(arr, downsample)
+        _validate_dimensions(arr)
         field = _normalize_and_scale(arr, height_scale)
 
         z_min = float(field.min())
         z_max = float(field.max())
-        bbox = BoundingBox(
-            min_corner=(0.0, 0.0, z_min),
-            max_corner=(1.0, 1.0, z_max),
-        )
+        bbox = _compute_aspect_bbox(field, z_min, z_max)
 
         logger.info(
             "Generated heightmap: file=%s, shape=%s, z_range=[%.4f, %.4f]",

@@ -278,10 +278,15 @@ def test_soundwave_representation() -> None:
 
 def test_missing_input_file_raises_error() -> None:
     """Missing input file raises a clear error before any computation."""
-    for gen_cls in [HeightmapGenerator, BuildingExtrudeGenerator, SoundwaveGenerator]:
+    cases = [
+        (HeightmapGenerator, "/nonexistent/file.png"),
+        (BuildingExtrudeGenerator, "/nonexistent/file.geojson"),
+        (SoundwaveGenerator, "/nonexistent/file.wav"),
+    ]
+    for gen_cls, path in cases:
         gen = gen_cls()
         with pytest.raises(FileNotFoundError, match="Input file not found"):
-            gen.generate(params={"input_file": "/nonexistent/file.png"})
+            gen.generate(params={"input_file": path})
 
 
 def test_unsupported_format_raises_error(tmp_path: Path) -> None:

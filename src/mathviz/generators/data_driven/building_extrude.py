@@ -15,26 +15,13 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.data_driven._file_utils import validate_input_file
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_HEIGHT = 1.0
 _DEFAULT_HEIGHT_PROPERTY = "height"
 _SUPPORTED_EXTENSIONS = {".geojson", ".json"}
-
-
-def _validate_input_file(input_file: str) -> Path:
-    """Validate that the input file exists and has a supported extension."""
-    path = Path(input_file)
-    if not path.exists():
-        raise FileNotFoundError(f"Input file not found: {input_file}")
-    suffix = path.suffix.lower()
-    if suffix not in _SUPPORTED_EXTENSIONS:
-        raise ValueError(
-            f"Unsupported file format '{suffix}'. "
-            f"Supported formats: {sorted(_SUPPORTED_EXTENSIONS)}"
-        )
-    return path
 
 
 def _load_geojson(path: Path) -> dict:
@@ -67,7 +54,10 @@ def _extract_polygons(data: dict, height_property: str, default_height: float) -
             _extract_from_feature(data, height_property, default_height)
         )
     elif geojson_type == "Polygon":
-        polygons.append((data["coordinates"][0], default_height))
+        coordinates = data.get("coordinates")
+        if not coordinates:
+            raise ValueError("Polygon is missing 'coordinates' key")
+        polygons.append((coordinates[0], default_height))
 
     if not polygons:
         raise ValueError("No polygons found in GeoJSON file")
@@ -80,7 +70,13 @@ def _extract_from_feature(
     """Extract polygons from a single GeoJSON Feature."""
     geometry = feature.get("geometry", {})
     properties = feature.get("properties", {}) or {}
-    height = float(properties.get(height_property, default_height))
+    raw_height = properties.get(height_property, default_height)
+    height = float(raw_height)
+    if height <= 0:
+        raise ValueError(
+            f"Feature height must be positive, got {height} "
+            f"(from property '{height_property}')"
+        )
     geo_type = geometry.get("type", "")
 
     results: list[tuple[list, float]] = []
@@ -158,7 +154,8 @@ class BuildingExtrudeGenerator(GeneratorBase):
 
     Reads polygon geometries from a GeoJSON file and extrudes each one
     vertically. Height can be specified per-feature via a property field
-    or as a global default.
+    or as a global default. The seed parameter is accepted for interface
+    conformance but unused — output is fully determined by the input file.
     """
 
     name = "building_extrude"
@@ -181,7 +178,11 @@ class BuildingExtrudeGenerator(GeneratorBase):
         seed: int = 42,
         **resolution_kwargs: Any,
     ) -> MathObject:
-        """Generate extruded building meshes from a GeoJSON file."""
+        """Generate extruded building meshes from a GeoJSON file.
+
+        The seed parameter is accepted for interface conformance but does
+        not affect output — the result is fully determined by the input file.
+        """
         merged = self.get_default_params()
         if params:
             merged.update(params)
@@ -197,7 +198,7 @@ class BuildingExtrudeGenerator(GeneratorBase):
                 f"default_height must be positive, got {default_height}"
             )
 
-        path = _validate_input_file(input_file)
+        path = validate_input_file(input_file, _SUPPORTED_EXTENSIONS)
         data = _load_geojson(path)
         polygons = _extract_polygons(data, height_property, default_height)
 
