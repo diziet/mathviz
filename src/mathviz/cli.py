@@ -293,6 +293,65 @@ def validate(
     raise typer.Exit(code=exit_code)
 
 
+@app.command()
+def preview(
+    target: str = typer.Argument(help="Generator name or file path to preview"),
+    param: Optional[list[str]] = typer.Option(None, "--param", help="key=value parameter"),
+    seed: int = typer.Option(42, "--seed", help="Random seed"),
+    port: int = typer.Option(8000, "--port", help="Server port"),
+    no_open: bool = typer.Option(False, "--no-open", help="Don't open browser"),
+    verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
+    quiet: bool = typer.Option(False, "--quiet", help="Suppress non-error output"),
+) -> None:
+    """Start the preview server for a generator or file."""
+    _configure_logging(verbose, quiet)
+    _run_preview_server(target, param or [], seed, port, no_open, quiet)
+
+
+def _run_preview_server(
+    target: str,
+    param_list: list[str],
+    seed: int,
+    port: int,
+    no_open: bool,
+    quiet: bool,
+) -> None:
+    """Start uvicorn and optionally open browser."""
+    import uvicorn
+
+    from mathviz.preview.server import set_served_file
+
+    target_path = Path(target)
+    is_file = target_path.is_file()
+
+    if is_file:
+        set_served_file(str(target_path.resolve()))
+        query = f"?file={target_path.resolve()}"
+    else:
+        params = _parse_params(param_list)
+        parts = [f"generator={target}", f"seed={seed}"]
+        parts.extend(f"{k}={v}" for k, v in params.items())
+        query = "?" + "&".join(parts)
+
+    url = f"http://127.0.0.1:{port}/{query}"
+
+    if not no_open:
+        import webbrowser
+
+        webbrowser.open(url)
+
+    if not quiet:
+        console.print(f"[bold green]Preview:[/bold green] {url}")
+        console.print("Press Ctrl+C to stop the server.")
+
+    uvicorn.run(
+        "mathviz.preview.server:app",
+        host="127.0.0.1",
+        port=port,
+        log_level="warning" if quiet else "info",
+    )
+
+
 def main() -> None:
     """Entry point for the CLI."""
     app()
