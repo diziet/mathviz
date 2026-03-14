@@ -13,7 +13,6 @@ import pytest
 
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import clear_registry, register
-from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.generators.attractors.lorenz import LorenzGenerator
 from mathviz.generators.curves.lissajous_curve import LissajousCurveGenerator
 from mathviz.generators.fractals.mandelbulb import MandelbulbGenerator
@@ -22,6 +21,8 @@ from mathviz.generators.knots.torus_knot import TorusKnotGenerator
 from mathviz.generators.number_theory.ulam_spiral import UlamSpiralGenerator
 from mathviz.generators.parametric.torus import TorusGenerator
 from mathviz.pipeline.runner import run
+
+from fixtures.specs import FIXTURE_SPECS, SEED
 
 _GENERATOR_CLASSES = [
     TorusGenerator,
@@ -33,6 +34,22 @@ _GENERATOR_CLASSES = [
     LissajousCurveGenerator,
 ]
 
+FIXTURES_DIR = Path(__file__).parent.parent / "fixtures"
+REFERENCE_SUMMARY_PATH = FIXTURES_DIR / "reference_summary.json"
+VERTEX_COUNT_TOLERANCE = 0.01  # ±1%
+BOUNDING_BOX_EPSILON = 1e-6
+
+# Skip entire module if reference fixtures haven't been generated
+if not REFERENCE_SUMMARY_PATH.exists():
+    pytest.skip(
+        "reference fixtures not generated — run fixtures/generate_fixtures.py first",
+        allow_module_level=True,
+    )
+
+REFERENCE: dict[str, Any] = json.loads(
+    REFERENCE_SUMMARY_PATH.read_text(encoding="utf-8")
+)
+
 
 @pytest.fixture(autouse=True)
 def _ensure_full_registry():
@@ -43,55 +60,10 @@ def _ensure_full_registry():
     yield
     clear_registry(suppress_discovery=True)
 
-FIXTURES_DIR = Path(__file__).parent.parent / "fixtures"
-REFERENCE_SUMMARY_PATH = FIXTURES_DIR / "reference_summary.json"
-SEED = 42
-VERTEX_COUNT_TOLERANCE = 0.01  # ±1%
-BOUNDING_BOX_EPSILON = 1e-6
-
-
-def _load_reference_summary() -> dict[str, Any]:
-    """Load the reference summary JSON."""
-    return json.loads(REFERENCE_SUMMARY_PATH.read_text(encoding="utf-8"))
-
-
-REFERENCE = _load_reference_summary()
-
-# Generator specs: maps name to low-res kwargs and optional representation
-GENERATOR_SPECS: dict[str, dict[str, Any]] = {
-    "torus": {
-        "resolution_kwargs": {"grid_resolution": 16},
-    },
-    "gyroid": {
-        "resolution_kwargs": {"voxel_resolution": 16},
-    },
-    "lorenz": {
-        "resolution_kwargs": {"integration_steps": 2000},
-    },
-    "mandelbulb": {
-        "resolution_kwargs": {"voxel_resolution": 16},
-    },
-    "torus_knot": {
-        "resolution_kwargs": {"curve_points": 64},
-    },
-    "ulam_spiral": {
-        "resolution_kwargs": {"num_points": 200},
-        "representation": RepresentationConfig(
-            type=RepresentationType.WEIGHTED_CLOUD,
-        ),
-    },
-    "lissajous_curve": {
-        "resolution_kwargs": {"curve_points": 64},
-        "representation": RepresentationConfig(
-            type=RepresentationType.TUBE, tube_radius=0.05,
-        ),
-    },
-}
-
 
 def _run_generator(name: str, seed: int = SEED) -> Any:
     """Run a generator through the pipeline and return the PipelineResult."""
-    spec = GENERATOR_SPECS[name]
+    spec = FIXTURE_SPECS[name]
     return run(
         generator=name,
         seed=seed,
@@ -100,6 +72,17 @@ def _run_generator(name: str, seed: int = SEED) -> Any:
         placement=PlacementPolicy(),
         representation_config=spec.get("representation"),
     )
+
+
+# Module-level cache: run each generator once, reuse across all tests.
+_RESULT_CACHE: dict[str, Any] = {}
+
+
+def _get_cached_result(name: str) -> Any:
+    """Return cached pipeline result, running the generator on first access."""
+    if name not in _RESULT_CACHE:
+        _RESULT_CACHE[name] = _run_generator(name)
+    return _RESULT_CACHE[name]
 
 
 def _get_geometry_count(result: Any) -> int:
@@ -119,7 +102,7 @@ def _get_ref_count(ref: dict) -> int:
     return ref["point_count"]
 
 
-@pytest.fixture(params=list(GENERATOR_SPECS.keys()))
+@pytest.fixture(params=list(FIXTURE_SPECS.keys()))
 def generator_name(request: pytest.FixtureRequest) -> str:
     """Parametrize over all fixture generators."""
     return request.param
@@ -131,7 +114,7 @@ class TestFixtureVertexCount:
     def test_count_within_tolerance(self, generator_name: str) -> None:
         """Regenerated vertex/point count is within ±1% of reference."""
         ref = REFERENCE[generator_name]
-        result = _run_generator(generator_name)
+        result = _get_cached_result(generator_name)
         actual_count = _get_geometry_count(result)
         expected_count = _get_ref_count(ref)
 
@@ -148,7 +131,7 @@ class TestFixtureBoundingBox:
     def test_bounding_box_within_epsilon(self, generator_name: str) -> None:
         """Regenerated bounding box matches reference within ε."""
         ref = REFERENCE[generator_name]
-        result = _run_generator(generator_name)
+        result = _get_cached_result(generator_name)
         obj = result.math_object
 
         assert obj.bounding_box is not None, (
@@ -178,13 +161,13 @@ class TestFixtureMetadata:
     def test_generator_name_matches(self, generator_name: str) -> None:
         """Regenerated generator_name matches reference exactly."""
         ref = REFERENCE[generator_name]
-        result = _run_generator(generator_name)
+        result = _get_cached_result(generator_name)
         assert result.math_object.generator_name == ref["generator_name"]
 
     def test_seed_matches(self, generator_name: str) -> None:
         """Regenerated seed matches reference exactly."""
         ref = REFERENCE[generator_name]
-        result = _run_generator(generator_name)
+        result = _get_cached_result(generator_name)
         assert result.math_object.seed == ref["seed"]
 
 
@@ -192,7 +175,14 @@ class TestFixtureSanity:
     """Sanity checks that verify the tests actually detect mismatches."""
 
     def test_wrong_seed_produces_mismatch(self) -> None:
-        """A deliberately wrong seed produces different output for lorenz."""
+        """A deliberately wrong seed produces different output for lorenz.
+
+        The lorenz generator uses seed to perturb the initial condition
+        (see LorenzGenerator.generate: rng.normal(scale=1e-3, size=3)),
+        so different seeds produce divergent trajectories and different
+        bounding boxes. This validates our comparison logic actually
+        catches real differences.
+        """
         ref = REFERENCE["lorenz"]
         result_wrong_seed = _run_generator("lorenz", seed=99)
         obj = result_wrong_seed.math_object

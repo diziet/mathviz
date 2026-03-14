@@ -8,76 +8,31 @@ with seed=42 to keep fixture files small and generation fast.
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 from mathviz.core.container import Container, PlacementPolicy
-from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.pipeline.runner import ExportConfig, run
+
+from fixtures.specs import FIXTURE_SPECS, SEED
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 FIXTURES_DIR = Path(__file__).parent
-SEED = 42
 
-# One generator per category with low-resolution settings
-FIXTURE_SPECS: list[dict] = [
-    {
-        "name": "torus",
-        "category": "parametric",
-        "resolution_kwargs": {"grid_resolution": 16},
-        "export_type": "mesh",
-        "export_ext": ".stl",
-    },
-    {
-        "name": "gyroid",
-        "category": "implicit",
-        "resolution_kwargs": {"voxel_resolution": 16},
-        "export_type": "mesh",
-        "export_ext": ".stl",
-    },
-    {
-        "name": "lorenz",
-        "category": "attractors",
-        "resolution_kwargs": {"integration_steps": 2000},
-        "export_type": "mesh",
-        "export_ext": ".stl",
-    },
-    {
-        "name": "mandelbulb",
-        "category": "fractals",
-        "resolution_kwargs": {"voxel_resolution": 16},
-        "export_type": "mesh",
-        "export_ext": ".stl",
-    },
-    {
-        "name": "torus_knot",
-        "category": "knots",
-        "resolution_kwargs": {"curve_points": 64},
-        "export_type": "mesh",
-        "export_ext": ".stl",
-    },
-    {
-        "name": "ulam_spiral",
-        "category": "number_theory",
-        "resolution_kwargs": {"num_points": 200},
-        "export_type": "point_cloud",
-        "export_ext": ".ply",
-        "representation": RepresentationConfig(type=RepresentationType.WEIGHTED_CLOUD),
-    },
-    {
-        "name": "lissajous_curve",
-        "category": "curves",
-        "resolution_kwargs": {"curve_points": 64},
-        "export_type": "mesh",
-        "export_ext": ".stl",
-        "representation": RepresentationConfig(
-            type=RepresentationType.TUBE, tube_radius=0.05,
-        ),
-    },
-]
+# Export-specific settings layered on top of shared specs
+_EXPORT_SETTINGS: dict[str, dict[str, str]] = {
+    "torus": {"export_type": "mesh", "export_ext": ".stl"},
+    "gyroid": {"export_type": "mesh", "export_ext": ".stl"},
+    "lorenz": {"export_type": "mesh", "export_ext": ".stl"},
+    "mandelbulb": {"export_type": "mesh", "export_ext": ".stl"},
+    "torus_knot": {"export_type": "mesh", "export_ext": ".stl"},
+    "ulam_spiral": {"export_type": "point_cloud", "export_ext": ".ply"},
+    "lissajous_curve": {"export_type": "mesh", "export_ext": ".stl"},
+}
 
 
-def _build_summary(result, spec: dict) -> dict:
+def _build_summary(result: Any) -> dict:
     """Build a summary dict with counts and bounding box for a pipeline result."""
     obj = result.math_object
     summary: dict = {
@@ -108,14 +63,14 @@ def generate_all() -> None:
     placement = PlacementPolicy()
     all_summaries: dict[str, dict] = {}
 
-    for spec in FIXTURE_SPECS:
-        name = spec["name"]
+    for name, spec in FIXTURE_SPECS.items():
         logger.info("Generating fixture: %s", name)
 
-        export_path = FIXTURES_DIR / f"{name}{spec['export_ext']}"
+        export_settings = _EXPORT_SETTINGS[name]
+        export_path = FIXTURES_DIR / f"{name}{export_settings['export_ext']}"
         export_config = ExportConfig(
             path=export_path,
-            export_type=spec["export_type"],
+            export_type=export_settings["export_type"],
         )
 
         rep_config = spec.get("representation")
@@ -130,12 +85,12 @@ def generate_all() -> None:
             export_config=export_config,
         )
 
-        all_summaries[name] = _build_summary(result, spec)
+        all_summaries[name] = _build_summary(result)
         logger.info("  -> %s written", export_path)
 
     summary_path = FIXTURES_DIR / "reference_summary.json"
     summary_path.write_text(
-        json.dumps(all_summaries, indent=2, default=str),
+        json.dumps(all_summaries, indent=2, default=str) + "\n",
         encoding="utf-8",
     )
     logger.info("Reference summary written to %s", summary_path)
