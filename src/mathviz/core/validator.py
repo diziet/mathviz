@@ -82,8 +82,9 @@ def validate_engraving(
     result = ValidationResult()
 
     _check_point_budget(cloud, profile, result)
-    _check_min_spacing(cloud, profile, result)
-    _check_max_gap(cloud, profile, result)
+    nearest = _compute_nearest_distances(cloud.points) if len(cloud.points) >= 2 else None
+    _check_min_spacing(profile, result, nearest)
+    _check_max_gap(profile, result, nearest)
     _check_opacity(cloud, result)
     if container is not None:
         _check_points_in_container(cloud, container, result)
@@ -94,6 +95,13 @@ def validate_engraving(
         result.passed,
     )
     return result
+
+
+def _compute_nearest_distances(points: np.ndarray) -> np.ndarray:
+    """Return nearest-neighbor distance for each point."""
+    tree = cKDTree(points)
+    distances, _ = tree.query(points, k=2)
+    return distances[:, 1]
 
 
 # --- Mesh check helpers ---
@@ -161,19 +169,16 @@ def _check_degenerate_faces(tm: trimesh.Trimesh, result: ValidationResult) -> No
 
 
 def _check_normals(mesh: Mesh, tm: trimesh.Trimesh, result: ValidationResult) -> None:
-    """Check face normals consistency."""
-    if mesh.normals is None and len(tm.faces) == 0:
+    """Check for NaN values in supplied normals."""
+    if mesh.normals is None:
+        msg = "No normals to check" if len(tm.faces) == 0 else "No normals provided (optional)"
+        result.checks.append(CheckResult("normals", True, Severity.INFO, msg))
+        return
+    if bool(np.any(np.isnan(mesh.normals))):
         result.checks.append(
-            CheckResult("normals", True, Severity.INFO, "No normals to check")
+            CheckResult("normals", False, Severity.ERROR, "Normals contain NaN values")
         )
         return
-    if mesh.normals is not None:
-        has_nan = bool(np.any(np.isnan(mesh.normals)))
-        if has_nan:
-            result.checks.append(
-                CheckResult("normals", False, Severity.ERROR, "Normals contain NaN values")
-            )
-            return
     result.checks.append(CheckResult("normals", True, Severity.INFO, "Normals OK"))
 
 
@@ -211,17 +216,16 @@ def _check_point_budget(
 
 
 def _check_min_spacing(
-    cloud: PointCloud, profile: EngravingProfile, result: ValidationResult
+    profile: EngravingProfile,
+    result: ValidationResult,
+    nearest: np.ndarray | None,
 ) -> None:
-    """Check minimum spacing between points using KDTree nearest neighbor."""
-    if len(cloud.points) < 2:
+    """Check minimum spacing between points using precomputed nearest distances."""
+    if nearest is None:
         result.checks.append(
             CheckResult("min_spacing", True, Severity.INFO, "Too few points to check spacing")
         )
         return
-    tree = cKDTree(cloud.points)
-    distances, _ = tree.query(cloud.points, k=2)
-    nearest = distances[:, 1]
     min_dist = float(np.min(nearest))
     if min_dist >= profile.min_point_spacing_mm:
         result.checks.append(
@@ -244,17 +248,16 @@ def _check_min_spacing(
 
 
 def _check_max_gap(
-    cloud: PointCloud, profile: EngravingProfile, result: ValidationResult
+    profile: EngravingProfile,
+    result: ValidationResult,
+    nearest: np.ndarray | None,
 ) -> None:
     """Check for gaps exceeding max spacing."""
-    if len(cloud.points) < 2:
+    if nearest is None:
         result.checks.append(
             CheckResult("max_gap", True, Severity.INFO, "Too few points to check gap")
         )
         return
-    tree = cKDTree(cloud.points)
-    distances, _ = tree.query(cloud.points, k=2)
-    nearest = distances[:, 1]
     max_nearest = float(np.max(nearest))
     if max_nearest <= profile.max_point_spacing_mm:
         result.checks.append(
@@ -314,7 +317,7 @@ def _compute_projection_density(points_2d: np.ndarray) -> float:
     maxs = points_2d.max(axis=0)
     ranges = maxs - mins
     if np.any(ranges < 1e-12):
-        return 1.0
+        return 0.0
 
     # Estimate grid resolution from unique projected point count
     unique_count = len(np.unique(points_2d, axis=0))
@@ -341,6 +344,12 @@ def _check_geometry_in_container(
     result: ValidationResult,
 ) -> None:
     """Check that all points fit within the container's usable volume."""
+    if len(points) == 0:
+        result.checks.append(
+            CheckResult("container_bounds", True, Severity.INFO, f"{label} has no points to check")
+        )
+        return
+
     usable = container.usable_volume
     half_extents = np.array([usable[0] / 2, usable[1] / 2, usable[2] / 2])
 
