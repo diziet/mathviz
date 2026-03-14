@@ -21,6 +21,9 @@ dependencies = [
     "uvicorn>=0.32.0",
 ]
 
+[project.scripts]
+mathviz = "mathviz.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3.3",
@@ -39,3 +42,4 @@ select = ["E", "F", "I", "W"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
