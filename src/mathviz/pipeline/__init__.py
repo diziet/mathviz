@@ -1,1 +1,1 @@
-"""Pipeline stages: transformer, sampler, optimizer."""
+"""Pipeline stages: transformer, sampler, optimizer, exporters."""
