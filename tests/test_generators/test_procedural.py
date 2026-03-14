@@ -25,7 +25,7 @@ def _clean_registry():
 
 _TEST_PIXEL_RESOLUTION = 32
 _TEST_GRID_SIZE = 32
-_TEST_TIMESTEPS = 500
+_TEST_TIMESTEPS = 2000
 
 
 # ---------------------------------------------------------------------------

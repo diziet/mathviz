@@ -17,8 +17,8 @@ from mathviz.core.representation import RepresentationConfig, RepresentationType
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_FEED_RATE = 0.055
-_DEFAULT_KILL_RATE = 0.062
+_DEFAULT_FEED_RATE = 0.035
+_DEFAULT_KILL_RATE = 0.065
 _DEFAULT_DIFFUSION_U = 0.16
 _DEFAULT_DIFFUSION_V = 0.08
 _DEFAULT_TIMESTEPS = 5000
@@ -84,7 +84,7 @@ def _init_concentrations(
 
     # Add seed-controlled square perturbations
     num_seeds = rng.integers(3, 8)
-    patch_size = max(2, grid_size // 10)
+    patch_size = max(4, grid_size // 8)
 
     for _ in range(num_seeds):
         cx = rng.integers(patch_size, grid_size - patch_size)
