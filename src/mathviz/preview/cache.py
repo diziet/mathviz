@@ -4,7 +4,7 @@ import hashlib
 import json
 import logging
 from collections import OrderedDict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from mathviz.core.math_object import MathObject

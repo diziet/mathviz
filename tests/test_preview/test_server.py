@@ -1,28 +1,38 @@
 """Tests for the FastAPI preview server."""
 
+import io
 import time
 from typing import Any
-from unittest.mock import patch
 
 import numpy as np
 import pytest
+import trimesh
 from fastapi.testclient import TestClient
 
-from mathviz.core.generator import GeneratorBase, clear_registry, register
-from mathviz.core.math_object import MathObject, Mesh, PointCloud
-from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.core.generator import register
+from mathviz.core.math_object import MathObject, Mesh
+from mathviz.generators.parametric.torus import TorusGenerator
 from mathviz.preview.cache import GeometryCache, compute_cache_key
-from mathviz.preview.lod import PREVIEW_MAX_FACES, PREVIEW_MAX_POINTS
+from mathviz.preview.lod import PREVIEW_MAX_FACES
 from mathviz.preview.server import app, reset_cache
+
+
+def _ensure_torus_registered() -> None:
+    """Re-register the torus generator if missing from the registry."""
+    import mathviz.core.generator as gen_mod
+
+    if "torus" not in gen_mod._alias_map:
+        gen_mod._discovered = True
+        register(TorusGenerator)
 
 
 # --- Fixtures ---
 
 
 @pytest.fixture(autouse=True)
-def _clean_state() -> None:
-    """Reset registry and cache before each test."""
-    clear_registry(suppress_discovery=False)
+def _ensure_generators() -> None:
+    """Ensure real generators are registered and cache is clean."""
+    _ensure_torus_registered()
     reset_cache()
 
 
@@ -196,8 +206,6 @@ class TestLodConstraints:
         resp = client.get(f"/api/geometry/{gid}/mesh?lod=preview")
         assert resp.status_code == 200
         # Verify via trimesh that the result has <= 100K faces
-        import io
-        import trimesh
         scene_or_mesh = trimesh.load(io.BytesIO(resp.content), file_type="glb")
         if isinstance(scene_or_mesh, trimesh.Scene):
             total_faces = sum(
