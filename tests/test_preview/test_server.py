@@ -1,8 +1,8 @@
 """Tests for the FastAPI preview server."""
 
 import io
-import time
 from typing import Any
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -14,7 +14,7 @@ from mathviz.core.math_object import MathObject, Mesh
 from mathviz.generators.parametric.torus import TorusGenerator
 from mathviz.preview.cache import GeometryCache, compute_cache_key
 from mathviz.preview.lod import PREVIEW_MAX_FACES
-from mathviz.preview.server import app, reset_cache
+from mathviz.preview.server import app, get_cache, reset_cache
 
 
 def _ensure_torus_registered() -> None:
@@ -122,7 +122,7 @@ class TestGenerate:
         assert "not found" in resp.json()["detail"].lower()
 
     def test_cache_hit_on_second_call(self, client: TestClient) -> None:
-        """Same generation request hits cache on second call (faster response)."""
+        """Same generation request hits cache on second call (no re-generation)."""
         payload = {
             "generator": "torus",
             "params": {"major_radius": 1.0, "minor_radius": 0.4},
@@ -130,19 +130,17 @@ class TestGenerate:
             "resolution": {"grid_resolution": 16},
         }
 
-        start = time.monotonic()
         resp1 = client.post("/api/generate", json=payload)
-        first_duration = time.monotonic() - start
-
-        start = time.monotonic()
-        resp2 = client.post("/api/generate", json=payload)
-        second_duration = time.monotonic() - start
-
         assert resp1.status_code == 200
-        assert resp2.status_code == 200
+        assert get_cache().size == 1
+
+        with patch("mathviz.preview.server.run_pipeline", wraps=None) as mock_run:
+            resp2 = client.post("/api/generate", json=payload)
+            assert resp2.status_code == 200
+            mock_run.assert_not_called()
+
         assert resp1.json()["geometry_id"] == resp2.json()["geometry_id"]
-        # Second call should be faster (cache hit avoids pipeline run)
-        assert second_duration < first_duration or second_duration < 0.1
+        assert get_cache().size == 1
 
 
 # --- GET /api/geometry/{id}/mesh ---

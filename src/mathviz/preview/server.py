@@ -8,7 +8,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from mathviz.core.container import Container, PlacementPolicy
-from mathviz.core.generator import get_generator, get_generator_meta, list_generators
+from mathviz.core.generator import GeneratorMeta, get_generator_meta, list_generators
 from mathviz.pipeline.runner import run as run_pipeline
 from mathviz.preview.cache import CacheEntry, GeometryCache, compute_cache_key
 from mathviz.preview.lod import (
@@ -28,10 +28,9 @@ def get_cache() -> GeometryCache:
     return _cache
 
 
-def reset_cache(max_entries: int = 64) -> None:
-    """Replace the global cache (for testing)."""
-    global _cache
-    _cache = GeometryCache(max_entries=max_entries)
+def reset_cache() -> None:
+    """Clear the global cache. Intended for testing only."""
+    _cache.clear()
 
 
 app = FastAPI(title="MathViz Preview", version="0.1.0")
@@ -67,34 +66,11 @@ class GeneratorInfo(BaseModel):
     resolution_params: dict[str, str]
 
 
-# --- Endpoints ---
+# --- Helpers ---
 
 
-@app.get("/api/generators")
-def list_all_generators() -> list[GeneratorInfo]:
-    """Return metadata for all registered generators."""
-    return [
-        GeneratorInfo(
-            name=m.name,
-            category=m.category,
-            aliases=m.aliases,
-            description=m.description,
-            resolution_params=m.resolution_params,
-        )
-        for m in list_generators()
-    ]
-
-
-@app.get("/api/generators/{name}")
-def get_generator_details(name: str) -> GeneratorInfo:
-    """Return metadata for a single generator by name or alias."""
-    try:
-        meta = get_generator_meta(name)
-    except KeyError:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Generator {name!r} not found. Use GET /api/generators to list available.",
-        )
+def _generator_info_from_meta(meta: GeneratorMeta) -> GeneratorInfo:
+    """Convert a GeneratorMeta to a GeneratorInfo response model."""
     return GeneratorInfo(
         name=meta.name,
         category=meta.category,
@@ -104,31 +80,61 @@ def get_generator_details(name: str) -> GeneratorInfo:
     )
 
 
+def _generator_not_found(name: str) -> HTTPException:
+    """Return a 404 HTTPException for an unknown generator."""
+    return HTTPException(
+        status_code=404,
+        detail=f"Generator {name!r} not found. Use GET /api/generators to list available.",
+    )
+
+
+def _normalize_params(params: dict[str, Any]) -> dict[str, Any] | None:
+    """Normalize empty dict to None for consistent pipeline/cache behavior."""
+    return params if params else None
+
+
+# --- Endpoints ---
+
+
+@app.get("/api/generators")
+def list_all_generators() -> list[GeneratorInfo]:
+    """Return metadata for all registered generators."""
+    return [_generator_info_from_meta(m) for m in list_generators()]
+
+
+@app.get("/api/generators/{name}")
+def get_generator_details(name: str) -> GeneratorInfo:
+    """Return metadata for a single generator by name or alias."""
+    try:
+        meta = get_generator_meta(name)
+    except KeyError:
+        raise _generator_not_found(name)
+    return _generator_info_from_meta(meta)
+
+
 @app.post("/api/generate", response_model=GenerateResponse)
 def generate_geometry(req: GenerateRequest) -> GenerateResponse:
     """Run the pipeline and cache the result."""
-    try:
-        get_generator(req.generator)
-    except KeyError:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Generator {req.generator!r} not found. "
-            "Use GET /api/generators to list available.",
-        )
+    params = _normalize_params(req.params)
+    resolution = _normalize_params(req.resolution)
 
-    cache_key = compute_cache_key(req.generator, req.params, req.seed, req.resolution)
+    cache_key = compute_cache_key(req.generator, params or {}, req.seed, resolution or {})
     cache = get_cache()
     entry = cache.get(cache_key)
 
     if entry is None:
-        result = run_pipeline(
-            req.generator,
-            params=req.params or None,
-            seed=req.seed,
-            resolution_kwargs=req.resolution or None,
-            container=Container.with_uniform_margin(),
-            placement=PlacementPolicy(),
-        )
+        try:
+            result = run_pipeline(
+                req.generator,
+                params=params,
+                seed=req.seed,
+                resolution_kwargs=resolution,
+                container=Container.with_uniform_margin(),
+                placement=PlacementPolicy(),
+            )
+        except KeyError:
+            raise _generator_not_found(req.generator)
+
         entry = CacheEntry(
             math_object=result.math_object,
             generator_name=req.generator,

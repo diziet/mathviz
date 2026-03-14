@@ -64,18 +64,33 @@ def mesh_to_glb(mesh: Mesh) -> bytes:
 
 
 def cloud_to_binary_ply(cloud: PointCloud) -> bytes:
-    """Serialize a PointCloud to binary PLY format."""
+    """Serialize a PointCloud to binary PLY format, including normals if present."""
     points = cloud.points
     num_points = len(points)
-    header = (
-        "ply\n"
-        "format binary_little_endian 1.0\n"
-        f"element vertex {num_points}\n"
-        "property float x\n"
-        "property float y\n"
-        "property float z\n"
-        "end_header\n"
-    )
-    header_bytes = header.encode("ascii")
-    point_data = points.astype(np.float32).tobytes()
-    return header_bytes + point_data
+    has_normals = cloud.normals is not None
+    has_intensities = cloud.intensities is not None
+
+    header_lines = [
+        "ply",
+        "format binary_little_endian 1.0",
+        f"element vertex {num_points}",
+        "property float x",
+        "property float y",
+        "property float z",
+    ]
+    if has_normals:
+        header_lines.extend(["property float nx", "property float ny", "property float nz"])
+    if has_intensities:
+        header_lines.append("property float intensity")
+    header_lines.append("end_header")
+
+    header_bytes = ("\n".join(header_lines) + "\n").encode("ascii")
+
+    arrays = [points.astype(np.float32)]
+    if has_normals:
+        arrays.append(cloud.normals.astype(np.float32))
+    if has_intensities:
+        arrays.append(cloud.intensities.astype(np.float32).reshape(-1, 1))
+
+    vertex_data = np.hstack(arrays)
+    return header_bytes + vertex_data.tobytes()
