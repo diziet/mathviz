@@ -15,7 +15,9 @@ from mathviz.core.math_object import (
 
 def _valid_mesh() -> Mesh:
     """Create a minimal valid mesh (single triangle)."""
-    vertices = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64)
+    vertices = np.array(
+        [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64
+    )
     faces = np.array([[0, 1, 2]], dtype=np.int64)
     return Mesh(vertices=vertices, faces=faces)
 
@@ -46,6 +48,11 @@ class TestMathObjectNoGeometry:
         with pytest.raises(ValueError, match="no geometry"):
             obj.validate_or_raise()
 
+    def test_empty_curves_list_fails_validation(self) -> None:
+        obj = MathObject(curves=[])
+        errors = obj.validate()
+        assert any("no geometry" in e for e in errors)
+
 
 class TestMeshValidation:
     """Mesh validation tests."""
@@ -60,6 +67,15 @@ class TestMeshValidation:
         mesh = Mesh(vertices=vertices, faces=faces)
         errors = mesh.validate()
         assert any("out of bounds" in e for e in errors)
+
+    def test_negative_face_indices(self) -> None:
+        vertices = np.array(
+            [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64
+        )
+        faces = np.array([[0, 1, -1]], dtype=np.int64)
+        mesh = Mesh(vertices=vertices, faces=faces)
+        errors = mesh.validate()
+        assert any("negative" in e for e in errors)
 
     def test_nan_in_vertices(self) -> None:
         vertices = np.array(
@@ -98,6 +114,13 @@ class TestPointCloudValidation:
         cloud = PointCloud(points=points, intensities=intensities)
         errors = cloud.validate()
         assert any("intensities length" in e for e in errors)
+
+    def test_mismatched_normals_length(self) -> None:
+        points = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], dtype=np.float64)
+        normals = np.array([[0.0, 0.0, 1.0]], dtype=np.float64)  # 1 normal, 2 points
+        cloud = PointCloud(points=points, normals=normals)
+        errors = cloud.validate()
+        assert any("normals length" in e for e in errors)
 
     def test_nan_in_points(self) -> None:
         points = np.array([[0.0, np.nan, 0.0]], dtype=np.float64)
@@ -189,10 +212,9 @@ class TestCoordSpace:
 class TestBoundingBox:
     """BoundingBox tests."""
 
-    def test_default_bounding_box(self) -> None:
+    def test_default_bounding_box_is_none(self) -> None:
         obj = MathObject(mesh=_valid_mesh())
-        assert obj.bounding_box.min_corner == (0, 0, 0)
-        assert obj.bounding_box.max_corner == (0, 0, 0)
+        assert obj.bounding_box is None
 
     def test_custom_bounding_box(self) -> None:
         bb = BoundingBox(min_corner=(-1.0, -2.0, -3.0), max_corner=(1.0, 2.0, 3.0))
