@@ -1,0 +1,75 @@
+"""Default representation configs per generator name."""
+
+from mathviz.core.representation import RepresentationConfig, RepresentationType
+
+_TUBE_CONFIG = RepresentationConfig(type=RepresentationType.TUBE, tube_radius=0.05)
+_SURFACE_CONFIG = RepresentationConfig(type=RepresentationType.SURFACE_SHELL)
+_SPARSE_CONFIG = RepresentationConfig(type=RepresentationType.SPARSE_SHELL)
+_HEIGHTMAP_CONFIG = RepresentationConfig(type=RepresentationType.HEIGHTMAP_RELIEF)
+_KNOT_TUBE_CONFIG = RepresentationConfig(
+    type=RepresentationType.TUBE, tube_radius=0.1
+)
+
+GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
+    # Parametric surfaces (mesh)
+    "torus": _SURFACE_CONFIG,
+    "klein_bottle": _SURFACE_CONFIG,
+    "sphere": _SURFACE_CONFIG,
+    "boy_surface": _SURFACE_CONFIG,
+    "costa_surface": _SURFACE_CONFIG,
+    "enneper_surface": _SURFACE_CONFIG,
+    "lissajous_surface": _SURFACE_CONFIG,
+    "mobius_strip": _SURFACE_CONFIG,
+    "spherical_harmonics": _SURFACE_CONFIG,
+    "superellipsoid": _SURFACE_CONFIG,
+    "generic_parametric": _SURFACE_CONFIG,
+    # Implicit surfaces (mesh)
+    "genus2_surface": _SURFACE_CONFIG,
+    "gyroid": _SURFACE_CONFIG,
+    "schwarz_d": _SURFACE_CONFIG,
+    "schwarz_p": _SURFACE_CONFIG,
+    # Data-driven mesh
+    "building_extrude": _SURFACE_CONFIG,
+    "parabolic_envelope": _SURFACE_CONFIG,
+    # Attractors (curves)
+    "lorenz": _TUBE_CONFIG,
+    "rossler": _TUBE_CONFIG,
+    "aizawa": _TUBE_CONFIG,
+    "chen": _TUBE_CONFIG,
+    "double_pendulum": _TUBE_CONFIG,
+    "halvorsen": _TUBE_CONFIG,
+    "thomas": _TUBE_CONFIG,
+    # Knots (curves)
+    "torus_knot": _KNOT_TUBE_CONFIG,
+    "figure_eight_knot": _KNOT_TUBE_CONFIG,
+    "lissajous_knot": _KNOT_TUBE_CONFIG,
+    "seven_crossing_knots": _KNOT_TUBE_CONFIG,
+    # Curves
+    "lissajous": _TUBE_CONFIG,
+    "lissajous_curve": _TUBE_CONFIG,
+    "cardioid": _TUBE_CONFIG,
+    "fibonacci_spiral": _TUBE_CONFIG,
+    "logarithmic_spiral": _TUBE_CONFIG,
+    "voronoi_3d": _TUBE_CONFIG,
+    "soundwave": _TUBE_CONFIG,
+    # Physics (curves)
+    "kepler_orbit": _TUBE_CONFIG,
+    "nbody": _TUBE_CONFIG,
+    "planetary_positions": _TUBE_CONFIG,
+    # Number theory (point clouds)
+    "sacks_spiral": _SPARSE_CONFIG,
+    "prime_gaps": _SPARSE_CONFIG,
+    "ulam_spiral": _SPARSE_CONFIG,
+    "digit_encoding": _SPARSE_CONFIG,
+    # Fractals (sparse shell from mesh)
+    "mandelbulb": _SPARSE_CONFIG,
+    "julia3d": _SPARSE_CONFIG,
+    # Heightmaps (scalar field)
+    "mandelbrot": _HEIGHTMAP_CONFIG,
+    "mandelbrot_heightmap": _HEIGHTMAP_CONFIG,
+    "fractal_slice": _HEIGHTMAP_CONFIG,
+    "heightmap": _HEIGHTMAP_CONFIG,
+    "noise_surface": _HEIGHTMAP_CONFIG,
+    "reaction_diffusion": _HEIGHTMAP_CONFIG,
+    "terrain": _HEIGHTMAP_CONFIG,
+}

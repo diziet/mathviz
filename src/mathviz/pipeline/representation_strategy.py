@@ -14,6 +14,7 @@ import trimesh
 from mathviz.core.generator import get_generator_meta
 from mathviz.core.math_object import Curve, MathObject, Mesh, PointCloud
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.pipeline.representation_defaults import GENERATOR_DEFAULTS
 from mathviz.pipeline.representation_handlers import (
     apply_slice_stack,
     apply_volume_fill,
@@ -22,84 +23,6 @@ from mathviz.pipeline.representation_handlers import (
 from mathviz.shared.tube_thickening import thicken_curve
 
 logger = logging.getLogger(__name__)
-
-# Default representation configs by generator name
-_TUBE_CONFIG = RepresentationConfig(type=RepresentationType.TUBE, tube_radius=0.05)
-_SURFACE_CONFIG = RepresentationConfig(type=RepresentationType.SURFACE_SHELL)
-_SPARSE_CONFIG = RepresentationConfig(type=RepresentationType.SPARSE_SHELL)
-_HEIGHTMAP_CONFIG = RepresentationConfig(type=RepresentationType.HEIGHTMAP_RELIEF)
-
-_GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
-    # Parametric surfaces (mesh)
-    "torus": _SURFACE_CONFIG,
-    "klein_bottle": _SURFACE_CONFIG,
-    "sphere": _SURFACE_CONFIG,
-    "boy_surface": _SURFACE_CONFIG,
-    "costa_surface": _SURFACE_CONFIG,
-    "enneper_surface": _SURFACE_CONFIG,
-    "lissajous_surface": _SURFACE_CONFIG,
-    "mobius_strip": _SURFACE_CONFIG,
-    "spherical_harmonics": _SURFACE_CONFIG,
-    "superellipsoid": _SURFACE_CONFIG,
-    "generic_parametric": _SURFACE_CONFIG,
-    # Implicit surfaces (mesh)
-    "genus2_surface": _SURFACE_CONFIG,
-    "gyroid": _SURFACE_CONFIG,
-    "schwarz_d": _SURFACE_CONFIG,
-    "schwarz_p": _SURFACE_CONFIG,
-    # Data-driven mesh
-    "building_extrude": _SURFACE_CONFIG,
-    "parabolic_envelope": _SURFACE_CONFIG,
-    # Attractors (curves)
-    "lorenz": _TUBE_CONFIG,
-    "rossler": _TUBE_CONFIG,
-    "aizawa": _TUBE_CONFIG,
-    "chen": _TUBE_CONFIG,
-    "double_pendulum": _TUBE_CONFIG,
-    "halvorsen": _TUBE_CONFIG,
-    "thomas": _TUBE_CONFIG,
-    # Knots (curves)
-    "torus_knot": RepresentationConfig(
-        type=RepresentationType.TUBE, tube_radius=0.1
-    ),
-    "figure_eight_knot": RepresentationConfig(
-        type=RepresentationType.TUBE, tube_radius=0.1
-    ),
-    "lissajous_knot": RepresentationConfig(
-        type=RepresentationType.TUBE, tube_radius=0.1
-    ),
-    "seven_crossing_knots": RepresentationConfig(
-        type=RepresentationType.TUBE, tube_radius=0.1
-    ),
-    # Curves
-    "lissajous": _TUBE_CONFIG,
-    "lissajous_curve": _TUBE_CONFIG,
-    "cardioid": _TUBE_CONFIG,
-    "fibonacci_spiral": _TUBE_CONFIG,
-    "logarithmic_spiral": _TUBE_CONFIG,
-    "voronoi_3d": _TUBE_CONFIG,
-    "soundwave": _TUBE_CONFIG,
-    # Physics (curves)
-    "kepler_orbit": _TUBE_CONFIG,
-    "nbody": _TUBE_CONFIG,
-    "planetary_positions": _TUBE_CONFIG,
-    # Number theory (point clouds)
-    "sacks_spiral": _SPARSE_CONFIG,
-    "prime_gaps": _SPARSE_CONFIG,
-    "ulam_spiral": _SPARSE_CONFIG,
-    "digit_encoding": _SPARSE_CONFIG,
-    # Fractals (sparse shell from mesh)
-    "mandelbulb": _SPARSE_CONFIG,
-    "julia3d": _SPARSE_CONFIG,
-    # Heightmaps (scalar field)
-    "mandelbrot": _HEIGHTMAP_CONFIG,
-    "mandelbrot_heightmap": _HEIGHTMAP_CONFIG,
-    "fractal_slice": _HEIGHTMAP_CONFIG,
-    "heightmap": _HEIGHTMAP_CONFIG,
-    "noise_surface": _HEIGHTMAP_CONFIG,
-    "reaction_diffusion": _HEIGHTMAP_CONFIG,
-    "terrain": _HEIGHTMAP_CONFIG,
-}
 
 _FALLBACK_TUBE_RADIUS_FRACTION = 0.01
 
@@ -143,11 +66,11 @@ def get_default(
     generator_name: str, obj: MathObject | None = None
 ) -> RepresentationConfig:
     """Return the recommended representation config for a generator."""
-    config = _GENERATOR_DEFAULTS.get(generator_name)
+    config = GENERATOR_DEFAULTS.get(generator_name)
     if config is not None:
         return config
     canonical = _resolve_canonical(generator_name)
-    config = _GENERATOR_DEFAULTS.get(canonical)
+    config = GENERATOR_DEFAULTS.get(canonical)
     if config is not None:
         return config
     if obj is not None:
@@ -358,14 +281,17 @@ _SPARSE_SHELL_SEED = 42
 def _apply_sparse_shell(
     obj: MathObject, config: RepresentationConfig
 ) -> MathObject:
-    """Sample mesh surface at reduced density to create a sparse point cloud.
+    """Sample mesh surface or pass through an existing point cloud.
 
-    Uses surface_density (points per unit area) to determine sample count.
-    Sampling is seeded for deterministic output.
+    For mesh inputs: samples surface at reduced density.
+    For point-cloud-only inputs: passes through the existing cloud.
     """
+    if obj.mesh is None and obj.point_cloud is not None:
+        return replace(obj)
     if obj.mesh is None:
         raise ValueError(
-            "SPARSE_SHELL requires a mesh input, but MathObject has no mesh"
+            "SPARSE_SHELL requires a mesh or point_cloud input, "
+            "but MathObject has neither"
         )
 
     density = config.surface_density or _SPARSE_SHELL_DEFAULT_SURFACE_DENSITY
