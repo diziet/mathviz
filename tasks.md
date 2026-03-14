@@ -1227,3 +1227,52 @@ appropriate representation types.
 - A MathObject with only point_cloud and no entry gets SPARSE_SHELL fallback
 - A MathObject with no geometry raises a clear error from the fallback
 - All generators registered in the registry can run through the representation stage without error
+
+---
+
+## Task 40: Fix planetary_positions generator producing single-point curves
+
+**Objective:**
+
+Fix the bug where `mathviz generate planetary_positions` and
+`mathviz render planetary_positions` crash with `ValueError: Curve needs >= 2
+points, got 1`. The planetary_positions generator produces 8 orbital curves
+(one per planet), but at least one orbit produces a `Curve` with only 1 point.
+The tube thickening representation requires at least 2 points per curve. This
+affects `generate`, `render`, and `preview` commands.
+
+**Suggested path:**
+
+Investigate the `planetary_positions` generator
+(`src/mathviz/generators/physics/planetary_positions.py`) to determine which
+orbit(s) produce single-point curves and why. Likely causes:
+
+1. A planet's orbital calculation degenerates (e.g., near-circular orbit with
+   insufficient angular sampling, or a parameter that produces a single
+   position instead of a full orbit).
+2. The generator might be producing planet _positions_ (single points at an
+   epoch) alongside full orbits, and those single-point "orbits" are returned
+   as Curve objects.
+
+The fix should ensure every Curve in the output has at least 2 points. Options:
+
+- If some entries are positions (not orbits), output them as a PointCloud
+  instead of as single-point Curves.
+- If an orbit calculation produces too few points, increase sampling or filter
+  out degenerate curves with a warning.
+- Add a minimum-points guard in the generator's `generate()` method so the
+  error is caught early with a clear message rather than deep in tube
+  thickening.
+
+Additionally, consider adding a defensive check in `_apply_tube` or
+`_thicken_all_curves` to skip curves with fewer than 2 points (with a
+warning) rather than crashing, since this could affect any generator that
+produces short curves.
+
+**Tests:** `tests/test_generators/test_planetary_positions.py`
+
+- `planetary_positions` with default params produces all curves with >= 2 points
+- `planetary_positions` generate + tube representation succeeds without error
+- `planetary_positions` render produces a PNG without error
+- No curve in the output has fewer than 2 points (parameterized across planet count)
+- If the fix includes a defensive skip in tube thickening: a single-point curve is skipped with a warning, not a crash
