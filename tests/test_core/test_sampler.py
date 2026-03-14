@@ -94,7 +94,7 @@ class TestSkipExisting:
             generator_name="test",
         )
         config = SamplerConfig(
-            method=SamplingMethod.UNIFORM_SURFACE,
+            method=SamplingMethod.RANDOM_SURFACE,
             num_points=100,
             resample=True,
         )
@@ -111,21 +111,14 @@ class TestDensityScaling:
         small_mesh = _make_cube_mesh(5.0)  # surface area = 6 * 5^2 = 150
         large_mesh = _make_cube_mesh(10.0)  # surface area = 6 * 10^2 = 600
 
-        density = 0.5  # points per mm^2
-
-        config_small = SamplerConfig(
-            method=SamplingMethod.UNIFORM_SURFACE,
-            density=density,
-            seed=42,
-        )
-        config_large = SamplerConfig(
-            method=SamplingMethod.UNIFORM_SURFACE,
-            density=density,
+        config = SamplerConfig(
+            method=SamplingMethod.RANDOM_SURFACE,
+            density=0.5,
             seed=42,
         )
 
-        result_small = sample(_make_math_object(small_mesh), config_small)
-        result_large = sample(_make_math_object(large_mesh), config_large)
+        result_small = sample(_make_math_object(small_mesh), config)
+        result_large = sample(_make_math_object(large_mesh), config)
 
         count_small = len(result_small.point_cloud.points)
         count_large = len(result_large.point_cloud.points)
@@ -139,10 +132,10 @@ class TestNumPointsAccuracy:
     """Requesting N points produces approximately N points (within 10%)."""
 
     @pytest.mark.parametrize("target", [100, 500, 1000])
-    def test_surface_num_points(self, target: int) -> None:
+    def test_random_surface_num_points(self, target: int) -> None:
         obj = _make_math_object(_make_sphere_mesh(10.0))
         config = SamplerConfig(
-            method=SamplingMethod.UNIFORM_SURFACE,
+            method=SamplingMethod.RANDOM_SURFACE,
             num_points=target,
             seed=42,
         )
@@ -152,17 +145,19 @@ class TestNumPointsAccuracy:
             f"Expected ~{target}, got {actual}"
         )
 
-    def test_random_surface_num_points(self) -> None:
+    def test_uniform_surface_num_points(self) -> None:
         target = 500
         obj = _make_math_object(_make_sphere_mesh(10.0))
         config = SamplerConfig(
-            method=SamplingMethod.RANDOM_SURFACE,
+            method=SamplingMethod.UNIFORM_SURFACE,
             num_points=target,
             seed=42,
         )
         result = sample(obj, config)
         actual = len(result.point_cloud.points)
-        assert abs(actual - target) / target < 0.10
+        # sample_surface_even may return fewer points due to rejection
+        assert actual <= target
+        assert actual > target * 0.5, f"Expected >50% of {target}, got {actual}"
 
 
 class TestEdgeCases:
@@ -172,16 +167,19 @@ class TestEdgeCases:
         obj = MathObject(generator_name="test", point_cloud=PointCloud(
             points=np.array([[0.0, 0.0, 0.0]], dtype=np.float64)
         ))
-        # Clear point cloud but set resample to trigger sampling
         obj.point_cloud = None
         config = SamplerConfig(method=SamplingMethod.UNIFORM_SURFACE, num_points=10)
         with pytest.raises(ValueError, match="requires a mesh"):
             sample(obj, config)
 
+    def test_density_and_num_points_mutually_exclusive(self) -> None:
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            SamplerConfig(density=1.0, num_points=100)
+
     def test_output_dtype_is_float64(self) -> None:
         obj = _make_math_object(_make_cube_mesh())
         config = SamplerConfig(
-            method=SamplingMethod.UNIFORM_SURFACE,
+            method=SamplingMethod.RANDOM_SURFACE,
             num_points=50,
         )
         result = sample(obj, config)
@@ -190,7 +188,7 @@ class TestEdgeCases:
     def test_output_shape_is_nx3(self) -> None:
         obj = _make_math_object(_make_cube_mesh())
         config = SamplerConfig(
-            method=SamplingMethod.UNIFORM_SURFACE,
+            method=SamplingMethod.RANDOM_SURFACE,
             num_points=50,
         )
         result = sample(obj, config)

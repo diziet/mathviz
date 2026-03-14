@@ -6,11 +6,14 @@ from typing import Optional
 
 import numpy as np
 import trimesh
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from mathviz.core.math_object import MathObject, Mesh, PointCloud
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_SURFACE_DENSITY = 1.0  # points per mm^2
+DEFAULT_VOLUME_DENSITY = 1.0  # points per mm^3
 
 
 class SamplingMethod(str, Enum):
@@ -22,7 +25,11 @@ class SamplingMethod(str, Enum):
 
 
 class SamplerConfig(BaseModel):
-    """Configuration for the sampler stage."""
+    """Configuration for the sampler stage.
+
+    Provide either density or num_points, not both. If neither is given,
+    DEFAULT_SURFACE_DENSITY or DEFAULT_VOLUME_DENSITY is used.
+    """
 
     method: SamplingMethod = SamplingMethod.UNIFORM_SURFACE
     density: Optional[float] = Field(
@@ -30,12 +37,22 @@ class SamplerConfig(BaseModel):
     )
     num_points: Optional[int] = Field(default=None, gt=0, description="Explicit point count")
     seed: int = Field(default=42, description="RNG seed for reproducibility")
-    resample: bool = Field(default=False, description="Force resampling even if point_cloud exists")
+    resample: bool = Field(
+        default=False, description="Force resampling even if point_cloud exists"
+    )
+
+    @model_validator(mode="after")
+    def _check_density_num_points_exclusive(self) -> "SamplerConfig":
+        """Ensure density and num_points are not both set."""
+        if self.density is not None and self.num_points is not None:
+            raise ValueError("density and num_points are mutually exclusive")
+        return self
 
 
 def sample(obj: MathObject, config: SamplerConfig) -> MathObject:
     """Convert mesh to point cloud on a MathObject.
 
+    Mutates obj.point_cloud in place and returns obj.
     Skips sampling if point_cloud already exists and resample is False.
     """
     if obj.point_cloud is not None and not config.resample:
@@ -77,22 +94,12 @@ def _to_trimesh(mesh: Mesh) -> trimesh.Trimesh:
     )
 
 
-def _resolve_point_count_surface(tm: trimesh.Trimesh, config: SamplerConfig) -> int:
-    """Resolve the number of points for surface sampling."""
+def _resolve_point_count(measure: float, config: SamplerConfig, default_density: float) -> int:
+    """Resolve target point count from config and a geometric measure."""
     if config.num_points is not None:
         return config.num_points
-    if config.density is not None:
-        return max(1, int(round(config.density * tm.area)))
-    return max(1, int(round(1.0 * tm.area)))
-
-
-def _resolve_point_count_volume(tm: trimesh.Trimesh, config: SamplerConfig) -> int:
-    """Resolve the number of points for volume sampling."""
-    if config.num_points is not None:
-        return config.num_points
-    if config.density is not None:
-        return max(1, int(round(config.density * tm.volume)))
-    return max(1, int(round(1.0 * tm.volume)))
+    density = config.density if config.density is not None else default_density
+    return max(1, int(round(density * measure)))
 
 
 def _sample_uniform_surface(
@@ -100,9 +107,11 @@ def _sample_uniform_surface(
     config: SamplerConfig,
     rng: np.random.Generator,
 ) -> np.ndarray:
-    """Poisson-disk-like uniform surface sampling via trimesh."""
-    count = _resolve_point_count_surface(tm, config)
-    points, _ = trimesh.sample.sample_surface(tm, count, seed=rng.integers(0, 2**31))
+    """Approximately even surface sampling via Poisson-disk rejection."""
+    count = _resolve_point_count(tm.area, config, DEFAULT_SURFACE_DENSITY)
+    points, _ = trimesh.sample.sample_surface_even(
+        tm, count, seed=rng.integers(0, 2**31)
+    )
     return np.asarray(points)
 
 
@@ -112,8 +121,10 @@ def _sample_random_surface(
     rng: np.random.Generator,
 ) -> np.ndarray:
     """Random surface sampling (barycentric, face-area-weighted)."""
-    count = _resolve_point_count_surface(tm, config)
-    points, _ = trimesh.sample.sample_surface(tm, count, seed=rng.integers(0, 2**31))
+    count = _resolve_point_count(tm.area, config, DEFAULT_SURFACE_DENSITY)
+    points, _ = trimesh.sample.sample_surface(
+        tm, count, seed=rng.integers(0, 2**31)
+    )
     return np.asarray(points)
 
 
@@ -123,15 +134,20 @@ def _sample_volume_fill(
     rng: np.random.Generator,
 ) -> np.ndarray:
     """Jittered grid volume fill inside a watertight mesh."""
-    count = _resolve_point_count_volume(tm, config)
-    bounds = tm.bounds  # (2, 3) array: [min, max]
-    bbox_size = bounds[1] - bounds[0]
-    volume = float(np.prod(bbox_size))
+    mesh_volume = abs(float(tm.volume))
+    if mesh_volume < 1e-15:
+        raise ValueError("Mesh has zero volume; is it watertight?")
 
-    if volume < 1e-15:
+    target_count = _resolve_point_count(mesh_volume, config, DEFAULT_VOLUME_DENSITY)
+    bounds = tm.bounds  # (2, 3): [min, max]
+    bbox_volume = float(np.prod(bounds[1] - bounds[0]))
+
+    if bbox_volume < 1e-15:
         raise ValueError("Mesh bounding box has zero volume")
 
-    spacing = _compute_grid_spacing(volume, count)
+    fill_ratio = mesh_volume / bbox_volume
+    adjusted_count = int(round(target_count / max(fill_ratio, 0.01)))
+    spacing = _compute_grid_spacing(bbox_volume, adjusted_count)
     grid_points = _build_jittered_grid(bounds[0], bounds[1], spacing, rng)
 
     if len(grid_points) == 0:
