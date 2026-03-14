@@ -90,12 +90,6 @@ def _compute_seven_crossing_points(
     return np.column_stack([x, y, z]).astype(np.float64) * scale
 
 
-def _compute_bounding_box(points: np.ndarray) -> BoundingBox:
-    """Compute axis-aligned bounding box from curve points."""
-    min_corner = tuple(float(v) for v in points.min(axis=0))
-    max_corner = tuple(float(v) for v in points.max(axis=0))
-    return BoundingBox(min_corner=min_corner, max_corner=max_corner)
-
 
 def _validate_params(
     knot_index: int, scale: float, curve_points: int
@@ -165,7 +159,7 @@ class SevenCrossingKnotsGenerator(GeneratorBase):
         )
 
         curve = Curve(points=points, closed=True)
-        bbox = _compute_bounding_box(points)
+        bbox = BoundingBox.from_points(points)
 
         logger.info(
             "Generated 7_%d knot: scale=%.2f, points=%d",

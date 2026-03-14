@@ -37,19 +37,14 @@ def _compute_cardioid_points(
     return np.column_stack([x, y, z]).astype(np.float64)
 
 
-def _compute_bounding_box(points: np.ndarray) -> BoundingBox:
-    """Compute axis-aligned bounding box from curve points."""
-    min_corner = tuple(float(v) for v in points.min(axis=0))
-    max_corner = tuple(float(v) for v in points.max(axis=0))
-    return BoundingBox(min_corner=min_corner, max_corner=max_corner)
-
-
 def _validate_params(
-    radius: float, curve_points: int
+    radius: float, height: float, curve_points: int
 ) -> None:
     """Validate cardioid parameters."""
     if radius <= 0:
         raise ValueError(f"radius must be positive, got {radius}")
+    if not np.isfinite(height):
+        raise ValueError(f"height must be finite, got {height}")
     if curve_points < _MIN_CURVE_POINTS:
         raise ValueError(
             f"curve_points must be >= {_MIN_CURVE_POINTS}, got {curve_points}"
@@ -99,14 +94,14 @@ class CardioidGenerator(GeneratorBase):
             resolution_kwargs.get("curve_points", _DEFAULT_CURVE_POINTS)
         )
 
-        _validate_params(radius, curve_points)
+        _validate_params(radius, height, curve_points)
         merged["curve_points"] = curve_points
 
         points = _compute_cardioid_points(radius, height, curve_points)
 
         # Cardioid is a closed curve over [0, 2*pi)
         curve = Curve(points=points, closed=True)
-        bbox = _compute_bounding_box(points)
+        bbox = BoundingBox.from_points(points)
 
         logger.info(
             "Generated cardioid: radius=%.2f, height=%.2f, points=%d",

@@ -6,6 +6,7 @@ import pytest
 
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import clear_registry, register
+from mathviz.core.math_object import Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.generators.curves.cardioid import CardioidGenerator
 from mathviz.generators.curves.fibonacci_spiral import FibonacciSpiralGenerator
@@ -15,6 +16,23 @@ from mathviz.generators.curves.parabolic_envelope import ParabolicEnvelopeGenera
 from mathviz.pipeline.runner import run
 
 _TEST_CURVE_POINTS = 128
+
+
+def _assert_mesh_watertight(mesh: Mesh) -> None:
+    """Assert every edge appears in exactly 2 faces (watertight manifold)."""
+    assert len(mesh.vertices) > 0
+    assert len(mesh.faces) > 0
+
+    edge_count: dict[tuple[int, int], int] = {}
+    for face in mesh.faces:
+        for i in range(3):
+            edge = tuple(sorted([int(face[i]), int(face[(i + 1) % 3])]))
+            edge_count[edge] = edge_count.get(edge, 0) + 1
+
+    non_manifold = {e: c for e, c in edge_count.items() if c != 2}
+    assert len(non_manifold) == 0, (
+        f"Mesh is not watertight: {len(non_manifold)} non-manifold edges"
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -176,6 +194,14 @@ def test_parabolic_envelope_produces_surface_mesh() -> None:
     assert len(obj.mesh.faces) > 0
 
 
+def test_parabolic_envelope_category_is_surfaces() -> None:
+    """Parabolic envelope category is 'surfaces' since it produces a mesh."""
+    gen = ParabolicEnvelopeGenerator()
+    assert gen.category == "surfaces"
+    obj = gen.generate(curve_points=32)
+    assert obj.category == "surfaces"
+
+
 def test_parabolic_envelope_mesh_valid() -> None:
     """Parabolic envelope mesh has valid face indices."""
     gen = ParabolicEnvelopeGenerator()
@@ -218,21 +244,8 @@ def test_cardioid_tube_watertight() -> None:
             type=RepresentationType.TUBE, tube_radius=0.05, tube_sides=8,
         ),
     )
-    obj = result.math_object
-    assert obj.mesh is not None
-    assert len(obj.mesh.vertices) > 0
-    assert len(obj.mesh.faces) > 0
-
-    edge_count: dict[tuple[int, int], int] = {}
-    for face in obj.mesh.faces:
-        for i in range(3):
-            edge = tuple(sorted([int(face[i]), int(face[(i + 1) % 3])]))
-            edge_count[edge] = edge_count.get(edge, 0) + 1
-
-    non_manifold = {e: c for e, c in edge_count.items() if c != 2}
-    assert len(non_manifold) == 0, (
-        f"Mesh is not watertight: {len(non_manifold)} non-manifold edges"
-    )
+    assert result.math_object.mesh is not None
+    _assert_mesh_watertight(result.math_object.mesh)
 
 
 def test_lissajous_curve_tube_watertight() -> None:
@@ -246,18 +259,5 @@ def test_lissajous_curve_tube_watertight() -> None:
             type=RepresentationType.TUBE, tube_radius=0.05, tube_sides=8,
         ),
     )
-    obj = result.math_object
-    assert obj.mesh is not None
-    assert len(obj.mesh.vertices) > 0
-    assert len(obj.mesh.faces) > 0
-
-    edge_count: dict[tuple[int, int], int] = {}
-    for face in obj.mesh.faces:
-        for i in range(3):
-            edge = tuple(sorted([int(face[i]), int(face[(i + 1) % 3])]))
-            edge_count[edge] = edge_count.get(edge, 0) + 1
-
-    non_manifold = {e: c for e, c in edge_count.items() if c != 2}
-    assert len(non_manifold) == 0, (
-        f"Mesh is not watertight: {len(non_manifold)} non-manifold edges"
-    )
+    assert result.math_object.mesh is not None
+    _assert_mesh_watertight(result.math_object.mesh)

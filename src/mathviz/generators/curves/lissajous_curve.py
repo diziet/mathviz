@@ -49,12 +49,6 @@ def _compute_lissajous_points(
     return np.column_stack([x, y, z]).astype(np.float64) * scale
 
 
-def _compute_bounding_box(points: np.ndarray) -> BoundingBox:
-    """Compute axis-aligned bounding box from curve points."""
-    min_corner = tuple(float(v) for v in points.min(axis=0))
-    max_corner = tuple(float(v) for v in points.max(axis=0))
-    return BoundingBox(min_corner=min_corner, max_corner=max_corner)
-
 
 def _validate_params(
     nx: int, ny: int, nz: int, scale: float, curve_points: int
@@ -136,7 +130,7 @@ class LissajousCurveGenerator(GeneratorBase):
 
         # Integer-frequency Lissajous curves are always closed over 2*pi
         curve = Curve(points=points, closed=True)
-        bbox = _compute_bounding_box(points)
+        bbox = BoundingBox.from_points(points)
 
         logger.info(
             "Generated Lissajous curve: nx=%d, ny=%d, nz=%d, points=%d",

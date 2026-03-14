@@ -10,12 +10,30 @@ from mathviz.core.generator import (
     get_generator_meta,
     register,
 )
+from mathviz.core.math_object import Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.generators.knots.figure_eight_knot import FigureEightKnotGenerator
 from mathviz.generators.knots.lissajous_knot import LissajousKnotGenerator
 from mathviz.generators.knots.seven_crossing_knots import SevenCrossingKnotsGenerator
 from mathviz.generators.knots.torus_knot import TorusKnotGenerator
 from mathviz.pipeline.runner import run
+
+
+def _assert_mesh_watertight(mesh: Mesh) -> None:
+    """Assert every edge appears in exactly 2 faces (watertight manifold)."""
+    assert len(mesh.vertices) > 0
+    assert len(mesh.faces) > 0
+
+    edge_count: dict[tuple[int, int], int] = {}
+    for face in mesh.faces:
+        for i in range(3):
+            edge = tuple(sorted([int(face[i]), int(face[(i + 1) % 3])]))
+            edge_count[edge] = edge_count.get(edge, 0) + 1
+
+    non_manifold = {e: c for e, c in edge_count.items() if c != 2}
+    assert len(non_manifold) == 0, (
+        f"Mesh is not watertight: {len(non_manifold)} non-manifold edges"
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -126,22 +144,8 @@ def test_full_pipeline_tube_produces_watertight_mesh() -> None:
             tube_sides=8,
         ),
     )
-    obj = result.math_object
-    assert obj.mesh is not None
-    assert len(obj.mesh.vertices) > 0
-    assert len(obj.mesh.faces) > 0
-
-    # Watertight check: every edge appears in exactly 2 faces
-    edge_count: dict[tuple[int, int], int] = {}
-    for face in obj.mesh.faces:
-        for i in range(3):
-            edge = tuple(sorted([int(face[i]), int(face[(i + 1) % 3])]))
-            edge_count[edge] = edge_count.get(edge, 0) + 1
-
-    non_manifold = {e: c for e, c in edge_count.items() if c != 2}
-    assert len(non_manifold) == 0, (
-        f"Mesh is not watertight: {len(non_manifold)} non-manifold edges"
-    )
+    assert result.math_object.mesh is not None
+    _assert_mesh_watertight(result.math_object.mesh)
 
 
 # ---------------------------------------------------------------------------
@@ -437,18 +441,5 @@ def test_figure_eight_tube_watertight() -> None:
             type=RepresentationType.TUBE, tube_radius=0.1, tube_sides=8,
         ),
     )
-    obj = result.math_object
-    assert obj.mesh is not None
-    assert len(obj.mesh.vertices) > 0
-    assert len(obj.mesh.faces) > 0
-
-    edge_count: dict[tuple[int, int], int] = {}
-    for face in obj.mesh.faces:
-        for i in range(3):
-            edge = tuple(sorted([int(face[i]), int(face[(i + 1) % 3])]))
-            edge_count[edge] = edge_count.get(edge, 0) + 1
-
-    non_manifold = {e: c for e, c in edge_count.items() if c != 2}
-    assert len(non_manifold) == 0, (
-        f"Mesh is not watertight: {len(non_manifold)} non-manifold edges"
-    )
+    assert result.math_object.mesh is not None
+    _assert_mesh_watertight(result.math_object.mesh)

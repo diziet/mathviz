@@ -43,21 +43,17 @@ def _compute_logarithmic_spiral_points(
     return np.column_stack([x, y, z]).astype(np.float64) * scale
 
 
-def _compute_bounding_box(points: np.ndarray) -> BoundingBox:
-    """Compute axis-aligned bounding box from curve points."""
-    min_corner = tuple(float(v) for v in points.min(axis=0))
-    max_corner = tuple(float(v) for v in points.max(axis=0))
-    return BoundingBox(min_corner=min_corner, max_corner=max_corner)
-
-
 def _validate_params(
-    growth_rate: float, turns: float, scale: float, curve_points: int
+    growth_rate: float, turns: float, height: float, scale: float,
+    curve_points: int,
 ) -> None:
     """Validate logarithmic spiral parameters."""
     if growth_rate <= 0:
         raise ValueError(f"growth_rate must be positive, got {growth_rate}")
     if turns <= 0:
         raise ValueError(f"turns must be positive, got {turns}")
+    if not np.isfinite(height):
+        raise ValueError(f"height must be finite, got {height}")
     if scale <= 0:
         raise ValueError(f"scale must be positive, got {scale}")
     if curve_points < _MIN_CURVE_POINTS:
@@ -113,7 +109,7 @@ class LogarithmicSpiralGenerator(GeneratorBase):
             resolution_kwargs.get("curve_points", _DEFAULT_CURVE_POINTS)
         )
 
-        _validate_params(growth_rate, turns, scale, curve_points)
+        _validate_params(growth_rate, turns, height, scale, curve_points)
         merged["curve_points"] = curve_points
 
         points = _compute_logarithmic_spiral_points(
@@ -122,7 +118,7 @@ class LogarithmicSpiralGenerator(GeneratorBase):
 
         # Spirals are open curves
         curve = Curve(points=points, closed=False)
-        bbox = _compute_bounding_box(points)
+        bbox = BoundingBox.from_points(points)
 
         logger.info(
             "Generated logarithmic spiral: growth=%.3f, turns=%.1f, points=%d",

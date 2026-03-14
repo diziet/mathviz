@@ -36,12 +36,6 @@ def _compute_figure_eight_points(
     return points * scale
 
 
-def _compute_bounding_box(points: np.ndarray) -> BoundingBox:
-    """Compute axis-aligned bounding box from curve points."""
-    min_corner = tuple(float(v) for v in points.min(axis=0))
-    max_corner = tuple(float(v) for v in points.max(axis=0))
-    return BoundingBox(min_corner=min_corner, max_corner=max_corner)
-
 
 def _validate_params(scale: float, curve_points: int) -> None:
     """Validate figure-eight knot parameters."""
@@ -97,7 +91,7 @@ class FigureEightKnotGenerator(GeneratorBase):
 
         points = _compute_figure_eight_points(scale, curve_points)
         curve = Curve(points=points, closed=True)
-        bbox = _compute_bounding_box(points)
+        bbox = BoundingBox.from_points(points)
 
         logger.info(
             "Generated figure-eight knot: scale=%.2f, points=%d",

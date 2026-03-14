@@ -31,56 +31,50 @@ def _build_envelope_mesh(
     height: float,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Build a triangle mesh from the parabolic envelope ruled surface."""
-    # Parameter along the family of lines
     s_values = np.linspace(0.0, 1.0, line_count)
-
-    # Each line goes from (s, 0, h*s) to (0, 1-s, h*(1-s))
-    # We sample each line at segments_per_line points
     t_values = np.linspace(0.0, 1.0, segments_per_line)
+    S, T = np.meshgrid(s_values, t_values, indexing="ij")
 
-    vertices = []
-    for s in s_values:
-        # Line endpoints
-        p0 = np.array([s, 0.0, height * s * (1.0 - s)])
-        p1 = np.array([0.0, 1.0 - s, height * s * (1.0 - s)])
-        for t in t_values:
-            vertex = p0 * (1.0 - t) + p1 * t
-            vertices.append(vertex)
+    # Line endpoints: p0=(s, 0, h*s*(1-s)), p1=(0, 1-s, h*s*(1-s))
+    hz = height * S * (1.0 - S)
+    x = S * (1.0 - T)
+    y = (1.0 - S) * T
+    z = hz
 
-    vertices_arr = np.array(vertices, dtype=np.float64) * scale
+    vertices = (
+        np.stack([x, y, z], axis=-1).reshape(-1, 3).astype(np.float64)
+        * scale
+    )
 
-    # Build faces connecting adjacent lines
-    faces = []
-    for i in range(line_count - 1):
-        for j in range(segments_per_line - 1):
-            idx00 = i * segments_per_line + j
-            idx01 = i * segments_per_line + j + 1
-            idx10 = (i + 1) * segments_per_line + j
-            idx11 = (i + 1) * segments_per_line + j + 1
+    # Build face indices with vectorized arange + broadcasting
+    i_idx = np.arange(line_count - 1)
+    j_idx = np.arange(segments_per_line - 1)
+    I, J = np.meshgrid(i_idx, j_idx, indexing="ij")
+    I_flat = I.ravel()
+    J_flat = J.ravel()
 
-            faces.append([idx00, idx10, idx01])
-            faces.append([idx01, idx10, idx11])
+    idx00 = I_flat * segments_per_line + J_flat
+    idx01 = idx00 + 1
+    idx10 = idx00 + segments_per_line
+    idx11 = idx10 + 1
 
-    faces_arr = np.array(faces, dtype=np.intp)
+    tri_a = np.column_stack([idx00, idx10, idx01])
+    tri_b = np.column_stack([idx01, idx10, idx11])
+    faces = np.vstack([tri_a, tri_b]).astype(np.intp)
 
-    return vertices_arr, faces_arr
-
-
-def _compute_bounding_box(vertices: np.ndarray) -> BoundingBox:
-    """Compute axis-aligned bounding box from vertices."""
-    min_corner = tuple(float(v) for v in vertices.min(axis=0))
-    max_corner = tuple(float(v) for v in vertices.max(axis=0))
-    return BoundingBox(min_corner=min_corner, max_corner=max_corner)
+    return vertices, faces
 
 
 def _validate_params(
-    line_count: int, scale: float, curve_points: int
+    line_count: int, height: float, scale: float, curve_points: int
 ) -> None:
     """Validate parabolic envelope parameters."""
     if line_count < _MIN_LINE_COUNT:
         raise ValueError(
             f"line_count must be >= {_MIN_LINE_COUNT}, got {line_count}"
         )
+    if not np.isfinite(height):
+        raise ValueError(f"height must be finite, got {height}")
     if scale <= 0:
         raise ValueError(f"scale must be positive, got {scale}")
     if curve_points < _MIN_CURVE_POINTS:
@@ -94,7 +88,7 @@ class ParabolicEnvelopeGenerator(GeneratorBase):
     """Parabolic envelope surface generator."""
 
     name = "parabolic_envelope"
-    category = "curves"
+    category = "surfaces"
     aliases = ()
     description = "Ruled surface from a family of lines forming a parabolic envelope"
     resolution_params = {
@@ -134,7 +128,7 @@ class ParabolicEnvelopeGenerator(GeneratorBase):
             resolution_kwargs.get("curve_points", _DEFAULT_CURVE_POINTS)
         )
 
-        _validate_params(line_count, scale, curve_points)
+        _validate_params(line_count, height, scale, curve_points)
         merged["curve_points"] = curve_points
 
         vertices, faces = _build_envelope_mesh(
@@ -142,7 +136,7 @@ class ParabolicEnvelopeGenerator(GeneratorBase):
         )
 
         mesh = Mesh(vertices=vertices, faces=faces)
-        bbox = _compute_bounding_box(vertices)
+        bbox = BoundingBox.from_points(vertices)
 
         logger.info(
             "Generated parabolic envelope: lines=%d, segments=%d, "

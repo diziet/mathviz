@@ -6,7 +6,6 @@ phases are chosen to avoid self-intersections, the result is a closed knot.
 """
 
 import logging
-from math import gcd
 from typing import Any
 
 import numpy as np
@@ -49,17 +48,6 @@ def _compute_lissajous_knot_points(
 
     return np.column_stack([x, y, z]).astype(np.float64) * scale
 
-
-def _compute_bounding_box(points: np.ndarray) -> BoundingBox:
-    """Compute axis-aligned bounding box from curve points."""
-    min_corner = tuple(float(v) for v in points.min(axis=0))
-    max_corner = tuple(float(v) for v in points.max(axis=0))
-    return BoundingBox(min_corner=min_corner, max_corner=max_corner)
-
-
-def _are_pairwise_coprime(a: int, b: int, c: int) -> bool:
-    """Check if three integers are pairwise coprime."""
-    return gcd(a, b) == 1 and gcd(a, c) == 1 and gcd(b, c) == 1
 
 
 def _validate_params(
@@ -143,7 +131,7 @@ class LissajousKnotGenerator(GeneratorBase):
         # Lissajous curves with integer frequencies are always closed
         # over 2*pi period
         curve = Curve(points=points, closed=True)
-        bbox = _compute_bounding_box(points)
+        bbox = BoundingBox.from_points(points)
 
         logger.info(
             "Generated Lissajous knot: nx=%d, ny=%d, nz=%d, points=%d",
