@@ -11,7 +11,6 @@ from mathviz.generators.attractors.rossler import RosslerGenerator
 from mathviz.generators.attractors.thomas import ThomasGenerator
 
 _TEST_STEPS = 5000
-_TEST_TRANSIENT = 500
 
 
 @pytest.fixture(autouse=True)
