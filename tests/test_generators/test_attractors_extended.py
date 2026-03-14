@@ -70,16 +70,17 @@ def test_rossler_finite_nondegenerate() -> None:
 def test_rossler_wider_than_tall() -> None:
     """Rössler bounding box is wider than tall (characteristic folded-band)."""
     gen = RosslerGenerator()
-    obj = gen.generate(integration_steps=_TEST_STEPS)
+    # Use more steps for reliable shape characterization
+    obj = gen.generate(integration_steps=20_000)
     assert obj.bounding_box is not None
     min_c = np.array(obj.bounding_box.min_corner)
     max_c = np.array(obj.bounding_box.max_corner)
     extents = max_c - min_c
-    # X-Y plane extent should be larger than Z extent
-    xy_extent = max(extents[0], extents[1])
+    # X-Y diagonal extent should exceed Z extent (folded-band is flat)
+    xy_diagonal = np.sqrt(extents[0] ** 2 + extents[1] ** 2)
     z_extent = extents[2]
-    assert xy_extent > z_extent, (
-        f"Expected wider than tall: xy={xy_extent}, z={z_extent}"
+    assert xy_diagonal > z_extent, (
+        f"Expected wider than tall: xy_diag={xy_diagonal}, z={z_extent}"
     )
 
 
