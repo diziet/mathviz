@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import trimesh
 
-from mathviz.shared.marching_cubes import SpatialBounds, extract_mesh
+from mathviz.shared.marching_cubes import NoSurfaceError, SpatialBounds, extract_mesh
 
 
 def _sphere_field(resolution: int = 30) -> np.ndarray:
@@ -173,3 +173,9 @@ class TestValidation:
         field = _sphere_field(resolution=10)
         with pytest.raises(ValueError, match="target_face_count"):
             extract_mesh(field, UNIT_BOUNDS, target_face_count=2)
+
+    def test_no_isosurface_raises_no_surface_error(self) -> None:
+        """Isolevel outside the field range raises NoSurfaceError, not generic ValueError."""
+        field = _sphere_field(resolution=10)
+        with pytest.raises(NoSurfaceError, match="No isosurface found"):
+            extract_mesh(field, UNIT_BOUNDS, isolevel=9999.0)

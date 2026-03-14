@@ -20,6 +20,10 @@ DEFAULT_ISOLEVEL = 0.0
 MIN_FIELD_SIZE = 2
 
 
+class NoSurfaceError(ValueError):
+    """Raised when the isolevel does not intersect the scalar field."""
+
+
 @dataclass
 class SpatialBounds:
     """Axis-aligned bounds for a 3D scalar field."""
@@ -43,10 +47,19 @@ def extract_mesh(
 
     Vertices are returned in the coordinate space defined by *bounds*,
     not in voxel indices.
+
+    Raises ``NoSurfaceError`` if the isolevel does not intersect the field.
     """
     _validate_inputs(field, bounds, smoothing_iterations, target_face_count)
 
-    voxel_verts, faces, _, _ = marching_cubes(field, level=isolevel)
+    try:
+        voxel_verts, faces, _, _ = marching_cubes(field, level=isolevel)
+    except ValueError as exc:
+        if "surface" in str(exc).lower():
+            raise NoSurfaceError(
+                f"No isosurface found at isolevel {isolevel}"
+            ) from exc
+        raise
     vertices = _rescale_to_bounds(voxel_verts, field.shape, bounds)
     faces = faces.astype(np.int64)
 
@@ -124,7 +137,8 @@ def _compute_vertex_normals(tm: trimesh.Trimesh) -> np.ndarray:
 def _apply_smoothing(
     tm: trimesh.Trimesh, iterations: int
 ) -> trimesh.Trimesh:
-    """Apply Laplacian smoothing via trimesh."""
+    """Apply Laplacian smoothing via trimesh (returns a new mesh)."""
+    tm = tm.copy()
     trimesh.smoothing.filter_laplacian(tm, iterations=iterations)
     logger.debug("Applied %d Laplacian smoothing iterations", iterations)
     return tm
