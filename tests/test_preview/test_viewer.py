@@ -145,14 +145,14 @@ class TestFileServing:
     def test_stl_file_served_as_glb(self, client: TestClient, stl_file: Path) -> None:
         """STL files are converted to GLB for the viewer."""
         set_served_file(str(stl_file))
-        resp = client.get(f"/api/file/{stl_file}")
+        resp = client.get("/api/file")
         assert resp.status_code == 200
         assert resp.headers["content-type"] == "model/gltf-binary"
         assert resp.content[:4] == b"glTF"
 
     def test_no_file_configured_returns_404(self, client: TestClient) -> None:
         """When no file is configured, /api/file returns 404."""
-        resp = client.get("/api/file/whatever")
+        resp = client.get("/api/file")
         assert resp.status_code == 404
 
     def test_ply_file_served_directly(self, client: TestClient, tmp_path: Path) -> None:
@@ -163,9 +163,20 @@ class TestFileServing:
         ply_path = tmp_path / "test.ply"
         ply_path.write_bytes(ply_content)
         set_served_file(str(ply_path))
-        resp = client.get(f"/api/file/{ply_path}")
+        resp = client.get("/api/file")
         assert resp.status_code == 200
         assert "ply" in resp.headers["content-type"]
+
+    def test_gltf_file_served_with_json_content_type(
+        self, client: TestClient, tmp_path: Path,
+    ) -> None:
+        """GLTF files are served with model/gltf+json content type."""
+        gltf_path = tmp_path / "test.gltf"
+        gltf_path.write_text('{"asset":{"version":"2.0"}}', encoding="utf-8")
+        set_served_file(str(gltf_path))
+        resp = client.get("/api/file")
+        assert resp.status_code == 200
+        assert "gltf+json" in resp.headers["content-type"]
 
 
 # --- Preview CLI command ---

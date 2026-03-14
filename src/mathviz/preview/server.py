@@ -216,9 +216,9 @@ def get_cloud(
     return Response(content=data, media_type="application/x-ply")
 
 
-@app.get("/api/file/{file_path:path}")
-def serve_local_file(file_path: str) -> Response:
-    """Serve a local geometry file, converting STL to GLB if needed."""
+@app.get("/api/file")
+def serve_local_file() -> Response:
+    """Serve the configured local geometry file, converting STL to GLB if needed."""
     served = get_served_file()
     if served is None:
         raise HTTPException(status_code=404, detail="No file configured for serving.")
@@ -235,8 +235,10 @@ def serve_local_file(file_path: str) -> Response:
         return _serve_stl_as_glb(resolved)
     if suffix == ".ply":
         return FileResponse(str(resolved), media_type="application/x-ply")
-    if suffix in {".glb", ".gltf"}:
+    if suffix == ".glb":
         return FileResponse(str(resolved), media_type="model/gltf-binary")
+    if suffix == ".gltf":
+        return FileResponse(str(resolved), media_type="model/gltf+json")
     return FileResponse(str(resolved), media_type="application/octet-stream")
 
 

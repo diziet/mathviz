@@ -142,35 +142,46 @@ function parseQueryParams() {
 }
 
 /* ── PLY parser (binary little-endian) ── */
+const PLY_TYPE_SIZES = {
+  'char': 1, 'uchar': 1, 'int8': 1, 'uint8': 1,
+  'short': 2, 'ushort': 2, 'int16': 2, 'uint16': 2,
+  'int': 4, 'uint': 4, 'int32': 4, 'uint32': 4,
+  'float': 4, 'float32': 4,
+  'double': 8, 'float64': 8,
+};
+
 function parseBinaryPLY(buffer) {
   const decoder = new TextDecoder();
   const bytes = new Uint8Array(buffer);
 
-  let headerEnd = 0;
   const headerStr = decoder.decode(bytes.slice(0, Math.min(4096, bytes.length)));
-  headerEnd = headerStr.indexOf('end_header\n');
-  if (headerEnd < 0) return null;
-  headerEnd += 'end_header\n'.length;
+  const headerEndIdx = headerStr.indexOf('end_header\n');
+  if (headerEndIdx < 0) return null;
+  const headerEnd = headerEndIdx + 'end_header\n'.length;
 
   const headerLines = headerStr.slice(0, headerEnd).split('\n');
   let vertexCount = 0;
-  let propsPerVertex = 0;
+  let inVertexElement = false;
+  let vertexStride = 0;
 
   for (const line of headerLines) {
     const parts = line.trim().split(/\s+/);
-    if (parts[0] === 'element' && parts[1] === 'vertex') {
-      vertexCount = parseInt(parts[2], 10);
+    if (parts[0] === 'element') {
+      inVertexElement = (parts[1] === 'vertex');
+      if (inVertexElement) vertexCount = parseInt(parts[2], 10);
     }
-    if (parts[0] === 'property') propsPerVertex++;
+    if (parts[0] === 'property' && inVertexElement) {
+      const typeSize = PLY_TYPE_SIZES[parts[1]] || 4;
+      vertexStride += typeSize;
+    }
   }
 
   const headerBytes = new TextEncoder().encode(headerStr.slice(0, headerEnd)).length;
   const dataView = new DataView(buffer, headerBytes);
   const positions = new Float32Array(vertexCount * 3);
 
-  const stride = propsPerVertex * 4;
   for (let i = 0; i < vertexCount; i++) {
-    const offset = i * stride;
+    const offset = i * vertexStride;
     positions[i * 3] = dataView.getFloat32(offset, true);
     positions[i * 3 + 1] = dataView.getFloat32(offset + 4, true);
     positions[i * 3 + 2] = dataView.getFloat32(offset + 8, true);
@@ -256,6 +267,29 @@ function loadCloudFromPLY(url) {
   });
 }
 
+/* ── Display helpers ── */
+async function displayMesh(url, label) {
+  const {group, totalVertices, totalFaces} = await loadMeshFromGLB(url);
+  state.meshGroup = group;
+  scene.add(group);
+  addBoundingBox(group);
+  fitCamera(group);
+  updateInfo({generator: label, vertices: totalVertices, faces: totalFaces});
+}
+
+function displayCloud(points, vertexCount, label) {
+  state.cloudPoints = points;
+  scene.add(points);
+  if (!state.meshGroup) {
+    addBoundingBox(points);
+    fitCamera(points);
+    document.getElementById('view-mode').value = 'points';
+    state.viewMode = 'points';
+  }
+  updateInfo({generator: label, points: vertexCount});
+}
+
+/* ── Loading workflows ── */
 async function loadFromAPI(generator, genParams, seed) {
   const loadingEl = document.getElementById('loading');
   loadingEl.style.display = 'block';
@@ -271,32 +305,11 @@ async function loadFromAPI(generator, genParams, seed) {
     const data = await resp.json();
 
     clearScene();
-    updateInfo({generator});
-
-    if (data.mesh_url) {
-      const {group, totalVertices, totalFaces} = await loadMeshFromGLB(data.mesh_url + '?lod=preview');
-      state.meshGroup = group;
-      scene.add(group);
-      addBoundingBox(group);
-      fitCamera(group);
-      updateInfo({generator, vertices: totalVertices, faces: totalFaces});
-    }
-
+    if (data.mesh_url) await displayMesh(data.mesh_url + '?lod=preview', generator);
     if (data.cloud_url) {
       const {points, vertexCount} = await loadCloudFromPLY(data.cloud_url + '?lod=preview');
-      state.cloudPoints = points;
-      scene.add(points);
-      if (!state.meshGroup) {
-        addBoundingBox(points);
-        fitCamera(points);
-      }
-      updateInfo({points: vertexCount});
-      if (!state.meshGroup) {
-        document.getElementById('view-mode').value = 'points';
-        state.viewMode = 'points';
-      }
+      displayCloud(points, vertexCount, generator);
     }
-
     applyViewMode();
   } catch (err) {
     console.error('Load error:', err);
@@ -313,33 +326,14 @@ async function loadFromFile(filePath) {
   try {
     clearScene();
     const ext = filePath.split('.').pop().toLowerCase();
-    const url = '/api/file/' + encodeURIComponent(filePath);
+    const url = '/api/file';
 
-    if (ext === 'glb' || ext === 'gltf') {
-      const {group, totalVertices, totalFaces} = await loadMeshFromGLB(url);
-      state.meshGroup = group;
-      scene.add(group);
-      addBoundingBox(group);
-      fitCamera(group);
-      updateInfo({generator: 'file', vertices: totalVertices, faces: totalFaces});
+    if (ext === 'stl' || ext === 'glb' || ext === 'gltf') {
+      await displayMesh(url, 'file');
     } else if (ext === 'ply') {
       const {points, vertexCount} = await loadCloudFromPLY(url);
-      state.cloudPoints = points;
-      scene.add(points);
-      addBoundingBox(points);
-      fitCamera(points);
-      document.getElementById('view-mode').value = 'points';
-      state.viewMode = 'points';
-      updateInfo({generator: 'file', points: vertexCount});
-    } else if (ext === 'stl') {
-      const {group, totalVertices, totalFaces} = await loadMeshFromGLB(url);
-      state.meshGroup = group;
-      scene.add(group);
-      addBoundingBox(group);
-      fitCamera(group);
-      updateInfo({generator: 'file', vertices: totalVertices, faces: totalFaces});
+      displayCloud(points, vertexCount, 'file');
     }
-
     applyViewMode();
   } catch (err) {
     console.error('File load error:', err);
