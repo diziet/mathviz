@@ -305,10 +305,22 @@ async function loadFromAPI(generator, genParams, seed) {
     const data = await resp.json();
 
     clearScene();
-    if (data.mesh_url) await displayMesh(data.mesh_url + '?lod=preview', generator);
-    if (data.cloud_url) {
+    const hasMesh = Boolean(data.mesh_url);
+    const hasCloud = Boolean(data.cloud_url);
+
+    if (hasMesh) await displayMesh(data.mesh_url + '?lod=preview', generator);
+    if (hasCloud) {
       const {points, vertexCount} = await loadCloudFromPLY(data.cloud_url + '?lod=preview');
       displayCloud(points, vertexCount, generator);
+    }
+
+    /* Auto-select view mode based on available geometry */
+    if (!hasMesh && hasCloud) {
+      state.viewMode = 'points';
+      document.getElementById('view-mode').value = 'points';
+    } else if (hasMesh && !hasCloud) {
+      state.viewMode = 'shaded';
+      document.getElementById('view-mode').value = 'shaded';
     }
     applyViewMode();
   } catch (err) {
