@@ -318,7 +318,7 @@ async function loadFromAPI(generator, genParams, seed) {
     if (!hasMesh && hasCloud) {
       state.viewMode = 'points';
       document.getElementById('view-mode').value = 'points';
-    } else if (hasMesh && !hasCloud) {
+    } else if (hasMesh) {
       state.viewMode = 'shaded';
       document.getElementById('view-mode').value = 'shaded';
     }

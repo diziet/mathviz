@@ -1,12 +1,13 @@
 """Tests for export routing auto-detection (Task 38)."""
 
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
-from mathviz.core.math_object import MathObject, Mesh, PointCloud
+from mathviz.core.math_object import Curve, MathObject, Mesh, PointCloud
 from mathviz.pipeline.mesh_exporter import MeshExportError
 from mathviz.pipeline.point_cloud_exporter import PointCloudExportError
 from mathviz.pipeline.runner import ExportConfig, _detect_export_type, _run_export
@@ -116,6 +117,15 @@ class TestDetectExportType:
     def test_both_ply_prefers_mesh(self) -> None:
         """Both geometries + .ply (ambiguous) prefers mesh."""
         assert _detect_export_type(_both_obj(), Path("out.ply")) == "mesh"
+
+    def test_no_geometry_raises_value_error(self) -> None:
+        """Curve-only object with no mesh or cloud raises ValueError."""
+        curve_only = MathObject(
+            curves=[Curve(points=np.array([[0, 0, 0], [1, 1, 1]], dtype=np.float64))],
+            generator_name="test_curves",
+        )
+        with pytest.raises(ValueError, match="has no mesh or point_cloud to export"):
+            _detect_export_type(curve_only, Path("out.ply"))
 
 
 # --- End-to-end export routing ---
@@ -241,3 +251,42 @@ class TestPreviewServerGeometryRouting:
         mesh_resp = client.get(f"{mesh_url}?lod=preview")
         assert mesh_resp.status_code == 200
         assert mesh_resp.content[:4] == b"glTF"
+
+    def test_cloud_only_generator_returns_200(self, client: TestClient) -> None:
+        """POST /api/generate for a cloud-only generator returns 200 with cloud_url."""
+        from mathviz.core.validator import ValidationResult
+        from mathviz.pipeline.runner import PipelineResult
+
+        cloud_obj = _cloud_only_obj()
+        mock_result = PipelineResult(
+            math_object=cloud_obj,
+            validation=ValidationResult(),
+        )
+        with patch("mathviz.preview.server.run_pipeline", return_value=mock_result):
+            resp = client.post(
+                "/api/generate",
+                json={"generator": "torus", "seed": 99},
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["cloud_url"] is not None
+        assert data["mesh_url"] is None
+
+    def test_cloud_only_cloud_url_serves_ply(self, client: TestClient) -> None:
+        """Cloud URL for cloud-only generator returns valid PLY data."""
+        from mathviz.core.validator import ValidationResult
+        from mathviz.pipeline.runner import PipelineResult
+
+        cloud_obj = _cloud_only_obj()
+        mock_result = PipelineResult(
+            math_object=cloud_obj,
+            validation=ValidationResult(),
+        )
+        with patch("mathviz.preview.server.run_pipeline", return_value=mock_result):
+            resp = client.post(
+                "/api/generate",
+                json={"generator": "torus", "seed": 99},
+            )
+        cloud_url = resp.json()["cloud_url"]
+        cloud_resp = client.get(f"{cloud_url}?lod=preview")
+        assert cloud_resp.status_code == 200

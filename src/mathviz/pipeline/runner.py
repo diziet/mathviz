@@ -171,6 +171,12 @@ def _detect_export_type(obj: MathObject, path: Path) -> str:
     has_mesh = obj.mesh is not None
     has_cloud = obj.point_cloud is not None
 
+    if not has_mesh and not has_cloud:
+        raise ValueError(
+            f"MathObject '{obj.generator_name}' has no mesh or point_cloud to export. "
+            "Run a representation stage to convert curves to mesh before exporting."
+        )
+
     if has_mesh and not has_cloud:
         return "mesh"
     if has_cloud and not has_mesh:
