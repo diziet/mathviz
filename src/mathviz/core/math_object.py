@@ -92,6 +92,15 @@ class BoundingBox:
     min_corner: tuple[float, float, float]
     max_corner: tuple[float, float, float]
 
+    @property
+    def size(self) -> tuple[float, float, float]:
+        """Return (width, height, depth) of the bounding box."""
+        return (
+            self.max_corner[0] - self.min_corner[0],
+            self.max_corner[1] - self.min_corner[1],
+            self.max_corner[2] - self.min_corner[2],
+        )
+
 
 @dataclass
 class MathObject:
@@ -121,6 +130,18 @@ class MathObject:
 
     # Performance
     generation_time_seconds: Optional[float] = None
+
+    def all_point_arrays(self) -> list[np.ndarray]:
+        """Return references to all mutable point arrays."""
+        arrays: list[np.ndarray] = []
+        if self.mesh is not None:
+            arrays.append(self.mesh.vertices)
+        if self.point_cloud is not None:
+            arrays.append(self.point_cloud.points)
+        if self.curves is not None:
+            for curve in self.curves:
+                arrays.append(curve.points)
+        return arrays
 
     def validate(self) -> list[str]:
         """Validate all geometry components. Returns list of errors."""
