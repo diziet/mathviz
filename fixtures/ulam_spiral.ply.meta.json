@@ -1,0 +1,29 @@
+{
+  "generator_name": "ulam_spiral",
+  "params": {
+    "prime_height": 1.0,
+    "spacing": 0.1,
+    "num_points": 200
+  },
+  "seed": 42,
+  "category": "number_theory",
+  "coord_space": "physical",
+  "representation": "weighted_cloud",
+  "description": "",
+  "generation_time_seconds": null,
+  "export_timestamp": "2026-03-14T19:36:58.749973+00:00",
+  "version": "0.1.0",
+  "bounding_box": {
+    "min_corner": [
+      28.999999999999996,
+      30.499999999999996,
+      5.0
+    ],
+    "max_corner": [
+      71.0,
+      69.5,
+      35.0
+    ]
+  },
+  "export_format": "ply"
+}

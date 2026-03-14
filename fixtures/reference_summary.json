@@ -1,0 +1,179 @@
+{
+  "torus": {
+    "generator_name": "torus",
+    "category": "parametric",
+    "seed": 42,
+    "parameters": {
+      "major_radius": 1.0,
+      "minor_radius": 0.4
+    },
+    "vertex_count": 256,
+    "face_count": 512,
+    "bounding_box": {
+      "min_corner": [
+        5.0,
+        5.0,
+        7.142857142857141
+      ],
+      "max_corner": [
+        95.0,
+        95.0,
+        32.85714285714286
+      ]
+    }
+  },
+  "gyroid": {
+    "generator_name": "gyroid",
+    "category": "implicit",
+    "seed": 42,
+    "parameters": {
+      "cell_size": 1.0,
+      "periods": 2,
+      "voxel_resolution": 16
+    },
+    "vertex_count": 2442,
+    "face_count": 4468,
+    "bounding_box": {
+      "min_corner": [
+        35.0,
+        35.0,
+        5.0
+      ],
+      "max_corner": [
+        65.0,
+        65.0,
+        35.0
+      ]
+    }
+  },
+  "lorenz": {
+    "generator_name": "lorenz",
+    "category": "attractors",
+    "seed": 42,
+    "parameters": {
+      "sigma": 10.0,
+      "rho": 28.0,
+      "beta": 2.6666666666666665,
+      "transient_steps": 1000,
+      "integration_steps": 2000
+    },
+    "vertex_count": 16002,
+    "face_count": 32000,
+    "bounding_box": {
+      "min_corner": [
+        36.25786857743411,
+        31.7062210859391,
+        5.0000000000000036
+      ],
+      "max_corner": [
+        63.74213142256589,
+        68.29377891406091,
+        35.0
+      ]
+    }
+  },
+  "mandelbulb": {
+    "generator_name": "mandelbulb",
+    "category": "fractals",
+    "seed": 42,
+    "parameters": {
+      "power": 8.0,
+      "max_iterations": 10,
+      "extent": 1.5,
+      "voxel_resolution": 16
+    },
+    "vertex_count": 460,
+    "face_count": 900,
+    "point_count": 1073,
+    "bounding_box": {
+      "min_corner": [
+        35.13157882188496,
+        35.0,
+        5.0
+      ],
+      "max_corner": [
+        64.86842117811504,
+        65.0,
+        35.0
+      ]
+    }
+  },
+  "torus_knot": {
+    "generator_name": "torus_knot",
+    "category": "knots",
+    "seed": 42,
+    "parameters": {
+      "p": 2,
+      "q": 3,
+      "R": 1.0,
+      "r": 0.4,
+      "curve_points": 64
+    },
+    "vertex_count": 1024,
+    "face_count": 2048,
+    "bounding_box": {
+      "min_corner": [
+        9.009205191415191,
+        7.160484334544897,
+        5.0
+      ],
+      "max_corner": [
+        90.99079480858481,
+        92.83951566545511,
+        35.0
+      ]
+    }
+  },
+  "ulam_spiral": {
+    "generator_name": "ulam_spiral",
+    "category": "number_theory",
+    "seed": 42,
+    "parameters": {
+      "prime_height": 1.0,
+      "spacing": 0.1,
+      "num_points": 200
+    },
+    "point_count": 200,
+    "bounding_box": {
+      "min_corner": [
+        28.999999999999996,
+        30.499999999999996,
+        5.0
+      ],
+      "max_corner": [
+        71.0,
+        69.5,
+        35.0
+      ]
+    }
+  },
+  "lissajous_curve": {
+    "generator_name": "lissajous_curve",
+    "category": "curves",
+    "seed": 42,
+    "parameters": {
+      "nx": 3,
+      "ny": 2,
+      "nz": 1,
+      "phase_x": 0.0,
+      "phase_y": 0.5,
+      "phase_z": 0.0,
+      "scale": 1.0,
+      "curve_points": 64
+    },
+    "vertex_count": 1024,
+    "face_count": 2048,
+    "bounding_box": {
+      "min_corner": [
+        35.0,
+        35.06519296396788,
+        5.0
+      ],
+      "max_corner": [
+        65.0,
+        64.93480703603211,
+        35.0
+      ]
+    }
+  }
+}

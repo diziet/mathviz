@@ -1,0 +1,30 @@
+{
+  "generator_name": "mandelbulb",
+  "params": {
+    "power": 8.0,
+    "max_iterations": 10,
+    "extent": 1.5,
+    "voxel_resolution": 16
+  },
+  "seed": 42,
+  "category": "fractals",
+  "coord_space": "physical",
+  "representation": "sparse_shell",
+  "description": "",
+  "generation_time_seconds": null,
+  "export_timestamp": "2026-03-14T19:36:58.744428+00:00",
+  "version": "0.1.0",
+  "bounding_box": {
+    "min_corner": [
+      35.13157882188496,
+      35.0,
+      5.0
+    ],
+    "max_corner": [
+      64.86842117811504,
+      65.0,
+      35.0
+    ]
+  },
+  "export_format": "stl"
+}
