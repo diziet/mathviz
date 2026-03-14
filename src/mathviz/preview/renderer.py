@@ -5,9 +5,10 @@ Requires optional dependency: pip install mathviz[render]
 """
 
 import logging
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Iterator, Literal
 
 import numpy as np
 
@@ -41,6 +42,13 @@ class RenderConfig:
     opacity: float = 0.85
     lighting: str = "backlit"
 
+    def __post_init__(self) -> None:
+        """Validate dimensions are positive."""
+        if self.width <= 0:
+            raise ValueError(f"width must be positive, got {self.width}")
+        if self.height <= 0:
+            raise ValueError(f"height must be positive, got {self.height}")
+
 
 def require_pyvista() -> None:
     """Check that pyvista is importable, raising with install instructions."""
@@ -67,6 +75,8 @@ def _get_pyvista_mesh(obj: MathObject) -> "object":
         return pv.PolyData(obj.point_cloud.points)
 
     if obj.curves is not None and len(obj.curves) > 0:
+        # TODO: Add line connectivity for proper curve rendering.
+        # Currently renders curves as disconnected points.
         all_points = np.vstack([c.points for c in obj.curves])
         return pv.PolyData(all_points)
 
@@ -101,12 +111,13 @@ def _setup_backlit_scene(plotter: "object", pv_mesh: "object", config: RenderCon
     plotter.add_light(rim_light)
 
 
-def render_to_png(
+@contextmanager
+def _create_plotter(
     obj: MathObject,
     output_path: Path,
     config: RenderConfig | None = None,
-) -> Path:
-    """Render a MathObject to a high-resolution PNG file."""
+) -> Iterator[tuple["object", RenderConfig]]:
+    """Create a PyVista plotter with scene setup, screenshot on exit."""
     require_pyvista()
     import pyvista as pv
 
@@ -118,13 +129,30 @@ def render_to_png(
         off_screen=True,
         window_size=[config.width, config.height],
     )
-    _setup_backlit_scene(plotter, pv_mesh, config)
+    try:
+        _setup_backlit_scene(plotter, pv_mesh, config)
+        yield plotter, config
+        plotter.screenshot(str(Path(output_path)))
+    finally:
+        plotter.close()
 
+
+def render_to_png(
+    obj: MathObject,
+    output_path: Path,
+    config: RenderConfig | None = None,
+) -> Path:
+    """Render a MathObject to a high-resolution PNG file."""
     output_path = Path(output_path)
-    plotter.screenshot(str(output_path))
-    plotter.close()
+    with _create_plotter(obj, output_path, config) as (plotter, resolved_config):
+        pass  # Default scene is sufficient for 3D render
 
-    logger.info("Rendered %dx%d image to %s", config.width, config.height, output_path)
+    logger.info(
+        "Rendered %dx%d image to %s",
+        resolved_config.width,
+        resolved_config.height,
+        output_path,
+    )
     return output_path
 
 
@@ -135,31 +163,16 @@ def render_2d_projection(
     config: RenderConfig | None = None,
 ) -> Path:
     """Render a 2D projection of a MathObject to PNG."""
-    require_pyvista()
-    import pyvista as pv
-
-    config = config or RenderConfig()
-    pv_mesh = _get_pyvista_mesh(obj)
-
-    pv.OFF_SCREEN = True
-    plotter = pv.Plotter(
-        off_screen=True,
-        window_size=[config.width, config.height],
-    )
-    _setup_backlit_scene(plotter, pv_mesh, config)
-
-    # Set up parallel projection for true 2D view
-    plotter.enable_parallel_projection()
-
-    camera_pos, view_up = _PROJECTION_CAMERAS[view]
-    plotter.camera.position = camera_pos
-    plotter.camera.focal_point = (0, 0, 0)
-    plotter.camera.up = view_up
-    plotter.reset_camera()
-
     output_path = Path(output_path)
-    plotter.screenshot(str(output_path))
-    plotter.close()
+    with _create_plotter(obj, output_path, config) as (plotter, _):
+        # Set up parallel projection for true 2D view
+        plotter.enable_parallel_projection()
+
+        camera_pos, view_up = _PROJECTION_CAMERAS[view]
+        plotter.camera.position = camera_pos
+        plotter.camera.focal_point = (0, 0, 0)
+        plotter.camera.up = view_up
+        plotter.reset_camera()
 
     logger.info("Rendered 2D %s projection to %s", view, output_path)
     return output_path

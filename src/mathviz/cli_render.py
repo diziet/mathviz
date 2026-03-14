@@ -103,14 +103,6 @@ def _run_render(
     quiet: bool,
 ) -> None:
     """Shared render logic for render and render-2d commands."""
-    try:
-        from mathviz.preview.renderer import require_pyvista
-
-        require_pyvista()
-    except ImportError:
-        console.print(f"[red]{PYVISTA_INSTALL_MSG}[/red]")
-        raise typer.Exit(code=2)
-
     params = parse_params_fn(param_list)
     result = run_pipeline_fn(
         generator_name=generator_name,
@@ -122,10 +114,14 @@ def _run_render(
     config = RenderConfig(width=width, height=height)
     obj = result.math_object
 
-    if view is not None:
-        rendered_path = render_2d_projection(obj, output, view=view, config=config)
-    else:
-        rendered_path = render_to_png(obj, output, config=config)
+    try:
+        if view is not None:
+            rendered_path = render_2d_projection(obj, output, view=view, config=config)
+        else:
+            rendered_path = render_to_png(obj, output, config=config)
+    except ImportError:
+        console.print(f"[red]{PYVISTA_INSTALL_MSG}[/red]")
+        raise typer.Exit(code=2)
 
     if not quiet:
         console.print(f"[green]Rendered to {rendered_path}[/green]")

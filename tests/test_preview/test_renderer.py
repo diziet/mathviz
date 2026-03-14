@@ -241,7 +241,9 @@ class TestRender2dProjection:
             renderer.render_2d_projection(_sphere_mesh(), output_file, view="top")
 
         # Top view: camera at (0,0,1) looking at origin
-        mock_plotter.camera.__setattr__("position", (0, 0, 1))
+        assert mock_plotter.camera.position == (0, 0, 1)
+        assert mock_plotter.camera.focal_point == (0, 0, 0)
+        assert mock_plotter.camera.up == (0, 1, 0)
 
     def test_all_projection_views(self, tmp_path: Path) -> None:
         """All projection views produce output files."""
@@ -309,3 +311,13 @@ class TestRenderConfig:
         config = RenderConfig(width=800, height=600)
         assert config.width == 800
         assert config.height == 600
+
+    def test_zero_width_raises(self) -> None:
+        """Zero width is rejected."""
+        with pytest.raises(ValueError, match="width must be positive"):
+            RenderConfig(width=0)
+
+    def test_negative_height_raises(self) -> None:
+        """Negative height is rejected."""
+        with pytest.raises(ValueError, match="height must be positive"):
+            RenderConfig(height=-1)
