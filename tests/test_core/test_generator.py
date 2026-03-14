@@ -215,7 +215,7 @@ def test_register_uses_class_aliases() -> None:
     @register
     class ClassAliasGen(_BasePlaceholder):
         name = "class_alias_gen"
-        aliases = ["from_class"]
+        aliases = ("from_class",)
 
     assert get_generator("from_class") is ClassAliasGen
 

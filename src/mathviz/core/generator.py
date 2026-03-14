@@ -30,9 +30,15 @@ class GeneratorBase(ABC):
 
     name: str = ""
     category: str = ""
-    aliases: list[str] = []
+    aliases: tuple[str, ...] = ()
     description: str = ""
     resolution_params: dict[str, str] = {}
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Ensure each subclass gets its own copy of mutable defaults."""
+        super().__init_subclass__(**kwargs)
+        if "resolution_params" not in cls.__dict__:
+            cls.resolution_params = dict(cls.resolution_params)
 
     @abstractmethod
     def get_default_params(self) -> dict[str, Any]:
@@ -90,7 +96,7 @@ def register(
         if not canonical:
             raise ValueError(f"{gen_cls.__name__} must define a non-empty 'name'")
 
-        resolved_aliases = aliases if aliases is not None else list(gen_cls.aliases)
+        resolved_aliases = list(aliases) if aliases is not None else list(gen_cls.aliases)
 
         _check_name_available(canonical, gen_cls)
         for alias in resolved_aliases:
@@ -128,22 +134,23 @@ def _check_name_available(name: str, gen_cls: type[GeneratorBase]) -> None:
         )
 
 
-def get_generator(name: str) -> type[GeneratorBase]:
-    """Look up a generator class by canonical name or alias."""
-    _ensure_discovered()
-    canonical = _alias_map.get(name)
-    if canonical is None:
-        raise KeyError(f"No generator registered with name or alias {name!r}")
-    return _registry[canonical].generator_class
-
-
-def get_generator_meta(name: str) -> GeneratorMeta:
-    """Look up generator metadata by canonical name or alias."""
+def _resolve(name: str) -> GeneratorMeta:
+    """Resolve a name or alias to its GeneratorMeta entry."""
     _ensure_discovered()
     canonical = _alias_map.get(name)
     if canonical is None:
         raise KeyError(f"No generator registered with name or alias {name!r}")
     return _registry[canonical]
+
+
+def get_generator(name: str) -> type[GeneratorBase]:
+    """Look up a generator class by canonical name or alias."""
+    return _resolve(name).generator_class
+
+
+def get_generator_meta(name: str) -> GeneratorMeta:
+    """Look up generator metadata by canonical name or alias."""
+    return _resolve(name)
 
 
 def list_generators() -> list[GeneratorMeta]:
@@ -152,12 +159,17 @@ def list_generators() -> list[GeneratorMeta]:
     return list(_registry.values())
 
 
-def clear_registry() -> None:
-    """Clear all registrations. Intended for testing only."""
+def clear_registry(*, suppress_discovery: bool = True) -> None:
+    """Clear all registrations. Intended for testing only.
+
+    Args:
+        suppress_discovery: If True (default), suppresses auto-discovery so
+            tests operate in a fully manual registration mode.
+    """
     global _discovered
     _registry.clear()
     _alias_map.clear()
-    _discovered = False
+    _discovered = suppress_discovery
 
 
 def _ensure_discovered() -> None:
@@ -185,5 +197,5 @@ def _discover_generators() -> None:
     ):
         try:
             importlib.import_module(modname)
-        except ImportError:
-            logger.warning("Failed to import generator module %s", modname)
+        except Exception:
+            logger.error("Failed to import generator module %s", modname, exc_info=True)
