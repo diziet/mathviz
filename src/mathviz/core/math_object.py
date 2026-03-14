@@ -164,7 +164,9 @@ class MathObject:
                     f"scalar_field dtype {self.scalar_field.dtype}, "
                     "expected numeric (float or int)"
                 )
-            if np.any(np.isnan(self.scalar_field)):
+            elif self.scalar_field.dtype.kind == "f" and np.any(
+                np.isnan(self.scalar_field)
+            ):
                 errors.append("scalar_field contains NaN")
         if not has_geometry:
             errors.append(
