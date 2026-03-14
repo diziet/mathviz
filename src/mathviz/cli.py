@@ -70,10 +70,12 @@ def _configure_logging(verbose: bool, quiet: bool) -> None:
 
 
 def _exit_code_for_result(result: PipelineResult) -> int:
-    """Determine exit code from pipeline result validation."""
-    if result.validation.errors:
-        return EXIT_ERROR
-    if result.validation.warnings:
+    """Determine exit code from pipeline result validation.
+
+    Exit code 1 means output was produced but has validation issues.
+    Exit code 2 is reserved for CLI-level errors (unknown generator, bad args).
+    """
+    if result.validation.errors or result.validation.warnings:
         return EXIT_VALIDATION_WARNING
     return EXIT_SUCCESS
 
@@ -147,11 +149,12 @@ def _print_validation_rich(result: PipelineResult) -> None:
         console.print(f"  {icon} {check.name}: {check.message}")
 
 
-def _write_report(path: Path, data: dict[str, Any]) -> None:
+def _write_report(path: Path, data: dict[str, Any], *, silent: bool = False) -> None:
     """Write a JSON report file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
-    console.print(f"Report written to {path}")
+    if not silent:
+        console.print(f"Report written to {path}")
 
 
 @app.command()
@@ -206,7 +209,7 @@ def generate(
     exit_code = _exit_code_for_result(result)
 
     if report is not None:
-        _write_report(report, result_dict)
+        _write_report(report, result_dict, silent=json_output)
 
     if json_output:
         typer.echo(json.dumps(result_dict, indent=2, default=str))
