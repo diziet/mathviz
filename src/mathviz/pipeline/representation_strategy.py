@@ -128,6 +128,13 @@ def _validate_input(obj: MathObject, config: RepresentationConfig) -> None:
                 "but MathObject has none"
             )
         return
+    if config.type == RepresentationType.WEIGHTED_CLOUD:
+        if obj.point_cloud is None:
+            raise ValueError(
+                "WEIGHTED_CLOUD requires a point_cloud input, "
+                "but MathObject has no point_cloud"
+            )
+        return
     obj.validate_or_raise()
 
 
