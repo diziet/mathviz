@@ -18,12 +18,6 @@ def _create_stl(path: Path) -> None:
     mesh.export(str(path), file_type="stl")
 
 
-def _create_obj(path: Path) -> None:
-    """Create a minimal valid OBJ file using trimesh."""
-    mesh = trimesh.creation.box(extents=(10, 10, 10))
-    mesh.export(str(path), file_type="obj")
-
-
 def _create_ply_cloud(path: Path, num_points: int = 100) -> None:
     """Create a PLY file containing only a point cloud (no faces)."""
     rng = np.random.default_rng(42)

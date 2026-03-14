@@ -2,6 +2,7 @@
 
 import json
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from typing import Optional
 
@@ -9,18 +10,42 @@ import typer
 from rich.console import Console
 
 from mathviz.core.container import Container, PlacementPolicy
+from mathviz.core.math_object import MathObject
 from mathviz.pipeline.geometry_loader import GeometryLoadError, has_mesh, load_geometry
-from mathviz.pipeline.sampler import SamplerConfig
 
 logger = logging.getLogger(__name__)
 
 EXIT_SUCCESS = 0
 EXIT_ERROR = 2
 
+MESH_OUTPUT_FORMATS = {"stl", "obj"}
+CLOUD_OUTPUT_FORMATS = {"ply", "xyz", "pcd"}
+
+
+def _load_or_exit(input_path: Path, console: Console) -> MathObject:
+    """Load geometry from a file, printing an error and exiting on failure."""
+    try:
+        return load_geometry(input_path)
+    except GeometryLoadError as exc:
+        console.print(f"[red]Error: {exc}[/red]")
+        raise typer.Exit(code=EXIT_ERROR)
+
+
+def _resolve_output_format(path: Path, fmt: str | None) -> str:
+    """Resolve output format from explicit arg or file suffix."""
+    if fmt is not None:
+        return fmt.lower().lstrip(".")
+    suffix = path.suffix.lower().lstrip(".")
+    if not suffix:
+        raise ValueError(
+            f"Cannot infer output format from '{path}' — specify --format explicitly"
+        )
+    return suffix
+
 
 def register_util_commands(
     app: typer.Typer,
-    configure_logging_fn: object,
+    configure_logging_fn: Callable[[bool, bool], None],
     console: Console | None = None,
 ) -> None:
     """Register convert, sample, transform, and schema commands."""
@@ -105,21 +130,22 @@ def _run_convert(
     """Execute the convert command."""
     from mathviz.pipeline.mesh_exporter import export_mesh
     from mathviz.pipeline.point_cloud_exporter import export_point_cloud
+    from mathviz.pipeline.sampler import SamplerConfig, sample as run_sample
+
+    obj = _load_or_exit(input_path, console)
 
     try:
-        obj = load_geometry(input_path)
-    except GeometryLoadError as exc:
+        output_fmt = _resolve_output_format(output_path, fmt)
+    except ValueError as exc:
         console.print(f"[red]Error: {exc}[/red]")
         raise typer.Exit(code=EXIT_ERROR)
 
-    output_fmt = _resolve_output_format(output_path, fmt)
-    is_cloud_output = output_fmt in {"ply", "xyz", "pcd"}
-    is_mesh_output = output_fmt in {"stl", "obj"}
+    is_cloud_output = output_fmt in CLOUD_OUTPUT_FORMATS
+    is_mesh_output = output_fmt in MESH_OUTPUT_FORMATS
 
     if is_cloud_output and not has_mesh(obj) and obj.point_cloud is not None:
         export_point_cloud(obj, output_path, fmt=output_fmt)
     elif is_cloud_output and has_mesh(obj) and auto_sample:
-        from mathviz.pipeline.sampler import sample as run_sample
         sampler_cfg = SamplerConfig(num_points=num_points) if num_points else SamplerConfig()
         obj = run_sample(obj, sampler_cfg)
         export_point_cloud(obj, output_path, fmt=output_fmt)
@@ -140,8 +166,6 @@ def _run_convert(
             f"'{output_fmt}' without mesh data.[/red]"
         )
         raise typer.Exit(code=EXIT_ERROR)
-    elif output_fmt == "ply" and has_mesh(obj):
-        export_mesh(obj, output_path, fmt=output_fmt)
     else:
         console.print(f"[red]Error: Unsupported output format '{output_fmt}'[/red]")
         raise typer.Exit(code=EXIT_ERROR)
@@ -163,13 +187,9 @@ def _run_sample(
 ) -> None:
     """Execute the sample command."""
     from mathviz.pipeline.point_cloud_exporter import export_point_cloud
-    from mathviz.pipeline.sampler import SamplingMethod, sample as run_sample
+    from mathviz.pipeline.sampler import SamplerConfig, SamplingMethod, sample as run_sample
 
-    try:
-        obj = load_geometry(input_path)
-    except GeometryLoadError as exc:
-        console.print(f"[red]Error: {exc}[/red]")
-        raise typer.Exit(code=EXIT_ERROR)
+    obj = _load_or_exit(input_path, console)
 
     if not has_mesh(obj):
         console.print("[red]Error: Input file has no mesh geometry. Sampling requires a mesh.[/red]")
@@ -182,6 +202,12 @@ def _run_sample(
         console.print(f"[red]Error: Unknown method '{method}'. Valid: {valid}[/red]")
         raise typer.Exit(code=EXIT_ERROR)
 
+    try:
+        output_fmt = _resolve_output_format(output_path, fmt)
+    except ValueError as exc:
+        console.print(f"[red]Error: {exc}[/red]")
+        raise typer.Exit(code=EXIT_ERROR)
+
     config = SamplerConfig(
         method=sampling_method,
         num_points=num_points,
@@ -190,7 +216,7 @@ def _run_sample(
         resample=True,
     )
     obj = run_sample(obj, config)
-    export_point_cloud(obj, output_path, fmt=fmt)
+    export_point_cloud(obj, output_path, fmt=output_fmt)
 
     if not quiet:
         point_count = len(obj.point_cloud.points) if obj.point_cloud else 0
@@ -202,7 +228,7 @@ def _run_transform(
     output_path: Path,
     width: float,
     height: float,
-    depth_mm: float,
+    depth: float,
     fmt: str | None,
     console: Console,
     quiet: bool,
@@ -213,40 +239,37 @@ def _run_transform(
     from mathviz.pipeline.point_cloud_exporter import export_point_cloud
     from mathviz.pipeline.transformer import fit
 
-    try:
-        obj = load_geometry(input_path)
-    except GeometryLoadError as exc:
-        console.print(f"[red]Error: {exc}[/red]")
-        raise typer.Exit(code=EXIT_ERROR)
+    obj = _load_or_exit(input_path, console)
 
     # Transformer expects ABSTRACT space; loaded files are PHYSICAL
     obj.coord_space = CoordSpace.ABSTRACT
 
-    container = Container(width_mm=width, height_mm=height, depth_mm=depth_mm)
+    container = Container(width_mm=width, height_mm=height, depth_mm=depth)
     policy = PlacementPolicy()
     obj = fit(obj, container, policy)
 
-    output_fmt = _resolve_output_format(output_path, fmt)
-    if output_fmt in {"stl", "obj"} and has_mesh(obj):
+    try:
+        output_fmt = _resolve_output_format(output_path, fmt)
+    except ValueError as exc:
+        console.print(f"[red]Error: {exc}[/red]")
+        raise typer.Exit(code=EXIT_ERROR)
+
+    if output_fmt in MESH_OUTPUT_FORMATS and has_mesh(obj):
         export_mesh(obj, output_path, fmt=output_fmt)
-    elif output_fmt in {"ply", "xyz", "pcd"} and obj.point_cloud is not None:
+    elif output_fmt in CLOUD_OUTPUT_FORMATS and obj.point_cloud is not None:
         export_point_cloud(obj, output_path, fmt=output_fmt)
-    elif output_fmt == "ply" and has_mesh(obj):
+    elif has_mesh(obj):
         export_mesh(obj, output_path, fmt=output_fmt)
+    elif obj.point_cloud is not None:
+        export_point_cloud(obj, output_path, fmt=output_fmt)
     else:
-        # Default: export whatever geometry is available
-        if has_mesh(obj):
-            export_mesh(obj, output_path, fmt=output_fmt)
-        elif obj.point_cloud is not None:
-            export_point_cloud(obj, output_path, fmt=output_fmt)
-        else:
-            console.print("[red]Error: No exportable geometry after transform.[/red]")
-            raise typer.Exit(code=EXIT_ERROR)
+        console.print("[red]Error: No exportable geometry after transform.[/red]")
+        raise typer.Exit(code=EXIT_ERROR)
 
     if not quiet:
         console.print(
             f"[green]Transformed {input_path} → {output_path} "
-            f"(container: {width}×{height}×{depth_mm}mm)[/green]"
+            f"(container: {width}×{height}×{depth}mm)[/green]"
         )
 
 
@@ -292,13 +315,3 @@ def _run_schema(output_dir: Path, console: Console, quiet: bool) -> None:
         console.print(f"[green]Generated {len(written)} schema files in {output_dir}[/green]")
         for name in written:
             console.print(f"  {name}.json")
-
-
-def _resolve_output_format(path: Path, fmt: str | None) -> str:
-    """Resolve output format from explicit arg or file suffix."""
-    if fmt is not None:
-        return fmt.lower().lstrip(".")
-    suffix = path.suffix.lower().lstrip(".")
-    if not suffix:
-        raise typer.Exit(code=EXIT_ERROR)
-    return suffix

@@ -69,6 +69,8 @@ def _load_cloud(path: Path, fmt: str) -> MathObject:
     """Load a point cloud file (PLY or XYZ)."""
     if fmt == "xyz":
         points = np.loadtxt(str(path), dtype=np.float64)
+        if points.size == 0:
+            raise GeometryLoadError(f"XYZ file is empty: {path}")
         if points.ndim == 1:
             points = points.reshape(1, -1)
         if points.shape[1] < 3:
