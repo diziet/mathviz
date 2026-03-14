@@ -185,7 +185,7 @@ def _thicken_all_curves(
     for i, curve in enumerate(curves):
         min_pts = 3 if curve.closed else 2
         if len(curve.points) < min_pts:
-            logger.warning(
+            logger.error(
                 "Skipping curve[%d]: needs >= %d points for tube, got %d",
                 i, min_pts, len(curve.points),
             )
