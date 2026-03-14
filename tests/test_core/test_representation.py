@@ -219,7 +219,6 @@ class TestUnimplementedTypes:
     @pytest.mark.parametrize("rep_type", [
         RepresentationType.VOLUME_FILL,
         RepresentationType.WIREFRAME,
-        RepresentationType.WEIGHTED_CLOUD,
         RepresentationType.SLICE_STACK,
     ])
     def test_stub_raises_not_implemented(self, rep_type: RepresentationType) -> None:
