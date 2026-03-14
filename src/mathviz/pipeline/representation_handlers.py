@@ -127,7 +127,7 @@ def _slice_mesh(mesh: Mesh, slice_count: int, axis: str) -> np.ndarray:
         section = tm.section(plane_origin=origin, plane_normal=normal)
         if section is None:
             continue
-        discrete = section.to_planar()[0]
+        discrete = section.to_2D()[0]
         if discrete is None:
             continue
         verts_2d = np.asarray(discrete.vertices)
