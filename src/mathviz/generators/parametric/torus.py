@@ -1,6 +1,5 @@
 """Torus parametric surface generator.
 
-Reference implementation for all parametric surface generators.
 The torus is periodic in both u and v, so the grid wraps at boundaries.
 """
 
@@ -18,6 +17,7 @@ logger = logging.getLogger(__name__)
 _DEFAULT_MAJOR_RADIUS = 1.0
 _DEFAULT_MINOR_RADIUS = 0.4
 _DEFAULT_GRID_RESOLUTION = 128
+_MIN_GRID_RESOLUTION = 3
 
 
 def _evaluate_torus(
@@ -107,8 +107,7 @@ class TorusGenerator(GeneratorBase):
             resolution_kwargs.get("grid_resolution", _DEFAULT_GRID_RESOLUTION)
         )
 
-        # Accept seed for consistency even though torus is deterministic
-        _rng = np.random.default_rng(seed)
+        _validate_params(major_radius, minor_radius, grid_resolution)
 
         mesh = _generate_torus_mesh(major_radius, minor_radius, grid_resolution)
         bbox = _compute_bounding_box(major_radius, minor_radius)
@@ -131,6 +130,31 @@ class TorusGenerator(GeneratorBase):
     def get_default_representation(self) -> RepresentationConfig:
         """Return the recommended representation for the torus."""
         return RepresentationConfig(type=RepresentationType.SURFACE_SHELL)
+
+
+def _validate_params(
+    major_radius: float, minor_radius: float, grid_resolution: int,
+) -> None:
+    """Validate torus parameters, raising ValueError for invalid inputs."""
+    if major_radius <= 0:
+        raise ValueError(
+            f"major_radius must be positive, got {major_radius}"
+        )
+    if minor_radius <= 0:
+        raise ValueError(
+            f"minor_radius must be positive, got {minor_radius}"
+        )
+    if minor_radius >= major_radius:
+        logger.warning(
+            "minor_radius (%.3f) >= major_radius (%.3f): "
+            "torus will self-intersect",
+            minor_radius, major_radius,
+        )
+    if grid_resolution < _MIN_GRID_RESOLUTION:
+        raise ValueError(
+            f"grid_resolution must be >= {_MIN_GRID_RESOLUTION}, "
+            f"got {grid_resolution}"
+        )
 
 
 def _generate_torus_mesh(

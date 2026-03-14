@@ -239,3 +239,62 @@ def test_metadata_recorded(torus: TorusGenerator) -> None:
     assert obj.category == "parametric"
     assert obj.parameters["major_radius"] == 1.0
     assert obj.parameters["minor_radius"] == 0.4
+
+
+# ---------------------------------------------------------------------------
+# Input validation
+# ---------------------------------------------------------------------------
+
+
+def test_negative_major_radius_raises(torus: TorusGenerator) -> None:
+    """Negative major_radius raises ValueError."""
+    with pytest.raises(ValueError, match="major_radius must be positive"):
+        torus.generate(params={"major_radius": -1.0})
+
+
+def test_zero_major_radius_raises(torus: TorusGenerator) -> None:
+    """Zero major_radius raises ValueError."""
+    with pytest.raises(ValueError, match="major_radius must be positive"):
+        torus.generate(params={"major_radius": 0.0})
+
+
+def test_negative_minor_radius_raises(torus: TorusGenerator) -> None:
+    """Negative minor_radius raises ValueError."""
+    with pytest.raises(ValueError, match="minor_radius must be positive"):
+        torus.generate(params={"minor_radius": -0.5})
+
+
+def test_zero_minor_radius_raises(torus: TorusGenerator) -> None:
+    """Zero minor_radius raises ValueError."""
+    with pytest.raises(ValueError, match="minor_radius must be positive"):
+        torus.generate(params={"minor_radius": 0.0})
+
+
+def test_self_intersecting_torus_warns(
+    torus: TorusGenerator, caplog: pytest.LogCaptureFixture,
+) -> None:
+    """minor_radius >= major_radius logs a warning but still generates."""
+    obj = torus.generate(
+        params={"major_radius": 0.5, "minor_radius": 0.5},
+        grid_resolution=8,
+    )
+    assert obj.mesh is not None
+    assert "self-intersect" in caplog.text
+
+
+def test_grid_resolution_below_minimum_raises(torus: TorusGenerator) -> None:
+    """grid_resolution < 3 raises ValueError."""
+    with pytest.raises(ValueError, match="grid_resolution must be >= 3"):
+        torus.generate(grid_resolution=2)
+
+
+def test_grid_resolution_zero_raises(torus: TorusGenerator) -> None:
+    """grid_resolution of 0 raises ValueError."""
+    with pytest.raises(ValueError, match="grid_resolution must be >= 3"):
+        torus.generate(grid_resolution=0)
+
+
+def test_grid_resolution_negative_raises(torus: TorusGenerator) -> None:
+    """Negative grid_resolution raises ValueError."""
+    with pytest.raises(ValueError, match="grid_resolution must be >= 3"):
+        torus.generate(grid_resolution=-5)
