@@ -1,0 +1,31 @@
+{
+  "generator_name": "torus_knot",
+  "params": {
+    "p": 2,
+    "q": 3,
+    "R": 1.0,
+    "r": 0.4,
+    "curve_points": 64
+  },
+  "seed": 42,
+  "category": "knots",
+  "coord_space": "physical",
+  "representation": "tube",
+  "description": "",
+  "generation_time_seconds": null,
+  "export_timestamp": "2026-03-14T19:28:30.417828+00:00",
+  "version": "0.1.0",
+  "bounding_box": {
+    "min_corner": [
+      9.009205191415191,
+      7.160484334544897,
+      5.0
+    ],
+    "max_corner": [
+      90.99079480858481,
+      92.83951566545511,
+      35.0
+    ]
+  },
+  "export_format": "stl"
+}
