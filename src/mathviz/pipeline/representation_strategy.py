@@ -46,6 +46,9 @@ _GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     "mandelbrot": RepresentationConfig(
         type=RepresentationType.HEIGHTMAP_RELIEF,
     ),
+    "mandelbrot_heightmap": RepresentationConfig(
+        type=RepresentationType.HEIGHTMAP_RELIEF,
+    ),
 }
 
 _FALLBACK_DEFAULT = RepresentationConfig(type=RepresentationType.SURFACE_SHELL)
