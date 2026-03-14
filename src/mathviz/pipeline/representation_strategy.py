@@ -9,6 +9,7 @@ import logging
 from dataclasses import replace
 
 import numpy as np
+import trimesh
 
 from mathviz.core.generator import get_generator_meta
 from mathviz.core.math_object import Curve, MathObject, Mesh, PointCloud
@@ -19,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 # Unimplemented types that raise NotImplementedError
 _STUB_TYPES = frozenset({
-    RepresentationType.SPARSE_SHELL,
     RepresentationType.VOLUME_FILL,
     RepresentationType.WIREFRAME,
     RepresentationType.WEIGHTED_CLOUD,
@@ -47,6 +47,15 @@ _GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
         type=RepresentationType.HEIGHTMAP_RELIEF,
     ),
     "mandelbrot_heightmap": RepresentationConfig(
+        type=RepresentationType.HEIGHTMAP_RELIEF,
+    ),
+    "mandelbulb": RepresentationConfig(
+        type=RepresentationType.SPARSE_SHELL,
+    ),
+    "julia3d": RepresentationConfig(
+        type=RepresentationType.SPARSE_SHELL,
+    ),
+    "fractal_slice": RepresentationConfig(
         type=RepresentationType.HEIGHTMAP_RELIEF,
     ),
 }
@@ -262,9 +271,62 @@ def _build_grid_faces(rows: int, cols: int) -> np.ndarray:
     return faces.reshape(-1, 3).astype(np.int64)
 
 
+# Default surface density for SPARSE_SHELL: points per unit area.
+# sample_count = total_mesh_area * surface_density.
+_SPARSE_SHELL_DEFAULT_SURFACE_DENSITY = 100.0
+_SPARSE_SHELL_MIN_SAMPLES = 10
+_SPARSE_SHELL_SEED = 42
+
+
+def _apply_sparse_shell(
+    obj: MathObject, config: RepresentationConfig
+) -> MathObject:
+    """Sample mesh surface at reduced density to create a sparse point cloud.
+
+    Uses surface_density (points per unit area) to determine sample count.
+    Sampling is seeded for deterministic output.
+    """
+    if obj.mesh is None:
+        raise ValueError(
+            "SPARSE_SHELL requires a mesh input, but MathObject has no mesh"
+        )
+
+    density = config.surface_density or _SPARSE_SHELL_DEFAULT_SURFACE_DENSITY
+    tm = trimesh.Trimesh(
+        vertices=obj.mesh.vertices,
+        faces=obj.mesh.faces,
+        process=False,
+    )
+
+    total_area = float(tm.area)
+    sample_count = max(
+        _SPARSE_SHELL_MIN_SAMPLES,
+        int(total_area * density),
+    )
+
+    # trimesh uses numpy's legacy RNG; seed it for deterministic output.
+    np.random.seed(_SPARSE_SHELL_SEED)
+    points, face_indices = tm.sample(sample_count, return_index=True)
+    normals = tm.face_normals[face_indices]
+
+    cloud = PointCloud(
+        points=np.asarray(points, dtype=np.float64),
+        normals=np.asarray(normals, dtype=np.float64),
+    )
+
+    logger.info(
+        "SPARSE_SHELL: sampled %d points from %d faces "
+        "(surface_density=%.1f pts/unit²)",
+        len(cloud.points), len(obj.mesh.faces), density,
+    )
+
+    return replace(obj, point_cloud=cloud)
+
+
 _HANDLERS = {
     RepresentationType.SURFACE_SHELL: _apply_surface_shell,
     RepresentationType.RAW_POINT_CLOUD: _apply_raw_point_cloud,
     RepresentationType.TUBE: _apply_tube,
     RepresentationType.HEIGHTMAP_RELIEF: _apply_heightmap_relief,
+    RepresentationType.SPARSE_SHELL: _apply_sparse_shell,
 }
