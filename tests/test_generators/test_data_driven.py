@@ -1,7 +1,6 @@
 """Tests for data-driven generators: heightmap, building_extrude, soundwave."""
 
 import json
-import struct
 import wave
 from pathlib import Path
 
