@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 _STUB_TYPES = frozenset({
     RepresentationType.VOLUME_FILL,
     RepresentationType.WIREFRAME,
-    RepresentationType.WEIGHTED_CLOUD,
     RepresentationType.SLICE_STACK,
 })
 
@@ -323,10 +322,23 @@ def _apply_sparse_shell(
     return replace(obj, point_cloud=cloud)
 
 
+def _apply_weighted_cloud(
+    obj: MathObject, config: RepresentationConfig
+) -> MathObject:
+    """Pass through a point cloud, preserving its per-point intensities."""
+    if obj.point_cloud is None:
+        raise ValueError(
+            "WEIGHTED_CLOUD requires a point_cloud input, "
+            "but MathObject has no point_cloud"
+        )
+    return replace(obj)
+
+
 _HANDLERS = {
     RepresentationType.SURFACE_SHELL: _apply_surface_shell,
     RepresentationType.RAW_POINT_CLOUD: _apply_raw_point_cloud,
     RepresentationType.TUBE: _apply_tube,
     RepresentationType.HEIGHTMAP_RELIEF: _apply_heightmap_relief,
     RepresentationType.SPARSE_SHELL: _apply_sparse_shell,
+    RepresentationType.WEIGHTED_CLOUD: _apply_weighted_cloud,
 }
