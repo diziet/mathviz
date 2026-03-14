@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MathViz Preview</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;font-family:system-ui,-apple-system,sans-serif}
+#canvas-container{width:100%;height:100%;position:relative}
+canvas{display:block}
+
+#controls{
+  position:absolute;top:12px;right:12px;
+  background:rgba(30,30,30,0.85);color:#eee;
+  padding:12px 14px;border-radius:8px;font-size:13px;
+  display:flex;flex-direction:column;gap:8px;min-width:180px;
+  backdrop-filter:blur(6px);
+}
+#controls.light-bg{background:rgba(240,240,240,0.9);color:#222}
+#controls label{display:flex;align-items:center;gap:6px;cursor:pointer}
+#controls select,#controls input[type=range]{width:100%}
+#controls button{
+  padding:4px 10px;border:1px solid #666;border-radius:4px;
+  background:transparent;color:inherit;cursor:pointer;font-size:12px;
+}
+#controls button:hover{background:rgba(128,128,128,0.3)}
+#controls .section-title{font-weight:600;font-size:11px;text-transform:uppercase;
+  letter-spacing:0.5px;opacity:0.7;margin-top:2px}
+
+#info-panel{
+  position:absolute;bottom:12px;left:12px;
+  background:rgba(30,30,30,0.85);color:#eee;
+  padding:10px 14px;border-radius:8px;font-size:12px;
+  backdrop-filter:blur(6px);min-width:200px;
+}
+#info-panel.light-bg{background:rgba(240,240,240,0.9);color:#222}
+#info-panel div{margin:2px 0}
+
+#loading{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  color:#aaa;font-size:16px;display:none;
+}
+</style>
+</head>
+<body>
+<div id="canvas-container">
+  <div id="loading">Loading geometry...</div>
+
+  <div id="controls">
+    <div class="section-title">View Mode</div>
+    <select id="view-mode">
+      <option value="shaded">Shaded Mesh</option>
+      <option value="wireframe">Wireframe</option>
+      <option value="points">Point Cloud</option>
+    </select>
+
+    <div class="section-title">Point Size</div>
+    <input type="range" id="point-size" min="0.5" max="10" step="0.5" value="2">
+
+    <div class="section-title">Options</div>
+    <label><input type="checkbox" id="show-bbox" checked> Bounding Box</label>
+    <label><input type="checkbox" id="toggle-bg"> Light Background</label>
+
+    <button id="screenshot-btn">Screenshot</button>
+  </div>
+
+  <div id="info-panel">
+    <div id="info-generator">Generator: —</div>
+    <div id="info-vertices">Vertices: —</div>
+    <div id="info-faces">Faces: —</div>
+    <div id="info-points">Points: —</div>
+    <div id="info-fps">FPS: —</div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+
+/* ── State ── */
+const state = {
+  meshGroup: null,
+  cloudPoints: null,
+  bboxHelper: null,
+  viewMode: 'shaded',
+  pointSize: 2,
+  darkBg: true,
+};
+
+const DARK_COLOR = 0x1a1a2e;
+const LIGHT_COLOR = 0xf0f0f0;
+
+/* ── Scene setup ── */
+const container = document.getElementById('canvas-container');
+const renderer = new THREE.WebGLRenderer({antialias: true, preserveDrawingBuffer: true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(container.clientWidth, container.clientHeight);
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(DARK_COLOR);
+
+const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.01, 100);
+camera.position.set(2, 1.5, 3);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+
+/* ── Lighting ── */
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(3, 5, 4);
+scene.add(dirLight);
+const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+fillLight.position.set(-2, -1, -3);
+scene.add(fillLight);
+
+/* ── URL params ── */
+function parseQueryParams() {
+  const params = new URLSearchParams(window.location.search);
+  const result = {generator: null, genParams: {}, seed: 42, file: null};
+
+  for (const [key, value] of params.entries()) {
+    if (key === 'generator') result.generator = value;
+    else if (key === 'seed') result.seed = parseInt(value, 10) || 42;
+    else if (key === 'file') result.file = value;
+    else result.genParams[key] = isNaN(Number(value)) ? value : Number(value);
+  }
+  return result;
+}
+
+/* ── PLY parser (binary little-endian) ── */
+const PLY_TYPE_SIZES = {
+  'char': 1, 'uchar': 1, 'int8': 1, 'uint8': 1,
+  'short': 2, 'ushort': 2, 'int16': 2, 'uint16': 2,
+  'int': 4, 'uint': 4, 'int32': 4, 'uint32': 4,
+  'float': 4, 'float32': 4,
+  'double': 8, 'float64': 8,
+};
+
+function parseBinaryPLY(buffer) {
+  const decoder = new TextDecoder();
+  const bytes = new Uint8Array(buffer);
+
+  const headerStr = decoder.decode(bytes.slice(0, Math.min(4096, bytes.length)));
+  const headerEndIdx = headerStr.indexOf('end_header\n');
+  if (headerEndIdx < 0) return null;
+  const headerEnd = headerEndIdx + 'end_header\n'.length;
+
+  const headerLines = headerStr.slice(0, headerEnd).split('\n');
+  let vertexCount = 0;
+  let inVertexElement = false;
+  let vertexStride = 0;
+
+  for (const line of headerLines) {
+    const parts = line.trim().split(/\s+/);
+    if (parts[0] === 'element') {
+      inVertexElement = (parts[1] === 'vertex');
+      if (inVertexElement) vertexCount = parseInt(parts[2], 10);
+    }
+    if (parts[0] === 'property' && inVertexElement) {
+      const typeSize = PLY_TYPE_SIZES[parts[1]] || 4;
+      vertexStride += typeSize;
+    }
+  }
+
+  const headerBytes = new TextEncoder().encode(headerStr.slice(0, headerEnd)).length;
+  const dataView = new DataView(buffer, headerBytes);
+  const positions = new Float32Array(vertexCount * 3);
+
+  for (let i = 0; i < vertexCount; i++) {
+    const offset = i * vertexStride;
+    positions[i * 3] = dataView.getFloat32(offset, true);
+    positions[i * 3 + 1] = dataView.getFloat32(offset + 4, true);
+    positions[i * 3 + 2] = dataView.getFloat32(offset + 8, true);
+  }
+
+  return {positions, vertexCount};
+}
+
+/* ── Geometry loading ── */
+function clearScene() {
+  if (state.meshGroup) {scene.remove(state.meshGroup); state.meshGroup = null;}
+  if (state.cloudPoints) {scene.remove(state.cloudPoints); state.cloudPoints = null;}
+  if (state.bboxHelper) {scene.remove(state.bboxHelper); state.bboxHelper = null;}
+}
+
+function addBoundingBox(object3d) {
+  const box = new THREE.Box3().setFromObject(object3d);
+  const helper = new THREE.Box3Helper(box, 0x44aaff);
+  helper.visible = document.getElementById('show-bbox').checked;
+  scene.add(helper);
+  state.bboxHelper = helper;
+}
+
+function fitCamera(object3d) {
+  const box = new THREE.Box3().setFromObject(object3d);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const dist = maxDim * 1.8;
+  camera.position.set(center.x + dist * 0.6, center.y + dist * 0.4, center.z + dist * 0.7);
+  controls.target.copy(center);
+  controls.update();
+}
+
+function loadMeshFromGLB(url) {
+  return new Promise((resolve, reject) => {
+    new GLTFLoader().load(url, (gltf) => {
+      const group = new THREE.Group();
+      let totalVertices = 0, totalFaces = 0;
+
+      gltf.scene.traverse((child) => {
+        if (!child.isMesh) return;
+        const geom = child.geometry;
+        totalVertices += geom.attributes.position.count;
+        totalFaces += geom.index ? geom.index.count / 3 : geom.attributes.position.count / 3;
+
+        const shadedMat = new THREE.MeshStandardMaterial({
+          color: 0x4488cc, metalness: 0.1, roughness: 0.6,
+          side: THREE.DoubleSide,
+        });
+        const wireMat = new THREE.MeshBasicMaterial({
+          color: 0x44aaff, wireframe: true,
+        });
+        const shadedMesh = new THREE.Mesh(geom, shadedMat);
+        shadedMesh.name = 'shaded';
+        const wireMesh = new THREE.Mesh(geom, wireMat);
+        wireMesh.name = 'wireframe';
+        wireMesh.visible = false;
+
+        /* Point cloud from mesh vertices */
+        const pointsMat = new THREE.PointsMaterial({color: 0x44ccff, size: state.pointSize * 0.01});
+        const pts = new THREE.Points(geom, pointsMat);
+        pts.name = 'points';
+        pts.visible = false;
+
+        group.add(shadedMesh, wireMesh, pts);
+      });
+
+      resolve({group, totalVertices: Math.round(totalVertices), totalFaces: Math.round(totalFaces)});
+    }, undefined, reject);
+  });
+}
+
+function loadCloudFromPLY(url) {
+  return fetch(url).then(r => r.arrayBuffer()).then(buf => {
+    const parsed = parseBinaryPLY(buf);
+    if (!parsed) throw new Error('Failed to parse PLY');
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(parsed.positions, 3));
+    const mat = new THREE.PointsMaterial({color: 0x44ccff, size: state.pointSize * 0.01});
+    const points = new THREE.Points(geom, mat);
+    return {points, vertexCount: parsed.vertexCount};
+  });
+}
+
+/* ── Display helpers ── */
+async function displayMesh(url, label) {
+  const {group, totalVertices, totalFaces} = await loadMeshFromGLB(url);
+  state.meshGroup = group;
+  scene.add(group);
+  addBoundingBox(group);
+  fitCamera(group);
+  updateInfo({generator: label, vertices: totalVertices, faces: totalFaces});
+}
+
+function displayCloud(points, vertexCount, label) {
+  state.cloudPoints = points;
+  scene.add(points);
+  if (!state.meshGroup) {
+    addBoundingBox(points);
+    fitCamera(points);
+    document.getElementById('view-mode').value = 'points';
+    state.viewMode = 'points';
+  }
+  updateInfo({generator: label, points: vertexCount});
+}
+
+/* ── Loading workflows ── */
+async function loadFromAPI(generator, genParams, seed) {
+  const loadingEl = document.getElementById('loading');
+  loadingEl.style.display = 'block';
+
+  try {
+    const body = {generator, params: genParams, seed};
+    const resp = await fetch('/api/generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) throw new Error(`Generate failed: ${resp.status}`);
+    const data = await resp.json();
+
+    clearScene();
+    if (data.mesh_url) await displayMesh(data.mesh_url + '?lod=preview', generator);
+    if (data.cloud_url) {
+      const {points, vertexCount} = await loadCloudFromPLY(data.cloud_url + '?lod=preview');
+      displayCloud(points, vertexCount, generator);
+    }
+    applyViewMode();
+  } catch (err) {
+    console.error('Load error:', err);
+    updateInfo({generator: generator + ' (error)'});
+  } finally {
+    loadingEl.style.display = 'none';
+  }
+}
+
+async function loadFromFile(filePath) {
+  const loadingEl = document.getElementById('loading');
+  loadingEl.style.display = 'block';
+
+  try {
+    clearScene();
+    const ext = filePath.split('.').pop().toLowerCase();
+    const url = '/api/file';
+
+    if (ext === 'stl' || ext === 'glb' || ext === 'gltf') {
+      await displayMesh(url, 'file');
+    } else if (ext === 'ply') {
+      const {points, vertexCount} = await loadCloudFromPLY(url);
+      displayCloud(points, vertexCount, 'file');
+    }
+    applyViewMode();
+  } catch (err) {
+    console.error('File load error:', err);
+    updateInfo({generator: 'file (error)'});
+  } finally {
+    loadingEl.style.display = 'none';
+  }
+}
+
+/* ── View mode ── */
+function applyViewMode() {
+  const mode = state.viewMode;
+
+  if (state.meshGroup) {
+    state.meshGroup.traverse((child) => {
+      if (child.name === 'shaded') child.visible = (mode === 'shaded');
+      if (child.name === 'wireframe') child.visible = (mode === 'wireframe');
+      if (child.name === 'points') child.visible = (mode === 'points');
+    });
+  }
+
+  if (state.cloudPoints) {
+    state.cloudPoints.visible = (mode === 'points') || !state.meshGroup;
+  }
+}
+
+function updatePointSize(size) {
+  state.pointSize = size;
+  const matSize = size * 0.01;
+  scene.traverse((child) => {
+    if (child.isPoints && child.material) {
+      child.material.size = matSize;
+    }
+  });
+}
+
+/* ── Info panel ── */
+const infoState = {generator: '—', vertices: '—', faces: '—', points: '—'};
+
+function updateInfo(updates) {
+  Object.assign(infoState, updates);
+  document.getElementById('info-generator').textContent = 'Generator: ' + (infoState.generator || '—');
+  document.getElementById('info-vertices').textContent = 'Vertices: ' + (infoState.vertices || '—');
+  document.getElementById('info-faces').textContent = 'Faces: ' + (infoState.faces || '—');
+  document.getElementById('info-points').textContent = 'Points: ' + (infoState.points || '—');
+}
+
+/* ── FPS counter ── */
+let frameCount = 0, lastFpsTime = performance.now();
+
+function updateFPS() {
+  frameCount++;
+  const now = performance.now();
+  if (now - lastFpsTime >= 1000) {
+    const fps = Math.round(frameCount * 1000 / (now - lastFpsTime));
+    document.getElementById('info-fps').textContent = 'FPS: ' + fps;
+    frameCount = 0;
+    lastFpsTime = now;
+  }
+}
+
+/* ── Controls wiring ── */
+document.getElementById('view-mode').addEventListener('change', (e) => {
+  state.viewMode = e.target.value;
+  applyViewMode();
+});
+
+document.getElementById('point-size').addEventListener('input', (e) => {
+  updatePointSize(parseFloat(e.target.value));
+});
+
+document.getElementById('show-bbox').addEventListener('change', (e) => {
+  if (state.bboxHelper) state.bboxHelper.visible = e.target.checked;
+});
+
+document.getElementById('toggle-bg').addEventListener('change', (e) => {
+  const isLight = e.target.checked;
+  state.darkBg = !isLight;
+  scene.background = new THREE.Color(isLight ? LIGHT_COLOR : DARK_COLOR);
+  document.getElementById('controls').classList.toggle('light-bg', isLight);
+  document.getElementById('info-panel').classList.toggle('light-bg', isLight);
+});
+
+document.getElementById('screenshot-btn').addEventListener('click', () => {
+  renderer.render(scene, camera);
+  const link = document.createElement('a');
+  link.download = 'mathviz-screenshot.png';
+  link.href = renderer.domElement.toDataURL('image/png');
+  link.click();
+});
+
+/* ── Resize ── */
+window.addEventListener('resize', () => {
+  const w = container.clientWidth, h = container.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+});
+
+/* ── Render loop ── */
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+  updateFPS();
+}
+animate();
+
+/* ── Init: load from URL params ── */
+const qp = parseQueryParams();
+if (qp.file) {
+  loadFromFile(qp.file);
+} else if (qp.generator) {
+  loadFromAPI(qp.generator, qp.genParams, qp.seed);
+}
+</script>
+</body>
+</html>

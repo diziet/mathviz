@@ -1,10 +1,13 @@
 """FastAPI preview server for the Tier 1 viewer."""
 
+import io
 import logging
+from pathlib import Path
 from typing import Any
 
+import trimesh
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, Field
 
 from mathviz.core.container import Container, PlacementPolicy
@@ -34,6 +37,23 @@ def reset_cache() -> None:
 
 
 app = FastAPI(title="MathViz Preview", version="0.1.0")
+
+_STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+_ALLOWED_FILE_EXTENSIONS = {".stl", ".ply", ".glb", ".gltf", ".obj"}
+
+# File path configured by the preview CLI for serving local files
+_served_file_path: str | None = None
+
+
+def set_served_file(path: str | None) -> None:
+    """Set the file path to serve via /api/file endpoint."""
+    global _served_file_path  # noqa: PLW0603
+    _served_file_path = path
+
+
+def get_served_file() -> str | None:
+    """Return the currently configured served file path."""
+    return _served_file_path
 
 
 # --- Request / Response models ---
@@ -194,3 +214,46 @@ def get_cloud(
 
     data = cloud_to_binary_ply(cloud)
     return Response(content=data, media_type="application/x-ply")
+
+
+@app.get("/api/file")
+def serve_local_file() -> Response:
+    """Serve the configured local geometry file, converting STL to GLB if needed."""
+    served = get_served_file()
+    if served is None:
+        raise HTTPException(status_code=404, detail="No file configured for serving.")
+
+    resolved = Path(served).resolve()
+    if not resolved.is_file():
+        raise HTTPException(status_code=404, detail="Configured file not found on disk.")
+
+    suffix = resolved.suffix.lower()
+    if suffix not in _ALLOWED_FILE_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {suffix}")
+
+    if suffix == ".stl":
+        return _serve_stl_as_glb(resolved)
+    if suffix == ".ply":
+        return FileResponse(str(resolved), media_type="application/x-ply")
+    if suffix == ".glb":
+        return FileResponse(str(resolved), media_type="model/gltf-binary")
+    if suffix == ".gltf":
+        return FileResponse(str(resolved), media_type="model/gltf+json")
+    return FileResponse(str(resolved), media_type="application/octet-stream")
+
+
+def _serve_stl_as_glb(stl_path: Path) -> Response:
+    """Convert an STL file to GLB and return it."""
+    mesh = trimesh.load(str(stl_path), file_type="stl")
+    buf = io.BytesIO()
+    mesh.export(buf, file_type="glb")
+    return Response(content=buf.getvalue(), media_type="model/gltf-binary")
+
+
+@app.get("/", response_class=HTMLResponse)
+def serve_viewer() -> HTMLResponse:
+    """Serve the Three.js viewer HTML."""
+    index_path = _STATIC_DIR / "index.html"
+    if not index_path.is_file():
+        raise HTTPException(status_code=500, detail="Viewer HTML not found.")
+    return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
