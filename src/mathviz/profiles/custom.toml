@@ -1,0 +1,6 @@
+# Custom sampling profile: template for user-defined settings.
+# Copy and modify this file, then reference it via --profile.
+
+[sampling]
+method = "uniform_surface"
+num_points = 500000
