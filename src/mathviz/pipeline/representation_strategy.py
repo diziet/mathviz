@@ -180,8 +180,20 @@ def _apply_tube(obj: MathObject, config: RepresentationConfig) -> MathObject:
 def _thicken_all_curves(
     curves: list[Curve], radius: float, sides: int
 ) -> list[Mesh]:
-    """Thicken each curve into a tube mesh."""
-    return [thicken_curve(c, radius, sides) for c in curves]
+    """Thicken each curve into a tube mesh, skipping degenerate curves."""
+    meshes: list[Mesh] = []
+    for i, curve in enumerate(curves):
+        min_pts = 3 if curve.closed else 2
+        if len(curve.points) < min_pts:
+            logger.warning(
+                "Skipping curve[%d]: needs >= %d points for tube, got %d",
+                i, min_pts, len(curve.points),
+            )
+            continue
+        meshes.append(thicken_curve(curve, radius, sides))
+    if not meshes:
+        raise ValueError("No curves with enough points for tube thickening")
+    return meshes
 
 
 def _merge_meshes(meshes: list[Mesh]) -> Mesh:
