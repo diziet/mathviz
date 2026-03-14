@@ -200,6 +200,15 @@ class TestValidation:
         with pytest.raises(ValueError, match="Curve needs >= 2 points"):
             thicken_curve(curve, radius=0.1)
 
+    def test_closed_two_point_curve_raises(self) -> None:
+        """A closed curve with only 2 points produces degenerate tangents."""
+        curve = Curve(
+            points=np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]),
+            closed=True,
+        )
+        with pytest.raises(ValueError, match="Curve needs >= 3 points"):
+            thicken_curve(curve, radius=0.1)
+
     def test_output_mesh_validates(self) -> None:
         """Output mesh passes its own validate()."""
         curve = _circle_curve(n=32)

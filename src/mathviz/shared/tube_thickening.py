@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_SIDES = 16
 MIN_CURVE_POINTS = 2
+MIN_CLOSED_CURVE_POINTS = 3
+EPSILON = 1e-12
 
 
 def thicken_curve(
@@ -32,9 +34,11 @@ def thicken_curve(
         raise ValueError(f"radius must be positive, got {radius}")
     if sides < 3:
         raise ValueError(f"sides must be >= 3, got {sides}")
-    if len(curve.points) < MIN_CURVE_POINTS:
+
+    min_required = MIN_CLOSED_CURVE_POINTS if curve.closed else MIN_CURVE_POINTS
+    if len(curve.points) < min_required:
         raise ValueError(
-            f"Curve needs >= {MIN_CURVE_POINTS} points, got {len(curve.points)}"
+            f"Curve needs >= {min_required} points, got {len(curve.points)}"
         )
 
     points = curve.points
@@ -49,7 +53,7 @@ def thicken_curve(
 
     if not closed:
         cap_verts, cap_faces = _build_caps(
-            points, normals, binormals, radius, sides, len(vertices)
+            points, sides, len(vertices)
         )
         vertices = np.concatenate([vertices, cap_verts], axis=0)
         faces = np.concatenate([faces, cap_faces], axis=0)
@@ -58,6 +62,11 @@ def thicken_curve(
         vertices=vertices.astype(np.float64),
         faces=faces.astype(np.int64),
     )
+
+
+def _angle_between(a: np.ndarray, b: np.ndarray) -> float:
+    """Compute angle in radians between two unit vectors."""
+    return float(np.arccos(np.clip(np.dot(a, b), -1.0, 1.0)))
 
 
 def _compute_tangents(points: np.ndarray, closed: bool) -> np.ndarray:
@@ -72,7 +81,7 @@ def _compute_tangents(points: np.ndarray, closed: bool) -> np.ndarray:
         tangents[1:-1] = points[2:] - points[:-2]
 
     norms = np.linalg.norm(tangents, axis=1, keepdims=True)
-    norms = np.maximum(norms, 1e-12)
+    norms = np.maximum(norms, EPSILON)
     return tangents / norms
 
 
@@ -118,20 +127,27 @@ def _parallel_transport(
     """Transport a normal from one tangent to the next via rotation."""
     axis = np.cross(prev_tangent, curr_tangent)
     axis_len = np.linalg.norm(axis)
-
-    if axis_len < 1e-12:
-        return prev_normal.copy()
-
-    axis /= axis_len
     cos_angle = np.clip(np.dot(prev_tangent, curr_tangent), -1.0, 1.0)
-    angle = np.arccos(cos_angle)
 
-    rotated = _rotate_around_axis(prev_normal, axis, angle)
+    if axis_len < EPSILON:
+        if cos_angle < -0.99:
+            # Anti-parallel (hairpin): rotate 180° around any perpendicular axis
+            perp = _initial_normal(prev_tangent)
+            rotated = _rotate_around_axis(prev_normal, perp, np.pi)
+        else:
+            # Nearly parallel: no rotation needed
+            return prev_normal.copy()
+    else:
+        axis /= axis_len
+        angle = np.arccos(cos_angle)
+        rotated = _rotate_around_axis(prev_normal, axis, angle)
+
     # Re-orthogonalize against current tangent
     rotated -= np.dot(rotated, curr_tangent) * curr_tangent
     norm = np.linalg.norm(rotated)
-    if norm < 1e-12:
-        return prev_normal.copy()
+    if norm < EPSILON:
+        # Fallback: find a fresh perpendicular to current tangent
+        return _initial_normal(curr_tangent)
     return rotated / norm
 
 
@@ -157,20 +173,23 @@ def _close_frames(
     n = len(normals)
     # Transport last normal forward to see the mismatch angle
     transported = _parallel_transport(normals[-1], tangents[-1], tangents[0])
-    cos_angle = np.clip(np.dot(transported, normals[0]), -1.0, 1.0)
-    correction = np.arccos(cos_angle)
+    correction = _angle_between(transported, normals[0])
 
     # Determine sign of correction
     cross = np.cross(transported, normals[0])
     if np.dot(cross, tangents[0]) < 0:
         correction = -correction
 
-    # Distribute correction evenly
-    for i in range(n):
-        frac = i / n
-        angle = frac * correction
-        normals[i] = _rotate_around_axis(normals[i], tangents[i], angle)
-        binormals[i] = np.cross(tangents[i], normals[i])
+    # Distribute correction evenly (vectorized Rodrigues')
+    fracs = np.arange(n, dtype=np.float64) / n
+    angles = fracs * correction
+    cos_a = np.cos(angles)[:, np.newaxis]
+    sin_a = np.sin(angles)[:, np.newaxis]
+    dot_at = np.sum(tangents * normals, axis=1, keepdims=True)
+    cross_tn = np.cross(tangents, normals)
+
+    normals = normals * cos_a + cross_tn * sin_a + tangents * dot_at * (1.0 - cos_a)
+    binormals = np.cross(tangents, normals)
 
     return normals, binormals
 
@@ -187,10 +206,10 @@ def _build_ring_vertices(
     cos_a = np.cos(angles)  # (sides,)
     sin_a = np.sin(angles)  # (sides,)
 
-    # Broadcast: (n, 1) * (1, sides) → (n, sides) → (n, sides, 1)
+    # Broadcast: (n, 1, 3) + (n, sides, 3)
     offset_n = normals[:, np.newaxis, :] * (radius * cos_a)[np.newaxis, :, np.newaxis]
     offset_b = binormals[:, np.newaxis, :] * (radius * sin_a)[np.newaxis, :, np.newaxis]
-    ring_verts = points[:, np.newaxis, :] + offset_n + offset_b  # (n, sides, 3)
+    ring_verts = points[:, np.newaxis, :] + offset_n + offset_b
 
     return ring_verts.reshape(-1, 3)
 
@@ -198,31 +217,26 @@ def _build_ring_vertices(
 def _build_tube_faces(
     num_points: int, sides: int, closed: bool
 ) -> np.ndarray:
-    """Connect adjacent rings with triangle pairs."""
+    """Connect adjacent rings with triangle pairs (vectorized)."""
     num_segments = num_points if closed else num_points - 1
-    faces = np.empty((num_segments * sides * 2, 3), dtype=np.int64)
+    i = np.arange(num_segments)[:, np.newaxis]
+    j = np.arange(sides)[np.newaxis, :]
+    i_next = (i + 1) % num_points
+    j_next = (j + 1) % sides
 
-    idx = 0
-    for i in range(num_segments):
-        i_next = (i + 1) % num_points
-        for j in range(sides):
-            j_next = (j + 1) % sides
-            a = i * sides + j
-            b = i * sides + j_next
-            c = i_next * sides + j_next
-            d = i_next * sides + j
-            faces[idx] = [a, d, c]
-            faces[idx + 1] = [a, c, b]
-            idx += 2
+    a = i * sides + j
+    b = i * sides + j_next
+    c = i_next * sides + j_next
+    d = i_next * sides + j
 
-    return faces
+    tri1 = np.stack([a, d, c], axis=-1)
+    tri2 = np.stack([a, c, b], axis=-1)
+    faces = np.concatenate([tri1, tri2], axis=1)
+    return faces.reshape(-1, 3).astype(np.int64)
 
 
 def _build_caps(
     points: np.ndarray,
-    normals: np.ndarray,
-    binormals: np.ndarray,
-    radius: float,
     sides: int,
     vertex_offset: int,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -256,7 +270,7 @@ def _build_caps(
 
 
 def _warn_self_intersection(points: np.ndarray, radius: float) -> None:
-    """Warn if the tube radius is large relative to curve curvature."""
+    """Warn if the tube radius is large relative to minimum segment length."""
     if len(points) < 3:
         return
 
