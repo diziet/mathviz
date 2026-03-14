@@ -30,14 +30,19 @@ _WIREFRAME_DEFAULT_THICKNESS = 0.02
 _WIREFRAME_DEFAULT_SIDES = 6
 
 
+def _require_mesh(obj: MathObject, handler_name: str) -> None:
+    """Validate that a MathObject has a mesh, raising ValueError if not."""
+    if obj.mesh is None:
+        raise ValueError(
+            f"{handler_name} requires a mesh input, but MathObject has no mesh"
+        )
+
+
 def apply_volume_fill(
     obj: MathObject, config: RepresentationConfig
 ) -> MathObject:
     """Fill the interior of a watertight mesh with points."""
-    if obj.mesh is None:
-        raise ValueError(
-            "VOLUME_FILL requires a mesh input, but MathObject has no mesh"
-        )
+    _require_mesh(obj, "VOLUME_FILL")
 
     tm = trimesh.Trimesh(
         vertices=obj.mesh.vertices, faces=obj.mesh.faces, process=False
@@ -88,10 +93,7 @@ def apply_slice_stack(
     obj: MathObject, config: RepresentationConfig
 ) -> MathObject:
     """Slice a mesh with parallel planes and extract contour points."""
-    if obj.mesh is None:
-        raise ValueError(
-            "SLICE_STACK requires a mesh input, but MathObject has no mesh"
-        )
+    _require_mesh(obj, "SLICE_STACK")
 
     slice_count = config.slice_count or _SLICE_STACK_DEFAULT_COUNT
     axis = config.slice_axis
@@ -127,13 +129,11 @@ def _slice_mesh(mesh: Mesh, slice_count: int, axis: str) -> np.ndarray:
         section = tm.section(plane_origin=origin, plane_normal=normal)
         if section is None:
             continue
-        discrete = section.to_2D()[0]
-        if discrete is None:
+        # Use section.vertices directly — already in 3D world coordinates.
+        # Avoids incorrect re-embedding from to_2D()'s local coordinate frame.
+        verts_3d = np.asarray(section.vertices, dtype=np.float64)
+        if len(verts_3d) == 0:
             continue
-        verts_2d = np.asarray(discrete.vertices)
-        if len(verts_2d) == 0:
-            continue
-        verts_3d = _embed_slice_points(verts_2d, axis_idx, origin_val)
         all_points.append(verts_3d)
 
     if not all_points:
@@ -142,30 +142,14 @@ def _slice_mesh(mesh: Mesh, slice_count: int, axis: str) -> np.ndarray:
     return np.concatenate(all_points, axis=0)
 
 
-def _embed_slice_points(
-    verts_2d: np.ndarray, axis_idx: int, axis_val: float
-) -> np.ndarray:
-    """Re-embed 2D slice vertices into 3D by inserting the slice axis coordinate."""
-    n = len(verts_2d)
-    verts_3d = np.zeros((n, 3), dtype=np.float64)
-    other_axes = [i for i in range(3) if i != axis_idx]
-    verts_3d[:, other_axes[0]] = verts_2d[:, 0]
-    verts_3d[:, other_axes[1]] = verts_2d[:, 1]
-    verts_3d[:, axis_idx] = axis_val
-    return verts_3d
-
-
 def apply_wireframe(
     obj: MathObject, config: RepresentationConfig
 ) -> MathObject:
     """Extract mesh edges and thicken into thin tubes."""
-    if obj.mesh is None:
-        raise ValueError(
-            "WIREFRAME requires a mesh input, but MathObject has no mesh"
-        )
+    _require_mesh(obj, "WIREFRAME")
 
     thickness = config.wireframe_thickness or _WIREFRAME_DEFAULT_THICKNESS
-    sides = _WIREFRAME_DEFAULT_SIDES
+    sides = config.tube_sides if config.tube_sides is not None else _WIREFRAME_DEFAULT_SIDES
     radius = thickness / 2.0
 
     edges = _extract_unique_edges(obj.mesh)
@@ -202,6 +186,8 @@ def _edges_to_curves(vertices: np.ndarray, edges: np.ndarray) -> list[Curve]:
 
 def _merge_meshes(meshes: list[Mesh]) -> Mesh:
     """Merge multiple meshes into a single mesh."""
+    if not meshes:
+        raise ValueError("No meshes to merge")
     if len(meshes) == 1:
         return meshes[0]
 

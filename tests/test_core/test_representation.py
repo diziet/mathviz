@@ -346,23 +346,22 @@ class TestWireframe:
         """WIREFRAME vertex count scales with edge count * tube_sides."""
         mesh = _make_cube_mesh()
         obj = MathObject(mesh=mesh, generator_name="test")
+        tube_sides = 8
         config = RepresentationConfig(
             type=RepresentationType.WIREFRAME,
             wireframe_thickness=0.05,
+            tube_sides=tube_sides,
         )
 
         result = apply(obj, config)
 
         # A cube has 12 faces -> 18 unique edges
-        # Each edge (2-point curve open) gets tube_sides ring verts per point
+        # Each edge (2-point open curve) gets tube_sides ring verts per point
         # plus 2 cap center verts = 2*sides + 2 verts per edge
         tm_cube = trimesh.Trimesh(
             vertices=mesh.vertices, faces=mesh.faces, process=False
         )
         edge_count = len(tm_cube.edges_unique)
-        # Default wireframe sides = 6
-        tube_sides = 6
-        # Each 2-point open curve: 2 rings of tube_sides + 2 cap centers
         expected_verts_per_edge = 2 * tube_sides + 2
         expected_total = edge_count * expected_verts_per_edge
         assert result.mesh is not None
