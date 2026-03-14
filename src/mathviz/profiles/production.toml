@@ -1,0 +1,5 @@
+# Production sampling profile: high-quality output for laser engraving.
+
+[sampling]
+method = "uniform_surface"
+density = 8.0

@@ -1,0 +1,5 @@
+# Preview sampling profile: fast iteration with low point budget.
+
+[sampling]
+method = "random_surface"
+num_points = 10000

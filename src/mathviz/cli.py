@@ -2,11 +2,8 @@
 
 import json
 import logging
-import threading
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
-from urllib.parse import urlencode
 
 import typer
 from rich.console import Console
@@ -20,7 +17,14 @@ from mathviz.cli_output import (
     serialize_checks,
     write_report,
 )
-from mathviz.core.container import Container, PlacementPolicy
+from mathviz.cli_preview import register_preview_command
+from mathviz.core.config import (
+    deep_merge,
+    load_object_config,
+    load_project_config,
+    load_sampling_profile,
+    resolve_config,
+)
 from mathviz.core.generator import (
     GeneratorBase,
     get_generator_meta,
@@ -59,16 +63,13 @@ def _parse_params(param_list: list[str]) -> dict[str, Any]:
     return params
 
 
-def _coerce_value(value: str) -> Any:
+def _coerce_value(value: str) -> int | float | str:
     """Coerce a string value to int, float, or leave as string."""
-    try:
-        return int(value)
-    except ValueError:
-        pass
-    try:
-        return float(value)
-    except ValueError:
-        pass
+    for caster in (int, float):
+        try:
+            return caster(value)
+        except ValueError:
+            continue
     return value
 
 
@@ -84,12 +85,7 @@ def _configure_logging(verbose: bool, quiet: bool) -> None:
 
 
 def _exit_code_for_result(result: PipelineResult) -> int:
-    """Determine exit code from pipeline result validation.
-
-    Uses ValidationResult.passed which returns True when there are zero errors
-    (warnings are acceptable). Exit code 1 only when there are actual errors.
-    Exit code 2 is reserved for CLI-level errors (unknown generator, bad args).
-    """
+    """Determine exit code: 0 if passed, 1 if validation errors."""
     if not result.validation.passed:
         return EXIT_VALIDATION_WARNING
     return EXIT_SUCCESS
@@ -105,35 +101,99 @@ def _resolve_generator(generator_name: str, json_output: bool) -> GeneratorBase:
     return meta.generator_class.create(resolved_name=generator_name)
 
 
+def _build_cli_overrides(
+    params: dict[str, Any],
+    seed: int | None = None,
+    width: float | None = None,
+    height: float | None = None,
+    depth: float | None = None,
+) -> dict[str, Any]:
+    """Build CLI override dict from explicitly provided flag values."""
+    overrides: dict[str, Any] = {}
+    if params:
+        overrides["params"] = params
+    if seed is not None:
+        overrides["seed"] = seed
+    dims = {"width_mm": width, "height_mm": height, "depth_mm": depth}
+    container_overrides = {k: v for k, v in dims.items() if v is not None}
+    if container_overrides:
+        overrides["container"] = container_overrides
+    return overrides
+
+
 def _run_pipeline(
     generator_name: str,
     params: dict[str, Any],
-    seed: int,
+    seed: int | None,
     json_output: bool,
     export_config: ExportConfig | None = None,
+    config_path: Path | None = None,
+    profile_name: str | None = None,
+    container_width: float | None = None,
+    container_height: float | None = None,
+    container_depth: float | None = None,
 ) -> PipelineResult:
     """Shared pipeline execution for generate and validate commands."""
     gen_instance = _resolve_generator(generator_name, json_output)
-    container = Container()
-    placement = PlacementPolicy()
+
+    # Load config layers
+    project_cfg = load_project_config()
+    object_cfg = _load_safe(load_object_config, json_output, config_path) if config_path else None
+    if profile_name:
+        profile_cfg = _load_safe(load_sampling_profile, json_output, profile_name)
+        object_cfg = deep_merge(object_cfg, profile_cfg) if object_cfg else profile_cfg
+
+    cli_overrides = _build_cli_overrides(
+        params,
+        seed,
+        container_width,
+        container_height,
+        container_depth,
+    )
+    resolved = resolve_config(
+        project=project_cfg,
+        object_config=object_cfg,
+        cli_overrides=cli_overrides,
+    )
+
+    effective_seed = resolved.seed if resolved.seed is not None else 42
 
     return run(
         generator=gen_instance,
-        params=params if params else None,
-        seed=seed,
-        container=container,
-        placement=placement,
+        params=resolved.params if resolved.params else None,
+        seed=effective_seed,
+        container=resolved.container,
+        placement=resolved.placement,
+        sampler_config=resolved.sampler_config,
         export_config=export_config,
     )
+
+
+def _load_safe(loader: Any, json_output: bool, *args: Any) -> dict[str, Any]:
+    """Load a config/profile, calling error_exit on FileNotFoundError."""
+    try:
+        return loader(*args)
+    except FileNotFoundError as exc:
+        error_exit(str(exc), json_output)
+        raise  # unreachable
 
 
 @app.command()
 def generate(
     generator_name: str = typer.Argument(help="Name of the generator to run"),
     param: Optional[list[str]] = typer.Option(None, "--param", help="key=value parameter"),
-    seed: int = typer.Option(42, "--seed", help="Random seed for reproducibility"),
+    seed: Optional[int] = typer.Option(None, "--seed", help="Random seed (default: 42)"),
     output: Optional[Path] = typer.Option(None, "--output", help="Output file path"),
     fmt: Optional[str] = typer.Option(None, "--format", help="Export format"),
+    config: Optional[Path] = typer.Option(None, "--config", help="Per-object TOML config"),
+    profile: Optional[str] = typer.Option(None, "--profile", help="Sampling profile name"),
+    container_width: Optional[float] = typer.Option(None, "--width", help="Container width (mm)"),
+    container_height: Optional[float] = typer.Option(
+        None,
+        "--height",
+        help="Container height (mm)",
+    ),
+    container_depth: Optional[float] = typer.Option(None, "--depth", help="Container depth (mm)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would happen"),
     report: Optional[Path] = typer.Option(None, "--report", help="Write JSON report"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
@@ -146,14 +206,26 @@ def generate(
 
     if dry_run:
         gen_instance = _resolve_generator(generator_name, json_output)
-        _handle_dry_run(gen_instance, generator_name, params, seed, output, json_output)
+        effective_seed = seed if seed is not None else 42
+        _handle_dry_run(gen_instance, generator_name, params, effective_seed, output, json_output)
         return
 
     export_config = None
     if output is not None:
         export_config = ExportConfig(path=output, fmt=fmt)
 
-    result = _run_pipeline(generator_name, params, seed, json_output, export_config)
+    result = _run_pipeline(
+        generator_name,
+        params,
+        seed,
+        json_output,
+        export_config,
+        config_path=config,
+        profile_name=profile,
+        container_width=container_width,
+        container_height=container_height,
+        container_depth=container_depth,
+    )
     result_dict = result_to_dict(result, generator_name)
     exit_code = _exit_code_for_result(result)
 
@@ -190,7 +262,6 @@ def _handle_dry_run(
         "output": str(output) if output else None,
         "stages": stages,
     }
-
     if json_output:
         typer.echo(json.dumps(info, indent=2, default=str))
     else:
@@ -269,7 +340,16 @@ def info(
 def validate(
     generator_name: str = typer.Argument(help="Generator name to validate"),
     param: Optional[list[str]] = typer.Option(None, "--param", help="key=value parameter"),
-    seed: int = typer.Option(42, "--seed", help="Random seed"),
+    seed: Optional[int] = typer.Option(None, "--seed", help="Random seed (default: 42)"),
+    config: Optional[Path] = typer.Option(None, "--config", help="Per-object TOML config"),
+    profile: Optional[str] = typer.Option(None, "--profile", help="Sampling profile name"),
+    container_width: Optional[float] = typer.Option(None, "--width", help="Container width (mm)"),
+    container_height: Optional[float] = typer.Option(
+        None,
+        "--height",
+        help="Container height (mm)",
+    ),
+    container_depth: Optional[float] = typer.Option(None, "--depth", help="Container depth (mm)"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
     verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
     quiet: bool = typer.Option(False, "--quiet", help="Suppress non-error output"),
@@ -278,7 +358,17 @@ def validate(
     _configure_logging(verbose, quiet)
     params = _parse_params(param or [])
 
-    result = _run_pipeline(generator_name, params, seed, json_output)
+    result = _run_pipeline(
+        generator_name,
+        params,
+        seed,
+        json_output,
+        config_path=config,
+        profile_name=profile,
+        container_width=container_width,
+        container_height=container_height,
+        container_depth=container_depth,
+    )
     exit_code = _exit_code_for_result(result)
 
     if json_output:
@@ -296,77 +386,7 @@ def validate(
     raise typer.Exit(code=exit_code)
 
 
-@dataclass
-class PreviewConfig:
-    """Configuration for the preview server."""
-
-    target: str
-    port: int
-    no_open: bool
-    quiet: bool
-    query_params: dict[str, Any]
-
-
-@app.command()
-def preview(
-    target: str = typer.Argument(help="Generator name or file path to preview"),
-    param: Optional[list[str]] = typer.Option(None, "--param", help="key=value parameter"),
-    seed: int = typer.Option(42, "--seed", help="Random seed"),
-    port: int = typer.Option(8000, "--port", help="Server port"),
-    no_open: bool = typer.Option(False, "--no-open", help="Don't open browser"),
-    verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
-    quiet: bool = typer.Option(False, "--quiet", help="Suppress non-error output"),
-) -> None:
-    """Start the preview server for a generator or file."""
-    _configure_logging(verbose, quiet)
-    query_params = _build_preview_query(target, param or [], seed)
-    config = PreviewConfig(
-        target=target, port=port, no_open=no_open, quiet=quiet, query_params=query_params,
-    )
-    _run_preview_server(config)
-
-
-def _build_preview_query(target: str, param_list: list[str], seed: int) -> dict[str, Any]:
-    """Build query parameters dict for the preview URL."""
-    target_path = Path(target)
-    if target_path.is_file():
-        return {"file": str(target_path.resolve())}
-    params = _parse_params(param_list)
-    query: dict[str, Any] = {"generator": target, "seed": seed}
-    query.update(params)
-    return query
-
-
-def _run_preview_server(config: PreviewConfig) -> None:
-    """Start uvicorn and optionally open browser after server is ready."""
-    import uvicorn
-
-    from mathviz.preview.server import set_served_file
-
-    target_path = Path(config.target)
-    if target_path.is_file():
-        set_served_file(str(target_path.resolve()))
-
-    query = urlencode(config.query_params)
-    url = f"http://127.0.0.1:{config.port}/?{query}"
-
-    if not config.quiet:
-        console.print(f"[bold green]Preview:[/bold green] {url}")
-        console.print("Press Ctrl+C to stop the server.")
-
-    if not config.no_open:
-        import webbrowser
-
-        timer = threading.Timer(1.0, webbrowser.open, args=[url])
-        timer.daemon = True
-        timer.start()
-
-    uvicorn.run(
-        "mathviz.preview.server:app",
-        host="127.0.0.1",
-        port=config.port,
-        log_level="warning" if config.quiet else "info",
-    )
+register_preview_command(app, _parse_params, _configure_logging, console)
 
 
 def main() -> None:
