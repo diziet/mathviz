@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 
 from mathviz.core.generator import GeneratorBase, register
-from mathviz.core.math_object import BoundingBox, Curve, MathObject
+from mathviz.core.math_object import BoundingBox, Curve, MathObject, PointCloud
 from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.generators.physics import MIN_CURVE_POINTS
 
@@ -226,20 +226,24 @@ class PlanetaryPositionsGenerator(GeneratorBase):
         merged["curve_points"] = curve_points
 
         curves: list[Curve] = []
-        all_points_list: list[np.ndarray] = []
+        position_points: list[np.ndarray] = []
 
         for planet in _PLANETS:
             orbit_points = _compute_planet_orbit(planet, curve_points)
             curves.append(Curve(points=orbit_points, closed=True))
-            all_points_list.append(orbit_points)
 
-        # Add planet positions at epoch as single-point open curves
+        # Collect planet positions at epoch as a PointCloud (not Curves,
+        # since single-point curves crash tube thickening)
         for planet in _PLANETS:
             position = _compute_planet_position(planet, epoch_jd)
-            curves.append(Curve(points=position, closed=False))
+            position_points.append(position)
+
+        position_cloud = PointCloud(
+            points=np.vstack(position_points).astype(np.float64)
+        )
 
         all_points = np.vstack(
-            [c.points for c in curves]
+            [c.points for c in curves] + [position_cloud.points]
         )
         bbox = BoundingBox.from_points(all_points)
 
@@ -251,6 +255,7 @@ class PlanetaryPositionsGenerator(GeneratorBase):
 
         return MathObject(
             curves=curves,
+            point_cloud=position_cloud,
             generator_name=self.resolved_name or self.name,
             category=self.category,
             parameters=merged,

@@ -244,44 +244,38 @@ class TestNBody:
 class TestPlanetaryPositions:
     """Tests for the planetary positions generator."""
 
-    def test_produces_multiple_curves(
+    def test_produces_orbit_curves_and_position_cloud(
         self, planetary: PlanetaryPositionsGenerator
     ) -> None:
-        """Produces orbit + position curves (8 orbits + 8 positions = 16)."""
+        """Produces 8 orbit curves and a point cloud of positions."""
         obj = planetary.generate(curve_points=_TEST_CURVE_POINTS)
         obj.validate_or_raise()
 
         assert obj.curves is not None
-        assert len(obj.curves) == 16
+        assert len(obj.curves) == 8
+
+        assert obj.point_cloud is not None
+        assert len(obj.point_cloud.points) == 8
 
     def test_orbit_curves_are_closed(
         self, planetary: PlanetaryPositionsGenerator
     ) -> None:
-        """First 8 curves (orbits) are closed, last 8 (positions) are open."""
+        """All 8 orbit curves are closed."""
         obj = planetary.generate(curve_points=_TEST_CURVE_POINTS)
         assert obj.curves is not None
-        for curve in obj.curves[:8]:
+        for curve in obj.curves:
             assert curve.closed is True
-        for curve in obj.curves[8:]:
-            assert curve.closed is False
-
-    def test_position_curves_are_single_point(
-        self, planetary: PlanetaryPositionsGenerator
-    ) -> None:
-        """Position curves each contain a single point."""
-        obj = planetary.generate(curve_points=_TEST_CURVE_POINTS)
-        assert obj.curves is not None
-        for curve in obj.curves[8:]:
-            assert len(curve.points) == 1
 
     def test_no_nan_in_output(
         self, planetary: PlanetaryPositionsGenerator
     ) -> None:
-        """No NaN values in any curve."""
+        """No NaN values in curves or point cloud."""
         obj = planetary.generate(curve_points=_TEST_CURVE_POINTS)
         assert obj.curves is not None
         for curve in obj.curves:
             assert not np.any(np.isnan(curve.points))
+        assert obj.point_cloud is not None
+        assert not np.any(np.isnan(obj.point_cloud.points))
 
     def test_orbits_ordered_by_distance(
         self, planetary: PlanetaryPositionsGenerator
