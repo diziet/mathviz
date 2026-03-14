@@ -1,7 +1,9 @@
 """Tests for the exporter pipeline stages."""
 
 import json
+import sys
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -166,8 +168,9 @@ class TestPcdImportError:
     def test_pcd_raises_import_error(self, tmp_path: Path) -> None:
         """PCD export raises ImportError directing user to install open3d."""
         obj = _make_cloud_obj()
-        with pytest.raises(ImportError, match="pip install mathviz\\[open3d\\]"):
-            export_point_cloud(obj, tmp_path / "cloud.pcd")
+        with patch.dict(sys.modules, {"open3d": None}):
+            with pytest.raises(ImportError, match="pip install mathviz\\[open3d\\]"):
+                export_point_cloud(obj, tmp_path / "cloud.pcd")
 
 
 class TestPlyCloudRoundTrip:

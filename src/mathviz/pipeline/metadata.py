@@ -43,3 +43,21 @@ def write_metadata(path: Path, obj: MathObject, **extra: Any) -> Path:
     meta_path.write_text(json.dumps(meta, indent=2, default=str), encoding="utf-8")
     logger.info("Wrote metadata sidecar: %s", meta_path)
     return meta_path
+
+
+def resolve_format(path: Path, fmt: str | None) -> str:
+    """Resolve export format from explicit argument or file suffix."""
+    if fmt is not None:
+        return fmt.lower().lstrip(".")
+    suffix = path.suffix.lower().lstrip(".")
+    if not suffix:
+        raise ValueError(f"Cannot infer format from path '{path}' — specify fmt explicitly")
+    return suffix
+
+
+def validate_format(fmt: str, supported: set[str], label: str) -> None:
+    """Validate that the format is in the supported set."""
+    if fmt not in supported:
+        raise ValueError(
+            f"Unsupported {label} format '{fmt}'. Supported: {sorted(supported)}"
+        )

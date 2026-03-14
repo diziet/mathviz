@@ -6,7 +6,7 @@ from pathlib import Path
 import trimesh
 
 from mathviz.core.math_object import MathObject
-from mathviz.pipeline.metadata import write_metadata
+from mathviz.pipeline.metadata import resolve_format, validate_format, write_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +38,8 @@ def export_mesh(obj: MathObject, path: Path, fmt: str | None = None) -> Path:
             "Generate or convert to mesh before exporting."
         )
 
-    resolved_fmt = _resolve_format(path, fmt)
-    _validate_format(resolved_fmt)
+    resolved_fmt = resolve_format(path, fmt)
+    validate_format(resolved_fmt, SUPPORTED_MESH_FORMATS, "mesh")
 
     tri_mesh = trimesh.Trimesh(
         vertices=obj.mesh.vertices,
@@ -48,30 +48,8 @@ def export_mesh(obj: MathObject, path: Path, fmt: str | None = None) -> Path:
     )
 
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    if resolved_fmt == "stl":
-        tri_mesh.export(str(path), file_type="stl")
-    else:
-        tri_mesh.export(str(path), file_type=resolved_fmt)
+    tri_mesh.export(str(path), file_type=resolved_fmt)
 
     write_metadata(path, obj, export_format=resolved_fmt)
     logger.info("Exported mesh to %s (format=%s)", path, resolved_fmt)
     return path
-
-
-def _resolve_format(path: Path, fmt: str | None) -> str:
-    """Resolve export format from explicit argument or file suffix."""
-    if fmt is not None:
-        return fmt.lower().lstrip(".")
-    suffix = path.suffix.lower().lstrip(".")
-    if not suffix:
-        raise ValueError(f"Cannot infer format from path '{path}' — specify fmt explicitly")
-    return suffix
-
-
-def _validate_format(fmt: str) -> None:
-    """Validate that the format is supported for mesh export."""
-    if fmt not in SUPPORTED_MESH_FORMATS:
-        raise ValueError(
-            f"Unsupported mesh format '{fmt}'. Supported: {sorted(SUPPORTED_MESH_FORMATS)}"
-        )
