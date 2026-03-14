@@ -1085,3 +1085,51 @@ metadata, near-match on vertex count (±1%), bounding box within ε.
 - Each fixture regeneration matches reference bounding box within ε
 - Metadata generator_name and seed match exactly
 - A deliberately wrong seed produces a mismatch (sanity check on the test itself)
+
+---
+
+## Task 37: Add thorough documentation in README and /docs files
+
+**Objective:**
+
+Produce comprehensive user-facing documentation covering every feature in the
+project. The top-level README should be expanded into a complete project
+overview with install instructions, quickstart examples, and a feature summary
+table. A `docs/` directory should contain detailed per-topic guides covering
+generators, the pipeline, CLI commands, configuration, representation
+strategies, rendering, grid layouts, and the API. Every CLI command, every
+generator category, every config option, and every representation strategy
+must be documented with usage examples. A developer or user reading only the
+docs should be able to use every feature without reading source code.
+
+**Suggested path:**
+
+Start by auditing every CLI command (`mathviz generate`, `mathviz preview`,
+`mathviz render`, `mathviz render-2d`, `mathviz grid`, `mathviz convert`,
+`mathviz sample`, `mathviz transform`, `mathviz schema`) and every generator
+category (parametric, implicit, attractor, fractal, knot, number theory,
+curve). For each, document purpose, parameters, defaults, and at least one
+usage example. Structure `docs/` as:
+
+- `docs/generators.md` — all generator categories with parameter tables and examples
+- `docs/pipeline.md` — the generate→sample→transform→export pipeline, how stages connect
+- `docs/cli.md` — every CLI command with flags, options, and example invocations
+- `docs/configuration.md` — config file format, precedence rules, sampling profiles, all config models
+- `docs/representation.md` — representation strategies (surface, cloud, volume fill, slice stack, wireframe) with visual descriptions
+- `docs/rendering.md` — `render` and `render-2d` commands, optional dependencies, output formats
+- `docs/grid.md` — grid manifest format, grid CLI, layout options
+- `docs/api.md` — using mathviz as a Python library (importing generators, running pipeline stages programmatically)
+
+Update the top-level README to include: project description, feature list,
+install instructions (including optional extras like `[render]`), quickstart
+showing a simple generate command, a table of all generators, and links to
+each doc page. Remove or replace any placeholder content.
+
+**Tests:** `tests/test_docs.py`
+
+- README.md exists and contains sections: install, quickstart, generators, CLI
+- Every file in docs/ is valid markdown (no broken headers, no empty files)
+- Every CLI command mentioned in the codebase appears in docs/cli.md
+- Every generator registered in the registry appears in docs/generators.md
+- Every representation strategy enum value appears in docs/representation.md
+- docs/ index or README links to all doc files that exist in the directory
