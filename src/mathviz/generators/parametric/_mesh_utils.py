@@ -37,6 +37,28 @@ def build_open_grid_faces(n_u: int, n_v: int) -> np.ndarray:
     return np.concatenate([tri1, tri2], axis=0).astype(np.int64)
 
 
+def build_mixed_grid_faces(
+    n_u: int, n_v: int, wrap_u: bool, wrap_v: bool,
+) -> np.ndarray:
+    """Build triangle faces for a grid with independent per-axis wrapping."""
+    u_range = np.arange(n_u) if wrap_u else np.arange(n_u - 1)
+    v_range = np.arange(n_v) if wrap_v else np.arange(n_v - 1)
+    rr, cc = np.meshgrid(u_range, v_range, indexing="ij")
+    rr, cc = rr.ravel(), cc.ravel()
+
+    next_r = ((rr + 1) % n_u) if wrap_u else (rr + 1)
+    next_c = ((cc + 1) % n_v) if wrap_v else (cc + 1)
+
+    i00 = rr * n_v + cc
+    i10 = next_r * n_v + cc
+    i01 = rr * n_v + next_c
+    i11 = next_r * n_v + next_c
+
+    tri1 = np.stack([i00, i10, i11], axis=-1)
+    tri2 = np.stack([i00, i11, i01], axis=-1)
+    return np.concatenate([tri1, tri2], axis=0).astype(np.int64)
+
+
 def build_sphere_faces(n_lat: int, n_lon: int) -> np.ndarray:
     """Build triangle faces for a sphere-like grid with poles.
 
