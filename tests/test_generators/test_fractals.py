@@ -9,17 +9,23 @@ import trimesh
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import clear_registry, get_generator, register
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.fractals.fractal_slice import FractalSliceGenerator
+from mathviz.generators.fractals.julia3d import Julia3DGenerator
 from mathviz.generators.fractals.mandelbrot_heightmap import (
     MandelbrotHeightmapGenerator,
 )
+from mathviz.generators.fractals.mandelbulb import MandelbulbGenerator
 from mathviz.pipeline.runner import ExportConfig, run
 
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
-    """Reset registry and re-register mandelbrot_heightmap for each test."""
+    """Reset registry and re-register fractal generators for each test."""
     clear_registry(suppress_discovery=True)
     register(MandelbrotHeightmapGenerator)
+    register(MandelbulbGenerator)
+    register(Julia3DGenerator)
+    register(FractalSliceGenerator)
     yield
     clear_registry(suppress_discovery=True)
 
@@ -360,3 +366,199 @@ def test_bounding_box_set(
     assert obj.bounding_box is not None
     assert obj.bounding_box.min_corner[0] == 0.0
     assert obj.bounding_box.max_corner[0] == 1.0
+
+
+# ===========================================================================
+# Mandelbulb tests
+# ===========================================================================
+
+_TEST_VOXEL_RESOLUTION = 32
+
+
+@pytest.fixture
+def mandelbulb() -> MandelbulbGenerator:
+    """Return a MandelbulbGenerator instance."""
+    return MandelbulbGenerator()
+
+
+def test_mandelbulb_produces_nonempty_mesh(
+    mandelbulb: MandelbulbGenerator,
+) -> None:
+    """Mandelbulb at voxel_resolution=32 produces a non-empty mesh."""
+    obj = mandelbulb.generate(voxel_resolution=_TEST_VOXEL_RESOLUTION)
+    obj.validate_or_raise()
+    assert obj.mesh is not None
+    assert len(obj.mesh.vertices) > 0
+    assert len(obj.mesh.faces) > 0
+
+
+def test_mandelbulb_determinism(
+    mandelbulb: MandelbulbGenerator,
+) -> None:
+    """Same seed + params produces identical output."""
+    obj1 = mandelbulb.generate(seed=42, voxel_resolution=_TEST_VOXEL_RESOLUTION)
+    obj2 = mandelbulb.generate(seed=42, voxel_resolution=_TEST_VOXEL_RESOLUTION)
+    assert obj1.mesh is not None and obj2.mesh is not None
+    np.testing.assert_array_equal(obj1.mesh.vertices, obj2.mesh.vertices)
+    np.testing.assert_array_equal(obj1.mesh.faces, obj2.mesh.faces)
+
+
+def test_mandelbulb_default_representation(
+    mandelbulb: MandelbulbGenerator,
+) -> None:
+    """Default representation is SPARSE_SHELL."""
+    rep = mandelbulb.get_default_representation()
+    assert rep.type == RepresentationType.SPARSE_SHELL
+
+
+def test_mandelbulb_registered() -> None:
+    """mandelbulb is discoverable via the registry."""
+    gen_cls = get_generator("mandelbulb")
+    assert gen_cls is MandelbulbGenerator
+
+
+def test_mandelbulb_metadata(
+    mandelbulb: MandelbulbGenerator,
+) -> None:
+    """Generator name, category, and parameters are recorded."""
+    obj = mandelbulb.generate(voxel_resolution=_TEST_VOXEL_RESOLUTION)
+    assert obj.generator_name == "mandelbulb"
+    assert obj.category == "fractals"
+    assert obj.parameters["power"] == 8.0
+    assert obj.parameters["voxel_resolution"] == _TEST_VOXEL_RESOLUTION
+
+
+# ===========================================================================
+# Julia 3D tests
+# ===========================================================================
+
+
+@pytest.fixture
+def julia3d() -> Julia3DGenerator:
+    """Return a Julia3DGenerator instance."""
+    return Julia3DGenerator()
+
+
+def test_julia3d_produces_geometry(
+    julia3d: Julia3DGenerator,
+) -> None:
+    """Julia 3D with known c value produces geometry."""
+    obj = julia3d.generate(
+        params={"c_re": -0.2, "c_im": 0.6, "c_z": 0.2},
+        voxel_resolution=_TEST_VOXEL_RESOLUTION,
+    )
+    obj.validate_or_raise()
+    assert obj.mesh is not None
+    assert len(obj.mesh.vertices) > 0
+    assert len(obj.mesh.faces) > 0
+
+
+def test_julia3d_determinism(
+    julia3d: Julia3DGenerator,
+) -> None:
+    """Same seed + params produces identical output despite numba."""
+    obj1 = julia3d.generate(seed=42, voxel_resolution=_TEST_VOXEL_RESOLUTION)
+    obj2 = julia3d.generate(seed=42, voxel_resolution=_TEST_VOXEL_RESOLUTION)
+    assert obj1.mesh is not None and obj2.mesh is not None
+    np.testing.assert_array_equal(obj1.mesh.vertices, obj2.mesh.vertices)
+    np.testing.assert_array_equal(obj1.mesh.faces, obj2.mesh.faces)
+
+
+def test_julia3d_default_representation(
+    julia3d: Julia3DGenerator,
+) -> None:
+    """Default representation is SPARSE_SHELL."""
+    rep = julia3d.get_default_representation()
+    assert rep.type == RepresentationType.SPARSE_SHELL
+
+
+def test_julia3d_registered() -> None:
+    """julia3d is discoverable via the registry."""
+    gen_cls = get_generator("julia3d")
+    assert gen_cls is Julia3DGenerator
+
+
+# ===========================================================================
+# SPARSE_SHELL representation tests
+# ===========================================================================
+
+
+def test_sparse_shell_produces_point_cloud(
+    mandelbulb: MandelbulbGenerator,
+) -> None:
+    """SPARSE_SHELL produces a point cloud with fewer points than full surface."""
+    from mathviz.pipeline import representation_strategy
+
+    obj = mandelbulb.generate(voxel_resolution=_TEST_VOXEL_RESOLUTION)
+    full_vertex_count = len(obj.mesh.vertices)
+
+    config = RepresentationConfig(type=RepresentationType.SPARSE_SHELL)
+    result = representation_strategy.apply(obj, config)
+
+    assert result.point_cloud is not None
+    assert len(result.point_cloud.points) > 0
+    assert len(result.point_cloud.points) < full_vertex_count
+
+
+# ===========================================================================
+# Fractal slice tests
+# ===========================================================================
+
+
+@pytest.fixture
+def fractal_slice() -> FractalSliceGenerator:
+    """Return a FractalSliceGenerator instance."""
+    return FractalSliceGenerator()
+
+
+def test_fractal_slice_produces_nontrivial_heightmap(
+    fractal_slice: FractalSliceGenerator,
+) -> None:
+    """Fractal slice at a known plane produces a non-trivial 2D heightmap."""
+    obj = fractal_slice.generate(
+        params={"slice_axis": "z", "slice_position": 0.0},
+        pixel_resolution=64,
+    )
+    obj.validate_or_raise()
+    assert obj.scalar_field is not None
+    assert obj.scalar_field.ndim == 2
+    assert obj.scalar_field.shape == (64, 64)
+    # Non-trivial means has both zero and non-zero values
+    assert np.any(obj.scalar_field > 0)
+    assert np.any(obj.scalar_field == 0)
+
+
+def test_fractal_slice_determinism(
+    fractal_slice: FractalSliceGenerator,
+) -> None:
+    """Same seed + params produces identical output."""
+    obj1 = fractal_slice.generate(seed=42, pixel_resolution=64)
+    obj2 = fractal_slice.generate(seed=42, pixel_resolution=64)
+    assert obj1.scalar_field is not None and obj2.scalar_field is not None
+    np.testing.assert_array_equal(obj1.scalar_field, obj2.scalar_field)
+
+
+def test_fractal_slice_default_representation(
+    fractal_slice: FractalSliceGenerator,
+) -> None:
+    """Default representation is HEIGHTMAP_RELIEF."""
+    rep = fractal_slice.get_default_representation()
+    assert rep.type == RepresentationType.HEIGHTMAP_RELIEF
+
+
+def test_fractal_slice_registered() -> None:
+    """fractal_slice is discoverable via the registry."""
+    gen_cls = get_generator("fractal_slice")
+    assert gen_cls is FractalSliceGenerator
+
+
+# ===========================================================================
+# Numba JIT verification
+# ===========================================================================
+
+
+def test_numba_jit_is_active() -> None:
+    """Verify numba-compiled kernel is used."""
+    from mathviz.generators.fractals._escape_kernel import NUMBA_JIT_ACTIVE
+
+    assert NUMBA_JIT_ACTIVE is True

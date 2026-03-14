@@ -217,7 +217,6 @@ class TestUnimplementedTypes:
     """Test that unimplemented types raise NotImplementedError."""
 
     @pytest.mark.parametrize("rep_type", [
-        RepresentationType.SPARSE_SHELL,
         RepresentationType.VOLUME_FILL,
         RepresentationType.WIREFRAME,
         RepresentationType.WEIGHTED_CLOUD,
