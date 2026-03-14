@@ -68,6 +68,12 @@ class TestGenerateDryRun:
         data = json.loads(result.output)
         assert data["parameters"]["major_radius"] == 3.0
 
+    def test_dry_run_includes_sample_stage(self) -> None:
+        """--dry-run stages list includes the sample stage."""
+        result = runner.invoke(app, ["generate", "torus", "--dry-run", "--json"])
+        data = json.loads(result.output)
+        assert "sample" in data["stages"]
+
 
 class TestGenerateReport:
     """Test generate command with --report."""

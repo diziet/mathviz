@@ -9,6 +9,14 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from mathviz.cli_output import (
+    error_exit,
+    print_result_rich,
+    print_validation_rich,
+    result_to_dict,
+    serialize_checks,
+    write_report,
+)
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import (
     GeneratorBase,
@@ -31,6 +39,9 @@ console = Console()
 EXIT_SUCCESS = 0
 EXIT_VALIDATION_WARNING = 1
 EXIT_ERROR = 2
+
+# Pipeline stages in execution order (matches runner.py chain)
+_BASE_STAGES = ["generate", "represent", "transform", "sample", "validate"]
 
 
 def _parse_params(param_list: list[str]) -> dict[str, Any]:
@@ -72,89 +83,45 @@ def _configure_logging(verbose: bool, quiet: bool) -> None:
 def _exit_code_for_result(result: PipelineResult) -> int:
     """Determine exit code from pipeline result validation.
 
-    Exit code 1 means output was produced but has validation issues.
+    Uses ValidationResult.passed which returns True when there are zero errors
+    (warnings are acceptable). Exit code 1 only when there are actual errors.
     Exit code 2 is reserved for CLI-level errors (unknown generator, bad args).
     """
-    if result.validation.errors or result.validation.warnings:
+    if not result.validation.passed:
         return EXIT_VALIDATION_WARNING
     return EXIT_SUCCESS
 
 
-def _result_to_dict(result: PipelineResult, generator_name: str) -> dict[str, Any]:
-    """Convert a PipelineResult to a JSON-serializable dict."""
-    obj = result.math_object
-    validation_checks = [
-        {
-            "name": c.name,
-            "passed": c.passed,
-            "severity": c.severity.value,
-            "message": c.message,
-        }
-        for c in result.validation.checks
-    ]
-    return {
-        "generator": generator_name,
-        "seed": obj.seed,
-        "parameters": obj.parameters,
-        "coord_space": obj.coord_space.value,
-        "timings": result.timings,
-        "validation": {
-            "passed": result.validation.passed,
-            "checks": validation_checks,
-        },
-        "export_path": str(result.export_path) if result.export_path else None,
-        "mesh_vertices": len(obj.mesh.vertices) if obj.mesh else None,
-        "mesh_faces": len(obj.mesh.faces) if obj.mesh else None,
-        "point_count": len(obj.point_cloud.points) if obj.point_cloud else None,
-    }
+def _resolve_generator(generator_name: str, json_output: bool) -> GeneratorBase:
+    """Resolve a generator name to an instance, exiting on failure."""
+    try:
+        meta = get_generator_meta(generator_name)
+    except KeyError:
+        error_exit(f"Unknown generator: {generator_name!r}", json_output)
+        raise  # unreachable, for type checker
+    return meta.generator_class()
 
 
-def _print_result_rich(result: PipelineResult, generator_name: str) -> None:
-    """Print pipeline result using rich formatting."""
-    obj = result.math_object
-    console.print(f"[bold green]Generator:[/bold green] {generator_name}")
-    console.print(f"[bold]Seed:[/bold] {obj.seed}")
-    console.print(f"[bold]Parameters:[/bold] {obj.parameters}")
-    if obj.mesh:
-        console.print(
-            f"[bold]Mesh:[/bold] {len(obj.mesh.vertices)} vertices, "
-            f"{len(obj.mesh.faces)} faces"
-        )
-    if obj.point_cloud:
-        console.print(f"[bold]Points:[/bold] {len(obj.point_cloud.points)}")
-    _print_timings_rich(result.timings)
-    _print_validation_rich(result)
+def _run_pipeline(
+    generator_name: str,
+    params: dict[str, Any],
+    seed: int,
+    json_output: bool,
+    export_config: ExportConfig | None = None,
+) -> PipelineResult:
+    """Shared pipeline execution for generate and validate commands."""
+    gen_instance = _resolve_generator(generator_name, json_output)
+    container = Container()
+    placement = PlacementPolicy()
 
-
-def _print_timings_rich(timings: dict[str, float]) -> None:
-    """Print timing table with rich."""
-    if not timings:
-        return
-    table = Table(title="Timings")
-    table.add_column("Stage")
-    table.add_column("Seconds", justify="right")
-    for stage, elapsed in timings.items():
-        table.add_row(stage, f"{elapsed:.4f}")
-    total = sum(timings.values())
-    table.add_row("[bold]total[/bold]", f"[bold]{total:.4f}[/bold]")
-    console.print(table)
-
-
-def _print_validation_rich(result: PipelineResult) -> None:
-    """Print validation results with rich."""
-    if not result.validation.checks:
-        return
-    for check in result.validation.checks:
-        icon = "[green]PASS[/green]" if check.passed else "[red]FAIL[/red]"
-        console.print(f"  {icon} {check.name}: {check.message}")
-
-
-def _write_report(path: Path, data: dict[str, Any], *, silent: bool = False) -> None:
-    """Write a JSON report file."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
-    if not silent:
-        console.print(f"Report written to {path}")
+    return run(
+        generator=gen_instance,
+        params=params if params else None,
+        seed=seed,
+        container=container,
+        placement=placement,
+        export_config=export_config,
+    )
 
 
 @app.command()
@@ -172,49 +139,28 @@ def generate(
 ) -> None:
     """Run a generator through the pipeline."""
     _configure_logging(verbose, quiet)
-
-    try:
-        gen_meta = get_generator_meta(generator_name)
-    except KeyError:
-        _error_exit(f"Unknown generator: {generator_name!r}", json_output)
-        return  # unreachable, for type checker
-
-    gen_instance: GeneratorBase = gen_meta.generator_class()
     params = _parse_params(param or [])
 
     if dry_run:
+        gen_instance = _resolve_generator(generator_name, json_output)
         _handle_dry_run(gen_instance, generator_name, params, seed, output, json_output)
         return
-
-    merged_params = gen_instance.get_default_params()
-    merged_params.update(params)
-
-    container = Container()
-    placement = PlacementPolicy()
 
     export_config = None
     if output is not None:
         export_config = ExportConfig(path=output, fmt=fmt)
 
-    result = run(
-        generator=gen_instance,
-        params=merged_params,
-        seed=seed,
-        container=container,
-        placement=placement,
-        export_config=export_config,
-    )
-
-    result_dict = _result_to_dict(result, generator_name)
+    result = _run_pipeline(generator_name, params, seed, json_output, export_config)
+    result_dict = result_to_dict(result, generator_name)
     exit_code = _exit_code_for_result(result)
 
     if report is not None:
-        _write_report(report, result_dict, silent=json_output)
+        write_report(report, result_dict, silent=json_output)
 
     if json_output:
         typer.echo(json.dumps(result_dict, indent=2, default=str))
     elif not quiet:
-        _print_result_rich(result, generator_name)
+        print_result_rich(result, generator_name)
 
     raise typer.Exit(code=exit_code)
 
@@ -230,16 +176,17 @@ def _handle_dry_run(
     """Handle --dry-run: report what would happen without running the pipeline."""
     merged = gen_instance.get_default_params()
     merged.update(params)
+    stages = list(_BASE_STAGES)
+    if output is not None:
+        stages.append("export")
     info = {
         "dry_run": True,
         "generator": generator_name,
         "seed": seed,
         "parameters": merged,
         "output": str(output) if output else None,
-        "stages": ["generate", "represent", "transform", "validate"],
+        "stages": stages,
     }
-    if output is not None:
-        info["stages"].append("export")
 
     if json_output:
         typer.echo(json.dumps(info, indent=2, default=str))
@@ -249,7 +196,7 @@ def _handle_dry_run(
         console.print(f"  Seed: {seed}")
         console.print(f"  Parameters: {merged}")
         console.print(f"  Output: {output or '(none)'}")
-        console.print(f"  Stages: {', '.join(info['stages'])}")
+        console.print(f"  Stages: {', '.join(stages)}")
 
     raise typer.Exit(code=EXIT_SUCCESS)
 
@@ -288,13 +235,8 @@ def info(
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
 ) -> None:
     """Show detailed info and parameter schema for a generator."""
-    try:
-        meta = get_generator_meta(generator_name)
-    except KeyError:
-        _error_exit(f"Unknown generator: {generator_name!r}", json_output)
-        return
-
-    gen_instance: GeneratorBase = meta.generator_class()
+    gen_instance = _resolve_generator(generator_name, json_output)
+    meta = get_generator_meta(generator_name)
     defaults = gen_instance.get_default_params()
     schema = gen_instance.get_param_schema()
 
@@ -331,55 +273,24 @@ def validate(
 ) -> None:
     """Generate and validate without exporting."""
     _configure_logging(verbose, quiet)
-
-    try:
-        get_generator_meta(generator_name)
-    except KeyError:
-        _error_exit(f"Unknown generator: {generator_name!r}", json_output)
-        return
-
     params = _parse_params(param or [])
-    container = Container()
-    placement = PlacementPolicy()
 
-    result = run(
-        generator=generator_name,
-        params=params if params else None,
-        seed=seed,
-        container=container,
-        placement=placement,
-    )
-
+    result = _run_pipeline(generator_name, params, seed, json_output)
     exit_code = _exit_code_for_result(result)
-    checks_data = [
-        {
-            "name": c.name,
-            "passed": c.passed,
-            "severity": c.severity.value,
-            "message": c.message,
-        }
-        for c in result.validation.checks
-    ]
 
     if json_output:
-        data = {"passed": result.validation.passed, "checks": checks_data}
+        data = {
+            "passed": result.validation.passed,
+            "checks": serialize_checks(result.validation.checks),
+        }
         typer.echo(json.dumps(data, indent=2))
     elif not quiet:
         console.print(f"[bold]Validation for {generator_name}[/bold]")
-        _print_validation_rich(result)
+        print_validation_rich(result)
         status = "[green]PASSED[/green]" if result.validation.passed else "[red]FAILED[/red]"
         console.print(f"Overall: {status}")
 
     raise typer.Exit(code=exit_code)
-
-
-def _error_exit(message: str, json_output: bool) -> None:
-    """Print error and exit with code 2."""
-    if json_output:
-        typer.echo(json.dumps({"error": message}))
-    else:
-        console.print(f"[red]Error: {message}[/red]", highlight=False)
-    raise typer.Exit(code=EXIT_ERROR)
 
 
 def main() -> None:
