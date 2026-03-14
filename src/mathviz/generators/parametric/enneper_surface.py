@@ -12,6 +12,7 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.parametric._mesh_utils import build_open_grid_faces
 
 logger = logging.getLogger(__name__)
 
@@ -26,35 +27,19 @@ def _evaluate_enneper(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Evaluate the generalized Enneper surface f(u, v) -> (x, y, z).
 
-    For order=1 this is the classical Enneper surface:
-      x = u - u³/3 + u*v²
-      y = v - v³/3 + v*u²
-      z = u² - v²
-    Higher orders use the generalized form with (2n+1) powers.
+    For order n, the generalized Enneper minimal surface is:
+      x = u - u^(2n+1)/(2n+1) + u * v^(2n)
+      y = v - v^(2n+1)/(2n+1) + v * u^(2n)
+      z = u^(2n) - v^(2n)
+    For n=1 this reduces to the classical Enneper surface.
     """
     n = order
     exp = 2 * n + 1
-    x = u - u**exp / exp + u * v**2
-    y = v - v**exp / exp + v * u**2
-    z = u**2 - v**2
+    cross_exp = 2 * n
+    x = u - u**exp / exp + u * v**cross_exp
+    y = v - v**exp / exp + v * u**cross_exp
+    z = u**cross_exp - v**cross_exp
     return x, y, z
-
-
-def _build_open_grid_faces(n_u: int, n_v: int) -> np.ndarray:
-    """Build triangle faces for an open grid (no wrapping)."""
-    rows = np.arange(n_u - 1)
-    cols = np.arange(n_v - 1)
-    rr, cc = np.meshgrid(rows, cols, indexing="ij")
-    rr, cc = rr.ravel(), cc.ravel()
-
-    i00 = rr * n_v + cc
-    i10 = (rr + 1) * n_v + cc
-    i01 = rr * n_v + (cc + 1)
-    i11 = (rr + 1) * n_v + (cc + 1)
-
-    tri1 = np.stack([i00, i10, i11], axis=-1)
-    tri2 = np.stack([i00, i11, i01], axis=-1)
-    return np.concatenate([tri1, tri2], axis=0).astype(np.int64)
 
 
 def _validate_params(
@@ -77,8 +62,9 @@ def _compute_bounding_box(param_range: float, order: int) -> BoundingBox:
     r = param_range
     n = order
     exp = 2 * n + 1
-    xy_extent = r + r**exp / exp + r * r**2
-    z_extent = r**2
+    cross_exp = 2 * n
+    xy_extent = r + r**exp / exp + r * r**cross_exp
+    z_extent = r**cross_exp
     return BoundingBox(
         min_corner=(-xy_extent, -xy_extent, -z_extent),
         max_corner=(xy_extent, xy_extent, z_extent),
@@ -97,7 +83,7 @@ def _generate_enneper_mesh(
     x, y, z = _evaluate_enneper(uu, vv, order)
     vertices = np.column_stack([x.ravel(), y.ravel(), z.ravel()])
     vertices = vertices.astype(np.float64)
-    faces = _build_open_grid_faces(n, n)
+    faces = build_open_grid_faces(n, n)
     return Mesh(vertices=vertices, faces=faces)
 
 
@@ -139,6 +125,8 @@ class EnneperSurfaceGenerator(GeneratorBase):
 
         mesh = _generate_enneper_mesh(param_range, order, grid_resolution)
         bbox = _compute_bounding_box(param_range, order)
+
+        merged["grid_resolution"] = grid_resolution
 
         logger.info(
             "Generated enneper_surface: range=%.3f, order=%d, "

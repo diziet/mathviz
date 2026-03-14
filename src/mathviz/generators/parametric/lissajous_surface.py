@@ -13,6 +13,7 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.parametric._mesh_utils import build_wrapped_grid_faces
 
 logger = logging.getLogger(__name__)
 
@@ -96,39 +97,22 @@ def _generate_tube_mesh(
     curve: np.ndarray, normals: np.ndarray, binormals: np.ndarray,
     tube_radius: float, n_cross: int,
 ) -> Mesh:
-    """Sweep a circle along curve to create a tube mesh."""
+    """Sweep a circle along curve to create a tube mesh (vectorized)."""
     n_along = len(curve)
     theta = np.linspace(0, 2 * np.pi, n_cross, endpoint=False)
     cos_t = np.cos(theta)
     sin_t = np.sin(theta)
 
-    vertices = np.empty((n_along * n_cross, 3), dtype=np.float64)
-    for i in range(n_along):
-        for j in range(n_cross):
-            offset = tube_radius * (
-                cos_t[j] * normals[i] + sin_t[j] * binormals[i]
-            )
-            vertices[i * n_cross + j] = curve[i] + offset
+    # Vectorized: (n_along, n_cross, 3) via broadcasting
+    offsets = tube_radius * (
+        cos_t[np.newaxis, :, np.newaxis] * normals[:, np.newaxis, :]
+        + sin_t[np.newaxis, :, np.newaxis] * binormals[:, np.newaxis, :]
+    )
+    vertices = (curve[:, np.newaxis, :] + offsets).reshape(-1, 3)
+    vertices = vertices.astype(np.float64)
 
-    faces = _build_wrapped_grid_faces(n_along, n_cross)
+    faces = build_wrapped_grid_faces(n_along, n_cross)
     return Mesh(vertices=vertices, faces=faces)
-
-
-def _build_wrapped_grid_faces(n_u: int, n_v: int) -> np.ndarray:
-    """Build triangle faces for a grid periodic in both u and v."""
-    rows = np.arange(n_u)
-    cols = np.arange(n_v)
-    rr, cc = np.meshgrid(rows, cols, indexing="ij")
-    rr, cc = rr.ravel(), cc.ravel()
-
-    i00 = rr * n_v + cc
-    i10 = ((rr + 1) % n_u) * n_v + cc
-    i01 = rr * n_v + ((cc + 1) % n_v)
-    i11 = ((rr + 1) % n_u) * n_v + ((cc + 1) % n_v)
-
-    tri1 = np.stack([i00, i10, i11], axis=-1)
-    tri2 = np.stack([i00, i11, i01], axis=-1)
-    return np.concatenate([tri1, tri2], axis=0).astype(np.int64)
 
 
 def _validate_params(
@@ -197,6 +181,8 @@ class LissajousSurfaceGenerator(GeneratorBase):
         curve = _evaluate_lissajous_curve(t, nx, ny, nz, phase_x, phase_y, phase_z)
         _, normals, binormals = _compute_bishop_frames(curve)
         mesh = _generate_tube_mesh(curve, normals, binormals, tube_radius, n_cross)
+
+        merged["grid_resolution"] = grid_resolution
 
         extent = 1.0 + tube_radius
         bbox = BoundingBox(

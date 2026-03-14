@@ -140,6 +140,8 @@ class MobiusStripGenerator(GeneratorBase):
             len(mesh.vertices), len(mesh.faces),
         )
 
+        merged["grid_resolution"] = grid_resolution
+
         return MathObject(
             mesh=mesh,
             generator_name=self.name,

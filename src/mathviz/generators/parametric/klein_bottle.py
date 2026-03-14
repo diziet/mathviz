@@ -12,6 +12,7 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.parametric._mesh_utils import build_wrapped_grid_faces
 
 logger = logging.getLogger(__name__)
 
@@ -38,23 +39,6 @@ def _evaluate_klein_bottle(
     y = r * np.sin(u)
     z = scale * (sin_hu * sin_v + cos_hu * sin_2v)
     return x, y, z
-
-
-def _build_wrapped_grid_faces(n_u: int, n_v: int) -> np.ndarray:
-    """Build triangle faces for a grid periodic in both u and v."""
-    rows = np.arange(n_u)
-    cols = np.arange(n_v)
-    rr, cc = np.meshgrid(rows, cols, indexing="ij")
-    rr, cc = rr.ravel(), cc.ravel()
-
-    i00 = rr * n_v + cc
-    i10 = ((rr + 1) % n_u) * n_v + cc
-    i01 = rr * n_v + ((cc + 1) % n_v)
-    i11 = ((rr + 1) % n_u) * n_v + ((cc + 1) % n_v)
-
-    tri1 = np.stack([i00, i10, i11], axis=-1)
-    tri2 = np.stack([i00, i11, i01], axis=-1)
-    return np.concatenate([tri1, tri2], axis=0).astype(np.int64)
 
 
 def _validate_params(scale: float, grid_resolution: int) -> None:
@@ -88,7 +72,7 @@ def _generate_klein_mesh(scale: float, grid_resolution: int) -> Mesh:
     x, y, z = _evaluate_klein_bottle(uu, vv, scale)
     vertices = np.column_stack([x.ravel(), y.ravel(), z.ravel()])
     vertices = vertices.astype(np.float64)
-    faces = _build_wrapped_grid_faces(n, n)
+    faces = build_wrapped_grid_faces(n, n)
     return Mesh(vertices=vertices, faces=faces)
 
 
@@ -126,6 +110,8 @@ class KleinBottleGenerator(GeneratorBase):
 
         mesh = _generate_klein_mesh(scale, grid_resolution)
         bbox = _compute_bounding_box(scale)
+
+        merged["grid_resolution"] = grid_resolution
 
         logger.info(
             "Generated klein_bottle: scale=%.3f, grid=%d, vertices=%d, faces=%d",

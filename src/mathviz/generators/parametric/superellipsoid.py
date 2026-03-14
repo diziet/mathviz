@@ -13,6 +13,7 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.parametric._mesh_utils import build_sphere_faces
 
 logger = logging.getLogger(__name__)
 
@@ -48,42 +49,6 @@ def _evaluate_superellipsoid(
     y = a2 * _sgn_pow(cos_eta, e1) * _sgn_pow(sin_omega, e2)
     z = a3 * _sgn_pow(sin_eta, e1)
     return x, y, z
-
-
-def _build_sphere_faces(n_eta: int, n_omega: int) -> np.ndarray:
-    """Build faces for a sphere-like grid with poles.
-
-    The grid has n_eta latitude rows (excluding poles) and n_omega longitude
-    columns. Two extra vertices are added for north and south poles.
-    """
-    faces_list: list[np.ndarray] = []
-    n_body = n_eta * n_omega
-    south_pole = n_body
-    north_pole = n_body + 1
-
-    # South pole fan (connect to first latitude row)
-    for j in range(n_omega):
-        j_next = (j + 1) % n_omega
-        faces_list.append([south_pole, j, j_next])
-
-    # Body quads
-    for i in range(n_eta - 1):
-        for j in range(n_omega):
-            j_next = (j + 1) % n_omega
-            i00 = i * n_omega + j
-            i10 = (i + 1) * n_omega + j
-            i01 = i * n_omega + j_next
-            i11 = (i + 1) * n_omega + j_next
-            faces_list.append([i00, i10, i11])
-            faces_list.append([i00, i11, i01])
-
-    # North pole fan (connect to last latitude row)
-    last_row = (n_eta - 1) * n_omega
-    for j in range(n_omega):
-        j_next = (j + 1) % n_omega
-        faces_list.append([last_row + j, north_pole, last_row + j_next])
-
-    return np.array(faces_list, dtype=np.int64)
 
 
 def _validate_params(
@@ -126,7 +91,7 @@ def _generate_superellipsoid_mesh(
     vertices = np.concatenate([body_verts, south_pole, north_pole], axis=0)
     vertices = vertices.astype(np.float64)
 
-    faces = _build_sphere_faces(n, n)
+    faces = build_sphere_faces(n, n)
     return Mesh(vertices=vertices, faces=faces)
 
 
@@ -173,6 +138,8 @@ class SuperellipsoidGenerator(GeneratorBase):
         bbox = BoundingBox(
             min_corner=(-a1, -a2, -a3), max_corner=(a1, a2, a3),
         )
+
+        merged["grid_resolution"] = grid_resolution
 
         logger.info(
             "Generated superellipsoid: a=(%.3f,%.3f,%.3f), e=(%.3f,%.3f), "

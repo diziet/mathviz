@@ -13,6 +13,7 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.parametric._mesh_utils import build_open_grid_faces
 
 logger = logging.getLogger(__name__)
 
@@ -41,30 +42,14 @@ def _evaluate_boy_surface(
     sin_3u = np.sin(3.0 * u)
 
     denom = 2.0 - _SQRT2 * sin_3u * sin_2v
-    # Clamp denominator to avoid division by zero
-    denom = np.where(np.abs(denom) < 1e-10, 1e-10, denom)
+    # Clamp denominator preserving sign to avoid division by zero
+    sign = np.where(denom >= 0, 1.0, -1.0)
+    denom = np.where(np.abs(denom) < 1e-10, sign * 1e-10, denom)
 
     x = scale * (_SQRT2 * cos2_v * cos_2u + cos_u * sin_2v) / denom
     y = scale * (_SQRT2 * cos2_v * sin_2u - sin_u * sin_2v) / denom
     z = scale * 3.0 * cos2_v / denom
     return x, y, z
-
-
-def _build_open_grid_faces(n_u: int, n_v: int) -> np.ndarray:
-    """Build triangle faces for an open grid (no wrapping)."""
-    rows = np.arange(n_u - 1)
-    cols = np.arange(n_v - 1)
-    rr, cc = np.meshgrid(rows, cols, indexing="ij")
-    rr, cc = rr.ravel(), cc.ravel()
-
-    i00 = rr * n_v + cc
-    i10 = (rr + 1) * n_v + cc
-    i01 = rr * n_v + (cc + 1)
-    i11 = (rr + 1) * n_v + (cc + 1)
-
-    tri1 = np.stack([i00, i10, i11], axis=-1)
-    tri2 = np.stack([i00, i11, i01], axis=-1)
-    return np.concatenate([tri1, tri2], axis=0).astype(np.int64)
 
 
 def _validate_params(scale: float, grid_resolution: int) -> None:
@@ -88,7 +73,7 @@ def _generate_boy_mesh(scale: float, grid_resolution: int) -> Mesh:
     x, y, z = _evaluate_boy_surface(uu, vv, scale)
     vertices = np.column_stack([x.ravel(), y.ravel(), z.ravel()])
     vertices = vertices.astype(np.float64)
-    faces = _build_open_grid_faces(n, n)
+    faces = build_open_grid_faces(n, n)
     return Mesh(vertices=vertices, faces=faces)
 
 
@@ -135,6 +120,8 @@ class BoySurfaceGenerator(GeneratorBase):
 
         mesh = _generate_boy_mesh(scale, grid_resolution)
         bbox = _compute_bounding_box(scale)
+
+        merged["grid_resolution"] = grid_resolution
 
         logger.info(
             "Generated boy_surface: scale=%.3f, grid=%d, vertices=%d, faces=%d",

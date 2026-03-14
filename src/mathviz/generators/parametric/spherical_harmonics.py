@@ -14,6 +14,7 @@ from scipy.special import sph_harm_y  # type: ignore[import-untyped]
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.parametric._mesh_utils import build_sphere_faces
 
 logger = logging.getLogger(__name__)
 
@@ -56,35 +57,6 @@ def _compute_radius_field(
             l_deg, m_ord, theta, phi,
         )
     return radius
-
-
-def _build_sphere_faces(n_theta: int, n_phi: int) -> np.ndarray:
-    """Build triangle faces for a sphere-like grid with poles."""
-    faces_list: list[np.ndarray] = []
-    n_body = n_theta * n_phi
-    south_pole = n_body
-    north_pole = n_body + 1
-
-    for j in range(n_phi):
-        j_next = (j + 1) % n_phi
-        faces_list.append([south_pole, j, j_next])
-
-    for i in range(n_theta - 1):
-        for j in range(n_phi):
-            j_next = (j + 1) % n_phi
-            i00 = i * n_phi + j
-            i10 = (i + 1) * n_phi + j
-            i01 = i * n_phi + j_next
-            i11 = (i + 1) * n_phi + j_next
-            faces_list.append([i00, i10, i11])
-            faces_list.append([i00, i11, i01])
-
-    last_row = (n_theta - 1) * n_phi
-    for j in range(n_phi):
-        j_next = (j + 1) % n_phi
-        faces_list.append([last_row + j, north_pole, last_row + j_next])
-
-    return np.array(faces_list, dtype=np.int64)
 
 
 def _parse_coefficients(
@@ -149,12 +121,20 @@ def _generate_sh_mesh(
     z = r * np.cos(theta_grid)
 
     body_verts = np.column_stack([x.ravel(), y.ravel(), z.ravel()])
-    south_pole = np.array([[0.0, 0.0, -base_radius]])
-    north_pole = np.array([[0.0, 0.0, base_radius]])
+
+    # Compute pole radii using the actual harmonic modulation
+    r_south = _compute_radius_field(
+        np.array([np.pi]), np.array([0.0]), coefficients, base_radius,
+    )[0]
+    r_north = _compute_radius_field(
+        np.array([0.0]), np.array([0.0]), coefficients, base_radius,
+    )[0]
+    south_pole = np.array([[0.0, 0.0, -r_south]])
+    north_pole = np.array([[0.0, 0.0, r_north]])
     vertices = np.concatenate([body_verts, south_pole, north_pole], axis=0)
     vertices = vertices.astype(np.float64)
 
-    faces = _build_sphere_faces(n, n)
+    faces = build_sphere_faces(n, n)
     return Mesh(vertices=vertices, faces=faces)
 
 
@@ -210,6 +190,8 @@ class SphericalHarmonicsGenerator(GeneratorBase):
 
         mesh = _generate_sh_mesh(coefficients, base_radius, grid_resolution)
         bbox = _compute_bounding_box(coefficients, base_radius)
+
+        merged["grid_resolution"] = grid_resolution
 
         logger.info(
             "Generated spherical_harmonics: base_r=%.3f, n_coeffs=%d, "
