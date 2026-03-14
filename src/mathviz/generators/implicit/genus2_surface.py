@@ -19,9 +19,9 @@ from typing import Any
 import numpy as np
 
 from mathviz.core.generator import GeneratorBase, register
-from mathviz.core.math_object import BoundingBox, MathObject
+from mathviz.core.math_object import MathObject
 from mathviz.core.representation import RepresentationConfig, RepresentationType
-from mathviz.shared.marching_cubes import SpatialBounds, extract_mesh
+from mathviz.shared.marching_cubes import SpatialBounds, bounds_to_bbox, extract_mesh
 
 logger = logging.getLogger(__name__)
 
@@ -81,14 +81,6 @@ def _compute_bounds(
     return SpatialBounds(
         min_corner=(-x_extent, -yz_extent, -yz_extent),
         max_corner=(x_extent, yz_extent, yz_extent),
-    )
-
-
-def _compute_bounding_box(bounds: SpatialBounds) -> BoundingBox:
-    """Convert spatial bounds to a BoundingBox."""
-    return BoundingBox(
-        min_corner=bounds.min_corner,
-        max_corner=bounds.max_corner,
     )
 
 
@@ -182,7 +174,7 @@ class Genus2SurfaceGenerator(GeneratorBase):
             separation, major_radius, tube_radius, blend_sharpness,
         )
         mesh = extract_mesh(field, bounds, isolevel=0.0)
-        bbox = _compute_bounding_box(bounds)
+        bbox = bounds_to_bbox(bounds)
 
         logger.info(
             "Generated genus2_surface: separation=%.3f, R=%.3f, r=%.3f, "

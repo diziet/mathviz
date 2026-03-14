@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import trimesh
 
-from mathviz.core.generator import clear_registry, register
+from mathviz.core.generator import GeneratorBase, clear_registry, register
 from mathviz.generators.implicit.costa_surface import CostaSurfaceGenerator
 from mathviz.generators.implicit.genus2_surface import Genus2SurfaceGenerator
 from mathviz.generators.implicit.schwarz_d import SchwarzDGenerator
@@ -30,19 +30,18 @@ _TEST_VOXEL_RESOLUTION = 32
 
 
 # ===========================================================================
-# Schwarz P
+# TPMS generators (Schwarz P & D) — parameterized
 # ===========================================================================
 
-
-@pytest.fixture
-def schwarz_p() -> SchwarzPGenerator:
-    """Return a SchwarzPGenerator instance."""
-    return SchwarzPGenerator()
+_TPMS_GENERATORS = [SchwarzPGenerator, SchwarzDGenerator]
+_TPMS_IDS = ["schwarz_p", "schwarz_d"]
 
 
-def test_schwarz_p_produces_manifold_mesh(schwarz_p: SchwarzPGenerator) -> None:
-    """Schwarz P produces a non-empty mesh with positive area."""
-    obj = schwarz_p.generate(voxel_resolution=_TEST_VOXEL_RESOLUTION)
+@pytest.mark.parametrize("gen_cls", _TPMS_GENERATORS, ids=_TPMS_IDS)
+def test_tpms_produces_manifold_mesh(gen_cls: type[GeneratorBase]) -> None:
+    """TPMS generator produces a non-empty mesh with positive area."""
+    gen = gen_cls()
+    obj = gen.generate(voxel_resolution=_TEST_VOXEL_RESOLUTION)
     obj.validate_or_raise()
     assert obj.mesh is not None
     assert len(obj.mesh.vertices) > 0
@@ -54,53 +53,14 @@ def test_schwarz_p_produces_manifold_mesh(schwarz_p: SchwarzPGenerator) -> None:
     assert tm.area > 0
 
 
-def test_schwarz_p_periods_scale_face_count(
-    schwarz_p: SchwarzPGenerator,
-) -> None:
-    """Schwarz P with periods=3 has more faces than periods=1."""
-    obj_1 = schwarz_p.generate(
+@pytest.mark.parametrize("gen_cls", _TPMS_GENERATORS, ids=_TPMS_IDS)
+def test_tpms_periods_scale_face_count(gen_cls: type[GeneratorBase]) -> None:
+    """TPMS with periods=3 has more faces than periods=1."""
+    gen = gen_cls()
+    obj_1 = gen.generate(
         params={"periods": 1}, voxel_resolution=_TEST_VOXEL_RESOLUTION,
     )
-    obj_3 = schwarz_p.generate(
-        params={"periods": 3}, voxel_resolution=_TEST_VOXEL_RESOLUTION,
-    )
-    assert obj_1.mesh is not None and obj_3.mesh is not None
-    assert len(obj_3.mesh.faces) > len(obj_1.mesh.faces)
-
-
-# ===========================================================================
-# Schwarz D
-# ===========================================================================
-
-
-@pytest.fixture
-def schwarz_d() -> SchwarzDGenerator:
-    """Return a SchwarzDGenerator instance."""
-    return SchwarzDGenerator()
-
-
-def test_schwarz_d_produces_manifold_mesh(schwarz_d: SchwarzDGenerator) -> None:
-    """Schwarz D produces a non-empty mesh with positive area."""
-    obj = schwarz_d.generate(voxel_resolution=_TEST_VOXEL_RESOLUTION)
-    obj.validate_or_raise()
-    assert obj.mesh is not None
-    assert len(obj.mesh.vertices) > 0
-    assert len(obj.mesh.faces) > 0
-
-    tm = trimesh.Trimesh(
-        vertices=obj.mesh.vertices, faces=obj.mesh.faces, process=False,
-    )
-    assert tm.area > 0
-
-
-def test_schwarz_d_periods_scale_face_count(
-    schwarz_d: SchwarzDGenerator,
-) -> None:
-    """Schwarz D with periods=3 has more faces than periods=1."""
-    obj_1 = schwarz_d.generate(
-        params={"periods": 1}, voxel_resolution=_TEST_VOXEL_RESOLUTION,
-    )
-    obj_3 = schwarz_d.generate(
+    obj_3 = gen.generate(
         params={"periods": 3}, voxel_resolution=_TEST_VOXEL_RESOLUTION,
     )
     assert obj_1.mesh is not None and obj_3.mesh is not None

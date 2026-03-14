@@ -12,6 +12,11 @@ Mathematical construction:
   elliptic function for the square lattice, computed via truncated lattice sums
 - Coordinates obtained via numerical integration of the Weierstrass-Enneper
   representation along L-shaped paths on the grid
+
+Note: although the Costa surface is traditionally classified alongside implicit
+surfaces in minimal surface theory, this implementation uses a parametric
+Weierstrass-Enneper approach internally. The category is set to ``parametric``
+to reflect the actual computation method.
 """
 
 import logging
@@ -64,6 +69,28 @@ def _cumtrapz_complex(y: np.ndarray, x: np.ndarray) -> np.ndarray:
     return np.concatenate([[0.0 + 0.0j], np.cumsum(mid * dx)])
 
 
+def _integrate_weierstrass_enneper(
+    phi: np.ndarray, u_vals: np.ndarray, v_vals: np.ndarray,
+) -> np.ndarray:
+    """Integrate a Weierstrass-Enneper integrand on the 2D grid (vectorized).
+
+    Uses L-shaped paths: integrate along the bottom row (u direction),
+    then integrate each column (v direction) and add the bottom offset.
+    """
+    bottom = _cumtrapz_complex(phi[:, 0], u_vals)
+
+    col_integrand = phi * 1j
+    dv = np.diff(v_vals)
+    mid = (col_integrand[:, :-1] + col_integrand[:, 1:]) / 2.0
+    col_integral = np.concatenate(
+        [np.zeros((phi.shape[0], 1), dtype=complex),
+         np.cumsum(mid * dv, axis=1)],
+        axis=1,
+    )
+
+    return np.real(bottom[:, np.newaxis] + col_integral)
+
+
 def _compute_costa_mesh(
     grid_resolution: int, scale: float,
 ) -> tuple[Mesh, BoundingBox]:
@@ -88,38 +115,40 @@ def _compute_costa_mesh(
     phi2 = 1j * p_val * (1.0 + g2) / 2.0
     phi3 = p_val * g
 
-    coords = np.zeros((3, grid_resolution, grid_resolution))
-
-    for k, phi in enumerate([phi1, phi2, phi3]):
-        bottom = _cumtrapz_complex(phi[:, 0], u_vals)
-        for i in range(grid_resolution):
-            col_integrand = phi[i, :] * 1j
-            col_integral = _cumtrapz_complex(col_integrand, v_vals)
-            coords[k, i, :] = np.real(bottom[i] + col_integral)
+    coords = np.stack([
+        _integrate_weierstrass_enneper(phi, u_vals, v_vals)
+        for phi in [phi1, phi2, phi3]
+    ])
 
     x = coords[0].ravel() * scale
     y = coords[1].ravel() * scale
     z = coords[2].ravel() * scale
     vertices = np.column_stack([x, y, z]).astype(np.float64)
 
-    _replace_nan_with_neighbors(vertices)
+    _replace_nan_with_global_mean(vertices)
 
     faces = build_open_grid_faces(grid_resolution, grid_resolution)
-    bbox = _compute_bounding_box(vertices)
+    bbox = _compute_bounding_box_from_vertices(vertices)
 
     return Mesh(vertices=vertices, faces=faces), bbox
 
 
-def _replace_nan_with_neighbors(vertices: np.ndarray) -> None:
-    """Replace any NaN vertices with the mean of their non-NaN neighbors."""
+def _replace_nan_with_global_mean(vertices: np.ndarray) -> None:
+    """Replace any NaN vertices with the global mean of non-NaN vertices."""
     nan_mask = np.any(np.isnan(vertices), axis=1)
     if not np.any(nan_mask):
         return
+    nan_count = int(np.sum(nan_mask))
+    logger.warning(
+        "Replaced %d NaN vertices with global mean (numerical instability "
+        "near torus punctures)",
+        nan_count,
+    )
     good_mean = np.nanmean(vertices, axis=0)
     vertices[nan_mask] = good_mean
 
 
-def _compute_bounding_box(vertices: np.ndarray) -> BoundingBox:
+def _compute_bounding_box_from_vertices(vertices: np.ndarray) -> BoundingBox:
     """Compute tight bounding box from vertex positions."""
     min_c = tuple(float(v) for v in vertices.min(axis=0))
     max_c = tuple(float(v) for v in vertices.max(axis=0))
@@ -145,11 +174,15 @@ class CostaSurfaceGenerator(GeneratorBase):
     square torus, using numerically evaluated Weierstrass elliptic functions.
     The surface has genus 1 with three ends (one flat, two catenoidal).
 
+    Although grouped with implicit surface generators in the task taxonomy,
+    the internal computation is parametric (Weierstrass-Enneper integration).
+    The category is set to ``parametric`` accordingly.
+
     Seed has no effect; the surface is fully deterministic for given parameters.
     """
 
     name = "costa_surface"
-    category = "implicit"
+    category = "parametric"
     aliases = ()
     description = "Costa minimal surface via Weierstrass-Enneper representation"
     resolution_params = {
