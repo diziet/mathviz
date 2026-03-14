@@ -333,11 +333,6 @@ def _apply_weighted_cloud(
     obj: MathObject, config: RepresentationConfig
 ) -> MathObject:
     """Pass through a point cloud, preserving its per-point intensities."""
-    if obj.point_cloud is None:
-        raise ValueError(
-            "WEIGHTED_CLOUD requires a point_cloud input, "
-            "but MathObject has no point_cloud"
-        )
     return replace(obj)
 
 

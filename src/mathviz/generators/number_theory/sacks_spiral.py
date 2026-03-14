@@ -14,17 +14,12 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject, PointCloud
 from mathviz.core.representation import RepresentationConfig, RepresentationType
-from mathviz.generators.number_theory._primes import is_prime_array
+from mathviz.generators.number_theory._primes import (
+    is_prime_array,
+    validate_point_cloud_params,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def _validate_params(num_points: int, prime_height: float) -> None:
-    """Validate Sacks spiral parameters."""
-    if num_points < 1:
-        raise ValueError(f"num_points must be >= 1, got {num_points}")
-    if prime_height < 0:
-        raise ValueError(f"prime_height must be >= 0, got {prime_height}")
 
 
 def _build_sacks_cloud(
@@ -79,7 +74,7 @@ class SacksSpiralGenerator(GeneratorBase):
         num_points = int(resolution_kwargs.get("num_points", 1000))
         prime_height = float(merged["prime_height"])
         scale = float(merged["scale"])
-        _validate_params(num_points, prime_height)
+        validate_point_cloud_params(num_points, prime_height)
 
         points, intensities = _build_sacks_cloud(num_points, prime_height, scale)
         cloud = PointCloud(points=points, intensities=intensities)

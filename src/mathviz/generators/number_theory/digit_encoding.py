@@ -67,11 +67,10 @@ def _get_digits(constant: str, num_digits: int) -> np.ndarray:
     digit_str = _CONSTANT_DIGITS[constant]
     available = len(digit_str)
     if num_digits > available:
-        logger.warning(
-            "Requested %d digits of %s but only %d available, clamping",
-            num_digits, constant, available,
+        raise ValueError(
+            f"Requested {num_digits} digits of {constant} but only "
+            f"{available} are available"
         )
-        num_digits = available
     return np.array([int(c) for c in digit_str[:num_digits]], dtype=np.int64)
 
 
@@ -82,15 +81,12 @@ def _build_digit_cloud(
     num_digits = len(digits)
     # Layout digits in a grid: wrap into rows
     cols = int(np.ceil(np.sqrt(num_digits)))
-    rows = int(np.ceil(num_digits / cols))
 
+    idx = np.arange(num_digits)
     points = np.zeros((num_digits, 3), dtype=np.float64)
-    for i in range(num_digits):
-        row = i // cols
-        col = i % cols
-        points[i, 0] = col * spacing
-        points[i, 1] = row * spacing
-        points[i, 2] = digits[i] * height_scale
+    points[:, 0] = (idx % cols) * spacing
+    points[:, 1] = (idx // cols) * spacing
+    points[:, 2] = digits * height_scale
 
     # Intensity proportional to digit value (0-9 normalized)
     intensities = (digits / 9.0).astype(np.float64)

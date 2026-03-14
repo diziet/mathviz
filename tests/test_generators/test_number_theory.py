@@ -1,8 +1,6 @@
 """Tests for number theory generators: ulam_spiral, sacks_spiral,
 prime_gaps, digit_encoding, and WEIGHTED_CLOUD representation."""
 
-from dataclasses import replace
-
 import numpy as np
 import pytest
 
@@ -205,6 +203,12 @@ class TestDigitEncoding:
         gen = DigitEncodingGenerator()
         with pytest.raises(ValueError, match="constant must be one of"):
             gen.generate(params={"constant": "sqrt2"})
+
+    def test_over_request_raises(self) -> None:
+        """Requesting more digits than available raises ValueError."""
+        gen = DigitEncodingGenerator()
+        with pytest.raises(ValueError, match="only .* are available"):
+            gen.generate(num_digits=10000, params={"constant": "pi"})
 
 
 # ---------------------------------------------------------------------------

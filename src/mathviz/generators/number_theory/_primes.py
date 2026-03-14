@@ -3,6 +3,14 @@
 import numpy as np
 
 
+def validate_point_cloud_params(num_points: int, prime_height: float) -> None:
+    """Validate common parameters for prime-based point cloud generators."""
+    if num_points < 1:
+        raise ValueError(f"num_points must be >= 1, got {num_points}")
+    if prime_height < 0:
+        raise ValueError(f"prime_height must be >= 0, got {prime_height}")
+
+
 def sieve_of_eratosthenes(limit: int) -> np.ndarray:
     """Return sorted array of all primes up to limit (inclusive)."""
     if limit < 2:

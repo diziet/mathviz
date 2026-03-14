@@ -13,20 +13,15 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject, PointCloud
 from mathviz.core.representation import RepresentationConfig, RepresentationType
-from mathviz.generators.number_theory._primes import is_prime_array
+from mathviz.generators.number_theory._primes import (
+    is_prime_array,
+    validate_point_cloud_params,
+)
 
 logger = logging.getLogger(__name__)
 
 # Direction vectors for the rectangular spiral: right, up, left, down
 _DIRECTIONS = np.array([[1, 0], [0, 1], [-1, 0], [0, -1]], dtype=np.int64)
-
-
-def _validate_params(num_points: int, prime_height: float) -> None:
-    """Validate ulam spiral parameters."""
-    if num_points < 1:
-        raise ValueError(f"num_points must be >= 1, got {num_points}")
-    if prime_height < 0:
-        raise ValueError(f"prime_height must be >= 0, got {prime_height}")
 
 
 def _compute_spiral_positions(num_points: int) -> np.ndarray:
@@ -104,7 +99,7 @@ class UlamSpiralGenerator(GeneratorBase):
         num_points = int(resolution_kwargs.get("num_points", 1000))
         prime_height = float(merged["prime_height"])
         spacing = float(merged["spacing"])
-        _validate_params(num_points, prime_height)
+        validate_point_cloud_params(num_points, prime_height)
 
         points, intensities = _build_ulam_cloud(num_points, prime_height, spacing)
         cloud = PointCloud(points=points, intensities=intensities)
