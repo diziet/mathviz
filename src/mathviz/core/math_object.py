@@ -157,9 +157,19 @@ class MathObject:
             has_geometry = True
             for i, c in enumerate(self.curves):
                 errors.extend(f"curve[{i}]: {e}" for e in c.validate())
+        if self.scalar_field is not None:
+            has_geometry = True
+            if self.scalar_field.dtype.kind not in ("f", "i", "u"):
+                errors.append(
+                    f"scalar_field dtype {self.scalar_field.dtype}, "
+                    "expected numeric (float or int)"
+                )
+            if np.any(np.isnan(self.scalar_field)):
+                errors.append("scalar_field contains NaN")
         if not has_geometry:
             errors.append(
-                "MathObject has no geometry (mesh, point_cloud, and curves are all None)"
+                "MathObject has no geometry "
+                "(mesh, point_cloud, curves, and scalar_field are all None)"
             )
         return errors
 
