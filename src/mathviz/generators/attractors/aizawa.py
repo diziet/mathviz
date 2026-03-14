@@ -1,0 +1,205 @@
+"""Aizawa attractor dynamical system generator.
+
+Integrates the Aizawa system of ODEs to produce a 3D trajectory curve.
+The Aizawa system is defined by:
+    dx/dt = (z - b)*x - d*y
+    dy/dt = d*x + (z - b)*y
+    dz/dt = c + a*z - z^3/3 - (x^2 + y^2)*(1 + e*z) + f*z*x^3
+
+With default parameters a=0.95, b=0.7, c=0.6, d=3.5, e=0.25, f=0.1,
+the attractor produces a torus-like chaotic trajectory.
+"""
+
+import logging
+from typing import Any
+
+import numpy as np
+from numpy.random import default_rng
+from scipy.integrate import solve_ivp
+
+from mathviz.core.generator import GeneratorBase, register
+from mathviz.core.math_object import BoundingBox, Curve, MathObject
+from mathviz.core.representation import RepresentationConfig, RepresentationType
+
+logger = logging.getLogger(__name__)
+
+_DEFAULT_A = 0.95
+_DEFAULT_B = 0.7
+_DEFAULT_C = 0.6
+_DEFAULT_D = 3.5
+_DEFAULT_E = 0.25
+_DEFAULT_F = 0.1
+_DEFAULT_TRANSIENT_STEPS = 1000
+_DEFAULT_INTEGRATION_STEPS = 100_000
+_DEFAULT_INITIAL_CONDITION = (0.1, 0.0, 0.0)
+_MIN_INTEGRATION_STEPS = 100
+_MIN_TRAJECTORY_POINTS = 10
+_PERTURBATION_SCALE = 1e-3
+_T_SPAN_END = 200.0
+
+
+def _aizawa_rhs(
+    _t: float,
+    state: np.ndarray,
+    a: float,
+    b: float,
+    c: float,
+    d: float,
+    e: float,
+    f: float,
+) -> list[float]:
+    """Compute the right-hand side of the Aizawa system."""
+    x, y, z = state
+    r_sq = x * x + y * y
+    dx = (z - b) * x - d * y
+    dy = d * x + (z - b) * y
+    dz = c + a * z - z * z * z / 3.0 - r_sq * (1.0 + e * z) + f * z * x * x * x
+    return [dx, dy, dz]
+
+
+def _integrate_aizawa(
+    a: float,
+    b: float,
+    c: float,
+    d: float,
+    e: float,
+    f: float,
+    initial_condition: np.ndarray,
+    integration_steps: int,
+    transient_steps: int,
+) -> np.ndarray:
+    """Integrate the Aizawa system and return trajectory after transient."""
+    t_eval = np.linspace(0.0, _T_SPAN_END, integration_steps)
+
+    result = solve_ivp(
+        fun=lambda t, state: _aizawa_rhs(t, state, a, b, c, d, e, f),
+        t_span=(0.0, _T_SPAN_END),
+        y0=initial_condition,
+        method="DOP853",
+        t_eval=t_eval,
+        rtol=1e-10,
+        atol=1e-12,
+    )
+
+    if not result.success:
+        raise RuntimeError(f"Aizawa integration failed: {result.message}")
+
+    trajectory = result.y.T[transient_steps:]
+    return trajectory.astype(np.float64)
+
+
+def _compute_bounding_box(points: np.ndarray) -> BoundingBox:
+    """Compute axis-aligned bounding box from trajectory points."""
+    min_corner = tuple(float(v) for v in points.min(axis=0))
+    max_corner = tuple(float(v) for v in points.max(axis=0))
+    return BoundingBox(min_corner=min_corner, max_corner=max_corner)
+
+
+def _validate_params(
+    integration_steps: int,
+    transient_steps: int,
+) -> None:
+    """Validate Aizawa parameters, raising ValueError for invalid inputs."""
+    if integration_steps < _MIN_INTEGRATION_STEPS:
+        raise ValueError(
+            f"integration_steps must be >= {_MIN_INTEGRATION_STEPS}, "
+            f"got {integration_steps}"
+        )
+    if transient_steps < 0:
+        raise ValueError(
+            f"transient_steps must be >= 0, got {transient_steps}"
+        )
+    trajectory_points = integration_steps - transient_steps
+    if trajectory_points < _MIN_TRAJECTORY_POINTS:
+        raise ValueError(
+            f"integration_steps - transient_steps must be >= "
+            f"{_MIN_TRAJECTORY_POINTS}, got {trajectory_points}"
+        )
+
+
+@register
+class AizawaGenerator(GeneratorBase):
+    """Aizawa attractor dynamical system generator."""
+
+    name = "aizawa"
+    category = "attractors"
+    aliases = ("aizawa_attractor",)
+    description = "Aizawa torus-like strange attractor trajectory"
+    resolution_params = {
+        "integration_steps": "Total number of integration time steps",
+    }
+
+    def get_default_params(self) -> dict[str, Any]:
+        """Return default parameters for the Aizawa generator."""
+        return {
+            "a": _DEFAULT_A,
+            "b": _DEFAULT_B,
+            "c": _DEFAULT_C,
+            "d": _DEFAULT_D,
+            "e": _DEFAULT_E,
+            "f": _DEFAULT_F,
+            "transient_steps": _DEFAULT_TRANSIENT_STEPS,
+        }
+
+    def generate(
+        self,
+        params: dict[str, Any] | None = None,
+        seed: int = 42,
+        **resolution_kwargs: Any,
+    ) -> MathObject:
+        """Generate an Aizawa attractor trajectory curve."""
+        merged = self.get_default_params()
+        if params:
+            merged.update(params)
+
+        if "integration_steps" in merged:
+            logger.warning(
+                "integration_steps should be passed as a resolution kwarg, "
+                "not inside params; ignoring params value"
+            )
+            merged.pop("integration_steps")
+
+        a = float(merged["a"])
+        b = float(merged["b"])
+        c = float(merged["c"])
+        d = float(merged["d"])
+        e = float(merged["e"])
+        f = float(merged["f"])
+        transient_steps = int(merged["transient_steps"])
+        integration_steps = int(
+            resolution_kwargs.get("integration_steps", _DEFAULT_INTEGRATION_STEPS)
+        )
+
+        _validate_params(integration_steps, transient_steps)
+        merged["integration_steps"] = integration_steps
+
+        rng = default_rng(seed)
+        perturbation = rng.normal(scale=_PERTURBATION_SCALE, size=3)
+        initial_condition = np.array(_DEFAULT_INITIAL_CONDITION) + perturbation
+
+        trajectory = _integrate_aizawa(
+            a, b, c, d, e, f, initial_condition,
+            integration_steps, transient_steps,
+        )
+
+        curve = Curve(points=trajectory, closed=False)
+        bbox = _compute_bounding_box(trajectory)
+
+        logger.info(
+            "Generated Aizawa attractor: a=%.2f, b=%.2f, c=%.2f, "
+            "d=%.2f, e=%.2f, f=%.2f, points=%d (discarded %d transient)",
+            a, b, c, d, e, f, len(trajectory), transient_steps,
+        )
+
+        return MathObject(
+            curves=[curve],
+            generator_name=self.name,
+            category=self.category,
+            parameters=merged,
+            seed=seed,
+            bounding_box=bbox,
+        )
+
+    def get_default_representation(self) -> RepresentationConfig:
+        """Return the recommended representation for the Aizawa attractor."""
+        return RepresentationConfig(type=RepresentationType.RAW_POINT_CLOUD)
