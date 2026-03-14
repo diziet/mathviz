@@ -12,11 +12,11 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, Curve, MathObject
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.physics import MIN_CURVE_POINTS
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_CURVE_POINTS = 1024
-_MIN_CURVE_POINTS = 16
 _DEFAULT_TUBE_RADIUS = 0.04
 
 _DEFAULT_SEMI_MAJOR_AXIS = 1.0
@@ -41,9 +41,9 @@ def _validate_params(
         )
     if not np.isfinite(inclination):
         raise ValueError(f"inclination must be finite, got {inclination}")
-    if curve_points < _MIN_CURVE_POINTS:
+    if curve_points < MIN_CURVE_POINTS:
         raise ValueError(
-            f"curve_points must be >= {_MIN_CURVE_POINTS}, got {curve_points}"
+            f"curve_points must be >= {MIN_CURVE_POINTS}, got {curve_points}"
         )
 
 
@@ -100,7 +100,11 @@ class KeplerOrbitGenerator(GeneratorBase):
         seed: int = 42,
         **resolution_kwargs: Any,
     ) -> MathObject:
-        """Generate a Kepler orbit curve."""
+        """Generate a Kepler orbit curve.
+
+        Note: seed is accepted for interface conformance but does not affect
+        output — the orbit is fully determined by the explicit parameters.
+        """
         merged = self.get_default_params()
         if params:
             merged.update(params)

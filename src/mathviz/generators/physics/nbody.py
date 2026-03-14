@@ -67,17 +67,16 @@ def _nbody_rhs(
     positions = state[: num_bodies * 3].reshape(num_bodies, 3)
     velocities = state[num_bodies * 3 :].reshape(num_bodies, 3)
 
-    accelerations = np.zeros_like(positions)
-    for i in range(num_bodies):
-        for j in range(num_bodies):
-            if i == j:
-                continue
-            diff = positions[j] - positions[i]
-            dist_sq = np.dot(diff, diff) + _SOFTENING**2
-            dist = np.sqrt(dist_sq)
-            accelerations[i] += (
-                _GRAVITATIONAL_CONSTANT * masses[j] * diff / (dist_sq * dist)
-            )
+    # Vectorized pairwise interactions: (N, 1, 3) - (1, N, 3) -> (N, N, 3)
+    diff = positions[np.newaxis, :, :] - positions[:, np.newaxis, :]
+    dist_sq = np.sum(diff**2, axis=2) + _SOFTENING**2
+    dist = np.sqrt(dist_sq)
+
+    # Force magnitudes per pair, zero diagonal (no self-interaction)
+    inv_dist_cube = _GRAVITATIONAL_CONSTANT * masses[np.newaxis, :] / (dist_sq * dist)
+    np.fill_diagonal(inv_dist_cube, 0.0)
+
+    accelerations = np.sum(inv_dist_cube[:, :, np.newaxis] * diff, axis=1)
 
     derivs = np.empty_like(state)
     derivs[: num_bodies * 3] = velocities.ravel()

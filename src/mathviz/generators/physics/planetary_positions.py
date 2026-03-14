@@ -14,11 +14,11 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, Curve, MathObject
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.physics import MIN_CURVE_POINTS
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_CURVE_POINTS = 512
-_MIN_CURVE_POINTS = 16
 _DEFAULT_TUBE_RADIUS = 0.02
 
 # J2000.0 epoch in Julian Date
@@ -56,10 +56,14 @@ _PLANETS = [
 ]
 
 
+_KEPLER_MAX_ITERATIONS = 50
+_KEPLER_TOLERANCE = 1e-12
+
+
 def _solve_kepler_equation(mean_anomaly: float, eccentricity: float) -> float:
     """Solve Kepler's equation M = E - e*sin(E) via Newton-Raphson."""
     eccentric_anomaly = mean_anomaly
-    for _ in range(50):
+    for _ in range(_KEPLER_MAX_ITERATIONS):
         delta = (
             eccentric_anomaly
             - eccentricity * np.sin(eccentric_anomaly)
@@ -67,8 +71,14 @@ def _solve_kepler_equation(mean_anomaly: float, eccentricity: float) -> float:
         )
         derivative = 1.0 - eccentricity * np.cos(eccentric_anomaly)
         eccentric_anomaly -= delta / derivative
-        if abs(delta) < 1e-12:
-            break
+        if abs(delta) < _KEPLER_TOLERANCE:
+            return float(eccentric_anomaly)
+
+    logger.warning(
+        "Kepler equation did not converge after %d iterations "
+        "(M=%.6f, e=%.6f, residual=%.2e)",
+        _KEPLER_MAX_ITERATIONS, mean_anomaly, eccentricity, abs(delta),
+    )
     return float(eccentric_anomaly)
 
 
@@ -161,9 +171,9 @@ def _validate_params(epoch_jd: float, curve_points: int) -> None:
     """Validate planetary positions parameters."""
     if not np.isfinite(epoch_jd):
         raise ValueError(f"epoch_jd must be finite, got {epoch_jd}")
-    if curve_points < _MIN_CURVE_POINTS:
+    if curve_points < MIN_CURVE_POINTS:
         raise ValueError(
-            f"curve_points must be >= {_MIN_CURVE_POINTS}, got {curve_points}"
+            f"curve_points must be >= {MIN_CURVE_POINTS}, got {curve_points}"
         )
 
 
@@ -191,7 +201,11 @@ class PlanetaryPositionsGenerator(GeneratorBase):
         seed: int = 42,
         **resolution_kwargs: Any,
     ) -> MathObject:
-        """Generate planetary orbits and positions."""
+        """Generate planetary orbits and positions.
+
+        Note: seed is accepted for interface conformance but does not affect
+        output — positions are fully determined by the epoch parameter.
+        """
         merged = self.get_default_params()
         if params:
             merged.update(params)
@@ -219,10 +233,14 @@ class PlanetaryPositionsGenerator(GeneratorBase):
             curves.append(Curve(points=orbit_points, closed=True))
             all_points_list.append(orbit_points)
 
+        # Add planet positions at epoch as single-point open curves
+        for planet in _PLANETS:
             position = _compute_planet_position(planet, epoch_jd)
-            all_points_list.append(position)
+            curves.append(Curve(points=position, closed=False))
 
-        all_points = np.vstack(all_points_list)
+        all_points = np.vstack(
+            [c.points for c in curves]
+        )
         bbox = BoundingBox.from_points(all_points)
 
         logger.info(

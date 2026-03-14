@@ -45,6 +45,21 @@ _TEST_CURVE_POINTS = 128
 _TEST_STEPS = 1000
 
 
+def _assert_bbox_finite(obj) -> None:
+    """Assert bounding box exists and has finite corners."""
+    assert obj.bounding_box is not None
+    min_c = np.array(obj.bounding_box.min_corner)
+    max_c = np.array(obj.bounding_box.max_corner)
+    assert np.all(np.isfinite(min_c))
+    assert np.all(np.isfinite(max_c))
+
+
+def _assert_metadata(obj, expected_name: str) -> None:
+    """Assert generator metadata is recorded correctly."""
+    assert obj.generator_name == expected_name
+    assert obj.category == "physics"
+
+
 # ---------------------------------------------------------------------------
 # Kepler orbit tests
 # ---------------------------------------------------------------------------
@@ -92,11 +107,7 @@ class TestKeplerOrbit:
     ) -> None:
         """Bounding box is finite and non-degenerate."""
         obj = kepler.generate(curve_points=_TEST_CURVE_POINTS)
-        assert obj.bounding_box is not None
-        min_c = np.array(obj.bounding_box.min_corner)
-        max_c = np.array(obj.bounding_box.max_corner)
-        assert np.all(np.isfinite(min_c))
-        assert np.all(np.isfinite(max_c))
+        _assert_bbox_finite(obj)
 
     def test_negative_semi_major_axis_raises(
         self, kepler: KeplerOrbitGenerator
@@ -117,8 +128,7 @@ class TestKeplerOrbit:
     ) -> None:
         """Generator metadata is recorded correctly."""
         obj = kepler.generate(curve_points=_TEST_CURVE_POINTS)
-        assert obj.generator_name == "kepler_orbit"
-        assert obj.category == "physics"
+        _assert_metadata(obj, "kepler_orbit")
 
     def test_default_representation_is_tube(
         self, kepler: KeplerOrbitGenerator
@@ -196,11 +206,7 @@ class TestNBody:
         obj = nbody.generate(
             params={"num_bodies": 2}, integration_steps=_TEST_STEPS
         )
-        assert obj.bounding_box is not None
-        min_c = np.array(obj.bounding_box.min_corner)
-        max_c = np.array(obj.bounding_box.max_corner)
-        assert np.all(np.isfinite(min_c))
-        assert np.all(np.isfinite(max_c))
+        _assert_bbox_finite(obj)
 
     def test_too_few_bodies_raises(self, nbody: NBodyGenerator) -> None:
         """num_bodies < 2 raises ValueError."""
@@ -217,8 +223,7 @@ class TestNBody:
     def test_metadata_recorded(self, nbody: NBodyGenerator) -> None:
         """Generator metadata is recorded correctly."""
         obj = nbody.generate(integration_steps=_TEST_STEPS)
-        assert obj.generator_name == "nbody"
-        assert obj.category == "physics"
+        _assert_metadata(obj, "nbody")
 
     def test_registry_discoverable(self) -> None:
         """N-body is discoverable via the registry."""
@@ -242,21 +247,32 @@ class TestPlanetaryPositions:
     def test_produces_multiple_curves(
         self, planetary: PlanetaryPositionsGenerator
     ) -> None:
-        """Produces one curve per planet (8 planets)."""
+        """Produces orbit + position curves (8 orbits + 8 positions = 16)."""
         obj = planetary.generate(curve_points=_TEST_CURVE_POINTS)
         obj.validate_or_raise()
 
         assert obj.curves is not None
-        assert len(obj.curves) == 8
+        assert len(obj.curves) == 16
 
-    def test_orbits_are_closed(
+    def test_orbit_curves_are_closed(
         self, planetary: PlanetaryPositionsGenerator
     ) -> None:
-        """All orbital curves are closed."""
+        """First 8 curves (orbits) are closed, last 8 (positions) are open."""
         obj = planetary.generate(curve_points=_TEST_CURVE_POINTS)
         assert obj.curves is not None
-        for curve in obj.curves:
+        for curve in obj.curves[:8]:
             assert curve.closed is True
+        for curve in obj.curves[8:]:
+            assert curve.closed is False
+
+    def test_position_curves_are_single_point(
+        self, planetary: PlanetaryPositionsGenerator
+    ) -> None:
+        """Position curves each contain a single point."""
+        obj = planetary.generate(curve_points=_TEST_CURVE_POINTS)
+        assert obj.curves is not None
+        for curve in obj.curves[8:]:
+            assert len(curve.points) == 1
 
     def test_no_nan_in_output(
         self, planetary: PlanetaryPositionsGenerator
@@ -274,9 +290,10 @@ class TestPlanetaryPositions:
         obj = planetary.generate(curve_points=_TEST_CURVE_POINTS)
         assert obj.curves is not None
 
+        # First 8 curves are orbits
         mean_radii = [
             float(np.mean(np.linalg.norm(c.points, axis=1)))
-            for c in obj.curves
+            for c in obj.curves[:8]
         ]
         # Should be roughly increasing (Mercury < Venus < ... < Neptune)
         for i in range(len(mean_radii) - 1):
@@ -290,21 +307,14 @@ class TestPlanetaryPositions:
     ) -> None:
         """Bounding box is finite and non-degenerate."""
         obj = planetary.generate(curve_points=_TEST_CURVE_POINTS)
-        assert obj.bounding_box is not None
-        min_c = np.array(obj.bounding_box.min_corner)
-        max_c = np.array(obj.bounding_box.max_corner)
-        assert np.all(np.isfinite(min_c))
-        assert np.all(np.isfinite(max_c))
-        extents = max_c - min_c
-        assert np.all(extents > 0)
+        _assert_bbox_finite(obj)
 
     def test_metadata_recorded(
         self, planetary: PlanetaryPositionsGenerator
     ) -> None:
         """Generator metadata is recorded correctly."""
         obj = planetary.generate(curve_points=_TEST_CURVE_POINTS)
-        assert obj.generator_name == "planetary_positions"
-        assert obj.category == "physics"
+        _assert_metadata(obj, "planetary_positions")
 
     def test_default_representation_is_tube(
         self, planetary: PlanetaryPositionsGenerator
