@@ -87,14 +87,16 @@ def _escape_time(
     iteration_count = np.zeros(c.shape, dtype=np.float64)
     escaped = np.zeros(c.shape, dtype=bool)
 
-    for i in range(max_iterations):
-        mask = ~escaped
-        active_z = z[mask] * z[mask] + c[mask]
-        z[mask] = active_z
-        mag_exceeded = active_z.real ** 2 + active_z.imag ** 2 > 4.0
-        newly_escaped_idx = np.where(mask)[0][mag_exceeded]
-        iteration_count.ravel()[newly_escaped_idx] = float(i + 1)
-        escaped.ravel()[newly_escaped_idx] = True
+    # Overflow to inf is expected for escaped points; suppress warnings.
+    with np.errstate(over="ignore", invalid="ignore"):
+        for i in range(max_iterations):
+            mask = ~escaped
+            active_z = z[mask] * z[mask] + c[mask]
+            z[mask] = active_z
+            mag_exceeded = active_z.real ** 2 + active_z.imag ** 2 > 4.0
+            newly_escaped_idx = np.where(mask)[0][mag_exceeded]
+            iteration_count.ravel()[newly_escaped_idx] = float(i + 1)
+            escaped.ravel()[newly_escaped_idx] = True
 
     if is_smooth:
         iteration_count = _apply_smoothing(

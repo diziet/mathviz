@@ -310,6 +310,41 @@ def test_zero_max_iterations_raises(
         mandelbrot.generate(params={"max_iterations": 0})
 
 
+def test_zero_height_scale_raises(
+    mandelbrot: MandelbrotHeightmapGenerator,
+) -> None:
+    """height_scale=0 raises ValueError."""
+    with pytest.raises(ValueError, match="height_scale must be positive"):
+        mandelbrot.generate(params={"height_scale": 0.0})
+
+
+def test_negative_height_scale_raises(
+    mandelbrot: MandelbrotHeightmapGenerator,
+) -> None:
+    """Negative height_scale raises ValueError."""
+    with pytest.raises(ValueError, match="height_scale must be positive"):
+        mandelbrot.generate(params={"height_scale": -1.0})
+
+
+# ---------------------------------------------------------------------------
+# Smoothing clamp — no negative values
+# ---------------------------------------------------------------------------
+
+
+def test_smoothing_no_negative_values(
+    mandelbrot: MandelbrotHeightmapGenerator,
+) -> None:
+    """Smoothed field has no negative values, even at low zoom."""
+    obj = mandelbrot.generate(
+        params={"zoom": 0.5, "smoothing": True},
+        pixel_resolution=_TEST_PIXEL_RESOLUTION,
+    )
+    assert obj.scalar_field is not None
+    assert np.all(obj.scalar_field >= 0.0), (
+        f"Field min is {np.min(obj.scalar_field)}, expected >= 0"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Bounding box
 # ---------------------------------------------------------------------------
