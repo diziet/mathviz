@@ -14,16 +14,14 @@ import trimesh
 from mathviz.core.generator import get_generator_meta
 from mathviz.core.math_object import Curve, MathObject, Mesh, PointCloud
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.pipeline.representation_handlers import (
+    apply_slice_stack,
+    apply_volume_fill,
+    apply_wireframe,
+)
 from mathviz.shared.tube_thickening import thicken_curve
 
 logger = logging.getLogger(__name__)
-
-# Unimplemented types that raise NotImplementedError
-_STUB_TYPES = frozenset({
-    RepresentationType.VOLUME_FILL,
-    RepresentationType.WIREFRAME,
-    RepresentationType.SLICE_STACK,
-})
 
 # Default representation configs by generator name
 _GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
@@ -94,11 +92,6 @@ def apply(
         raise NotImplementedError(
             "candidates mode is not yet implemented — "
             "will return multiple representations for comparison"
-        )
-
-    if config.type in _STUB_TYPES:
-        raise NotImplementedError(
-            f"Representation type '{config.type.value}' is not yet implemented"
         )
 
     handler = _HANDLERS.get(config.type)
@@ -343,4 +336,7 @@ _HANDLERS = {
     RepresentationType.HEIGHTMAP_RELIEF: _apply_heightmap_relief,
     RepresentationType.SPARSE_SHELL: _apply_sparse_shell,
     RepresentationType.WEIGHTED_CLOUD: _apply_weighted_cloud,
+    RepresentationType.VOLUME_FILL: apply_volume_fill,
+    RepresentationType.SLICE_STACK: apply_slice_stack,
+    RepresentationType.WIREFRAME: apply_wireframe,
 }
