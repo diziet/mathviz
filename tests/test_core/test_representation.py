@@ -111,6 +111,13 @@ class TestRawPointCloud:
         with pytest.raises(ValueError, match="requires curve input"):
             apply(obj, config)
 
+    def test_sets_representation_field(self) -> None:
+        """Applying RAW_POINT_CLOUD sets representation field."""
+        obj = MathObject(curves=[_make_helix_curve()], generator_name="test")
+        config = RepresentationConfig(type=RepresentationType.RAW_POINT_CLOUD)
+        result = apply(obj, config)
+        assert result.representation == "raw_point_cloud"
+
 
 class TestTube:
     """TUBE representation tests."""
@@ -170,8 +177,6 @@ class TestHeightmapRelief:
 
         obj = MathObject(
             scalar_field=field,
-            # Need some geometry to pass validation — use a dummy mesh
-            mesh=_make_cube_mesh(),
             generator_name="mandelbrot",
         )
         config = RepresentationConfig(type=RepresentationType.HEIGHTMAP_RELIEF)
@@ -198,7 +203,6 @@ class TestHeightmapRelief:
         field = np.ones((rows, cols))
         obj = MathObject(
             scalar_field=field,
-            mesh=_make_cube_mesh(),
             generator_name="test",
         )
         config = RepresentationConfig(type=RepresentationType.HEIGHTMAP_RELIEF)
@@ -207,24 +211,6 @@ class TestHeightmapRelief:
 
         expected_faces = (rows - 1) * (cols - 1) * 2
         assert len(result.mesh.faces) == expected_faces
-
-
-class TestRepresentationField:
-    """Test that representation field is set correctly."""
-
-    def test_surface_shell_sets_field(self) -> None:
-        """Applying SURFACE_SHELL sets representation field."""
-        obj = MathObject(mesh=_make_cube_mesh(), generator_name="test")
-        config = RepresentationConfig(type=RepresentationType.SURFACE_SHELL)
-        result = apply(obj, config)
-        assert result.representation == "surface_shell"
-
-    def test_raw_point_cloud_sets_field(self) -> None:
-        """Applying RAW_POINT_CLOUD sets representation field."""
-        obj = MathObject(curves=[_make_helix_curve()], generator_name="test")
-        config = RepresentationConfig(type=RepresentationType.RAW_POINT_CLOUD)
-        result = apply(obj, config)
-        assert result.representation == "raw_point_cloud"
 
 
 class TestUnimplementedTypes:

@@ -72,14 +72,18 @@ def apply(
             "will return multiple representations for comparison"
         )
 
-    obj.validate_or_raise()
-
     if config.type in _STUB_TYPES:
         raise NotImplementedError(
             f"Representation type '{config.type.value}' is not yet implemented"
         )
 
-    handler = _HANDLERS[config.type]
+    handler = _HANDLERS.get(config.type)
+    if handler is None:
+        raise NotImplementedError(
+            f"No handler registered for representation type '{config.type.value}'"
+        )
+
+    _validate_input(obj, config)
     result = handler(obj, config)
     result = replace(result, representation=config.type.value)
 
@@ -89,6 +93,18 @@ def apply(
         obj.generator_name or "unnamed",
     )
     return result
+
+
+def _validate_input(obj: MathObject, config: RepresentationConfig) -> None:
+    """Validate MathObject input, allowing scalar_field-only for HEIGHTMAP_RELIEF."""
+    if config.type == RepresentationType.HEIGHTMAP_RELIEF:
+        if obj.scalar_field is None:
+            raise ValueError(
+                "HEIGHTMAP_RELIEF requires a scalar_field, "
+                "but MathObject has none"
+            )
+        return
+    obj.validate_or_raise()
 
 
 def _apply_surface_shell(obj: MathObject, config: RepresentationConfig) -> MathObject:
@@ -126,7 +142,9 @@ def _apply_tube(obj: MathObject, config: RepresentationConfig) -> MathObject:
     if radius is None:
         raise ValueError("TUBE representation requires tube_radius to be set")
 
-    sides = config.tube_sides or 16
+    if config.tube_sides is None:
+        raise ValueError("TUBE representation requires tube_sides to be set")
+    sides = config.tube_sides
     meshes = _thicken_all_curves(obj.curves, radius, sides)
     merged = _merge_meshes(meshes)
     return replace(obj, mesh=merged)
@@ -153,21 +171,33 @@ def _merge_meshes(meshes: list[Mesh]) -> Mesh:
         all_faces.append(mesh.faces + vertex_offset)
         vertex_offset += len(mesh.vertices)
 
+    merged_normals = _merge_normals(meshes)
+
     return Mesh(
         vertices=np.concatenate(all_vertices, axis=0),
         faces=np.concatenate(all_faces, axis=0),
+        normals=merged_normals,
     )
+
+
+def _merge_normals(meshes: list[Mesh]) -> np.ndarray | None:
+    """Merge normals from multiple meshes, or warn if some are missing."""
+    has_normals = [m.normals is not None for m in meshes]
+    if all(has_normals):
+        return np.concatenate([m.normals for m in meshes], axis=0)
+    if any(has_normals):
+        logger.warning(
+            "Dropping normals during mesh merge: %d of %d meshes have normals",
+            sum(has_normals),
+            len(meshes),
+        )
+    return None
 
 
 def _apply_heightmap_relief(
     obj: MathObject, config: RepresentationConfig
 ) -> MathObject:
     """Extrude a 2D scalar field into a surface mesh."""
-    if obj.scalar_field is None:
-        raise ValueError(
-            "HEIGHTMAP_RELIEF requires a scalar_field, "
-            "but MathObject has none"
-        )
     field = obj.scalar_field
     if field.ndim != 2:
         raise ValueError(
