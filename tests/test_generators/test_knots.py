@@ -1,4 +1,4 @@
-"""Tests for torus knot generator with trefoil and cinquefoil aliases."""
+"""Tests for knot generators: torus, figure-eight, lissajous, seven-crossing."""
 
 import numpy as np
 import pytest
@@ -11,15 +11,21 @@ from mathviz.core.generator import (
     register,
 )
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.knots.figure_eight_knot import FigureEightKnotGenerator
+from mathviz.generators.knots.lissajous_knot import LissajousKnotGenerator
+from mathviz.generators.knots.seven_crossing_knots import SevenCrossingKnotsGenerator
 from mathviz.generators.knots.torus_knot import TorusKnotGenerator
 from mathviz.pipeline.runner import run
 
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
-    """Reset registry and re-register torus_knot for each test."""
+    """Reset registry and re-register all knot generators for each test."""
     clear_registry(suppress_discovery=True)
     register(TorusKnotGenerator)
+    register(FigureEightKnotGenerator)
+    register(LissajousKnotGenerator)
+    register(SevenCrossingKnotsGenerator)
     yield
     clear_registry(suppress_discovery=True)
 
@@ -282,3 +288,167 @@ def test_curve_points_in_params_warns(
     )
     assert "should be passed as a resolution kwarg" in caplog.text
     assert obj.parameters["curve_points"] == _TEST_CURVE_POINTS
+
+
+# ===========================================================================
+# Figure-eight knot tests
+# ===========================================================================
+
+
+def test_figure_eight_produces_closed_curve() -> None:
+    """Figure-eight knot produces a closed curve."""
+    gen = FigureEightKnotGenerator()
+    obj = gen.generate(curve_points=_TEST_CURVE_POINTS)
+    assert obj.curves is not None
+    assert len(obj.curves) == 1
+    assert obj.curves[0].closed
+
+
+def test_figure_eight_endpoints_close() -> None:
+    """Figure-eight knot endpoints are close in space."""
+    gen = FigureEightKnotGenerator()
+    obj = gen.generate(curve_points=_TEST_CURVE_POINTS)
+    points = obj.curves[0].points
+    distance = np.linalg.norm(points[-1] - points[0])
+    assert distance < 0.5, f"Endpoint gap too large: {distance}"
+
+
+def test_figure_eight_no_nan() -> None:
+    """Figure-eight knot has no NaN values."""
+    gen = FigureEightKnotGenerator()
+    obj = gen.generate(curve_points=_TEST_CURVE_POINTS)
+    assert not np.any(np.isnan(obj.curves[0].points))
+
+
+def test_figure_eight_default_representation() -> None:
+    """Figure-eight knot defaults to TUBE representation."""
+    gen = FigureEightKnotGenerator()
+    rep = gen.get_default_representation()
+    assert rep.type == RepresentationType.TUBE
+
+
+# ===========================================================================
+# Lissajous knot tests
+# ===========================================================================
+
+
+def test_lissajous_knot_coprime_produces_closed_curve() -> None:
+    """Lissajous knot with coprime frequencies produces a closed curve."""
+    gen = LissajousKnotGenerator()
+    obj = gen.generate(
+        params={"nx": 2, "ny": 3, "nz": 5},
+        curve_points=_TEST_CURVE_POINTS,
+    )
+    assert obj.curves is not None
+    assert obj.curves[0].closed
+
+
+def test_lissajous_knot_endpoints_close() -> None:
+    """Lissajous knot endpoints are close in space."""
+    gen = LissajousKnotGenerator()
+    obj = gen.generate(curve_points=_TEST_CURVE_POINTS)
+    points = obj.curves[0].points
+    distance = np.linalg.norm(points[-1] - points[0])
+    assert distance < 0.5, f"Endpoint gap too large: {distance}"
+
+
+def test_lissajous_knot_no_nan() -> None:
+    """Lissajous knot has no NaN values."""
+    gen = LissajousKnotGenerator()
+    obj = gen.generate(curve_points=_TEST_CURVE_POINTS)
+    assert not np.any(np.isnan(obj.curves[0].points))
+
+
+def test_lissajous_knot_default_representation() -> None:
+    """Lissajous knot defaults to TUBE representation."""
+    gen = LissajousKnotGenerator()
+    rep = gen.get_default_representation()
+    assert rep.type == RepresentationType.TUBE
+
+
+# ===========================================================================
+# Seven-crossing knots tests
+# ===========================================================================
+
+
+def test_seven_crossing_different_indices_produce_distinct_curves() -> None:
+    """Different knot_index values produce distinct curves."""
+    gen = SevenCrossingKnotsGenerator()
+    curves = {}
+    for idx in range(1, 8):
+        obj = gen.generate(
+            params={"knot_index": idx},
+            curve_points=_TEST_CURVE_POINTS,
+        )
+        curves[idx] = obj.curves[0].points
+
+    # Every pair of knots should differ
+    for i in range(1, 8):
+        for j in range(i + 1, 8):
+            max_diff = np.max(np.abs(curves[i] - curves[j]))
+            assert max_diff > 0.01, (
+                f"Knots 7_{i} and 7_{j} are too similar: max_diff={max_diff}"
+            )
+
+
+def test_seven_crossing_produces_closed_curve() -> None:
+    """Seven-crossing knot produces a closed curve."""
+    gen = SevenCrossingKnotsGenerator()
+    obj = gen.generate(curve_points=_TEST_CURVE_POINTS)
+    assert obj.curves is not None
+    assert obj.curves[0].closed
+
+
+def test_seven_crossing_invalid_index_raises() -> None:
+    """Invalid knot_index raises ValueError."""
+    gen = SevenCrossingKnotsGenerator()
+    with pytest.raises(ValueError, match="knot_index must be between"):
+        gen.generate(params={"knot_index": 0})
+    with pytest.raises(ValueError, match="knot_index must be between"):
+        gen.generate(params={"knot_index": 8})
+
+
+def test_seven_crossing_no_nan() -> None:
+    """Seven-crossing knot has no NaN values for all indices."""
+    gen = SevenCrossingKnotsGenerator()
+    for idx in range(1, 8):
+        obj = gen.generate(
+            params={"knot_index": idx},
+            curve_points=_TEST_CURVE_POINTS,
+        )
+        assert not np.any(np.isnan(obj.curves[0].points)), (
+            f"NaN in 7_{idx} knot"
+        )
+
+
+# ===========================================================================
+# TUBE representation on closed knots produces watertight meshes
+# ===========================================================================
+
+
+def test_figure_eight_tube_watertight() -> None:
+    """TUBE representation on figure-eight knot produces watertight mesh."""
+    result = run(
+        "figure_eight_knot",
+        container=Container.with_uniform_margin(),
+        placement=PlacementPolicy(),
+        resolution_kwargs={"curve_points": _TEST_CURVE_POINTS},
+        representation_config=RepresentationConfig(
+            type=RepresentationType.TUBE, tube_radius=0.1, tube_sides=8,
+        ),
+    )
+    obj = result.math_object
+    assert obj.mesh is not None
+    assert len(obj.mesh.vertices) > 0
+    assert len(obj.mesh.faces) > 0
+
+    edge_count: dict[tuple[int, int], int] = {}
+    for face in obj.mesh.faces:
+        for i in range(3):
+            edge = tuple(sorted([int(face[i]), int(face[(i + 1) % 3])]))
+            edge_count[edge] = edge_count.get(edge, 0) + 1
+
+    non_manifold = {e: c for e, c in edge_count.items() if c != 2}
+    assert len(non_manifold) == 0, (
+        f"Mesh is not watertight: {len(non_manifold)} non-manifold edges"
+    )
