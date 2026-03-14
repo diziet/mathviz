@@ -3,13 +3,13 @@
 import json
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
-from mathviz.core.grid import BlockStatus, GridManifest
+from mathviz.core.grid import BlockStatus, GridBlock, GridManifest
 
 logger = logging.getLogger(__name__)
 
@@ -25,16 +25,22 @@ EXIT_SUCCESS = 0
 EXIT_ERROR = 2
 
 
+def _exit_error(message: str, json_output: bool) -> None:
+    """Print an error message and exit with code 2."""
+    if json_output:
+        typer.echo(json.dumps({"error": message}))
+    else:
+        console.print(f"[red]Error: {message}[/red]")
+    raise typer.Exit(code=EXIT_ERROR)
+
+
 def _load_manifest(path: Path, json_output: bool = False) -> GridManifest:
-    """Load a grid manifest, creating it if it doesn't exist."""
+    """Load a grid manifest or exit with an error if not found."""
     try:
         return GridManifest.load(path)
     except FileNotFoundError:
-        if json_output:
-            typer.echo(json.dumps({"error": f"Grid manifest not found: {path}"}))
-        else:
-            console.print(f"[red]Error: Grid manifest not found: {path}[/red]")
-        raise typer.Exit(code=EXIT_ERROR)
+        _exit_error(f"Grid manifest not found: {path}", json_output)
+        raise  # unreachable, for type checker
 
 
 @grid_app.command("init")
@@ -112,19 +118,10 @@ def assign_block(
     try:
         block = manifest.assign(row, col, preset, config_path=config)
     except ValueError as exc:
-        if json_output:
-            typer.echo(json.dumps({"error": str(exc)}))
-        else:
-            console.print(f"[red]Error: {exc}[/red]")
-        raise typer.Exit(code=EXIT_ERROR)
+        _exit_error(str(exc), json_output)
     manifest.save()
     if json_output:
-        typer.echo(json.dumps({
-            "row": block.row,
-            "col": block.col,
-            "preset": block.preset,
-            "status": block.status.value,
-        }))
+        typer.echo(json.dumps(block.to_dict()))
     else:
         console.print(
             f"Assigned [bold]{preset}[/bold] to position ({row}, {col})"
@@ -148,38 +145,19 @@ def block_status(
             new_status = BlockStatus(set_status)
         except ValueError:
             valid = [s.value for s in BlockStatus]
-            msg = f"Invalid status {set_status!r}. Valid: {valid}"
-            if json_output:
-                typer.echo(json.dumps({"error": msg}))
-            else:
-                console.print(f"[red]Error: {msg}[/red]")
-            raise typer.Exit(code=EXIT_ERROR)
+            _exit_error(f"Invalid status {set_status!r}. Valid: {valid}", json_output)
         try:
             block = manifest.set_status(row, col, new_status)
         except ValueError as exc:
-            if json_output:
-                typer.echo(json.dumps({"error": str(exc)}))
-            else:
-                console.print(f"[red]Error: {exc}[/red]")
-            raise typer.Exit(code=EXIT_ERROR)
+            _exit_error(str(exc), json_output)
         manifest.save()
     else:
         try:
             block = manifest.get_block(row, col)
         except ValueError as exc:
-            if json_output:
-                typer.echo(json.dumps({"error": str(exc)}))
-            else:
-                console.print(f"[red]Error: {exc}[/red]")
-            raise typer.Exit(code=EXIT_ERROR)
+            _exit_error(str(exc), json_output)
     if json_output:
-        typer.echo(json.dumps({
-            "row": block.row,
-            "col": block.col,
-            "preset": block.preset,
-            "config_path": block.config_path,
-            "status": block.status.value,
-        }))
+        typer.echo(json.dumps(block.to_dict()))
     else:
         console.print(
             f"Block ({row}, {col}): "
@@ -200,19 +178,9 @@ def show_neighbors(
     try:
         nbrs = manifest.neighbors(row, col)
     except ValueError as exc:
-        if json_output:
-            typer.echo(json.dumps({"error": str(exc)}))
-        else:
-            console.print(f"[red]Error: {exc}[/red]")
-        raise typer.Exit(code=EXIT_ERROR)
+        _exit_error(str(exc), json_output)
     if json_output:
-        typer.echo(json.dumps([
-            {
-                "row": b.row, "col": b.col,
-                "preset": b.preset, "status": b.status.value,
-            }
-            for b in nbrs
-        ], indent=2))
+        typer.echo(json.dumps([b.to_dict() for b in nbrs], indent=2))
     else:
         console.print(f"[bold]Neighbors of ({row}, {col}):[/bold] {len(nbrs)} blocks")
         for b in nbrs:
@@ -250,6 +218,8 @@ def export_all(
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
 ) -> None:
     """Batch export all assigned blocks sequentially."""
+    from mathviz.core.config import load_project_config
+
     manifest = _load_manifest(path, json_output)
     assigned = [
         b for b in manifest.blocks.values()
@@ -263,10 +233,13 @@ def export_all(
         return
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    results: list[dict] = []
+    project_cfg = load_project_config()
+    results: list[dict[str, Any]] = []
 
     for block in sorted(assigned, key=lambda b: (b.row, b.col)):
-        result = _export_single_block(manifest, block, output_dir, fmt, json_output)
+        result = _export_single_block(
+            manifest, block, output_dir, fmt, json_output, project_cfg,
+        )
         results.append(result)
 
     manifest.save()
@@ -285,24 +258,20 @@ def _export_single_block(
     output_dir: Path,
     fmt: str | None,
     json_output: bool,
-) -> dict:
+    project_cfg: dict[str, Any],
+) -> dict[str, Any]:
     """Export a single block through the pipeline."""
-    from mathviz.core.config import (
-        load_object_config,
-        load_project_config,
-        resolve_config,
-    )
+    from mathviz.core.config import load_object_config, resolve_config
     from mathviz.pipeline.runner import ExportConfig, run
 
     suffix = f".{fmt}" if fmt else ".ply"
     out_path = output_dir / f"block_{block.row}_{block.col}{suffix}"
-    result_info: dict = {
+    result_info: dict[str, Any] = {
         "row": block.row, "col": block.col,
         "preset": block.preset, "success": False,
     }
 
     try:
-        project_cfg = load_project_config()
         object_cfg = (
             load_object_config(Path(block.config_path))
             if block.config_path else None
@@ -310,10 +279,12 @@ def _export_single_block(
         resolved = resolve_config(project=project_cfg, object_config=object_cfg)
 
         export_config = ExportConfig(path=out_path, fmt=fmt)
-        pipeline_result = run(
+        seed = resolved.seed if resolved.seed is not None else 42
+        params = resolved.params if resolved.params is not None else None
+        run(
             generator=block.preset,
-            params=resolved.params or None,
-            seed=resolved.seed or 42,
+            params=params,
+            seed=seed,
             container=resolved.container,
             placement=resolved.placement,
             sampler_config=resolved.sampler_config,
@@ -327,7 +298,7 @@ def _export_single_block(
                 f"  [green]OK[/green] ({block.row},{block.col}) "
                 f"{block.preset} -> {out_path}"
             )
-    except Exception as exc:
+    except (ValueError, FileNotFoundError, KeyError, OSError) as exc:
         manifest.set_status(block.row, block.col, BlockStatus.ERROR)
         result_info["error"] = str(exc)
         if not json_output:

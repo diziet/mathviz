@@ -13,6 +13,11 @@ logger = logging.getLogger(__name__)
 DEFAULT_GRID_PATH = "grid.toml"
 
 
+def _toml_escape(value: str) -> str:
+    """Escape a string value for safe TOML serialization."""
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+
+
 class BlockStatus(str, enum.Enum):
     """Status of a grid block in the installation."""
 
@@ -30,6 +35,16 @@ class GridBlock(BaseModel):
     preset: str | None = None
     config_path: str | None = None
     status: BlockStatus = BlockStatus.EMPTY
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert block to a JSON-serializable dict."""
+        return {
+            "row": self.row,
+            "col": self.col,
+            "preset": self.preset,
+            "config_path": self.config_path,
+            "status": self.status.value,
+        }
 
 
 class GridManifest(BaseModel):
@@ -112,11 +127,11 @@ class GridManifest(BaseModel):
 
     def summary(self) -> dict[str, int]:
         """Count blocks by status, including unassigned empties."""
+        total = self.rows * self.cols
         counts: dict[str, int] = {s.value: 0 for s in BlockStatus}
-        for r in range(self.rows):
-            for c in range(self.cols):
-                block = self.get_block(r, c)
-                counts[block.status.value] += 1
+        for block in self.blocks.values():
+            counts[block.status.value] += 1
+        counts[BlockStatus.EMPTY.value] += total - len(self.blocks)
         return counts
 
     def save(self, path: Path | None = None) -> Path:
@@ -133,9 +148,9 @@ class GridManifest(BaseModel):
             lines.append(f"row = {block.row}")
             lines.append(f"col = {block.col}")
             if block.preset is not None:
-                lines.append(f'preset = "{block.preset}"')
+                lines.append(f'preset = "{_toml_escape(block.preset)}"')
             if block.config_path is not None:
-                lines.append(f'config_path = "{block.config_path}"')
+                lines.append(f'config_path = "{_toml_escape(block.config_path)}"')
             lines.append(f'status = "{block.status.value}"')
             lines.append("")
 
@@ -163,26 +178,10 @@ class GridManifest(BaseModel):
         manifest_path = path or Path(DEFAULT_GRID_PATH)
         return cls(rows=rows, cols=cols, path=manifest_path)
 
-    def assigned_blocks(self) -> list[GridBlock]:
-        """Return all blocks that have been assigned a preset."""
-        return [
-            b for b in self.blocks.values()
-            if b.status != BlockStatus.EMPTY
-        ]
-
     def to_dict(self) -> dict[str, Any]:
         """Convert manifest to a JSON-serializable dict."""
         return {
             "rows": self.rows,
             "cols": self.cols,
-            "blocks": {
-                k: {
-                    "row": b.row,
-                    "col": b.col,
-                    "preset": b.preset,
-                    "config_path": b.config_path,
-                    "status": b.status.value,
-                }
-                for k, b in self.blocks.items()
-            },
+            "blocks": {k: b.to_dict() for k, b in self.blocks.items()},
         }
