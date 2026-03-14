@@ -88,7 +88,7 @@ def run(
     # --- Represent ---
     with timer.stage("represent"):
         rep_config = representation_config or representation_strategy.get_default(
-            obj.generator_name
+            obj.generator_name, obj=obj
         )
         obj = representation_strategy.apply(obj, rep_config)
     obj.validate_or_raise()

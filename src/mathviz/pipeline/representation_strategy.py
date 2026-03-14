@@ -24,40 +24,111 @@ from mathviz.shared.tube_thickening import thicken_curve
 logger = logging.getLogger(__name__)
 
 # Default representation configs by generator name
+_TUBE_CONFIG = RepresentationConfig(type=RepresentationType.TUBE, tube_radius=0.05)
+_SURFACE_CONFIG = RepresentationConfig(type=RepresentationType.SURFACE_SHELL)
+_SPARSE_CONFIG = RepresentationConfig(type=RepresentationType.SPARSE_SHELL)
+_HEIGHTMAP_CONFIG = RepresentationConfig(type=RepresentationType.HEIGHTMAP_RELIEF)
+
 _GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
-    "torus": RepresentationConfig(type=RepresentationType.SURFACE_SHELL),
-    "klein_bottle": RepresentationConfig(type=RepresentationType.SURFACE_SHELL),
-    "sphere": RepresentationConfig(type=RepresentationType.SURFACE_SHELL),
-    "lorenz": RepresentationConfig(
-        type=RepresentationType.TUBE, tube_radius=0.05
-    ),
-    "rossler": RepresentationConfig(
-        type=RepresentationType.TUBE, tube_radius=0.05
-    ),
+    # Parametric surfaces (mesh)
+    "torus": _SURFACE_CONFIG,
+    "klein_bottle": _SURFACE_CONFIG,
+    "sphere": _SURFACE_CONFIG,
+    "boy_surface": _SURFACE_CONFIG,
+    "costa_surface": _SURFACE_CONFIG,
+    "enneper_surface": _SURFACE_CONFIG,
+    "lissajous_surface": _SURFACE_CONFIG,
+    "mobius_strip": _SURFACE_CONFIG,
+    "spherical_harmonics": _SURFACE_CONFIG,
+    "superellipsoid": _SURFACE_CONFIG,
+    "generic_parametric": _SURFACE_CONFIG,
+    # Implicit surfaces (mesh)
+    "genus2_surface": _SURFACE_CONFIG,
+    "gyroid": _SURFACE_CONFIG,
+    "schwarz_d": _SURFACE_CONFIG,
+    "schwarz_p": _SURFACE_CONFIG,
+    # Data-driven mesh
+    "building_extrude": _SURFACE_CONFIG,
+    "parabolic_envelope": _SURFACE_CONFIG,
+    # Attractors (curves)
+    "lorenz": _TUBE_CONFIG,
+    "rossler": _TUBE_CONFIG,
+    "aizawa": _TUBE_CONFIG,
+    "chen": _TUBE_CONFIG,
+    "double_pendulum": _TUBE_CONFIG,
+    "halvorsen": _TUBE_CONFIG,
+    "thomas": _TUBE_CONFIG,
+    # Knots (curves)
     "torus_knot": RepresentationConfig(
         type=RepresentationType.TUBE, tube_radius=0.1
     ),
-    "lissajous": RepresentationConfig(
-        type=RepresentationType.TUBE, tube_radius=0.05
+    "figure_eight_knot": RepresentationConfig(
+        type=RepresentationType.TUBE, tube_radius=0.1
     ),
-    "mandelbrot": RepresentationConfig(
-        type=RepresentationType.HEIGHTMAP_RELIEF,
+    "lissajous_knot": RepresentationConfig(
+        type=RepresentationType.TUBE, tube_radius=0.1
     ),
-    "mandelbrot_heightmap": RepresentationConfig(
-        type=RepresentationType.HEIGHTMAP_RELIEF,
+    "seven_crossing_knots": RepresentationConfig(
+        type=RepresentationType.TUBE, tube_radius=0.1
     ),
-    "mandelbulb": RepresentationConfig(
-        type=RepresentationType.SPARSE_SHELL,
-    ),
-    "julia3d": RepresentationConfig(
-        type=RepresentationType.SPARSE_SHELL,
-    ),
-    "fractal_slice": RepresentationConfig(
-        type=RepresentationType.HEIGHTMAP_RELIEF,
-    ),
+    # Curves
+    "lissajous": _TUBE_CONFIG,
+    "lissajous_curve": _TUBE_CONFIG,
+    "cardioid": _TUBE_CONFIG,
+    "fibonacci_spiral": _TUBE_CONFIG,
+    "logarithmic_spiral": _TUBE_CONFIG,
+    "voronoi_3d": _TUBE_CONFIG,
+    "soundwave": _TUBE_CONFIG,
+    # Physics (curves)
+    "kepler_orbit": _TUBE_CONFIG,
+    "nbody": _TUBE_CONFIG,
+    "planetary_positions": _TUBE_CONFIG,
+    # Number theory (point clouds)
+    "sacks_spiral": _SPARSE_CONFIG,
+    "prime_gaps": _SPARSE_CONFIG,
+    "ulam_spiral": _SPARSE_CONFIG,
+    "digit_encoding": _SPARSE_CONFIG,
+    # Fractals (sparse shell from mesh)
+    "mandelbulb": _SPARSE_CONFIG,
+    "julia3d": _SPARSE_CONFIG,
+    # Heightmaps (scalar field)
+    "mandelbrot": _HEIGHTMAP_CONFIG,
+    "mandelbrot_heightmap": _HEIGHTMAP_CONFIG,
+    "fractal_slice": _HEIGHTMAP_CONFIG,
+    "heightmap": _HEIGHTMAP_CONFIG,
+    "noise_surface": _HEIGHTMAP_CONFIG,
+    "reaction_diffusion": _HEIGHTMAP_CONFIG,
+    "terrain": _HEIGHTMAP_CONFIG,
 }
 
-_FALLBACK_DEFAULT = RepresentationConfig(type=RepresentationType.SURFACE_SHELL)
+_FALLBACK_TUBE_RADIUS_FRACTION = 0.01
+
+
+def _get_fallback(obj: MathObject) -> RepresentationConfig:
+    """Choose a compatible representation based on available geometry."""
+    if obj.mesh is not None:
+        return RepresentationConfig(type=RepresentationType.SURFACE_SHELL)
+    if obj.curves:
+        radius = _estimate_tube_radius(obj.curves)
+        return RepresentationConfig(
+            type=RepresentationType.TUBE, tube_radius=radius
+        )
+    if obj.point_cloud is not None:
+        return RepresentationConfig(type=RepresentationType.SPARSE_SHELL)
+    raise ValueError(
+        "Cannot determine fallback representation: "
+        "MathObject has no mesh, curves, or point_cloud"
+    )
+
+
+def _estimate_tube_radius(curves: list[Curve]) -> float:
+    """Estimate a sensible tube radius as 1% of the bounding-box diagonal."""
+    all_points = np.concatenate([c.points for c in curves], axis=0)
+    bbox_min = all_points.min(axis=0)
+    bbox_max = all_points.max(axis=0)
+    diagonal = float(np.linalg.norm(bbox_max - bbox_min))
+    radius = diagonal * _FALLBACK_TUBE_RADIUS_FRACTION
+    return max(radius, 1e-6)
 
 
 def _resolve_canonical(name: str) -> str:
@@ -68,13 +139,20 @@ def _resolve_canonical(name: str) -> str:
         return name
 
 
-def get_default(generator_name: str) -> RepresentationConfig:
+def get_default(
+    generator_name: str, obj: MathObject | None = None
+) -> RepresentationConfig:
     """Return the recommended representation config for a generator."""
     config = _GENERATOR_DEFAULTS.get(generator_name)
     if config is not None:
         return config
     canonical = _resolve_canonical(generator_name)
-    return _GENERATOR_DEFAULTS.get(canonical, _FALLBACK_DEFAULT)
+    config = _GENERATOR_DEFAULTS.get(canonical)
+    if config is not None:
+        return config
+    if obj is not None:
+        return _get_fallback(obj)
+    return RepresentationConfig(type=RepresentationType.SURFACE_SHELL)
 
 
 def apply(
