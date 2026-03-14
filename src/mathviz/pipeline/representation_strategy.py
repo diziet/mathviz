@@ -271,19 +271,27 @@ def _build_grid_faces(rows: int, cols: int) -> np.ndarray:
     return faces.reshape(-1, 3).astype(np.int64)
 
 
-_SPARSE_SHELL_DEFAULT_DENSITY = 0.1
+# Default surface density for SPARSE_SHELL: points per unit area.
+# sample_count = total_mesh_area * surface_density.
+_SPARSE_SHELL_DEFAULT_SURFACE_DENSITY = 100.0
+_SPARSE_SHELL_MIN_SAMPLES = 10
+_SPARSE_SHELL_SEED = 42
 
 
 def _apply_sparse_shell(
     obj: MathObject, config: RepresentationConfig
 ) -> MathObject:
-    """Sample mesh surface at reduced density to create a sparse point cloud."""
+    """Sample mesh surface at reduced density to create a sparse point cloud.
+
+    Uses surface_density (points per unit area) to determine sample count.
+    Sampling is seeded for deterministic output.
+    """
     if obj.mesh is None:
         raise ValueError(
             "SPARSE_SHELL requires a mesh input, but MathObject has no mesh"
         )
 
-    density = config.volume_density or _SPARSE_SHELL_DEFAULT_DENSITY
+    density = config.surface_density or _SPARSE_SHELL_DEFAULT_SURFACE_DENSITY
     tm = trimesh.Trimesh(
         vertices=obj.mesh.vertices,
         faces=obj.mesh.faces,
@@ -291,8 +299,13 @@ def _apply_sparse_shell(
     )
 
     total_area = float(tm.area)
-    sample_count = max(10, int(total_area * density * 1000))
+    sample_count = max(
+        _SPARSE_SHELL_MIN_SAMPLES,
+        int(total_area * density),
+    )
 
+    # trimesh uses numpy's legacy RNG; seed it for deterministic output.
+    np.random.seed(_SPARSE_SHELL_SEED)
     points, face_indices = tm.sample(sample_count, return_index=True)
     normals = tm.face_normals[face_indices]
 
@@ -302,7 +315,8 @@ def _apply_sparse_shell(
     )
 
     logger.info(
-        "SPARSE_SHELL: sampled %d points from %d faces (density=%.3f)",
+        "SPARSE_SHELL: sampled %d points from %d faces "
+        "(surface_density=%.1f pts/unit²)",
         len(cloud.points), len(obj.mesh.faces), density,
     )
 

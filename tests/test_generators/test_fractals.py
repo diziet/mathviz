@@ -558,7 +558,14 @@ def test_fractal_slice_registered() -> None:
 
 
 def test_numba_jit_is_active() -> None:
-    """Verify numba-compiled kernel is used."""
-    from mathviz.generators.fractals._escape_kernel import NUMBA_JIT_ACTIVE
+    """Verify numba-compiled kernel is actually JIT-compiled."""
+    import numba
+
+    from mathviz.generators.fractals._escape_kernel import (
+        NUMBA_JIT_ACTIVE,
+        mandelbulb_escape_field,
+    )
 
     assert NUMBA_JIT_ACTIVE is True
+    # Verify the function is a numba CPUDispatcher, not a plain Python function
+    assert isinstance(mandelbulb_escape_field, numba.core.registry.CPUDispatcher)

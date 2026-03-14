@@ -31,4 +31,5 @@ class RepresentationConfig(BaseModel):
     slice_count: Optional[int] = Field(default=None, gt=0)
     slice_axis: Literal["x", "y", "z"] = "z"
     wireframe_thickness: Optional[float] = Field(default=None, gt=0)
+    surface_density: Optional[float] = Field(default=None, gt=0)
     density_weight_function: Optional[str] = None

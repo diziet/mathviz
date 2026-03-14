@@ -3,6 +3,9 @@
 Evaluates the Mandelbulb 3D escape-time field on a 2D plane, producing a
 scalar field suitable for HEIGHTMAP_RELIEF representation. The plane is
 defined by a constant coordinate along the chosen axis.
+
+Seed is stored for metadata/provenance only — the computation is fully
+deterministic for given parameters.
 """
 
 import logging
@@ -13,44 +16,29 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.fractals._common import (
+    DEFAULT_EXTENT,
+    DEFAULT_PIXEL_RESOLUTION,
+    DEFAULT_POWER,
+    MIN_PIXEL_RESOLUTION,
+    validate_fractal_params,
+)
 from mathviz.generators.fractals._escape_kernel import mandelbulb_escape_field
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_POWER = 8.0
 _DEFAULT_MAX_ITERATIONS = 20
-_DEFAULT_PIXEL_RESOLUTION = 256
-_DEFAULT_EXTENT = 1.5
 _DEFAULT_SLICE_AXIS = "z"
 _DEFAULT_SLICE_POSITION = 0.0
-_MIN_PIXEL_RESOLUTION = 4
-_MIN_MAX_ITERATIONS = 1
 _VALID_AXES = frozenset({"x", "y", "z"})
 
 
-def _validate_params(
-    power: float,
-    max_iterations: int,
-    pixel_resolution: int,
-    extent: float,
+def _validate_slice_params(
     slice_axis: str,
     slice_position: float,
+    extent: float,
 ) -> None:
-    """Validate fractal slice parameters."""
-    if power < 2.0:
-        raise ValueError(f"power must be >= 2.0, got {power}")
-    if max_iterations < _MIN_MAX_ITERATIONS:
-        raise ValueError(
-            f"max_iterations must be >= {_MIN_MAX_ITERATIONS}, "
-            f"got {max_iterations}"
-        )
-    if pixel_resolution < _MIN_PIXEL_RESOLUTION:
-        raise ValueError(
-            f"pixel_resolution must be >= {_MIN_PIXEL_RESOLUTION}, "
-            f"got {pixel_resolution}"
-        )
-    if extent <= 0:
-        raise ValueError(f"extent must be positive, got {extent}")
+    """Validate fractal-slice-specific parameters."""
     if slice_axis not in _VALID_AXES:
         raise ValueError(
             f"slice_axis must be one of {sorted(_VALID_AXES)}, "
@@ -110,9 +98,9 @@ class FractalSliceGenerator(GeneratorBase):
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for the fractal slice."""
         return {
-            "power": _DEFAULT_POWER,
+            "power": DEFAULT_POWER,
             "max_iterations": _DEFAULT_MAX_ITERATIONS,
-            "extent": _DEFAULT_EXTENT,
+            "extent": DEFAULT_EXTENT,
             "slice_axis": _DEFAULT_SLICE_AXIS,
             "slice_position": _DEFAULT_SLICE_POSITION,
         }
@@ -123,7 +111,10 @@ class FractalSliceGenerator(GeneratorBase):
         seed: int = 42,
         **resolution_kwargs: Any,
     ) -> MathObject:
-        """Generate a 2D fractal cross-section as a scalar field."""
+        """Generate a 2D fractal cross-section as a scalar field.
+
+        Seed is stored for metadata only — output is fully deterministic.
+        """
         merged = self.get_default_params()
         if params:
             merged.update(params)
@@ -134,13 +125,15 @@ class FractalSliceGenerator(GeneratorBase):
         slice_axis = str(merged["slice_axis"])
         slice_position = float(merged["slice_position"])
         pixel_resolution = int(
-            resolution_kwargs.get("pixel_resolution", _DEFAULT_PIXEL_RESOLUTION)
+            resolution_kwargs.get("pixel_resolution", DEFAULT_PIXEL_RESOLUTION)
         )
 
-        _validate_params(
-            power, max_iterations, pixel_resolution,
-            extent, slice_axis, slice_position,
+        validate_fractal_params(
+            power, max_iterations, pixel_resolution, extent,
+            resolution_name="pixel_resolution",
+            min_resolution=MIN_PIXEL_RESOLUTION,
         )
+        _validate_slice_params(slice_axis, slice_position, extent)
         merged["pixel_resolution"] = pixel_resolution
 
         field = _evaluate_slice(
