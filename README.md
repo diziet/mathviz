@@ -80,7 +80,7 @@ mathviz generate gyroid --profile production --output gyroid.ply
 | Category | Generators | Description |
 |---|---|---|
 | attractors | `lorenz`, `rossler`, `chen`, `aizawa`, `thomas`, `halvorsen`, `double_pendulum` | Strange attractor trajectories |
-| curves | `cardioid`, `fibonacci_spiral`, `lissajous_curve`, `logarithmic_spiral`, `parabolic_envelope` | Mathematical curves extended to 3D |
+| curves | `cardioid`, `fibonacci_spiral`, `lissajous_curve`, `logarithmic_spiral` | Mathematical curves extended to 3D |
 | data_driven | `building_extrude`, `heightmap`, `soundwave` | Forms derived from external data files |
 | fractals | `fractal_slice`, `julia3d`, `mandelbrot_heightmap`, `mandelbulb` | 3D fractals and fractal heightmaps |
 | geometry | `generic_parametric`, `voronoi_3d` | User-defined parametric surfaces and Voronoi |
@@ -90,6 +90,7 @@ mathviz generate gyroid --profile production --output gyroid.ply
 | parametric | `boy_surface`, `costa_surface`, `enneper_surface`, `klein_bottle`, `lissajous_surface`, `mobius_strip`, `spherical_harmonics`, `superellipsoid`, `torus` | Parametric surface meshes |
 | physics | `kepler_orbit`, `nbody`, `planetary_positions` | Physics simulations |
 | procedural | `noise_surface`, `reaction_diffusion`, `terrain` | Procedurally generated surfaces |
+| surfaces | `parabolic_envelope` | Ruled surfaces and envelopes |
 
 See [docs/generators.md](docs/generators.md) for full parameter tables and examples.
 

@@ -196,6 +196,10 @@ Logarithmic spiral with exponential radius growth.
 mathviz generate logarithmic_spiral --output logspiral.ply
 ```
 
+## Surfaces
+
+Ruled surfaces and envelopes.
+
 ### parabolic_envelope
 
 Ruled surface from a family of lines forming a parabolic envelope.

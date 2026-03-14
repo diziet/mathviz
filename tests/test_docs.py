@@ -113,28 +113,26 @@ class TestCliCompleteness:
     """Tests that docs/cli.md documents all CLI commands."""
 
     def _get_registered_commands(self) -> list[str]:
-        """Get CLI command names from the codebase."""
-        # Commands registered in cli.py
-        commands = ["generate", "list", "info", "validate"]
-        # Commands from cli_preview.py
-        commands.append("preview")
-        # Commands from cli_render.py
-        commands.extend(["render", "render-2d"])
-        # Commands from cli_utils.py
-        commands.extend(["convert", "sample", "transform", "schema"])
-        # Grid subcommands from cli_grid.py
-        commands.extend([
-            "grid init", "grid show", "grid assign",
-            "grid status", "grid neighbors", "grid summary",
-            "grid export-all",
-        ])
+        """Discover CLI command names dynamically from the Typer app."""
+        from mathviz.cli import app
+
+        commands: list[str] = []
+        for cmd_info in app.registered_commands:
+            name = cmd_info.name or cmd_info.callback.__name__
+            commands.append(name)
+        for group_info in app.registered_groups:
+            sub_app = group_info.typer_instance
+            group_name = group_info.name or sub_app.info.name
+            if sub_app:
+                for cmd_info in sub_app.registered_commands:
+                    sub_name = cmd_info.name or cmd_info.callback.__name__
+                    commands.append(f"{group_name} {sub_name}")
         return commands
 
     def test_all_cli_commands_documented(self) -> None:
         """Every CLI command in the codebase appears in docs/cli.md."""
         cli_doc = _read_text(DOCS_DIR / "cli.md")
         for command in self._get_registered_commands():
-            # Check the command name appears (without mathviz prefix)
             assert command in cli_doc, (
                 f"CLI command '{command}' not found in docs/cli.md"
             )
