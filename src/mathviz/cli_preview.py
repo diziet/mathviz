@@ -9,8 +9,6 @@ from urllib.parse import urlencode
 import typer
 from rich.console import Console
 
-logger_console = Console()
-
 
 @dataclass
 class PreviewConfig:
@@ -27,8 +25,10 @@ def register_preview_command(
     app: typer.Typer,
     parse_params_fn: Any,
     configure_logging_fn: Any,
+    console: Console | None = None,
 ) -> None:
     """Register the preview command on the given Typer app."""
+    output_console = console or Console()
 
     @app.command()
     def preview(
@@ -50,7 +50,7 @@ def register_preview_command(
             quiet=quiet,
             query_params=query_params,
         )
-        _run_preview_server(config)
+        _run_preview_server(config, output_console)
 
 
 def _build_preview_query(
@@ -69,7 +69,7 @@ def _build_preview_query(
     return query
 
 
-def _run_preview_server(config: PreviewConfig) -> None:
+def _run_preview_server(config: PreviewConfig, console: Console) -> None:
     """Start uvicorn and optionally open browser after server is ready."""
     import uvicorn
 
@@ -83,8 +83,8 @@ def _run_preview_server(config: PreviewConfig) -> None:
     url = f"http://127.0.0.1:{config.port}/?{query}"
 
     if not config.quiet:
-        logger_console.print(f"[bold green]Preview:[/bold green] {url}")
-        logger_console.print("Press Ctrl+C to stop the server.")
+        console.print(f"[bold green]Preview:[/bold green] {url}")
+        console.print("Press Ctrl+C to stop the server.")
 
     if not config.no_open:
         import webbrowser

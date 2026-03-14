@@ -17,7 +17,9 @@ from mathviz.cli_output import (
     serialize_checks,
     write_report,
 )
+from mathviz.cli_preview import register_preview_command
 from mathviz.core.config import (
+    deep_merge,
     load_object_config,
     load_project_config,
     load_sampling_profile,
@@ -61,16 +63,13 @@ def _parse_params(param_list: list[str]) -> dict[str, Any]:
     return params
 
 
-def _coerce_value(value: str) -> Any:
+def _coerce_value(value: str) -> int | float | str:
     """Coerce a string value to int, float, or leave as string."""
-    try:
-        return int(value)
-    except ValueError:
-        pass
-    try:
-        return float(value)
-    except ValueError:
-        pass
+    for caster in (int, float):
+        try:
+            return caster(value)
+        except ValueError:
+            continue
     return value
 
 
@@ -104,23 +103,19 @@ def _resolve_generator(generator_name: str, json_output: bool) -> GeneratorBase:
 
 def _build_cli_overrides(
     params: dict[str, Any],
-    seed: int,
-    container_width: float | None = None,
-    container_height: float | None = None,
-    container_depth: float | None = None,
+    seed: int | None = None,
+    width: float | None = None,
+    height: float | None = None,
+    depth: float | None = None,
 ) -> dict[str, Any]:
-    """Build CLI override dict from explicit flag values."""
+    """Build CLI override dict from explicitly provided flag values."""
     overrides: dict[str, Any] = {}
     if params:
         overrides["params"] = params
-    overrides["seed"] = seed
-    container_overrides: dict[str, Any] = {}
-    if container_width is not None:
-        container_overrides["width_mm"] = container_width
-    if container_height is not None:
-        container_overrides["height_mm"] = container_height
-    if container_depth is not None:
-        container_overrides["depth_mm"] = container_depth
+    if seed is not None:
+        overrides["seed"] = seed
+    dims = {"width_mm": width, "height_mm": height, "depth_mm": depth}
+    container_overrides = {k: v for k, v in dims.items() if v is not None}
     if container_overrides:
         overrides["container"] = container_overrides
     return overrides
@@ -129,7 +124,7 @@ def _build_cli_overrides(
 def _run_pipeline(
     generator_name: str,
     params: dict[str, Any],
-    seed: int,
+    seed: int | None,
     json_output: bool,
     export_config: ExportConfig | None = None,
     config_path: Path | None = None,
@@ -143,10 +138,10 @@ def _run_pipeline(
 
     # Load config layers
     project_cfg = load_project_config()
-    object_cfg = _load_object_config_safe(config_path, json_output)
+    object_cfg = _load_safe(load_object_config, json_output, config_path) if config_path else None
     if profile_name:
-        profile_cfg = _load_profile_safe(profile_name, json_output)
-        object_cfg = {**object_cfg, **profile_cfg} if object_cfg else profile_cfg
+        profile_cfg = _load_safe(load_sampling_profile, json_output, profile_name)
+        object_cfg = deep_merge(object_cfg, profile_cfg) if object_cfg else profile_cfg
 
     cli_overrides = _build_cli_overrides(
         params,
@@ -161,10 +156,12 @@ def _run_pipeline(
         cli_overrides=cli_overrides,
     )
 
+    effective_seed = resolved.seed if resolved.seed is not None else 42
+
     return run(
         generator=gen_instance,
         params=resolved.params if resolved.params else None,
-        seed=resolved.seed or seed,
+        seed=effective_seed,
         container=resolved.container,
         placement=resolved.placement,
         sampler_config=resolved.sampler_config,
@@ -172,24 +169,10 @@ def _run_pipeline(
     )
 
 
-def _load_object_config_safe(
-    config_path: Path | None,
-    json_output: bool,
-) -> dict[str, Any] | None:
-    """Load per-object config, exiting on error."""
-    if config_path is None:
-        return None
+def _load_safe(loader: Any, json_output: bool, *args: Any) -> dict[str, Any]:
+    """Load a config/profile, calling error_exit on FileNotFoundError."""
     try:
-        return load_object_config(config_path)
-    except FileNotFoundError as exc:
-        error_exit(str(exc), json_output)
-        raise  # unreachable
-
-
-def _load_profile_safe(name: str, json_output: bool) -> dict[str, Any]:
-    """Load sampling profile, exiting on error."""
-    try:
-        return load_sampling_profile(name)
+        return loader(*args)
     except FileNotFoundError as exc:
         error_exit(str(exc), json_output)
         raise  # unreachable
@@ -199,10 +182,10 @@ def _load_profile_safe(name: str, json_output: bool) -> dict[str, Any]:
 def generate(
     generator_name: str = typer.Argument(help="Name of the generator to run"),
     param: Optional[list[str]] = typer.Option(None, "--param", help="key=value parameter"),
-    seed: int = typer.Option(42, "--seed", help="Random seed for reproducibility"),
+    seed: Optional[int] = typer.Option(None, "--seed", help="Random seed (default: 42)"),
     output: Optional[Path] = typer.Option(None, "--output", help="Output file path"),
     fmt: Optional[str] = typer.Option(None, "--format", help="Export format"),
-    config: Optional[Path] = typer.Option(None, "--config", help="Per-object TOML config file"),
+    config: Optional[Path] = typer.Option(None, "--config", help="Per-object TOML config"),
     profile: Optional[str] = typer.Option(None, "--profile", help="Sampling profile name"),
     container_width: Optional[float] = typer.Option(None, "--width", help="Container width (mm)"),
     container_height: Optional[float] = typer.Option(
@@ -223,7 +206,8 @@ def generate(
 
     if dry_run:
         gen_instance = _resolve_generator(generator_name, json_output)
-        _handle_dry_run(gen_instance, generator_name, params, seed, output, json_output)
+        effective_seed = seed if seed is not None else 42
+        _handle_dry_run(gen_instance, generator_name, params, effective_seed, output, json_output)
         return
 
     export_config = None
@@ -278,7 +262,6 @@ def _handle_dry_run(
         "output": str(output) if output else None,
         "stages": stages,
     }
-
     if json_output:
         typer.echo(json.dumps(info, indent=2, default=str))
     else:
@@ -357,7 +340,16 @@ def info(
 def validate(
     generator_name: str = typer.Argument(help="Generator name to validate"),
     param: Optional[list[str]] = typer.Option(None, "--param", help="key=value parameter"),
-    seed: int = typer.Option(42, "--seed", help="Random seed"),
+    seed: Optional[int] = typer.Option(None, "--seed", help="Random seed (default: 42)"),
+    config: Optional[Path] = typer.Option(None, "--config", help="Per-object TOML config"),
+    profile: Optional[str] = typer.Option(None, "--profile", help="Sampling profile name"),
+    container_width: Optional[float] = typer.Option(None, "--width", help="Container width (mm)"),
+    container_height: Optional[float] = typer.Option(
+        None,
+        "--height",
+        help="Container height (mm)",
+    ),
+    container_depth: Optional[float] = typer.Option(None, "--depth", help="Container depth (mm)"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
     verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
     quiet: bool = typer.Option(False, "--quiet", help="Suppress non-error output"),
@@ -366,7 +358,17 @@ def validate(
     _configure_logging(verbose, quiet)
     params = _parse_params(param or [])
 
-    result = _run_pipeline(generator_name, params, seed, json_output)
+    result = _run_pipeline(
+        generator_name,
+        params,
+        seed,
+        json_output,
+        config_path=config,
+        profile_name=profile,
+        container_width=container_width,
+        container_height=container_height,
+        container_depth=container_depth,
+    )
     exit_code = _exit_code_for_result(result)
 
     if json_output:
@@ -384,10 +386,7 @@ def validate(
     raise typer.Exit(code=exit_code)
 
 
-# Register the preview command from its own module
-from mathviz.cli_preview import register_preview_command  # noqa: E402
-
-register_preview_command(app, _parse_params, _configure_logging)
+register_preview_command(app, _parse_params, _configure_logging, console)
 
 
 def main() -> None:

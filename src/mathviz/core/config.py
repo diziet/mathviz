@@ -24,9 +24,6 @@ _BUILTIN_DEFAULTS: dict[str, Any] = {
         "margin_z_mm": 5.0,
     },
     "placement": {},
-    "sampling": {
-        "method": "uniform_surface",
-    },
 }
 
 
@@ -89,12 +86,12 @@ def load_sampling_profile(name: str) -> dict[str, Any]:
     return load_toml(profile_path)
 
 
-def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     """Recursively merge override into base, returning a new dict."""
     result = dict(base)
     for key, value in override.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = _deep_merge(result[key], value)
+            result[key] = deep_merge(result[key], value)
         else:
             result[key] = value
     return result
@@ -110,7 +107,7 @@ def merge_configs(
     merged = dict(_BUILTIN_DEFAULTS)
     for layer in [project, object_config, cli_overrides]:
         if layer:
-            merged = _deep_merge(merged, layer)
+            merged = deep_merge(merged, layer)
     return merged
 
 

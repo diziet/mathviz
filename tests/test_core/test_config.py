@@ -192,3 +192,18 @@ class TestMergeOrder:
         )
         assert merged["container"]["width_mm"] == 200.0
         assert merged["container"]["height_mm"] == 80.0
+
+    def test_seed_from_config_not_overridden_by_absent_cli(self) -> None:
+        """Seed from object config is preserved when CLI doesn't specify seed."""
+        resolved = resolve_config(object_config={"seed": 99})
+        assert resolved.seed == 99
+
+    def test_seed_zero_is_valid(self) -> None:
+        """Seed of 0 is a valid value and not treated as falsy."""
+        resolved = resolve_config(object_config={"seed": 0})
+        assert resolved.seed == 0
+
+    def test_no_sampler_config_when_no_sampling_section(self) -> None:
+        """Without sampling config, sampler_config should be None."""
+        resolved = resolve_config()
+        assert resolved.sampler_config is None
