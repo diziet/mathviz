@@ -26,6 +26,38 @@ def _default_container() -> Container:
     return Container.with_uniform_margin(w=100, h=100, d=40, margin=5)
 
 
+def _assert_idempotent(
+    profile: EngravingProfile,
+    seed: int = 11,
+    num_points: int = 2000,
+    tolerance: float = 0.05,
+    check_intensities: bool = False,
+) -> None:
+    """Assert that running optimize twice produces the same result."""
+    cloud = _make_cloud(num_points, seed=seed)
+    obj = _make_obj(cloud)
+    container = _default_container()
+
+    once = optimize(obj, profile, container)
+    twice = optimize(once, profile, container)
+
+    count_once = len(once.point_cloud.points)
+    count_twice = len(twice.point_cloud.points)
+
+    assert abs(count_twice - count_once) / max(count_once, 1) < tolerance, (
+        f"Not idempotent: once={count_once}, twice={count_twice}"
+    )
+
+    if check_intensities:
+        assert once.point_cloud.intensities is not None
+        assert twice.point_cloud.intensities is not None
+        np.testing.assert_allclose(
+            once.point_cloud.intensities,
+            twice.point_cloud.intensities,
+            atol=1e-10,
+        )
+
+
 class TestOcclusionNone:
     """occlusion_mode='none' returns point cloud unchanged (except budget trim)."""
 
@@ -70,10 +102,8 @@ class TestShellFade:
         result = optimize(obj, profile, container)
         result_points = result.point_cloud.points
 
-        # Should have fewer points than original
         assert len(result_points) < len(cloud.points)
 
-        # Inner points should be more dense than outer
         centroid = cloud.points.mean(axis=0)
         result_dists = np.linalg.norm(result_points - centroid, axis=1)
         orig_dists = np.linalg.norm(cloud.points - centroid, axis=1)
@@ -121,7 +151,6 @@ class TestDepthCompensation:
         points = result.point_cloud.points
         intensities = result.point_cloud.intensities
 
-        # Depth axis = smallest usable dim (z=30mm for default container)
         usable = container.usable_volume
         depth_axis = int(np.argmin(usable))
 
@@ -137,6 +166,31 @@ class TestDepthCompensation:
         assert mean_back > mean_front, (
             f"Back intensity ({mean_back:.3f}) should exceed "
             f"front ({mean_front:.3f})"
+        )
+
+    def test_depth_compensation_factor_controls_ratio(self) -> None:
+        """Higher factor produces larger front-to-back intensity ratio."""
+        cloud = _make_cloud(1000)
+        container = _default_container()
+
+        def _get_intensity_ratio(factor: float) -> float:
+            obj = _make_obj(cloud)
+            profile = EngravingProfile(
+                occlusion_mode="none",
+                depth_compensation=True,
+                depth_compensation_factor=factor,
+            )
+            result = optimize(obj, profile, container)
+            intensities = result.point_cloud.intensities
+            assert intensities is not None
+            return intensities.max() / intensities.min()
+
+        ratio_low = _get_intensity_ratio(1.5)
+        ratio_high = _get_intensity_ratio(3.0)
+
+        assert ratio_high > ratio_low, (
+            f"Higher factor should produce larger ratio: "
+            f"factor=3.0 -> {ratio_high:.2f}, factor=1.5 -> {ratio_low:.2f}"
         )
 
     def test_no_depth_compensation_no_intensities(self) -> None:
@@ -194,82 +248,65 @@ class TestPointBudget:
 
         assert len(result.point_cloud.points) <= 500
 
+    def test_budget_prefers_high_intensity_points(self) -> None:
+        """When intensities exist, budget keeps highest-intensity points."""
+        cloud = _make_cloud(2000)
+        obj = _make_obj(cloud)
+        profile = EngravingProfile(
+            occlusion_mode="none",
+            depth_compensation=True,
+            depth_compensation_factor=2.0,
+            point_budget=500,
+        )
+        container = _default_container()
+
+        result = optimize(obj, profile, container)
+        intensities = result.point_cloud.intensities
+
+        assert intensities is not None
+        # Kept points should have higher mean intensity than original would
+        assert intensities.mean() > 0.6
+
 
 class TestIdempotent:
     """optimize(optimize(cloud)) ≈ optimize(cloud) in point count."""
 
     def test_idempotent_shell_fade(self) -> None:
-        """Running optimizer twice produces same point count."""
-        cloud = _make_cloud(2000, seed=11)
-        obj = _make_obj(cloud)
-        profile = EngravingProfile(
+        """Running shell_fade optimizer twice produces same point count."""
+        _assert_idempotent(EngravingProfile(
             occlusion_mode="shell_fade",
             occlusion_shell_layers=3,
             occlusion_density_falloff=0.6,
             point_budget=1500,
-        )
-        container = _default_container()
-
-        once = optimize(obj, profile, container)
-        twice = optimize(once, profile, container)
-
-        count_once = len(once.point_cloud.points)
-        count_twice = len(twice.point_cloud.points)
-
-        # Allow small tolerance (5%) for floating point differences
-        assert abs(count_twice - count_once) / max(count_once, 1) < 0.05, (
-            f"Not idempotent: once={count_once}, twice={count_twice}"
-        )
+        ))
 
     def test_idempotent_radial_gradient(self) -> None:
         """Running radial gradient optimizer twice produces same count."""
-        cloud = _make_cloud(2000, seed=22)
-        obj = _make_obj(cloud)
-        profile = EngravingProfile(
-            occlusion_mode="radial_gradient",
-            occlusion_density_falloff=0.7,
-        )
-        container = _default_container()
-
-        once = optimize(obj, profile, container)
-        twice = optimize(once, profile, container)
-
-        count_once = len(once.point_cloud.points)
-        count_twice = len(twice.point_cloud.points)
-
-        assert abs(count_twice - count_once) / max(count_once, 1) < 0.05, (
-            f"Not idempotent: once={count_once}, twice={count_twice}"
+        _assert_idempotent(
+            EngravingProfile(
+                occlusion_mode="radial_gradient",
+                occlusion_density_falloff=0.7,
+            ),
+            seed=22,
         )
 
     def test_idempotent_none_mode(self) -> None:
         """None mode is trivially idempotent."""
-        cloud = _make_cloud(500)
-        obj = _make_obj(cloud)
-        profile = EngravingProfile(occlusion_mode="none")
-        container = _default_container()
-
-        once = optimize(obj, profile, container)
-        twice = optimize(once, profile, container)
-
-        assert len(once.point_cloud.points) == len(twice.point_cloud.points)
+        _assert_idempotent(
+            EngravingProfile(occlusion_mode="none"),
+            num_points=500,
+        )
 
     def test_idempotent_depth_compensation(self) -> None:
-        """Depth compensation is idempotent via intensity clamping."""
-        cloud = _make_cloud(500)
-        obj = _make_obj(cloud)
-        profile = EngravingProfile(
-            occlusion_mode="none",
-            depth_compensation=True,
-            depth_compensation_factor=1.5,
-        )
-        container = _default_container()
-
-        once = optimize(obj, profile, container)
-        twice = optimize(once, profile, container)
-
-        np.testing.assert_array_equal(
-            once.point_cloud.points,
-            twice.point_cloud.points,
+        """Depth compensation is idempotent for both points and intensities."""
+        _assert_idempotent(
+            EngravingProfile(
+                occlusion_mode="none",
+                depth_compensation=True,
+                depth_compensation_factor=1.5,
+            ),
+            num_points=500,
+            check_intensities=True,
         )
 
 
@@ -310,7 +347,7 @@ class TestEdgeCases:
 
         result = optimize(obj, profile, container)
 
-        assert len(result.point_cloud.points) >= 0  # no crash
+        assert len(result.point_cloud.points) >= 0
 
     def test_preserves_normals(self) -> None:
         """Optimizer preserves normals through filtering."""
@@ -329,3 +366,18 @@ class TestEdgeCases:
 
         assert result.point_cloud.normals is not None
         assert len(result.point_cloud.normals) == len(result.point_cloud.points)
+
+    def test_does_not_mutate_input(self) -> None:
+        """Optimizer does not modify the input MathObject."""
+        cloud = _make_cloud(500)
+        obj = _make_obj(cloud)
+        original_points = cloud.points.copy()
+        profile = EngravingProfile(
+            occlusion_mode="shell_fade",
+            occlusion_density_falloff=0.5,
+        )
+        container = _default_container()
+
+        optimize(obj, profile, container)
+
+        np.testing.assert_array_equal(obj.point_cloud.points, original_points)
