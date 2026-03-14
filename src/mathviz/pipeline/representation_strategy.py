@@ -14,6 +14,7 @@ import trimesh
 from mathviz.core.generator import get_generator_meta
 from mathviz.core.math_object import Curve, MathObject, Mesh, PointCloud
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.pipeline.representation_defaults import GENERATOR_DEFAULTS
 from mathviz.pipeline.representation_handlers import (
     apply_slice_stack,
     apply_volume_fill,
@@ -23,41 +24,36 @@ from mathviz.shared.tube_thickening import thicken_curve
 
 logger = logging.getLogger(__name__)
 
-# Default representation configs by generator name
-_GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
-    "torus": RepresentationConfig(type=RepresentationType.SURFACE_SHELL),
-    "klein_bottle": RepresentationConfig(type=RepresentationType.SURFACE_SHELL),
-    "sphere": RepresentationConfig(type=RepresentationType.SURFACE_SHELL),
-    "lorenz": RepresentationConfig(
-        type=RepresentationType.TUBE, tube_radius=0.05
-    ),
-    "rossler": RepresentationConfig(
-        type=RepresentationType.TUBE, tube_radius=0.05
-    ),
-    "torus_knot": RepresentationConfig(
-        type=RepresentationType.TUBE, tube_radius=0.1
-    ),
-    "lissajous": RepresentationConfig(
-        type=RepresentationType.TUBE, tube_radius=0.05
-    ),
-    "mandelbrot": RepresentationConfig(
-        type=RepresentationType.HEIGHTMAP_RELIEF,
-    ),
-    "mandelbrot_heightmap": RepresentationConfig(
-        type=RepresentationType.HEIGHTMAP_RELIEF,
-    ),
-    "mandelbulb": RepresentationConfig(
-        type=RepresentationType.SPARSE_SHELL,
-    ),
-    "julia3d": RepresentationConfig(
-        type=RepresentationType.SPARSE_SHELL,
-    ),
-    "fractal_slice": RepresentationConfig(
-        type=RepresentationType.HEIGHTMAP_RELIEF,
-    ),
-}
+_FALLBACK_TUBE_RADIUS_FRACTION = 0.01
 
-_FALLBACK_DEFAULT = RepresentationConfig(type=RepresentationType.SURFACE_SHELL)
+
+def _get_fallback(obj: MathObject) -> RepresentationConfig:
+    """Choose a compatible representation based on available geometry."""
+    if obj.mesh is not None:
+        return RepresentationConfig(type=RepresentationType.SURFACE_SHELL)
+    if obj.curves:
+        radius = _estimate_tube_radius(obj.curves)
+        return RepresentationConfig(
+            type=RepresentationType.TUBE, tube_radius=radius
+        )
+    if obj.point_cloud is not None:
+        return RepresentationConfig(type=RepresentationType.SPARSE_SHELL)
+    if obj.scalar_field is not None:
+        return RepresentationConfig(type=RepresentationType.HEIGHTMAP_RELIEF)
+    raise ValueError(
+        "Cannot determine fallback representation: "
+        "MathObject has no mesh, curves, point_cloud, or scalar_field"
+    )
+
+
+def _estimate_tube_radius(curves: list[Curve]) -> float:
+    """Estimate a sensible tube radius as 1% of the bounding-box diagonal."""
+    all_points = np.concatenate([c.points for c in curves], axis=0)
+    bbox_min = all_points.min(axis=0)
+    bbox_max = all_points.max(axis=0)
+    diagonal = float(np.linalg.norm(bbox_max - bbox_min))
+    radius = diagonal * _FALLBACK_TUBE_RADIUS_FRACTION
+    return max(radius, 1e-6)
 
 
 def _resolve_canonical(name: str) -> str:
@@ -68,13 +64,20 @@ def _resolve_canonical(name: str) -> str:
         return name
 
 
-def get_default(generator_name: str) -> RepresentationConfig:
+def get_default(
+    generator_name: str, obj: MathObject | None = None
+) -> RepresentationConfig:
     """Return the recommended representation config for a generator."""
-    config = _GENERATOR_DEFAULTS.get(generator_name)
+    config = GENERATOR_DEFAULTS.get(generator_name)
     if config is not None:
         return config
     canonical = _resolve_canonical(generator_name)
-    return _GENERATOR_DEFAULTS.get(canonical, _FALLBACK_DEFAULT)
+    config = GENERATOR_DEFAULTS.get(canonical)
+    if config is not None:
+        return config
+    if obj is not None:
+        return _get_fallback(obj)
+    return RepresentationConfig(type=RepresentationType.SURFACE_SHELL)
 
 
 def apply(
@@ -280,14 +283,21 @@ _SPARSE_SHELL_SEED = 42
 def _apply_sparse_shell(
     obj: MathObject, config: RepresentationConfig
 ) -> MathObject:
-    """Sample mesh surface at reduced density to create a sparse point cloud.
+    """Sample mesh surface or pass through an existing point cloud.
 
-    Uses surface_density (points per unit area) to determine sample count.
-    Sampling is seeded for deterministic output.
+    For mesh inputs: samples surface at reduced density.
+    For point-cloud-only inputs: passes through the existing cloud.
     """
+    if obj.mesh is None and obj.point_cloud is not None:
+        logger.info(
+            "SPARSE_SHELL: passing through existing point cloud with %d points",
+            len(obj.point_cloud.points),
+        )
+        return replace(obj)
     if obj.mesh is None:
         raise ValueError(
-            "SPARSE_SHELL requires a mesh input, but MathObject has no mesh"
+            "SPARSE_SHELL requires a mesh or point_cloud input, "
+            "but MathObject has neither"
         )
 
     density = config.surface_density or _SPARSE_SHELL_DEFAULT_SURFACE_DENSITY
