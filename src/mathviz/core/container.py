@@ -1,8 +1,8 @@
 """Physical glass block dimensions and placement policy models."""
 
-from typing import Literal, Optional
+from typing import Literal, Optional, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class Container(BaseModel):
@@ -14,6 +14,19 @@ class Container(BaseModel):
     margin_x_mm: float = Field(default=5.0, ge=0, description="X-axis margin in mm")
     margin_y_mm: float = Field(default=5.0, ge=0, description="Y-axis margin in mm")
     margin_z_mm: float = Field(default=5.0, ge=0, description="Z-axis margin in mm")
+
+    @model_validator(mode="after")
+    def _check_margins_within_dimensions(self) -> Self:
+        """Ensure margins don't exceed half the dimension on any axis."""
+        for dim, margin, axis in [
+            (self.width_mm, self.margin_x_mm, "x"),
+            (self.height_mm, self.margin_y_mm, "y"),
+            (self.depth_mm, self.margin_z_mm, "z"),
+        ]:
+            if 2 * margin >= dim:
+                msg = f"margin_{axis}_mm ({margin}) must be less than half of dimension ({dim})"
+                raise ValueError(msg)
+        return self
 
     @property
     def usable_volume(self) -> tuple[float, float, float]:

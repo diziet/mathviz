@@ -88,6 +88,16 @@ class TestContainerValidation:
         with pytest.raises(ValidationError):
             Container(margin_x_mm=-1)
 
+    def test_margin_exceeding_half_dimension_rejected(self) -> None:
+        """Margins >= half the dimension are rejected."""
+        with pytest.raises(ValidationError):
+            Container(width_mm=10, margin_x_mm=20)
+
+    def test_margin_equal_to_half_dimension_rejected(self) -> None:
+        """Margin exactly half the dimension is rejected (zero usable volume)."""
+        with pytest.raises(ValidationError):
+            Container(width_mm=10, margin_x_mm=5)
+
 
 class TestPlacementPolicyDefaults:
     """Test PlacementPolicy default values."""

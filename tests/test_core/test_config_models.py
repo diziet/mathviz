@@ -103,3 +103,13 @@ class TestEngravingProfile:
             EngravingProfile(occlusion_density_falloff=1.5)
         with pytest.raises(ValidationError):
             EngravingProfile(occlusion_density_falloff=-0.1)
+
+    def test_min_spacing_exceeds_max_rejected(self) -> None:
+        """min_point_spacing_mm > max_point_spacing_mm is rejected."""
+        with pytest.raises(ValidationError):
+            EngravingProfile(min_point_spacing_mm=5.0, max_point_spacing_mm=0.1)
+
+    def test_equal_spacing_accepted(self) -> None:
+        """min_point_spacing_mm == max_point_spacing_mm is valid."""
+        ep = EngravingProfile(min_point_spacing_mm=1.0, max_point_spacing_mm=1.0)
+        assert ep.min_point_spacing_mm == ep.max_point_spacing_mm
