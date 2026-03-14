@@ -1133,3 +1133,97 @@ each doc page. Remove or replace any placeholder content.
 - Every generator registered in the registry appears in docs/generators.md
 - Every representation strategy enum value appears in docs/representation.md
 - docs/ index or README links to all doc files that exist in the directory
+
+---
+
+## Task 38: Fix export routing to auto-detect geometry type
+
+**Objective:**
+
+Fix the bug where `mathviz generate <name> --output <file>` always fails with
+`PointCloudExportError` regardless of the actual geometry produced. The root
+cause is that `ExportConfig.export_type` defaults to `"point_cloud"` and is
+never set based on the actual geometry present on the `MathObject`. This
+affects every generator — even `torus --output torus.ply` fails because the
+pipeline produces a mesh (via `SURFACE_SHELL`) but export always routes to
+`export_point_cloud`. The preview server (`mathviz preview`) has a related
+issue: it returns HTTP 500 for generators that produce mesh-only geometry
+(e.g., lorenz with tube thickening) because the client-side viewer doesn't
+gracefully handle a null `cloud_url`.
+
+**Suggested path:**
+
+The fix has two parts:
+
+1. **Export auto-detection in `_run_export`** (`runner.py:155-159`): Instead of
+   relying solely on `config.export_type`, inspect the `MathObject` to decide
+   which exporter to call. If `export_type` is explicitly set by the caller,
+   honour it. Otherwise, auto-detect: if `obj.mesh is not None`, export as
+   mesh; if `obj.point_cloud is not None`, export as point cloud; if both
+   exist, prefer whichever matches the file extension (`.stl`/`.obj` → mesh,
+   `.xyz`/`.pcd` → cloud, `.ply` → whichever is present). The
+   `ExportConfig.export_type` default should change from `"point_cloud"` to
+   `"auto"` (add `"auto"` to `_VALID_EXPORT_TYPES`). The CLI in `cli.py:218`
+   already passes no explicit `export_type`, so it will pick up `"auto"`.
+
+2. **Preview server fix** (`server.py`): Ensure the `/api/generate` response
+   and the JavaScript viewer handle mesh-only and cloud-only geometry
+   correctly. The viewer must not attempt to fetch a geometry URL that is null.
+   If only `mesh_url` is present, render the mesh. If only `cloud_url` is
+   present, render the cloud.
+
+**Tests:** `tests/test_pipeline/test_export_routing.py`
+
+- `mathviz generate torus --output torus.stl` succeeds (mesh via SURFACE_SHELL)
+- `mathviz generate torus --output torus.ply` succeeds (mesh, PLY format)
+- `mathviz generate lorenz --output lorenz.ply` succeeds (mesh via tube thickening)
+- `ExportConfig(export_type="auto")` with mesh-only MathObject routes to mesh exporter
+- `ExportConfig(export_type="auto")` with cloud-only MathObject routes to cloud exporter
+- `ExportConfig(export_type="mesh")` still forces mesh export (explicit override)
+- Preview server returns 200 for lorenz (mesh-only geometry after tube)
+- Preview server returns 200 for generators producing point-cloud-only geometry
+
+---
+
+## Task 39: Fix representation fallback for curve-producing generators
+
+**Objective:**
+
+Fix the bug where `mathviz render kepler_orbit` (and any other generator not
+listed in `_GENERATOR_DEFAULTS`) crashes with `ValueError: SURFACE_SHELL
+requires a mesh input, but MathObject has no mesh`. The root cause is that
+`_FALLBACK_DEFAULT` in `representation_strategy.py` is hardcoded to
+`SURFACE_SHELL`, which requires a mesh, but many generators produce only
+curves (kepler_orbit, cardioid, fibonacci_spiral, logarithmic_spiral,
+parabolic_envelope, etc.) or only point clouds (sacks_spiral, prime_gaps,
+ulam_spiral, etc.). The fallback must inspect the actual geometry and choose a
+compatible representation.
+
+**Suggested path:**
+
+Replace the single `_FALLBACK_DEFAULT` with a `get_fallback` function that
+inspects the `MathObject` and returns an appropriate default:
+
+- If `obj.mesh is not None` → `RepresentationType.SURFACE_SHELL`
+- If `obj.curves` is non-empty → `RepresentationType.TUBE` (with a sensible
+  default `tube_radius` based on bounding box, e.g. 1% of the diagonal)
+- If `obj.point_cloud is not None` → `RepresentationType.SPARSE_SHELL`
+- If none of the above → raise a clear error
+
+Update `get_default()` to call this fallback when the generator has no entry
+in `_GENERATOR_DEFAULTS`. Add entries to `_GENERATOR_DEFAULTS` for all
+currently-registered generators that are missing (kepler_orbit, cardioid,
+fibonacci_spiral, logarithmic_spiral, parabolic_envelope, sacks_spiral,
+prime_gaps, digit_encoding, nbody, planetary_positions, etc.) so they get
+appropriate representation types.
+
+**Tests:** `tests/test_pipeline/test_representation_fallback.py`
+
+- kepler_orbit (curve) gets TUBE representation by default, not SURFACE_SHELL
+- cardioid (curve) gets TUBE representation by default
+- sacks_spiral (point cloud) gets SPARSE_SHELL representation by default
+- torus (mesh) still gets SURFACE_SHELL representation
+- A MathObject with only curves and no `_GENERATOR_DEFAULTS` entry gets TUBE fallback
+- A MathObject with only point_cloud and no entry gets SPARSE_SHELL fallback
+- A MathObject with no geometry raises a clear error from the fallback
+- All generators registered in the registry can run through the representation stage without error
