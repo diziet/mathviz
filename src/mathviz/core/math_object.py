@@ -92,6 +92,13 @@ class BoundingBox:
     min_corner: tuple[float, float, float]
     max_corner: tuple[float, float, float]
 
+    @staticmethod
+    def from_points(points: np.ndarray) -> "BoundingBox":
+        """Compute axis-aligned bounding box from an (N, 3) point array."""
+        min_corner = tuple(float(v) for v in points.min(axis=0))
+        max_corner = tuple(float(v) for v in points.max(axis=0))
+        return BoundingBox(min_corner=min_corner, max_corner=max_corner)
+
     @property
     def size(self) -> tuple[float, float, float]:
         """Return (width, height, depth) of the bounding box."""
