@@ -20,7 +20,11 @@ from mathviz.pipeline.timer import PipelineTimer
 logger = logging.getLogger(__name__)
 
 
-_VALID_EXPORT_TYPES = frozenset({"mesh", "point_cloud"})
+_VALID_EXPORT_TYPES = frozenset({"auto", "mesh", "point_cloud"})
+
+# File extensions that unambiguously map to one exporter.
+_MESH_ONLY_EXTENSIONS = frozenset({".stl", ".obj"})
+_CLOUD_ONLY_EXTENSIONS = frozenset({".xyz", ".pcd"})
 
 
 @dataclass
@@ -29,7 +33,7 @@ class ExportConfig:
 
     path: Path
     fmt: str | None = None
-    export_type: str = "point_cloud"
+    export_type: str = "auto"
 
     def __post_init__(self) -> None:
         """Validate export_type."""
@@ -153,7 +157,31 @@ def _run_validation(
 
 
 def _run_export(obj: MathObject, config: ExportConfig) -> Path:
-    """Run the export stage based on config."""
-    if config.export_type == "mesh":
+    """Run the export stage, auto-detecting geometry type when export_type is 'auto'."""
+    export_type = config.export_type
+    if export_type == "auto":
+        export_type = _detect_export_type(obj, config.path)
+    if export_type == "mesh":
         return export_mesh(obj, config.path, fmt=config.fmt)
     return export_point_cloud(obj, config.path, fmt=config.fmt)
+
+
+def _detect_export_type(obj: MathObject, path: Path) -> str:
+    """Decide whether to export as mesh or point_cloud based on geometry and extension."""
+    has_mesh = obj.mesh is not None
+    has_cloud = obj.point_cloud is not None
+
+    if has_mesh and not has_cloud:
+        return "mesh"
+    if has_cloud and not has_mesh:
+        return "point_cloud"
+
+    # Both present — use file extension to disambiguate.
+    suffix = path.suffix.lower()
+    if suffix in _MESH_ONLY_EXTENSIONS:
+        return "mesh"
+    if suffix in _CLOUD_ONLY_EXTENSIONS:
+        return "point_cloud"
+
+    # Ambiguous extension (e.g. .ply) with both geometries — prefer mesh.
+    return "mesh"
