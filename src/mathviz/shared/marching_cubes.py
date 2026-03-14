@@ -12,7 +12,7 @@ import numpy as np
 import trimesh
 from skimage.measure import marching_cubes
 
-from mathviz.core.math_object import Mesh
+from mathviz.core.math_object import BoundingBox, Mesh
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,14 @@ class SpatialBounds:
     def extent(self) -> np.ndarray:
         """Return the spatial extent as a (3,) array."""
         return np.array(self.max_corner) - np.array(self.min_corner)
+
+
+def bounds_to_bbox(bounds: SpatialBounds) -> BoundingBox:
+    """Convert SpatialBounds to a BoundingBox."""
+    return BoundingBox(
+        min_corner=bounds.min_corner,
+        max_corner=bounds.max_corner,
+    )
 
 
 def extract_mesh(
