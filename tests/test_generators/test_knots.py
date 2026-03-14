@@ -126,7 +126,6 @@ def test_full_pipeline_tube_produces_watertight_mesh() -> None:
     assert len(obj.mesh.faces) > 0
 
     # Watertight check: every edge appears in exactly 2 faces
-    edges = set()
     edge_count: dict[tuple[int, int], int] = {}
     for face in obj.mesh.faces:
         for i in range(3):
@@ -155,6 +154,17 @@ def test_param_override_via_alias() -> None:
     )
     assert result.math_object.parameters["p"] == 3
     assert result.math_object.parameters["q"] == 5
+
+
+def test_alias_provenance_recorded_in_generator_name() -> None:
+    """When resolved via alias, generator_name records the alias used."""
+    result = run(
+        "trefoil",
+        container=Container.with_uniform_margin(),
+        placement=PlacementPolicy(),
+        resolution_kwargs={"curve_points": _TEST_CURVE_POINTS},
+    )
+    assert result.math_object.generator_name == "trefoil"
 
 
 # ---------------------------------------------------------------------------

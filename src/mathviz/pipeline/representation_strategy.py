@@ -10,6 +10,7 @@ from dataclasses import replace
 
 import numpy as np
 
+from mathviz.core.generator import get_generator_meta
 from mathviz.core.math_object import Curve, MathObject, Mesh, PointCloud
 from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.shared.tube_thickening import thicken_curve
@@ -50,9 +51,21 @@ _GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
 _FALLBACK_DEFAULT = RepresentationConfig(type=RepresentationType.SURFACE_SHELL)
 
 
+def _resolve_canonical(name: str) -> str:
+    """Resolve an alias to its canonical generator name for defaults lookup."""
+    try:
+        return get_generator_meta(name).name
+    except KeyError:
+        return name
+
+
 def get_default(generator_name: str) -> RepresentationConfig:
     """Return the recommended representation config for a generator."""
-    return _GENERATOR_DEFAULTS.get(generator_name, _FALLBACK_DEFAULT)
+    config = _GENERATOR_DEFAULTS.get(generator_name)
+    if config is not None:
+        return config
+    canonical = _resolve_canonical(generator_name)
+    return _GENERATOR_DEFAULTS.get(canonical, _FALLBACK_DEFAULT)
 
 
 def apply(

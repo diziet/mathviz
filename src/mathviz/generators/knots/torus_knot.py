@@ -63,6 +63,8 @@ def _validate_params(
         raise ValueError(f"p must be >= 1, got {p}")
     if q < 1:
         raise ValueError(f"q must be >= 1, got {q}")
+    # p == q is intentionally allowed: it produces a valid closed curve
+    # (an unknot wound around the torus), which is still useful for visualization.
     if major_radius <= 0:
         raise ValueError(f"R (major_radius) must be positive, got {major_radius}")
     if minor_radius <= 0:
@@ -98,8 +100,8 @@ class TorusKnotGenerator(GeneratorBase):
             "R": _DEFAULT_MAJOR_RADIUS,
             "r": _DEFAULT_MINOR_RADIUS,
         }
-        if self._resolved_name in _ALIASES:
-            defaults.update(_ALIASES[self._resolved_name])
+        if self.resolved_name in _ALIASES:
+            defaults.update(_ALIASES[self.resolved_name])
         return defaults
 
     def generate(
@@ -146,7 +148,7 @@ class TorusKnotGenerator(GeneratorBase):
 
         return MathObject(
             curves=[curve],
-            generator_name=self.name,
+            generator_name=self.resolved_name or self.name,
             category=self.category,
             parameters=merged,
             seed=seed,
