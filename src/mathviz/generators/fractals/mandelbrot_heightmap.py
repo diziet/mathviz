@@ -35,10 +35,13 @@ def _validate_params(
     zoom: float,
     max_iterations: int,
     pixel_resolution: int,
+    height_scale: float,
 ) -> None:
     """Validate Mandelbrot parameters, raising ValueError for invalid inputs."""
     if zoom <= 0:
         raise ValueError(f"zoom must be positive, got {zoom}")
+    if height_scale <= 0:
+        raise ValueError(f"height_scale must be positive, got {height_scale}")
     if max_iterations < _MIN_MAX_ITERATIONS:
         raise ValueError(
             f"max_iterations must be >= {_MIN_MAX_ITERATIONS}, "
@@ -86,10 +89,12 @@ def _escape_time(
 
     for i in range(max_iterations):
         mask = ~escaped
-        z[mask] = z[mask] * z[mask] + c[mask]
-        newly_escaped = mask & (np.abs(z) > 2.0)
-        iteration_count[newly_escaped] = float(i + 1)
-        escaped |= newly_escaped
+        active_z = z[mask] * z[mask] + c[mask]
+        z[mask] = active_z
+        mag_exceeded = active_z.real ** 2 + active_z.imag ** 2 > 4.0
+        newly_escaped_idx = np.where(mask)[0][mag_exceeded]
+        iteration_count.ravel()[newly_escaped_idx] = float(i + 1)
+        escaped.ravel()[newly_escaped_idx] = True
 
     if is_smooth:
         iteration_count = _apply_smoothing(
@@ -112,7 +117,9 @@ def _apply_smoothing(
     # Continuous (smooth) iteration count: subtract fractional escape
     log2_abs = np.log2(np.maximum(abs_z, 1e-300))
     smooth[esc] = iteration_count[esc] - np.log2(np.maximum(log2_abs, 1e-300))
-    return smooth
+    # Clamp to non-negative: smoothing can undershoot for points escaping
+    # on iteration 1 with large |z| (e.g. at low zoom levels).
+    return np.maximum(smooth, 0.0)
 
 
 @register
@@ -164,7 +171,7 @@ class MandelbrotHeightmapGenerator(GeneratorBase):
             resolution_kwargs.get("pixel_resolution", _DEFAULT_PIXEL_RESOLUTION)
         )
 
-        _validate_params(zoom, max_iterations, pixel_resolution)
+        _validate_params(zoom, max_iterations, pixel_resolution, height_scale)
 
         merged["pixel_resolution"] = pixel_resolution
 
