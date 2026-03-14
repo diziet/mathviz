@@ -99,7 +99,7 @@ def _resolve_generator(generator_name: str, json_output: bool) -> GeneratorBase:
     except KeyError:
         error_exit(f"Unknown generator: {generator_name!r}", json_output)
         raise  # unreachable, for type checker
-    return meta.generator_class()
+    return meta.generator_class.create(resolved_name=generator_name)
 
 
 def _run_pipeline(

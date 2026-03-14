@@ -34,6 +34,21 @@ class GeneratorBase(ABC):
     description: str = ""
     resolution_params: dict[str, str] = {}
 
+    def __init__(self, resolved_name: str = "") -> None:
+        """Initialize generator with the name used to resolve it.
+
+        Args:
+            resolved_name: The name or alias used to look up this generator.
+                Alias-aware generators use this to adjust defaults.
+                Defaults to empty string when constructed directly.
+        """
+        self.resolved_name: str = resolved_name
+
+    @classmethod
+    def create(cls, resolved_name: str = "") -> "GeneratorBase":
+        """Factory method to construct a generator with a resolved name."""
+        return cls(resolved_name=resolved_name)
+
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Ensure each subclass gets its own copy of mutable defaults."""
         super().__init_subclass__(**kwargs)
