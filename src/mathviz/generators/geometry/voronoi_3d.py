@@ -21,7 +21,6 @@ logger = logging.getLogger(__name__)
 _DEFAULT_NUM_POINTS = 20
 _DEFAULT_SCALE = 1.0
 _MIN_NUM_POINTS = 4
-_DEFAULT_CURVE_POINTS = 2
 
 
 def _validate_params(num_points: int, scale: float) -> None:
@@ -43,9 +42,9 @@ def _generate_seed_points(
 
 
 def _extract_finite_ridges(vor: Voronoi) -> list[np.ndarray]:
-    """Extract finite ridge edges from a Voronoi tessellation.
+    """Extract finite ridge polygons from a Voronoi tessellation.
 
-    Returns a list of (2, 3) float64 arrays, one per finite edge.
+    Returns a list of (K, 3) float64 arrays, one per finite ridge polygon.
     """
     edges: list[np.ndarray] = []
     for ridge_vertices in vor.ridge_vertices:
@@ -62,7 +61,7 @@ def _build_curves_from_ridges(ridges: list[np.ndarray]) -> list[Curve]:
     """Convert ridge vertex arrays to Curve objects."""
     curves: list[Curve] = []
     for ridge_pts in ridges:
-        curves.append(Curve(points=ridge_pts.astype(np.float64), closed=False))
+        curves.append(Curve(points=ridge_pts.astype(np.float64), closed=True))
     return curves
 
 

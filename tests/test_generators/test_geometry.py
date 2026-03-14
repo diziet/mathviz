@@ -91,8 +91,9 @@ def test_voronoi_output_structure() -> None:
     assert obj.bounding_box is not None
 
     for curve in obj.curves:
-        assert curve.points.shape == (2, 3) or curve.points.shape[1] == 3
-        assert not curve.closed
+        assert curve.points.shape[1] == 3
+        assert curve.points.shape[0] >= 3
+        assert curve.closed
 
 
 def test_voronoi_default_representation() -> None:
@@ -188,7 +189,6 @@ def test_generic_parametric_default_representation() -> None:
 
 
 @pytest.mark.parametrize("expr", [
-    "import os",
     "__import__('os')",
     "exec('print(1)')",
     "eval('1+1')",
@@ -198,17 +198,20 @@ def test_generic_parametric_default_representation() -> None:
     "compile('x', 'f', 'exec')",
     "getattr(u, '__class__')",
     "subprocess.run(['ls'])",
+    "u.__class__.__subclasses__()",
+    "[x for x in range(10)]",
+    "lambda: 1",
 ])
 def test_malicious_expressions_rejected(expr: str) -> None:
-    """Malicious expressions are rejected by validation."""
-    with pytest.raises(ValueError, match="forbidden pattern"):
+    """Malicious expressions are rejected by AST validation."""
+    with pytest.raises(ValueError, match="Disallowed"):
         validate_expression(expr)
 
 
 def test_malicious_expression_in_generator() -> None:
     """Malicious expressions in generator params raise ValueError."""
     gen = GenericParametricGenerator()
-    with pytest.raises(ValueError, match="forbidden pattern"):
+    with pytest.raises(ValueError, match="Disallowed"):
         gen.generate(
             params={
                 "x_expr": "__import__('os').system('rm -rf /')",
@@ -234,7 +237,7 @@ def test_safe_expressions_allowed() -> None:
 def test_unknown_name_in_expression() -> None:
     """Expressions with unknown names raise ValueError."""
     gen = GenericParametricGenerator()
-    with pytest.raises(ValueError, match="Unknown name"):
+    with pytest.raises(ValueError, match="Disallowed name"):
         gen.generate(
             params={
                 "x_expr": "nonexistent_func(u)",

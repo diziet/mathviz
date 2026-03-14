@@ -1,12 +1,14 @@
 """Generic parametric surface from user-supplied string expressions.
 
 Evaluates f(u, v) -> (x, y, z) from three string expressions using a
-restricted namespace containing only numpy math functions. No exec,
-no imports, no file I/O — safe against code injection.
+restricted namespace containing only numpy math functions. Expressions
+are validated via AST whitelist — only arithmetic, calls to allowed
+functions, and constants are permitted. No attribute access, imports,
+comprehensions, or lambdas.
 """
 
+import ast
 import logging
-import re
 from typing import Any
 
 import numpy as np
@@ -14,10 +16,7 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
-from mathviz.generators.parametric._mesh_utils import (
-    build_open_grid_faces,
-    build_wrapped_grid_faces,
-)
+from mathviz.generators.parametric._mesh_utils import build_mixed_grid_faces
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +25,35 @@ _MIN_GRID_RESOLUTION = 3
 _DEFAULT_U_RANGE = (0.0, 2 * np.pi)
 _DEFAULT_V_RANGE = (0.0, 2 * np.pi)
 
-_FORBIDDEN_PATTERNS = re.compile(
-    r"(__\w+__|import\s|exec\s*\(|eval\s*\(|open\s*\(|compile\s*\("
-    r"|getattr\s*\(|setattr\s*\(|delattr\s*\(|globals\s*\(|locals\s*\("
-    r"|vars\s*\(|dir\s*\(|type\s*\(|__builtins__|breakpoint\s*\("
-    r"|os\.|sys\.|subprocess\.|shutil\.)",
-)
+_ALLOWED_AST_NODES: set[type] = {
+    ast.Expression,
+    ast.BinOp,
+    ast.UnaryOp,
+    ast.Call,
+    ast.Name,
+    ast.Constant,
+    ast.Load,
+    ast.Add,
+    ast.Sub,
+    ast.Mult,
+    ast.Div,
+    ast.FloorDiv,
+    ast.Pow,
+    ast.Mod,
+    ast.USub,
+    ast.UAdd,
+    ast.Compare,
+    ast.Gt,
+    ast.Lt,
+    ast.GtE,
+    ast.LtE,
+    ast.Eq,
+    ast.NotEq,
+    ast.BoolOp,
+    ast.And,
+    ast.Or,
+    ast.IfExp,
+}
 
 _SAFE_NAMESPACE: dict[str, Any] = {
     "sin": np.sin,
@@ -62,13 +84,35 @@ _SAFE_NAMESPACE: dict[str, Any] = {
 }
 
 
-def validate_expression(expr: str) -> None:
-    """Validate a user expression for safety.
+_ALLOWED_NAMES: set[str] = set(_SAFE_NAMESPACE.keys()) | {"u", "v"}
 
-    Raises ValueError if the expression contains forbidden patterns.
+
+def validate_expression(expr: str) -> None:
+    """Validate a user expression for safety using AST whitelist.
+
+    Parses the expression and walks the AST, rejecting any node type
+    not in the allowlist. Also restricts Name references to known safe
+    functions and variables. This blocks attribute access, imports,
+    lambdas, comprehensions, and all other non-arithmetic constructs.
     """
-    if _FORBIDDEN_PATTERNS.search(expr):
-        raise ValueError(f"Expression contains forbidden pattern: {expr!r}")
+    try:
+        tree = ast.parse(expr, mode="eval")
+    except SyntaxError as exc:
+        raise ValueError(
+            f"Syntax error in expression {expr!r}: {exc}"
+        ) from exc
+
+    for node in ast.walk(tree):
+        node_type = type(node)
+        if node_type not in _ALLOWED_AST_NODES:
+            raise ValueError(
+                f"Disallowed syntax in expression {expr!r}: "
+                f"{node_type.__name__}"
+            )
+        if isinstance(node, ast.Name) and node.id not in _ALLOWED_NAMES:
+            raise ValueError(
+                f"Disallowed name in expression {expr!r}: {node.id!r}"
+            )
 
 
 def evaluate_expression(
@@ -112,7 +156,11 @@ def _validate_params(
 
 @register
 class GenericParametricGenerator(GeneratorBase):
-    """Generic parametric surface from user-supplied expressions."""
+    """Generic parametric surface from user-supplied expressions.
+
+    The seed parameter is accepted for interface compatibility but has no
+    effect — the surface is fully determined by expressions and grid settings.
+    """
 
     name = "generic_parametric"
     category = "geometry"
@@ -213,9 +261,6 @@ def _build_parametric_mesh(
     vertices = np.column_stack([x.ravel(), y.ravel(), z.ravel()])
     vertices = vertices.astype(np.float64)
 
-    if wrap_u and wrap_v:
-        faces = build_wrapped_grid_faces(n, n)
-    else:
-        faces = build_open_grid_faces(n, n)
+    faces = build_mixed_grid_faces(n, n, wrap_u=wrap_u, wrap_v=wrap_v)
 
     return Mesh(vertices=vertices, faces=faces)
