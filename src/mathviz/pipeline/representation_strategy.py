@@ -36,7 +36,7 @@ _GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     "rossler": RepresentationConfig(
         type=RepresentationType.TUBE, tube_radius=0.05
     ),
-    "trefoil_knot": RepresentationConfig(
+    "torus_knot": RepresentationConfig(
         type=RepresentationType.TUBE, tube_radius=0.1
     ),
     "lissajous": RepresentationConfig(

@@ -34,6 +34,10 @@ class GeneratorBase(ABC):
     description: str = ""
     resolution_params: dict[str, str] = {}
 
+    def __init__(self) -> None:
+        """Initialize with empty resolved name (set by pipeline/CLI resolvers)."""
+        self._resolved_name: str = ""
+
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Ensure each subclass gets its own copy of mutable defaults."""
         super().__init_subclass__(**kwargs)

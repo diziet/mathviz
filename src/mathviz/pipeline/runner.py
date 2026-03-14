@@ -123,7 +123,9 @@ def _resolve_generator(generator: str | GeneratorBase) -> GeneratorBase:
     if isinstance(generator, GeneratorBase):
         return generator
     gen_class = get_generator(generator)
-    return gen_class()
+    instance = gen_class()
+    instance._resolved_name = generator
+    return instance
 
 
 def _run_validation(
