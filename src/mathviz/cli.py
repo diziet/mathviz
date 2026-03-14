@@ -17,6 +17,7 @@ from mathviz.cli_output import (
     serialize_checks,
     write_report,
 )
+from mathviz.cli_grid import grid_app
 from mathviz.cli_preview import register_preview_command
 from mathviz.core.config import (
     deep_merge,
@@ -387,6 +388,7 @@ def validate(
 
 
 register_preview_command(app, _parse_params, _configure_logging, console)
+app.add_typer(grid_app)
 
 
 def main() -> None:
