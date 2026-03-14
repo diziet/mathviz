@@ -1,14 +1,9 @@
 """Tests for the Three.js viewer and preview CLI command."""
 
-import signal
-import tempfile
-import time
-from multiprocessing import Process
 from pathlib import Path
 from typing import Generator
 from unittest.mock import patch
 
-import numpy as np
 import pytest
 import trimesh
 from fastapi.testclient import TestClient
@@ -181,22 +176,20 @@ class TestPreviewCLI:
 
     def test_preview_generator_no_open(self, runner: CliRunner) -> None:
         """mathviz preview torus --no-open starts server."""
-        with patch("mathviz.cli.uvicorn") as mock_uvicorn:
-            mock_uvicorn.run = lambda *a, **kw: None
+        with patch("uvicorn.run") as mock_run:
             result = runner.invoke(cli_app, ["preview", "torus", "--no-open"])
             assert result.exit_code == 0
+            mock_run.assert_called_once()
 
     def test_preview_file_no_open(self, runner: CliRunner, stl_file: Path) -> None:
         """mathviz preview <stl_file> --no-open serves the file."""
-        with patch("mathviz.cli.uvicorn") as mock_uvicorn:
-            mock_uvicorn.run = lambda *a, **kw: None
+        with patch("uvicorn.run"):
             result = runner.invoke(cli_app, ["preview", str(stl_file), "--no-open"])
             assert result.exit_code == 0
 
     def test_preview_with_params(self, runner: CliRunner) -> None:
         """mathviz preview torus --param major_radius=2.0 passes params."""
-        with patch("mathviz.cli.uvicorn") as mock_uvicorn:
-            mock_uvicorn.run = lambda *a, **kw: None
+        with patch("uvicorn.run"):
             result = runner.invoke(
                 cli_app,
                 ["preview", "torus", "--param", "major_radius=2.0", "--no-open"],
@@ -205,25 +198,19 @@ class TestPreviewCLI:
 
     def test_preview_prints_url(self, runner: CliRunner) -> None:
         """Preview command prints the URL to the console."""
-        with patch("mathviz.cli.uvicorn") as mock_uvicorn:
-            mock_uvicorn.run = lambda *a, **kw: None
+        with patch("uvicorn.run"):
             result = runner.invoke(cli_app, ["preview", "torus", "--no-open"])
             assert "http://127.0.0.1:8000/" in result.output
 
     def test_preview_custom_port(self, runner: CliRunner) -> None:
         """mathviz preview --port 9000 uses the custom port."""
-        with patch("mathviz.cli.uvicorn") as mock_uvicorn:
-            captured_kwargs: dict = {}
-
-            def capture_run(*args: object, **kwargs: object) -> None:
-                captured_kwargs.update(kwargs)
-
-            mock_uvicorn.run = capture_run
+        with patch("uvicorn.run") as mock_run:
             result = runner.invoke(
                 cli_app, ["preview", "torus", "--no-open", "--port", "9000"]
             )
             assert result.exit_code == 0
-            assert captured_kwargs.get("port") == 9000
+            _, kwargs = mock_run.call_args
+            assert kwargs["port"] == 9000
 
 
 # --- Server shutdown ---
@@ -234,12 +221,7 @@ class TestServerShutdown:
 
     def test_uvicorn_run_is_called_with_correct_app(self, runner: CliRunner) -> None:
         """Preview command calls uvicorn.run with the correct app string."""
-        with patch("mathviz.cli.uvicorn") as mock_uvicorn:
-            captured_args: list = []
-
-            def capture_run(*args: object, **kwargs: object) -> None:
-                captured_args.extend(args)
-
-            mock_uvicorn.run = capture_run
+        with patch("uvicorn.run") as mock_run:
             runner.invoke(cli_app, ["preview", "torus", "--no-open"])
-            assert "mathviz.preview.server:app" in captured_args
+            args, _ = mock_run.call_args
+            assert args[0] == "mathviz.preview.server:app"

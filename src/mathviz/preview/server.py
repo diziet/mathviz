@@ -8,7 +8,6 @@ from typing import Any
 import trimesh
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse, Response
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from mathviz.core.container import Container, PlacementPolicy
