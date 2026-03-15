@@ -8,19 +8,19 @@ unique form rendered as a monochrome point cloud of micro-fractures.
 
 <table>
   <tr>
-    <td><img src="screenshots/webp/1.webp" width="250"></td>
-    <td><img src="screenshots/webp/2.webp" width="250"></td>
-    <td><img src="screenshots/webp/3.webp" width="250"></td>
+    <td><a href="screenshots/1.png"><img src="screenshots/webp/1.webp" width="250"></a></td>
+    <td><a href="screenshots/2.png"><img src="screenshots/webp/2.webp" width="250"></a></td>
+    <td><a href="screenshots/3.png"><img src="screenshots/webp/3.webp" width="250"></a></td>
   </tr>
   <tr>
-    <td><img src="screenshots/webp/4.webp" width="250"></td>
-    <td><img src="screenshots/webp/5.webp" width="250"></td>
-    <td><img src="screenshots/webp/6.webp" width="250"></td>
+    <td><a href="screenshots/4.png"><img src="screenshots/webp/4.webp" width="250"></a></td>
+    <td><a href="screenshots/5.png"><img src="screenshots/webp/5.webp" width="250"></a></td>
+    <td><a href="screenshots/6.png"><img src="screenshots/webp/6.webp" width="250"></a></td>
   </tr>
   <tr>
-    <td><img src="screenshots/webp/7.webp" width="250"></td>
-    <td><img src="screenshots/webp/8.webp" width="250"></td>
-    <td><img src="screenshots/webp/9.webp" width="250"></td>
+    <td><a href="screenshots/7.png"><img src="screenshots/webp/7.webp" width="250"></a></td>
+    <td><a href="screenshots/8.png"><img src="screenshots/webp/8.webp" width="250"></a></td>
+    <td><a href="screenshots/9.png"><img src="screenshots/webp/9.webp" width="250"></a></td>
   </tr>
 </table>
 
