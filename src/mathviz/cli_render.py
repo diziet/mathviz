@@ -9,6 +9,7 @@ from rich.console import Console
 
 from mathviz.preview.renderer import (
     PYVISTA_INSTALL_MSG,
+    VALID_RENDER_STYLES,
     ProjectionView,
     RenderConfig,
     render_2d_projection,
@@ -36,11 +37,18 @@ def register_render_commands(
         seed: Optional[int] = typer.Option(None, "--seed", help="Random seed"),
         width: int = typer.Option(1920, "--width", help="Image width in pixels"),
         height: int = typer.Option(1080, "--height", help="Image height in pixels"),
+        style: str = typer.Option("points", "--style", help="Render style: shaded/wireframe/points"),
+        point_size: float = typer.Option(3.0, "--point-size", help="Point size for points style"),
         verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
         quiet: bool = typer.Option(False, "--quiet", help="Suppress non-error output"),
     ) -> None:
         """Render a generator to a high-resolution PNG image."""
         configure_logging_fn(verbose, quiet)
+        if style not in VALID_RENDER_STYLES:
+            output_console.print(
+                f"[red]Invalid style: {style!r}. Must be one of {VALID_RENDER_STYLES}[/red]"
+            )
+            raise typer.Exit(code=2)
         _run_render(
             generator_name=generator_name,
             output=output,
@@ -48,6 +56,8 @@ def register_render_commands(
             seed=seed,
             width=width,
             height=height,
+            style=style,
+            point_size=point_size,
             view=None,
             parse_params_fn=parse_params_fn,
             run_pipeline_fn=run_pipeline_fn,
@@ -64,6 +74,8 @@ def register_render_commands(
         seed: Optional[int] = typer.Option(None, "--seed", help="Random seed"),
         width: int = typer.Option(1920, "--width", help="Image width in pixels"),
         height: int = typer.Option(1080, "--height", help="Image height in pixels"),
+        style: str = typer.Option("points", "--style", help="Render style: shaded/wireframe/points"),
+        point_size: float = typer.Option(3.0, "--point-size", help="Point size for points style"),
         verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
         quiet: bool = typer.Option(False, "--quiet", help="Suppress non-error output"),
     ) -> None:
@@ -73,6 +85,11 @@ def register_render_commands(
         if view not in valid_views:
             output_console.print(f"[red]Invalid view: {view!r}. Must be one of {valid_views}[/red]")
             raise typer.Exit(code=2)
+        if style not in VALID_RENDER_STYLES:
+            output_console.print(
+                f"[red]Invalid style: {style!r}. Must be one of {VALID_RENDER_STYLES}[/red]"
+            )
+            raise typer.Exit(code=2)
 
         _run_render(
             generator_name=generator_name,
@@ -81,6 +98,8 @@ def register_render_commands(
             seed=seed,
             width=width,
             height=height,
+            style=style,
+            point_size=point_size,
             view=view,
             parse_params_fn=parse_params_fn,
             run_pipeline_fn=run_pipeline_fn,
@@ -96,6 +115,8 @@ def _run_render(
     seed: int | None,
     width: int,
     height: int,
+    style: str,
+    point_size: float,
     view: ProjectionView | None,
     parse_params_fn: Any,
     run_pipeline_fn: Any,
@@ -111,7 +132,7 @@ def _run_render(
         json_output=False,
     )
 
-    config = RenderConfig(width=width, height=height)
+    config = RenderConfig(width=width, height=height, style=style, point_size=point_size)
     obj = result.math_object
 
     try:

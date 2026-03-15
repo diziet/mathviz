@@ -21,6 +21,8 @@ PYVISTA_INSTALL_MSG = (
 )
 
 ProjectionView = Literal["top", "front", "side", "angle"]
+RenderStyle = Literal["shaded", "wireframe", "points"]
+VALID_RENDER_STYLES = ("shaded", "wireframe", "points")
 
 # Camera positions for 2D projections: (position, viewup)
 _PROJECTION_CAMERAS: dict[ProjectionView, tuple[tuple[float, ...], tuple[float, ...]]] = {
@@ -41,13 +43,21 @@ class RenderConfig:
     object_color: str = "white"
     opacity: float = 0.85
     lighting: str = "backlit"
+    style: RenderStyle = "points"
+    point_size: float = 3.0
 
     def __post_init__(self) -> None:
-        """Validate dimensions are positive."""
+        """Validate config fields."""
         if self.width <= 0:
             raise ValueError(f"width must be positive, got {self.width}")
         if self.height <= 0:
             raise ValueError(f"height must be positive, got {self.height}")
+        if self.style not in VALID_RENDER_STYLES:
+            raise ValueError(
+                f"Invalid style {self.style!r}. Must be one of {VALID_RENDER_STYLES}"
+            )
+        if self.point_size <= 0:
+            raise ValueError(f"point_size must be positive, got {self.point_size}")
 
 
 def require_pyvista() -> None:
@@ -89,12 +99,20 @@ def _setup_backlit_scene(plotter: "object", pv_mesh: "object", config: RenderCon
 
     plotter.set_background(config.background_color)
 
-    plotter.add_mesh(
-        pv_mesh,
-        color=config.object_color,
-        opacity=config.opacity,
-        smooth_shading=True,
-    )
+    mesh_kwargs: dict[str, object] = {
+        "color": config.object_color,
+        "opacity": config.opacity,
+    }
+    if config.style == "shaded":
+        mesh_kwargs["smooth_shading"] = True
+    elif config.style == "wireframe":
+        mesh_kwargs["style"] = "wireframe"
+    elif config.style == "points":
+        mesh_kwargs["style"] = "points"
+        mesh_kwargs["point_size"] = config.point_size
+        mesh_kwargs["render_points_as_spheres"] = True
+
+    plotter.add_mesh(pv_mesh, **mesh_kwargs)
 
     # Backlit glass simulation: strong light from behind, softer fill from front
     plotter.remove_all_lights()
