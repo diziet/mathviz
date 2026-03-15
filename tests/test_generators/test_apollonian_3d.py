@@ -80,14 +80,14 @@ def test_spheres_non_overlapping(
 ) -> None:
     """All sphere pairs have centers separated by at least sum of radii."""
     obj = gasket.generate(params={"max_depth": _TEST_MAX_DEPTH})
-    centers = obj.parameters["_sphere_centers"]
+    centers = np.array(obj.parameters["_sphere_centers"])
     radii = obj.parameters["_sphere_radii"]
     n = len(radii)
 
     tolerance = 1e-6
     for i in range(n):
         for j in range(i + 1, n):
-            dist = np.linalg.norm(centers[i] - centers[j])
+            dist = float(np.linalg.norm(centers[i] - centers[j]))
             min_dist = radii[i] + radii[j]
             assert dist >= min_dist - tolerance, (
                 f"Spheres {i} and {j} overlap: distance={dist:.8f}, "
@@ -238,6 +238,26 @@ def test_tiny_min_radius_raises(
     """min_radius below floor raises ValueError."""
     with pytest.raises(ValueError, match="min_radius must be >="):
         gasket.generate(params={"min_radius": 1e-12})
+
+
+def test_excessive_icosphere_subdivisions_raises(
+    gasket: Apollonian3DGenerator,
+) -> None:
+    """icosphere_subdivisions above limit raises ValueError."""
+    with pytest.raises(ValueError, match="icosphere_subdivisions must be <="):
+        gasket.generate(
+            params={"max_depth": 0}, icosphere_subdivisions=10,
+        )
+
+
+def test_negative_icosphere_subdivisions_raises(
+    gasket: Apollonian3DGenerator,
+) -> None:
+    """Negative icosphere_subdivisions raises ValueError."""
+    with pytest.raises(ValueError, match="icosphere_subdivisions must be >= 0"):
+        gasket.generate(
+            params={"max_depth": 0}, icosphere_subdivisions=-1,
+        )
 
 
 # ---------------------------------------------------------------------------

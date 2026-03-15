@@ -27,7 +27,9 @@ DEFAULT_MAX_DEPTH = 5
 DEFAULT_MIN_RADIUS = 0.01
 DEFAULT_ICOSPHERE_SUBDIVISIONS = 1
 _MAX_DEPTH_LIMIT = 8
+_MAX_ICOSPHERE_SUBDIVISIONS = 4
 _MIN_RADIUS_FLOOR = 1e-8
+_DEDUP_ROUND_DIGITS = 8
 
 # --- Soddy configuration constants ------------------------------------------
 
@@ -130,9 +132,10 @@ def _initial_config(rotation: np.ndarray) -> list[_Sphere]:
 def _descartes_curvature(group: list[_Sphere], old: _Sphere) -> float:
     """Compute new sphere curvature via 3D Descartes theorem.
 
-    In 3D, given 5 mutually tangent spheres satisfying
-    (sum k_i)^2 = 3 * sum(k_i^2), the two solutions for the 5th
-    curvature satisfy k + k' = sum(k_other_4). So k_new = S4 - k_old.
+    In 3D, 5 mutually tangent spheres satisfy (sum k_i)^2 = 3*sum(k_i^2).
+    Given 4 of the 5 (``group``) and the known 5th (``old``), the
+    quadratic for the unknown 5th yields k + k' = sum(group curvatures).
+    Since ``old`` is one root, k_new = S4 - k_old.
     """
     return sum(s[0] for s in group) - old[0]
 
@@ -160,16 +163,32 @@ def _solve_center(group: list[_Sphere], k_new: float) -> np.ndarray:
     return np.linalg.solve(a_mat, b_vec)
 
 
-def _descartes_new(group: list[_Sphere], old: _Sphere) -> _Sphere:
-    """Compute the new sphere tangent to 4 given spheres via 3D Descartes."""
+def _descartes_new(
+    group: list[_Sphere], old: _Sphere,
+) -> _Sphere | None:
+    """Compute the new sphere tangent to 4 given spheres via 3D Descartes.
+
+    Returns None if the configuration is degenerate (near-zero curvature
+    or singular tangency system).
+    """
     k_new = _descartes_curvature(group, old)
     if abs(k_new) < 1e-12:
-        return (0.0, np.zeros(3, dtype=np.float64))
+        return None
     try:
         c_new = _solve_center(group, k_new)
     except np.linalg.LinAlgError:
-        return (0.0, np.zeros(3, dtype=np.float64))
+        return None
     return (k_new, c_new)
+
+
+def _sphere_key(k: float, center: np.ndarray) -> tuple[float, ...]:
+    """Return a rounded hashable key for deduplication."""
+    return (
+        round(k, _DEDUP_ROUND_DIGITS),
+        round(float(center[0]), _DEDUP_ROUND_DIGITS),
+        round(float(center[1]), _DEDUP_ROUND_DIGITS),
+        round(float(center[2]), _DEDUP_ROUND_DIGITS),
+    )
 
 
 def _fill_gasket(
@@ -179,6 +198,7 @@ def _fill_gasket(
 ) -> list[_Sphere]:
     """Recursively fill Apollonian gasket gaps via iterative DFS."""
     result: list[_Sphere] = []
+    seen: set[tuple[float, ...]] = set()
     # Stack items: (group_of_4, old_sphere, depth)
     stack: list[tuple[list[_Sphere], _Sphere, int]] = []
 
@@ -192,14 +212,21 @@ def _fill_gasket(
             continue
 
         new = _descartes_new(group, old)
-        k_new = new[0]
+        if new is None:
+            continue
 
+        k_new, c_new = new
         if k_new <= 0:
             continue
 
         r_new = 1.0 / k_new
         if r_new < min_radius:
             continue
+
+        key = _sphere_key(k_new, c_new)
+        if key in seen:
+            continue
+        seen.add(key)
 
         result.append(new)
 
@@ -239,7 +266,9 @@ def _spheres_to_mesh(
 # --- Validation --------------------------------------------------------------
 
 
-def _validate_params(max_depth: int, min_radius: float) -> None:
+def _validate_params(
+    max_depth: int, min_radius: float, icosphere_subdivisions: int,
+) -> None:
     """Validate Apollonian gasket parameters."""
     if max_depth < 0:
         raise ValueError(f"max_depth must be >= 0, got {max_depth}")
@@ -255,6 +284,15 @@ def _validate_params(max_depth: int, min_radius: float) -> None:
         raise ValueError(
             f"min_radius must be < {_R_INNER:.6f} (inner sphere radius), "
             f"got {min_radius}"
+        )
+    if icosphere_subdivisions < 0:
+        raise ValueError(
+            f"icosphere_subdivisions must be >= 0, got {icosphere_subdivisions}"
+        )
+    if icosphere_subdivisions > _MAX_ICOSPHERE_SUBDIVISIONS:
+        raise ValueError(
+            f"icosphere_subdivisions must be <= {_MAX_ICOSPHERE_SUBDIVISIONS}, "
+            f"got {icosphere_subdivisions}"
         )
 
 
@@ -309,7 +347,7 @@ class Apollonian3DGenerator(GeneratorBase):
             )
         )
 
-        _validate_params(max_depth, min_radius)
+        _validate_params(max_depth, min_radius, icosphere_subdivisions)
         merged["icosphere_subdivisions"] = icosphere_subdivisions
 
         rng = np.random.default_rng(seed)
@@ -322,8 +360,8 @@ class Apollonian3DGenerator(GeneratorBase):
 
         mesh = _spheres_to_mesh(all_spheres, icosphere_subdivisions)
 
-        centers = np.array([s[1] for s in all_spheres], dtype=np.float64)
-        radii = np.array([1.0 / s[0] for s in all_spheres], dtype=np.float64)
+        centers = [s[1].tolist() for s in all_spheres]
+        radii = [1.0 / s[0] for s in all_spheres]
         merged["_sphere_centers"] = centers
         merged["_sphere_radii"] = radii
 
