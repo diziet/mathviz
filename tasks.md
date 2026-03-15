@@ -4978,3 +4978,214 @@ via keyboard. Depends on Task 118.
 - Backspace goes back from category detail to category grid
 - Keyboard navigation does not trigger while search input is focused
 - Focus indicator is visible on the currently highlighted card
+
+---
+
+## Task 120: Point cloud density slider — real-time thinning without regeneration
+
+**Objective:**
+
+Add a density slider to the preview UI that controls how many points are
+displayed in point cloud mode. This is a client-side display filter — it
+thins or thickens the visible points without re-running the generation
+pipeline. Useful for performance tuning and visual clarity on dense clouds.
+
+**Suggested path:**
+
+1. Add a range slider labeled "Density" (0.01 to 1.0, default 1.0, step
+   0.01) in the Options panel, visible only when view mode is "points".
+
+2. When the slider value changes, update the point cloud geometry in
+   real-time by randomly sampling a fraction of the full point set. Store
+   the full point array in `state` and create a display subset based on
+   the density value.
+
+3. Use a deterministic sampling approach (e.g. every Nth point, or a
+   seeded random subset) so the same density value always shows the same
+   points. This avoids visual flickering when dragging the slider.
+
+4. Update the info panel to show "Points: 5,000 / 50,000 (10%)" so the
+   user knows how many points are displayed vs total.
+
+5. The slider should update in real-time as you drag — no need to click
+   Apply. Use a `requestAnimationFrame` debounce to keep it smooth.
+
+6. Density value persists across regeneration (if you set density to 0.5
+   and regenerate, the new cloud is also shown at 50%).
+
+**Files:**
+
+- `src/mathviz/static/index.html`
+
+**Tests:** `tests/test_preview/test_density_slider.py`
+
+- Preview HTML contains a density slider input
+- Slider defaults to 1.0 (full density)
+- Setting density to 0.5 shows approximately half the points
+- Setting density to 0.01 shows approximately 1% of points
+- Density persists across regeneration
+- Slider is hidden when view mode is not "points"
+- Info panel shows filtered vs total point count
+
+---
+
+## Task 121: Turntable animation with GIF/MP4 export
+
+**Objective:**
+
+Add an auto-rotate (turntable) mode and the ability to export the
+animation as a GIF or MP4 for sharing.
+
+**Suggested path:**
+
+1. **Turntable toggle**: Add a "Turntable" button or checkbox in the
+   Options panel. When enabled, the scene auto-rotates around the Y axis
+   at a configurable speed (default ~10 degrees/second). Uses
+   `OrbitControls.autoRotate` and `autoRotateSpeed`.
+
+2. **Speed control**: A small slider or number input next to the toggle
+   to control rotation speed (0.5x to 5x).
+
+3. **Export button**: When turntable is active, show an "Export" button
+   with options for GIF and MP4. Clicking it captures one full 360-degree
+   rotation.
+
+4. **Capture mechanism**: Use `renderer.domElement.toDataURL()` to capture
+   frames at a fixed interval (e.g. 30fps, 360 frames for 12 seconds at
+   30fps). For GIF, use a client-side library like `gif.js` or similar.
+   For MP4, use `MediaRecorder` API with `canvas.captureStream()`.
+
+5. **Progress indicator**: Show a progress bar during export ("Capturing
+   frame 120/360...") since GIF encoding can be slow.
+
+6. **Output**: Download the file automatically when export completes.
+   Filename: `<generator_name>_turntable.<ext>`.
+
+7. **Resolution**: Export at the current canvas resolution. Optionally
+   allow a resolution multiplier (1x, 2x) for higher quality exports.
+
+**Files:**
+
+- `src/mathviz/static/index.html`
+
+**Tests:** `tests/test_preview/test_turntable.py`
+
+- Turntable toggle exists and defaults to off
+- Enabling turntable sets `controls.autoRotate` to true
+- Speed slider adjusts `controls.autoRotateSpeed`
+- Export button is visible only when turntable is active
+- Disabling turntable stops rotation
+- Turntable works with all view modes (points, shaded, wireframe)
+
+---
+
+## Task 122: Color mapping view mode — vertex coloring by curvature, height, or distance
+
+**Objective:**
+
+Add a fifth view mode ("Color Map") that colors vertices using a gradient
+based on a selectable metric — curvature, height (Z), distance from
+center, or a custom gradient. This transforms monochrome geometry into
+visually striking heatmap-style renders. A Schwarz surface colored by
+curvature or a Lorenz attractor colored by velocity would look stunning.
+
+**Suggested path:**
+
+1. **New view mode**: Add "Color Map" to the view mode dropdown alongside
+   points, shaded, wireframe, and (future) crystal.
+
+2. **Metric selector**: When Color Map mode is active, show a dropdown
+   to select the coloring metric:
+   - **Height (Z)**: Color by Z coordinate (low=cool, high=warm)
+   - **Distance from center**: Color by distance from origin
+   - **Curvature** (mesh only): Estimate mean curvature per vertex
+   - **Velocity/speed** (attractors): Color by distance between
+     consecutive points
+   - **Custom gradient**: Let user pick two endpoint colors
+
+3. **Gradient presets**: Provide several built-in color gradients:
+   - Viridis (blue-green-yellow)
+   - Inferno (black-red-yellow-white)
+   - Coolwarm (blue-white-red)
+   - Rainbow
+   - User-defined (two color pickers for start/end)
+
+4. **Implementation**: Compute a scalar value per vertex based on the
+   selected metric. Normalize to [0, 1] range. Map through the gradient
+   to produce per-vertex RGB colors. Apply via `vertexColors` on
+   `BufferGeometry` with a `Float32Array` color attribute. Use
+   `MeshStandardMaterial({vertexColors: true})` for meshes or
+   `PointsMaterial({vertexColors: true})` for point clouds.
+
+5. **Real-time updates**: Changing the metric or gradient should update
+   colors immediately without regenerating geometry — it's a client-side
+   recoloring of existing vertex data.
+
+6. **Works with all geometry types**: Point clouds, meshes, and curves
+   should all support color mapping. For curves rendered as points, color
+   by arc length or the selected metric.
+
+**Files:**
+
+- `src/mathviz/static/index.html`
+
+**Tests:** `tests/test_preview/test_color_map.py`
+
+- "Color Map" appears as a view mode option
+- Selecting Color Map mode shows the metric and gradient selectors
+- Height metric colors vertices by Z coordinate
+- Distance metric colors vertices by distance from origin
+- Changing metric updates colors without regenerating geometry
+- Gradient presets produce visually distinct color mappings
+- Color mapping works with both point clouds and meshes
+- Switching away from Color Map mode restores original material
+
+---
+
+## Task 123: Comprehensive generator documentation with examples and thumbnails
+
+**Objective:**
+
+Create thorough documentation for every generator in the project. Each
+generator should have a dedicated section covering what it is, what it
+looks like, its parameters and their effects, and example configurations
+that produce interesting results.
+
+**Suggested path:**
+
+1. **`docs/generators.md`**: One section per generator, organized by
+   category. Each section includes:
+   - Generator name, category, and one-line description
+   - Brief mathematical/conceptual explanation (2–3 sentences)
+   - Thumbnail image of the default output
+   - Full parameter table: name, type, default, range, description
+   - 2–3 example parameter sets with descriptions of what they produce
+     (e.g. "Set `p=11, q=1` for a wide pretzel shape")
+   - Notes on performance (e.g. "O(N³) in voxel_resolution")
+   - Seed behavior (deterministic vs seed-dependent)
+
+2. **Auto-generation**: Write a script `scripts/generate_generator_docs.py`
+   that introspects the registry, reads defaults, param ranges, and
+   descriptions, and produces the markdown. Manual descriptions and
+   examples can be added via a `docs/generator_notes.yaml` file that the
+   script merges in.
+
+3. **Thumbnails in docs**: Reference the thumbnail images generated by
+   Task 117's endpoint or pre-render them with a script. Store in
+   `docs/images/generators/`.
+
+4. **Index by category**: Include a table of contents at the top grouped
+   by category with links to each generator section.
+
+**Files:**
+
+- `docs/generators.md`
+- `scripts/generate_generator_docs.py`
+- `docs/images/generators/` (thumbnail images)
+
+**Tests:**
+
+- Script runs without errors and produces `docs/generators.md`
+- Every registered generator has a section in the output
+- Parameter tables match actual defaults from the registry
+- Thumbnail images exist for all generators
