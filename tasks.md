@@ -5189,3 +5189,56 @@ that produce interesting results.
 - Every registered generator has a section in the output
 - Parameter tables match actual defaults from the registry
 - Thumbnail images exist for all generators
+
+---
+
+## Task 124: Document all preview UI features and controls
+
+**Objective:**
+
+Create comprehensive user-facing documentation covering every feature and
+control in the preview UI. This should serve as both a reference manual
+and a quick-start guide for new users.
+
+**Suggested path:**
+
+1. **`docs/preview-ui.md`**: Document every UI feature, organized by
+   panel/area:
+   - **Generator browser**: Cmd+K, category grid, search, keyboard
+     shortcuts, thumbnail previews
+   - **Parameters panel**: Editing params, auto-apply toggle, randomize
+     button (dice), editable min/max ranges, Enter to apply
+   - **Resolution controls**: Resolution inputs, performance warnings
+   - **Container panel**: Dimensions, margins, uniform toggle,
+     collapsible behavior
+   - **View modes**: Points, shaded, wireframe, color map, crystal
+     (once implemented). What each looks like and when to use it
+   - **Camera controls**: Orbit/pan/zoom, lock camera modes (render lock
+     vs full lock), reset view
+   - **Display options**: Bounding box toggle, axes toggle (colored XYZ),
+     light/dark background, per-axis stretch controls
+   - **Point cloud density slider**: Real-time thinning
+   - **Turntable and export**: Auto-rotate, GIF/MP4 capture
+   - **Compare mode**: 2×2 and 3×3 grid, per-panel generators
+   - **Save/Load snapshots**: What gets saved (full UI state), gallery
+     browsing, parameter display in gallery
+   - **Disk cache**: Cache indicator, force regenerate button
+   - **Keyboard shortcuts**: Complete reference table of all shortcuts
+
+2. **Screenshots**: Include annotated screenshots of each panel/feature.
+   Store in `docs/images/ui/`.
+
+3. **Update README**: Add a "Preview UI" section to README.md with a
+   brief overview and link to the full docs.
+
+**Files:**
+
+- `docs/preview-ui.md`
+- `docs/images/ui/` (screenshots)
+- `README.md` (add link to preview UI docs)
+
+**Tests:**
+
+- `docs/preview-ui.md` exists and covers all documented features
+- Every keyboard shortcut in the code has a corresponding docs entry
+- README links to the preview UI documentation
