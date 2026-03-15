@@ -4544,7 +4544,7 @@ This is a follow-up to Task 75 (which covers Tasks 70–74 generators).
 
 ---
 
-## Task 116: Realistic K9 glass crystal preview mode
+## Task 115: Realistic K9 glass crystal preview mode
 
 **Objective:**
 
@@ -4620,7 +4620,7 @@ they glow and scatter light.
 
 ---
 
-## Task 115: Disk-based generation cache with UI indicator and invalidation
+## Task 116: Disk-based generation cache with UI indicator and invalidation
 
 **Objective:**
 
