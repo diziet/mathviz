@@ -419,7 +419,7 @@ const state = {
   crystalComposer: null,
   crystalLedLight: null,
   crystalActive: false,
-  crystalSavedBg: null,
+  crystalEnvRT: null,
 };
 
 const DARK_COLOR = 0x1a1a2e;
@@ -870,6 +870,7 @@ function createGlassBlock() {
   pmrem.compileCubemapShader();
   const envRT = pmrem.fromScene(pmremScene, 0.04);
   pmrem.dispose();
+  state.crystalEnvRT = envRT;
 
   const mat = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(document.getElementById('crystal-glass-tint').value),
@@ -935,8 +936,13 @@ function setupCrystalComposer() {
 }
 
 function enterCrystalMode() {
+  /* Exit compare mode if active — the two modes conflict */
+  if (state.compareMode) {
+    document.getElementById('compare-mode').value = '';
+    exitCompareMode();
+  }
+
   state.crystalActive = true;
-  state.crystalSavedBg = scene.background.clone();
 
   /* Force dark background */
   scene.background = new THREE.Color(0x000000);
@@ -955,6 +961,9 @@ function enterCrystalMode() {
       child.visible = true;
     }
   });
+  /* Dispose the template material and its texture after cloning */
+  if (crystalMat.map) crystalMat.map.dispose();
+  crystalMat.dispose();
 
   /* Hide shaded/wireframe meshes */
   if (state.meshGroup) {
@@ -980,10 +989,13 @@ function enterCrystalMode() {
 function exitCrystalMode() {
   state.crystalActive = false;
 
-  /* Restore background */
-  if (state.crystalSavedBg) {
-    scene.background = state.crystalSavedBg;
-    state.crystalSavedBg = null;
+  /* Restore background based on current darkBg state (not stashed color) */
+  scene.background = new THREE.Color(state.darkBg ? DARK_COLOR : LIGHT_COLOR);
+
+  /* Dispose environment map render target */
+  if (state.crystalEnvRT) {
+    state.crystalEnvRT.dispose();
+    state.crystalEnvRT = null;
   }
 
   /* Remove glass block */
@@ -994,9 +1006,10 @@ function exitCrystalMode() {
     state.crystalGlassBlock = null;
   }
 
-  /* Restore original point materials */
+  /* Restore original point materials, disposing canvas textures */
   scene.traverse((child) => {
     if (child.isPoints && child.userData.originalMaterial) {
+      if (child.material.map) child.material.map.dispose();
       child.material.dispose();
       child.material = child.userData.originalMaterial;
       delete child.userData.originalMaterial;
@@ -2364,6 +2377,14 @@ function disposeAllPanels() {
 }
 
 async function enterCompareMode(mode) {
+  /* Exit crystal mode if active — the two modes conflict */
+  if (state.crystalActive) {
+    state.viewMode = 'points';
+    document.getElementById('view-mode').value = 'points';
+    exitCrystalMode();
+    applyViewMode();
+  }
+
   /* Clean up existing panels when switching modes directly */
   if (state.comparePanels.length > 0) {
     disposeAllPanels();

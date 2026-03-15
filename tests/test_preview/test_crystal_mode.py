@@ -149,6 +149,25 @@ class TestCrystalModeExit:
         """exitCrystalMode restores original point materials."""
         assert "originalMaterial" in html
 
+    def test_exit_disposes_env_render_target(self, html: str) -> None:
+        """exitCrystalMode disposes the environment map render target."""
+        assert "crystalEnvRT" in html
+        assert re.search(
+            r"crystalEnvRT\.dispose\(\)", html
+        ), "Environment map RT disposal not found"
+
+    def test_exit_disposes_canvas_textures(self, html: str) -> None:
+        """exitCrystalMode disposes canvas textures before material disposal."""
+        assert re.search(
+            r"child\.material\.map.*\.dispose\(\)", html
+        ), "Canvas texture disposal not found in exitCrystalMode"
+
+    def test_template_material_disposed_after_cloning(self, html: str) -> None:
+        """Template crystal material is disposed after cloning to children."""
+        assert re.search(
+            r"crystalMat\.dispose\(\)", html
+        ), "Template material disposal not found"
+
 
 class TestCrystalLedBase:
     """LED base toggle adds/removes a light below the scene."""
@@ -188,15 +207,33 @@ class TestCrystalDarkBackground:
             r"scene\.background\s*=\s*new THREE\.Color\(0x000000\)", html
         ), "Crystal mode dark background not found"
 
-    def test_crystal_saves_previous_background(self, html: str) -> None:
-        """Crystal mode saves the previous background for restoration."""
-        assert "crystalSavedBg" in html
+    def test_exit_restores_bg_from_darkbg_state(self, html: str) -> None:
+        """Exit crystal restores background based on current darkBg state."""
+        assert re.search(
+            r"state\.darkBg\s*\?\s*DARK_COLOR\s*:\s*LIGHT_COLOR", html
+        ), "exitCrystalMode should restore bg from state.darkBg"
 
     def test_bg_toggle_respects_crystal_mode(self, html: str) -> None:
         """Background toggle checks for crystal mode before changing."""
         assert re.search(
             r"if\s*\(state\.crystalActive\)", html
         ), "Background toggle crystal check not found"
+
+
+class TestCrystalCompareModeConflict:
+    """Crystal and compare modes cannot be active simultaneously."""
+
+    def test_entering_crystal_exits_compare(self, html: str) -> None:
+        """enterCrystalMode exits compare mode if active."""
+        assert re.search(
+            r"enterCrystalMode.*exitCompareMode", html, re.DOTALL
+        ), "enterCrystalMode should exit compare mode"
+
+    def test_entering_compare_exits_crystal(self, html: str) -> None:
+        """enterCompareMode exits crystal mode if active."""
+        assert re.search(
+            r"enterCompareMode.*exitCrystalMode", html, re.DOTALL
+        ), "enterCompareMode should exit crystal mode"
 
 
 class TestCrystalControls:
