@@ -2000,3 +2000,54 @@ provided, so they work out of the box like every other generator.
 - Demo output is deterministic: same seed produces identical geometry
 - Providing an `input_file` still works as before (no regression)
 - `mathviz render-2d <generator> -o out.png` succeeds for all three
+
+---
+
+## Task 53: Fix view mode override in `displayGenerateResult` (Task 46 regression)
+
+**Objective:**
+
+Task 46 (PR #46) set the default `state.viewMode` to `'points'` and added
+`selected` to the Point Cloud dropdown option. However, `displayGenerateResult()`
+unconditionally overrides the view mode after every generation. For mesh-only
+generators (e.g., `schwarz_d`), the logic at line ~459:
+
+```js
+if (!hasMesh || hasCloud) {
+  state.viewMode = 'points';        // only when no mesh, or cloud present
+} else {
+  state.viewMode = 'shaded';        // ← forces shaded for mesh-only generators
+}
+```
+
+This means the default of `'points'` is immediately overridden to `'shaded'`
+for any generator that only produces a mesh (no separate point cloud). The
+user sees "Shaded Mesh" as the active view despite the dropdown defaulting to
+Point Cloud.
+
+**Suggested path:**
+
+1. In `displayGenerateResult()`, only force a view mode switch when the
+   current `state.viewMode` is incompatible with the available data — e.g.,
+   if `viewMode` is `'shaded'` or `'wireframe'` but there's no mesh, switch
+   to `'points'`. If the current mode can be rendered (mesh-based views work
+   when `hasMesh` is true; `'points'` always works since mesh vertices can
+   be rendered as points), leave `state.viewMode` unchanged.
+
+2. Remove the unconditional `state.viewMode = 'shaded'` fallback in the
+   `else` branch — the default from state initialization should persist.
+
+3. Same fix in `loadFromFile()` — only override when incompatible, not
+   unconditionally.
+
+4. Verify the dropdown `<select>` value stays in sync with `state.viewMode`
+   after generation completes.
+
+**Tests:** `tests/test_preview/test_view_mode_default.py` (extend existing)
+
+- After generating a mesh-only object (e.g., torus), view mode remains `'points'`
+- After generating a cloud-only object, view mode is `'points'`
+- After generating an object with both mesh and cloud, view mode is `'points'`
+- Dropdown `<select>` value matches `state.viewMode` after generation
+- User-selected view mode (e.g., switching to wireframe) is preserved across regeneration if compatible
+- Switching generators (e.g., from schwarz_d to lorenz) preserves the current view mode if compatible
