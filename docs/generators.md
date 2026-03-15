@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 69 generators across 12 categories. Each generator produces a
+MathViz includes 71 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -474,6 +474,22 @@ Aliases: `apollonian_gasket_3d`
 
 ```bash
 mathviz generate apollonian_3d --param max_depth=4 --seed 42 --output apollonian.ply
+```
+
+### burning_ship
+
+Burning Ship escape-time heightmap for 3D relief engraving.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `center_x` | -0.4 | Real center of the view |
+| `center_y` | -0.6 | Imaginary center of the view |
+| `zoom` | 3.0 | Zoom level |
+| `max_iterations` | 256 | Maximum iteration count |
+| `height_scale` | 0.3 | Vertical scale multiplier |
+
+```bash
+mathviz generate burning_ship --param zoom=5 --param center_x=-0.4 --output burning_ship.ply
 ```
 
 ### mandelbrot_heightmap
