@@ -148,6 +148,7 @@ class ReactionDiffusionGenerator(GeneratorBase):
     resolution_params = {
         "grid_size": "Grid points per axis for simulation",
     }
+    _resolution_defaults = {"grid_size": _DEFAULT_GRID_SIZE}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for reaction-diffusion."""

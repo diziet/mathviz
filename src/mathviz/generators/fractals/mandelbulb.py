@@ -41,6 +41,7 @@ class MandelbulbGenerator(GeneratorBase):
     resolution_params = {
         "voxel_resolution": "Voxels per axis (N³ cost)",
     }
+    _resolution_defaults = {"voxel_resolution": DEFAULT_VOXEL_RESOLUTION}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for the Mandelbulb."""
@@ -49,10 +50,6 @@ class MandelbulbGenerator(GeneratorBase):
             "max_iterations": DEFAULT_MAX_ITERATIONS,
             "extent": DEFAULT_EXTENT,
         }
-
-    def get_default_resolution(self) -> dict[str, Any]:
-        """Return default resolution parameters for the Mandelbulb."""
-        return {"voxel_resolution": DEFAULT_VOXEL_RESOLUTION}
 
     def generate(
         self,

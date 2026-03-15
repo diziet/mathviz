@@ -127,6 +127,7 @@ class NBodyGenerator(GeneratorBase):
     resolution_params = {
         "integration_steps": "Number of integration time steps",
     }
+    _resolution_defaults = {"integration_steps": _DEFAULT_INTEGRATION_STEPS}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters."""

@@ -123,6 +123,7 @@ class LorenzGenerator(GeneratorBase):
     resolution_params = {
         "integration_steps": "Total number of integration time steps",
     }
+    _resolution_defaults = {"integration_steps": _DEFAULT_INTEGRATION_STEPS}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for the Lorenz generator."""
@@ -132,10 +133,6 @@ class LorenzGenerator(GeneratorBase):
             "beta": _DEFAULT_BETA,
             "transient_steps": _DEFAULT_TRANSIENT_STEPS,
         }
-
-    def get_default_resolution(self) -> dict[str, Any]:
-        """Return default resolution parameters for the Lorenz generator."""
-        return {"integration_steps": _DEFAULT_INTEGRATION_STEPS}
 
     def generate(
         self,

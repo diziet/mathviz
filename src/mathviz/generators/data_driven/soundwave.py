@@ -99,6 +99,7 @@ class SoundwaveGenerator(GeneratorBase):
     resolution_params = {
         "num_samples": "Number of envelope sample points",
     }
+    _resolution_defaults = {"num_samples": _DEFAULT_NUM_SAMPLES}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for soundwave generation."""

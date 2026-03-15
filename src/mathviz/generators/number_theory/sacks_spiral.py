@@ -21,6 +21,8 @@ from mathviz.generators.number_theory._primes import (
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_NUM_POINTS = 1000
+
 
 def _build_sacks_cloud(
     num_points: int, prime_height: float, scale: float
@@ -52,6 +54,7 @@ class SacksSpiralGenerator(GeneratorBase):
     resolution_params = {
         "num_points": "Number of integers to place on the spiral",
     }
+    _resolution_defaults = {"num_points": _DEFAULT_NUM_POINTS}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for the Sacks spiral."""
@@ -71,7 +74,7 @@ class SacksSpiralGenerator(GeneratorBase):
         if params:
             merged.update(params)
 
-        num_points = int(resolution_kwargs.get("num_points", 1000))
+        num_points = int(resolution_kwargs.get("num_points", _DEFAULT_NUM_POINTS))
         prime_height = float(merged["prime_height"])
         scale = float(merged["scale"])
         validate_point_cloud_params(num_points, prime_height)

@@ -104,6 +104,7 @@ class AttractorGeneratorBase(GeneratorBase):
     resolution_params = {
         "integration_steps": "Total number of integration time steps",
     }
+    _resolution_defaults = {"integration_steps": DEFAULT_INTEGRATION_STEPS}
 
     # Subclasses must set these
     _t_span_end: float = 100.0

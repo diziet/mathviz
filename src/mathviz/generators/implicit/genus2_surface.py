@@ -132,6 +132,7 @@ class Genus2SurfaceGenerator(GeneratorBase):
     resolution_params = {
         "voxel_resolution": "Number of voxels per axis (N³ cost)",
     }
+    _resolution_defaults = {"voxel_resolution": _DEFAULT_VOXEL_RESOLUTION}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for the genus-2 surface generator."""

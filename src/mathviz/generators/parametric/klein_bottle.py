@@ -85,6 +85,7 @@ class KleinBottleGenerator(GeneratorBase):
     aliases = ()
     description = "Klein bottle immersion with self-intersection"
     resolution_params = {"grid_resolution": "Number of grid divisions per axis"}
+    _resolution_defaults = {"grid_resolution": _DEFAULT_GRID_RESOLUTION}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for the Klein bottle."""

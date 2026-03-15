@@ -16,6 +16,8 @@ from mathviz.core.representation import RepresentationConfig, RepresentationType
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_NUM_DIGITS = 100
+
 # Pre-computed digit strings for mathematical constants.
 # mpmath would give arbitrary precision, but these suffice for typical use.
 _PI_DIGITS = (
@@ -104,6 +106,7 @@ class DigitEncodingGenerator(GeneratorBase):
     resolution_params = {
         "num_digits": "Number of digits to encode",
     }
+    _resolution_defaults = {"num_digits": _DEFAULT_NUM_DIGITS}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for digit encoding."""
@@ -124,7 +127,7 @@ class DigitEncodingGenerator(GeneratorBase):
         if params:
             merged.update(params)
 
-        num_digits = int(resolution_kwargs.get("num_digits", 100))
+        num_digits = int(resolution_kwargs.get("num_digits", _DEFAULT_NUM_DIGITS))
         constant = str(merged["constant"])
         height_scale = float(merged["height_scale"])
         spacing = float(merged["spacing"])

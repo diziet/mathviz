@@ -33,6 +33,7 @@ class GeneratorBase(ABC):
     aliases: tuple[str, ...] = ()
     description: str = ""
     resolution_params: dict[str, str] = {}
+    _resolution_defaults: dict[str, Any] = {}
 
     def __init__(self, resolved_name: str = "") -> None:
         """Initialize generator with the name used to resolve it.
@@ -54,6 +55,8 @@ class GeneratorBase(ABC):
         super().__init_subclass__(**kwargs)
         if "resolution_params" not in cls.__dict__:
             cls.resolution_params = dict(cls.resolution_params)
+        if "_resolution_defaults" not in cls.__dict__:
+            cls._resolution_defaults = dict(cls._resolution_defaults)
 
     @abstractmethod
     def get_default_params(self) -> dict[str, Any]:
@@ -72,7 +75,7 @@ class GeneratorBase(ABC):
 
     def get_default_resolution(self) -> dict[str, Any]:
         """Return default values for resolution parameters."""
-        return {}
+        return dict(self._resolution_defaults)
 
     def get_param_schema(self) -> dict[str, Any]:
         """Return JSON-schema-like description of all parameters for CLI/UI."""
