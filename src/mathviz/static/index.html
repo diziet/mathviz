@@ -436,7 +436,11 @@ async function displayGenerateResult(data, generatorName) {
     displayCloud(points, vertexCount, generatorName);
   }
 
-  if (hasCloud || !hasMesh) {
+  if (!hasMesh && !hasCloud) {
+    applyViewMode();
+    return;
+  }
+  if (!hasMesh || hasCloud) {
     state.viewMode = 'points';
     document.getElementById('view-mode').value = 'points';
   } else {
@@ -480,9 +484,13 @@ async function loadFromFile(filePath) {
 
     if (ext === 'stl' || ext === 'glb' || ext === 'gltf') {
       await displayMesh(url, 'file');
+      state.viewMode = 'shaded';
+      document.getElementById('view-mode').value = 'shaded';
     } else if (ext === 'ply') {
       const {points, vertexCount} = await loadCloudFromPLY(url);
       displayCloud(points, vertexCount, 'file');
+      state.viewMode = 'points';
+      document.getElementById('view-mode').value = 'points';
     }
     applyViewMode();
   } catch (err) {

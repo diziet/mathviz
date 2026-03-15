@@ -1,4 +1,10 @@
-"""Tests for default view mode being Point Cloud."""
+"""Tests for default view mode being Point Cloud.
+
+# TODO: Runtime JS view-mode selection logic in displayGenerateResult and
+# loadFromFile (choosing 'points' vs 'shaded' based on hasMesh/hasCloud) is
+# not tested here — these tests only verify static HTML content. A browser-based
+# test (e.g. Playwright) would be needed to cover the runtime conditional paths.
+"""
 
 import re
 from typing import Generator
@@ -73,3 +79,29 @@ class TestViewModeDefault:
         assert "shadedMesh.visible = (state.viewMode === 'shaded')" in html
         # Points visibility driven by state
         assert "pts.visible = (state.viewMode === 'points')" in html
+
+    def test_load_from_file_sets_shaded_for_mesh_formats(
+        self, client: TestClient,
+    ) -> None:
+        """loadFromFile sets viewMode to shaded for STL/GLB/GLTF files."""
+        resp = client.get("/")
+        html = resp.text
+        # After loading a mesh file, view mode should switch to shaded
+        assert "await displayMesh(url, 'file');" in html
+        assert "state.viewMode = 'shaded'" in html
+
+    def test_load_from_file_sets_points_for_ply(
+        self, client: TestClient,
+    ) -> None:
+        """loadFromFile sets viewMode to points for PLY files."""
+        resp = client.get("/")
+        html = resp.text
+        assert "displayCloud(points, vertexCount, 'file');" in html
+
+    def test_display_generate_guards_empty_response(
+        self, client: TestClient,
+    ) -> None:
+        """displayGenerateResult returns early when no mesh or cloud data."""
+        resp = client.get("/")
+        html = resp.text
+        assert "if (!hasMesh && !hasCloud)" in html
