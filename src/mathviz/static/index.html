@@ -145,6 +145,61 @@ canvas{display:block}
 }
 #save-toast.visible{opacity:1}
 
+/* Load button (bottom-right, next to Save) */
+#load-btn{
+  position:absolute;bottom:12px;right:80px;
+  padding:8px 18px;border:1px solid #666;border-radius:6px;
+  background:rgba(30,30,30,0.85);color:#eee;cursor:pointer;font-size:13px;
+  backdrop-filter:blur(6px);z-index:10;
+}
+#load-btn:hover{background:rgba(68,136,204,0.4)}
+
+/* Snapshot gallery overlay */
+#snapshot-gallery{
+  display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.7);z-index:200;
+  justify-content:center;align-items:center;
+}
+#snapshot-gallery.open{display:flex}
+#gallery-panel{
+  background:#1e1e2e;color:#eee;border-radius:10px;
+  width:90%;max-width:720px;max-height:80vh;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+#gallery-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px 18px;border-bottom:1px solid #333;
+}
+#gallery-header h2{margin:0;font-size:16px;font-weight:600}
+#gallery-close{background:none;border:none;color:#eee;font-size:20px;cursor:pointer}
+#gallery-list{
+  flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;
+}
+#gallery-empty{text-align:center;padding:40px;opacity:0.5;font-size:14px}
+.snap-card{
+  display:flex;gap:12px;padding:10px;border-radius:8px;
+  background:rgba(255,255,255,0.05);align-items:center;
+}
+.snap-card:hover{background:rgba(255,255,255,0.1)}
+.snap-thumb{
+  width:64px;height:64px;border-radius:4px;object-fit:cover;
+  background:#333;flex-shrink:0;display:flex;align-items:center;
+  justify-content:center;font-size:24px;color:#666;overflow:hidden;
+}
+.snap-thumb img{width:100%;height:100%;object-fit:cover}
+.snap-info{flex:1;min-width:0}
+.snap-info .snap-gen{font-weight:600;font-size:13px}
+.snap-info .snap-date{font-size:11px;opacity:0.6}
+.snap-info .snap-params{font-size:11px;opacity:0.7;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.snap-actions{display:flex;gap:6px;flex-shrink:0}
+.snap-actions button{
+  padding:4px 10px;border:1px solid #555;border-radius:4px;
+  background:transparent;color:#eee;cursor:pointer;font-size:11px;
+}
+.snap-actions button:hover{background:rgba(128,128,128,0.3)}
+.snap-actions .snap-delete:hover{background:rgba(220,50,50,0.4)}
+
 .param-hint{font-size:10px;opacity:0.5;margin-top:-4px}
 .param-buttons{display:flex;gap:6px}
 #param-error{font-size:11px;color:#ff6b6b;display:none;word-break:break-word}
@@ -235,8 +290,21 @@ canvas{display:block}
     <div id="info-fps">FPS: —</div>
   </div>
 
+  <button id="load-btn">Load</button>
   <button id="save-btn" disabled>Save</button>
   <div id="save-toast">Saved!</div>
+</div>
+
+<div id="snapshot-gallery">
+  <div id="gallery-panel">
+    <div id="gallery-header">
+      <h2>Saved Snapshots</h2>
+      <button id="gallery-close">&times;</button>
+    </div>
+    <div id="gallery-list">
+      <div id="gallery-empty">No saved snapshots yet.</div>
+    </div>
+  </div>
 </div>
 
 <script type="importmap">
@@ -731,6 +799,181 @@ saveBtn.addEventListener('click', async () => {
     saveBtn.disabled = false;
   }
 });
+
+/* ── Snapshot gallery ── */
+const galleryOverlay = document.getElementById('snapshot-gallery');
+const galleryList = document.getElementById('gallery-list');
+const galleryEmpty = document.getElementById('gallery-empty');
+
+document.getElementById('load-btn').addEventListener('click', openGallery);
+document.getElementById('gallery-close').addEventListener('click', closeGallery);
+galleryOverlay.addEventListener('click', (e) => {
+  if (e.target === galleryOverlay) closeGallery();
+});
+
+function closeGallery() {
+  galleryOverlay.classList.remove('open');
+}
+
+async function openGallery() {
+  galleryOverlay.classList.add('open');
+  galleryList.innerHTML = '';
+  galleryList.appendChild(galleryEmpty);
+  galleryEmpty.textContent = 'Loading...';
+
+  try {
+    const resp = await fetch('/api/snapshots');
+    if (!resp.ok) throw new Error(`Failed: ${resp.status}`);
+    const snapshots = await resp.json();
+
+    galleryList.innerHTML = '';
+    if (snapshots.length === 0) {
+      galleryList.appendChild(galleryEmpty);
+      galleryEmpty.textContent = 'No saved snapshots yet.';
+      return;
+    }
+
+    for (const snap of snapshots) {
+      galleryList.appendChild(buildSnapshotCard(snap));
+    }
+  } catch (err) {
+    console.error('Gallery error:', err);
+    galleryEmpty.textContent = 'Failed to load snapshots.';
+    galleryList.innerHTML = '';
+    galleryList.appendChild(galleryEmpty);
+  }
+}
+
+function formatParamsSummary(params) {
+  return Object.entries(params)
+    .map(([k, v]) => `${k}=${typeof v === 'number' ? Number(v.toFixed(4)) : v}`)
+    .join(', ');
+}
+
+function buildSnapshotCard(snap) {
+  const card = document.createElement('div');
+  card.className = 'snap-card';
+
+  const thumbDiv = document.createElement('div');
+  thumbDiv.className = 'snap-thumb';
+  if (snap.has_thumbnail && snap.thumbnail_url) {
+    const img = document.createElement('img');
+    img.src = snap.thumbnail_url;
+    img.alt = snap.generator;
+    thumbDiv.appendChild(img);
+  } else {
+    thumbDiv.textContent = '\u25A6';
+  }
+
+  const info = document.createElement('div');
+  info.className = 'snap-info';
+  const dateStr = snap.created_at ? new Date(snap.created_at).toLocaleString() : '—';
+  info.innerHTML = `<div class="snap-gen">${snap.generator}</div>`
+    + `<div class="snap-date">${dateStr}</div>`
+    + `<div class="snap-params">${formatParamsSummary(snap.params)}</div>`;
+
+  const actions = document.createElement('div');
+  actions.className = 'snap-actions';
+  const loadBtn = document.createElement('button');
+  loadBtn.textContent = 'Load';
+  loadBtn.addEventListener('click', () => loadSnapshot(snap));
+  const delBtn = document.createElement('button');
+  delBtn.textContent = 'Delete';
+  delBtn.className = 'snap-delete';
+  delBtn.addEventListener('click', () => deleteSnapshot(snap.snapshot_id, card));
+
+  actions.appendChild(loadBtn);
+  actions.appendChild(delBtn);
+  card.appendChild(thumbDiv);
+  card.appendChild(info);
+  card.appendChild(actions);
+  return card;
+}
+
+async function loadSnapshot(snap) {
+  closeGallery();
+  const loadingEl = document.getElementById('loading');
+  loadingEl.style.display = 'block';
+
+  try {
+    /* Set generator selector */
+    searchInput.value = snap.generator;
+    await fetchAndPopulateParams(snap.generator);
+
+    /* Populate parameter fields */
+    for (const [key, val] of Object.entries(snap.params)) {
+      const input = document.getElementById(`param-${key}`);
+      if (input) input.value = val;
+    }
+
+    /* Set seed */
+    seedInput.value = snap.seed;
+
+    /* Set container values */
+    if (snap.container) {
+      const c = snap.container;
+      document.getElementById('dim-w').value = c.width_mm ?? 100;
+      document.getElementById('dim-h').value = c.height_mm ?? 100;
+      document.getElementById('dim-d').value = c.depth_mm ?? 40;
+      document.getElementById('margin-x').value = c.margin_x_mm ?? 5;
+      document.getElementById('margin-y').value = c.margin_y_mm ?? 5;
+      document.getElementById('margin-z').value = c.margin_z_mm ?? 5;
+    }
+
+    /* Load saved geometry files directly */
+    const savedCamera = saveCameraIfLocked();
+    clearScene();
+    const sid = snap.snapshot_id;
+    const hasMesh = snap.geometry_files.includes('mesh.glb');
+    const hasCloud = snap.geometry_files.includes('cloud.ply');
+
+    if (hasMesh) {
+      await displayMesh(`/api/snapshots/${sid}/geometry/mesh.glb`, snap.generator);
+    }
+    if (hasCloud) {
+      const {points, vertexCount} = await loadCloudFromPLY(
+        `/api/snapshots/${sid}/geometry/cloud.ply`
+      );
+      displayCloud(points, vertexCount, snap.generator);
+    }
+
+    if (viewModeNeedsMesh() && !hasMesh) {
+      state.viewMode = 'points';
+    }
+    document.getElementById('view-mode').value = state.viewMode;
+    restoreCameraIfSaved(savedCamera);
+    applyViewMode();
+
+    state.generatedWith = {
+      generator: snap.generator,
+      params: snap.params,
+      seed: snap.seed,
+      container: snap.container,
+    };
+    state.geometryId = null;
+    document.getElementById('save-btn').disabled = true;
+  } catch (err) {
+    console.error('Load snapshot error:', err);
+  } finally {
+    loadingEl.style.display = 'none';
+  }
+}
+
+async function deleteSnapshot(snapshotId, cardEl) {
+  if (!confirm('Delete this snapshot?')) return;
+  try {
+    const resp = await fetch(`/api/snapshots/${snapshotId}`, {method: 'DELETE'});
+    if (!resp.ok) throw new Error(`Delete failed: ${resp.status}`);
+    cardEl.remove();
+    if (galleryList.querySelectorAll('.snap-card').length === 0) {
+      galleryEmpty.textContent = 'No saved snapshots yet.';
+      galleryList.appendChild(galleryEmpty);
+    }
+  } catch (err) {
+    console.error('Delete error:', err);
+    alert('Failed to delete snapshot.');
+  }
+}
 
 /* ── Resize ── */
 window.addEventListener('resize', () => {
