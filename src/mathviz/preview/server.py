@@ -9,7 +9,7 @@ from typing import Any
 import trimesh
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import GeneratorMeta, get_generator_meta, list_generators
@@ -60,6 +60,17 @@ def get_served_file() -> str | None:
 # --- Request / Response models ---
 
 
+class ContainerParams(BaseModel):
+    """Optional container dimensions for POST /api/generate."""
+
+    width_mm: float = 100.0
+    height_mm: float = 100.0
+    depth_mm: float = 40.0
+    margin_x_mm: float = 5.0
+    margin_y_mm: float = 5.0
+    margin_z_mm: float = 5.0
+
+
 class GenerateRequest(BaseModel):
     """Request body for POST /api/generate."""
 
@@ -67,6 +78,7 @@ class GenerateRequest(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict)
     seed: int = 42
     resolution: dict[str, Any] = Field(default_factory=dict)
+    container: ContainerParams | None = None
 
 
 class GenerateResponse(BaseModel):
@@ -133,13 +145,45 @@ def get_generator_details(name: str) -> GeneratorInfo:
     return _generator_info_from_meta(meta)
 
 
+def _build_container(container_params: ContainerParams | None) -> Container:
+    """Build a Container from request params, or return the default."""
+    if container_params is None:
+        return Container.with_uniform_margin()
+    try:
+        return Container(
+            width_mm=container_params.width_mm,
+            height_mm=container_params.height_mm,
+            depth_mm=container_params.depth_mm,
+            margin_x_mm=container_params.margin_x_mm,
+            margin_y_mm=container_params.margin_y_mm,
+            margin_z_mm=container_params.margin_z_mm,
+        )
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _container_cache_dict(container_params: ContainerParams | None) -> dict[str, float]:
+    """Return a dict of container params for cache key computation."""
+    if container_params is None:
+        return {}
+    return container_params.model_dump()
+
+
 @app.post("/api/generate", response_model=GenerateResponse)
 def generate_geometry(req: GenerateRequest) -> GenerateResponse:
     """Run the pipeline and cache the result."""
+    container = _build_container(req.container)
+
     params = _normalize_params(req.params)
     resolution = _normalize_params(req.resolution)
 
-    cache_key = compute_cache_key(req.generator, params or {}, req.seed, resolution or {})
+    cache_key = compute_cache_key(
+        req.generator,
+        params or {},
+        req.seed,
+        resolution or {},
+        container_kwargs=_container_cache_dict(req.container),
+    )
     cache = get_cache()
     entry = cache.get(cache_key)
 
@@ -150,7 +194,7 @@ def generate_geometry(req: GenerateRequest) -> GenerateResponse:
                 params=params,
                 seed=req.seed,
                 resolution_kwargs=resolution,
-                container=Container.with_uniform_margin(),
+                container=container,
                 placement=PlacementPolicy(),
             )
         except KeyError:

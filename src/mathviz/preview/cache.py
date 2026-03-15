@@ -44,18 +44,18 @@ def compute_cache_key(
     params: dict[str, Any],
     seed: int,
     resolution_kwargs: dict[str, Any],
+    container_kwargs: dict[str, float] | None = None,
 ) -> str:
     """Compute a deterministic cache key from generation parameters."""
-    key_data = json.dumps(
-        {
-            "generator": generator_name,
-            "params": params,
-            "seed": seed,
-            "resolution": resolution_kwargs,
-        },
-        sort_keys=True,
-        default=_serialize_value,
-    )
+    key_dict: dict[str, Any] = {
+        "generator": generator_name,
+        "params": params,
+        "seed": seed,
+        "resolution": resolution_kwargs,
+    }
+    if container_kwargs:
+        key_dict["container"] = container_kwargs
+    key_data = json.dumps(key_dict, sort_keys=True, default=_serialize_value)
     return hashlib.sha256(key_data.encode()).hexdigest()[:32]
 
 
