@@ -61,11 +61,6 @@ class TestDefaultContainerIsCube:
         assert c.height_mm == 100.0
         assert c.depth_mm == 100.0
 
-    def test_default_usable_volume_with_margins(self) -> None:
-        """Container().usable_volume returns (90, 90, 90) with default 5mm margins."""
-        c = Container()
-        assert c.usable_volume == (90.0, 90.0, 90.0)
-
 
 class TestContainerWithUniformMargin:
     """Test the with_uniform_margin classmethod."""

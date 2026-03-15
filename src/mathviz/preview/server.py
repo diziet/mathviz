@@ -63,15 +63,20 @@ def get_served_file() -> str | None:
 # --- Request / Response models ---
 
 
+def _container_default(field_name: str) -> float:
+    """Get a Container field's default value."""
+    return Container.model_fields[field_name].default
+
+
 class ContainerParams(BaseModel):
     """Optional container dimensions for POST /api/generate."""
 
-    width_mm: float = 100.0
-    height_mm: float = 100.0
-    depth_mm: float = 100.0
-    margin_x_mm: float = 5.0
-    margin_y_mm: float = 5.0
-    margin_z_mm: float = 5.0
+    width_mm: float = _container_default("width_mm")
+    height_mm: float = _container_default("height_mm")
+    depth_mm: float = _container_default("depth_mm")
+    margin_x_mm: float = _container_default("margin_x_mm")
+    margin_y_mm: float = _container_default("margin_y_mm")
+    margin_z_mm: float = _container_default("margin_z_mm")
 
 
 class GenerateRequest(BaseModel):

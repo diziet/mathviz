@@ -67,22 +67,7 @@ def _generate_torus(client: TestClient) -> str:
     return resp.json()["geometry_id"]
 
 
-def _make_snapshot_request(geometry_id: str) -> dict[str, Any]:
-    """Build a standard snapshot request body."""
-    return {
-        "generator": "torus",
-        "params": {"major_radius": 1.0, "minor_radius": 0.4},
-        "seed": 42,
-        "container": {
-            "width_mm": 100.0,
-            "height_mm": 100.0,
-            "depth_mm": 100.0,
-            "margin_x_mm": 5.0,
-            "margin_y_mm": 5.0,
-            "margin_z_mm": 5.0,
-        },
-        "geometry_id": geometry_id,
-    }
+from tests.test_preview.conftest import make_snapshot_request as _make_snapshot_request
 
 
 def _create_snapshot(client: TestClient) -> dict[str, Any]:
