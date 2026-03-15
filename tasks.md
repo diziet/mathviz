@@ -1807,3 +1807,80 @@ overview position.
 - Button works when viewing mesh geometry
 - Button works when viewing point cloud geometry
 - Button is disabled or hidden when no geometry is loaded
+
+---
+
+## Task 50: Add `--view` flag to `mathviz render` with comprehensive camera angles
+
+**Objective:**
+
+Add a `--view` flag to the `mathviz render` command (3D perspective renderer)
+that lets the user choose a camera angle. Currently `render` has a single
+hardcoded camera position. Also expand the set of named views for both
+`render` and `render-2d` to cover all face-on, edge-on, and vertex views
+of the bounding box.
+
+Currently available views (only in `render-2d`):
+- `top`, `front`, `side`, `angle`
+
+Missing views:
+- The opposing face-on views: `bottom`, `back`, `right`
+- Edge-on views: looking at where two faces meet (e.g., front-right edge)
+- Vertex/corner views: looking at where three faces meet from all 8 corners
+
+**Suggested path:**
+
+1. **Expand the named views** in `renderer.py`. Add camera positions for a
+   complete set:
+
+   **6 face-on views** (looking straight at one face):
+   - `front` — (0, -1, 0), `back` — (0, 1, 0)
+   - `left` — (-1, 0, 0), `right`/`side` — (1, 0, 0)
+   - `top` — (0, 0, 1), `bottom` — (0, 0, -1)
+
+   **12 edge-on views** (looking at an edge where two faces meet):
+   - `front-right` — (1, -1, 0), `front-left` — (-1, -1, 0)
+   - `back-right` — (1, 1, 0), `back-left` — (-1, 1, 0)
+   - `front-top` — (0, -1, 1), `front-bottom` — (0, -1, -1)
+   - `back-top` — (0, 1, 1), `back-bottom` — (0, 1, -1)
+   - `top-right` — (1, 0, 1), `top-left` — (-1, 0, 1)
+   - `bottom-right` — (1, 0, -1), `bottom-left` — (-1, 0, -1)
+
+   **8 vertex/corner views** (looking at a corner where three faces meet):
+   - `front-right-top` — (1, -1, 1) (this is the current `angle`)
+   - `front-left-top` — (-1, -1, 1)
+   - `back-right-top` — (1, 1, 1)
+   - `back-left-top` — (-1, 1, 1)
+   - `front-right-bottom` — (1, -1, -1)
+   - `front-left-bottom` — (-1, -1, -1)
+   - `back-right-bottom` — (1, 1, -1)
+   - `back-left-bottom` — (-1, 1, -1)
+
+   Keep `angle` as an alias for `front-right-top` for backwards compatibility.
+
+2. **Add `--view` flag to `mathviz render`** in `cli_render.py`. Default to
+   `front-right-top` (current approximate camera position). Unlike
+   `render-2d`, this uses perspective projection — the camera is positioned
+   on a sphere around the geometry center at the angle specified by the view
+   name, at a distance computed from the bounding box size.
+
+3. **Add `--view all` option** that renders all 26 views (or a curated
+   subset like the 6 faces + 8 vertices = 14 views) and saves them as
+   separate files with the view name appended (e.g.,
+   `torus_front.png`, `torus_top.png`, `torus_front-right-top.png`).
+
+4. **Update `render-2d`** to accept the same expanded view names so both
+   commands share the same vocabulary.
+
+**Tests:** `tests/test_preview/test_render_views.py`
+
+- `mathviz render torus -o out.png --view front` produces a non-trivial PNG
+- `mathviz render torus -o out.png --view top` produces a different image than `--view front`
+- `mathviz render torus -o out.png --view front-right-top` matches `--view angle`
+- `mathviz render-2d torus -o out.png --view back` produces a non-trivial PNG
+- `mathviz render-2d torus -o out.png --view right` works (new view name)
+- All 6 face-on views produce distinct images
+- Edge-on view `front-right` produces an image distinct from `front` and `right`
+- `--view all` produces multiple files with correct naming
+- Default view (no flag) renders from `front-right-top` perspective
+- Invalid view name is rejected with a clear error listing available views
