@@ -39,7 +39,7 @@ dev = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-mathviz = ["profiles/*.toml"]
+mathviz = ["profiles/*.toml", "static/*.html", "static/**/*"]
 
 [tool.ruff]
 line-length = 100

@@ -1,5 +1,6 @@
 """FastAPI preview server for the Tier 1 viewer."""
 
+import importlib.resources
 import io
 import logging
 from pathlib import Path
@@ -38,7 +39,7 @@ def reset_cache() -> None:
 
 app = FastAPI(title="MathViz Preview", version="0.1.0")
 
-_STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+_STATIC_DIR = importlib.resources.files("mathviz").joinpath("static")
 _ALLOWED_FILE_EXTENSIONS = {".stl", ".ply", ".glb", ".gltf", ".obj"}
 
 # File path configured by the preview CLI for serving local files
@@ -253,7 +254,9 @@ def _serve_stl_as_glb(stl_path: Path) -> Response:
 @app.get("/", response_class=HTMLResponse)
 def serve_viewer() -> HTMLResponse:
     """Serve the Three.js viewer HTML."""
-    index_path = _STATIC_DIR / "index.html"
-    if not index_path.is_file():
+    index_resource = _STATIC_DIR.joinpath("index.html")
+    try:
+        content = index_resource.read_text(encoding="utf-8")
+    except FileNotFoundError:
         raise HTTPException(status_code=500, detail="Viewer HTML not found.")
-    return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
+    return HTMLResponse(content=content)
