@@ -105,15 +105,11 @@ def build_wrapped_grid_faces(n_u: int, n_v: int) -> np.ndarray:
     return np.concatenate([tri1, tri2], axis=0).astype(np.int64)
 
 
-def build_klein_wrapped_faces(n_u: int, n_v: int) -> np.ndarray:
-    """Build triangle faces for a Klein bottle grid with shifted u-seam.
-
-    The figure-8 Klein bottle cross-section is reflected (v → -v) after a
-    full u-period. At the u-seam (row n_u-1 wrapping to row 0), vertex
-    (n_u-1, v) connects to (0, (n_v - v) % n_v) instead of (0, v).
-    """
-    # Interior faces: rows 0..n_u-2, all v columns (v wraps normally)
-    rows = np.arange(n_u - 1)
+def _build_v_wrapped_interior_faces(
+    n_u_rows: int, n_v: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Build interior triangle faces for rows 0..n_u_rows-1 with v-wrapping."""
+    rows = np.arange(n_u_rows)
     cols = np.arange(n_v)
     rr, cc = np.meshgrid(rows, cols, indexing="ij")
     rr, cc = rr.ravel(), cc.ravel()
@@ -123,8 +119,21 @@ def build_klein_wrapped_faces(n_u: int, n_v: int) -> np.ndarray:
     i01 = rr * n_v + ((cc + 1) % n_v)
     i11 = (rr + 1) * n_v + ((cc + 1) % n_v)
 
-    interior_tri1 = np.stack([i00, i10, i11], axis=-1)
-    interior_tri2 = np.stack([i00, i11, i01], axis=-1)
+    tri1 = np.stack([i00, i10, i11], axis=-1)
+    tri2 = np.stack([i00, i11, i01], axis=-1)
+    return tri1, tri2
+
+
+def build_klein_wrapped_faces(n_u: int, n_v: int) -> np.ndarray:
+    """Build triangle faces for a Klein bottle grid with shifted u-seam.
+
+    The figure-8 Klein bottle cross-section is reflected (v → -v) after a
+    full u-period. At the u-seam (row n_u-1 wrapping to row 0), vertex
+    (n_u-1, v) connects to (0, (n_v - v) % n_v) instead of (0, v).
+    """
+    interior_tri1, interior_tri2 = _build_v_wrapped_interior_faces(
+        n_u - 1, n_v,
+    )
 
     # Seam faces: row n_u-1 wrapping to row 0 with v-reflection
     # The figure-8 immersion satisfies f(0, v) = f(2π, -v), so vertex

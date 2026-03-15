@@ -24,19 +24,33 @@ def klein_mesh() -> tuple[np.ndarray, np.ndarray]:
     return obj.mesh.vertices.copy(), np.ascontiguousarray(obj.mesh.faces)
 
 
-def _max_edge_per_face(
+def _face_cross_products(
     vertices: np.ndarray, faces: np.ndarray,
 ) -> np.ndarray:
-    """Compute max edge length for each face using direct vertex lookup."""
-    result = np.empty(len(faces), dtype=np.float64)
+    """Compute cross-product vector (v1-v0) x (v2-v0) for each face."""
+    result = np.empty((len(faces), 3), dtype=np.float64)
     for i in range(len(faces)):
         a, b, c = int(faces[i, 0]), int(faces[i, 1]), int(faces[i, 2])
-        va, vb, vc = vertices[a], vertices[b], vertices[c]
-        e0 = float(np.linalg.norm(vb - va))
-        e1 = float(np.linalg.norm(vc - vb))
-        e2 = float(np.linalg.norm(va - vc))
-        result[i] = max(e0, e1, e2)
+        result[i] = np.cross(vertices[b] - vertices[a], vertices[c] - vertices[a])
     return result
+
+
+def _face_normals(
+    vertices: np.ndarray, faces: np.ndarray,
+) -> np.ndarray:
+    """Compute unit normal for each face."""
+    cross = _face_cross_products(vertices, faces)
+    lengths = np.linalg.norm(cross, axis=1, keepdims=True)
+    lengths = np.where(lengths < 1e-12, 1.0, lengths)
+    return cross / lengths
+
+
+def _face_areas(
+    vertices: np.ndarray, faces: np.ndarray,
+) -> np.ndarray:
+    """Compute area of each triangle face."""
+    cross = _face_cross_products(vertices, faces)
+    return 0.5 * np.linalg.norm(cross, axis=1)
 
 
 def _all_edge_lengths(
@@ -51,23 +65,6 @@ def _all_edge_lengths(
         result[i, 1] = float(np.linalg.norm(vc - vb))
         result[i, 2] = float(np.linalg.norm(va - vc))
     return result
-
-
-def _face_normals_loop(
-    vertices: np.ndarray, faces: np.ndarray,
-) -> np.ndarray:
-    """Compute unit normal for each face via loop."""
-    normals = np.empty((len(faces), 3), dtype=np.float64)
-    for i in range(len(faces)):
-        a, b, c = int(faces[i, 0]), int(faces[i, 1]), int(faces[i, 2])
-        va, vb, vc = vertices[a], vertices[b], vertices[c]
-        cross = np.cross(vb - va, vc - va)
-        length = float(np.linalg.norm(cross))
-        if length < 1e-12:
-            normals[i] = [0.0, 0.0, 1.0]
-        else:
-            normals[i] = cross / length
-    return normals
 
 
 def _seam_face_mask(faces: np.ndarray, n_u: int, n_v: int) -> np.ndarray:
@@ -113,14 +110,7 @@ def test_seam_face_areas_comparable(
     """All u-seam faces have area within 5x the average interior face area."""
     vertices, faces = klein_mesh
     seam_mask = _seam_face_mask(faces, _GRID_RES, _GRID_RES)
-
-    # Compute face areas via loop to avoid indexing issues
-    areas = np.empty(len(faces), dtype=np.float64)
-    for i in range(len(faces)):
-        a, b, c = int(faces[i, 0]), int(faces[i, 1]), int(faces[i, 2])
-        va, vb, vc = vertices[a], vertices[b], vertices[c]
-        cross = np.cross(vb - va, vc - va)
-        areas[i] = 0.5 * float(np.linalg.norm(cross))
+    areas = _face_areas(vertices, faces)
 
     interior_areas = areas[~seam_mask]
     seam_areas = areas[seam_mask]
@@ -160,7 +150,7 @@ def test_seam_normal_consistency(
     seam_mask = _seam_face_mask(faces, _GRID_RES, _GRID_RES)
     seam_indices = set(np.where(seam_mask)[0])
 
-    normals = _face_normals_loop(vertices, faces)
+    normals = _face_normals(vertices, faces)
     adj = _build_adjacency(faces)
 
     negative_count = 0
