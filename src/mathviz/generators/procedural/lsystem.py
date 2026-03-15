@@ -15,6 +15,7 @@ from mathviz.core.math_object import BoundingBox, Curve, MathObject
 from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.generators.procedural._lsystem_engine import (
     PRESETS,
+    Segment,
     interpret_turtle,
     rewrite,
 )
@@ -42,6 +43,7 @@ def _validate_params(
     length_scale: float,
     length_decay: float,
     thickness_decay: float,
+    jitter: float,
 ) -> None:
     """Validate L-system parameters."""
     if preset not in PRESETS:
@@ -69,10 +71,12 @@ def _validate_params(
         raise ValueError(
             f"thickness_decay must be in (0, 1], got {thickness_decay}"
         )
+    if jitter < 0:
+        raise ValueError(f"jitter must be >= 0, got {jitter}")
 
 
 def _segments_to_curves(
-    segments: list[Any],
+    segments: list[Segment],
 ) -> list[Curve]:
     """Convert turtle segments into connected branch curves.
 
@@ -101,15 +105,17 @@ def _segments_to_curves(
     return curves
 
 
-def _all_points_from_segments(segments: list[Any]) -> np.ndarray:
-    """Collect all unique points from segments for bounding box."""
-    if not segments:
-        return np.zeros((1, 3), dtype=np.float64)
-    points = []
-    for seg in segments:
-        points.append(seg.start)
-        points.append(seg.end)
-    return np.array(points, dtype=np.float64)
+def _bounding_box_from_segments(segments: list[Segment]) -> BoundingBox:
+    """Compute bounding box from segments with O(1) extra memory."""
+    mins = np.minimum(segments[0].start, segments[0].end)
+    maxs = np.maximum(segments[0].start, segments[0].end)
+    for seg in segments[1:]:
+        mins = np.minimum(mins, np.minimum(seg.start, seg.end))
+        maxs = np.maximum(maxs, np.maximum(seg.start, seg.end))
+    return BoundingBox(
+        min_corner=tuple(float(v) for v in mins),  # type: ignore[arg-type]
+        max_corner=tuple(float(v) for v in maxs),  # type: ignore[arg-type]
+    )
 
 
 @register
@@ -156,7 +162,7 @@ class LSystemGenerator(GeneratorBase):
 
         _validate_params(
             preset_name, iterations, angle,
-            length_scale, length_decay, thickness_decay,
+            length_scale, length_decay, thickness_decay, jitter,
         )
 
         preset = PRESETS[preset_name]
@@ -185,8 +191,7 @@ class LSystemGenerator(GeneratorBase):
             bbox = BoundingBox.from_points(point)
         else:
             curves = _segments_to_curves(segments)
-            all_pts = _all_points_from_segments(segments)
-            bbox = BoundingBox.from_points(all_pts)
+            bbox = _bounding_box_from_segments(segments)
 
         logger.info(
             "Generated L-system: preset=%s, iterations=%d, angle=%.1f, "

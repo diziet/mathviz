@@ -1,5 +1,7 @@
 """Tests for the L-system / fractal tree generator."""
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 from typer.testing import CliRunner
@@ -260,9 +262,9 @@ def test_rewrite_one_iteration() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_render_2d_cli(tmp_path: object) -> None:
+def test_render_2d_cli(tmp_path: Path) -> None:
     """mathviz render-2d lsystem -o test.png succeeds (or skips if no PyVista)."""
-    out_file = str(tmp_path / "lsystem_test.png")  # type: ignore[operator]
+    out_file = str(tmp_path / "lsystem_test.png")
     result = _runner.invoke(app, [
         "render-2d", "lsystem",
         "-o", out_file,
@@ -292,3 +294,10 @@ def test_invalid_iterations_raises() -> None:
     gen = LSystemGenerator()
     with pytest.raises(ValueError, match="iterations"):
         gen.generate(params={"iterations": 99})
+
+
+def test_negative_jitter_raises() -> None:
+    """Negative jitter raises ValueError."""
+    gen = LSystemGenerator()
+    with pytest.raises(ValueError, match="jitter"):
+        gen.generate(params={"jitter": -1.0})

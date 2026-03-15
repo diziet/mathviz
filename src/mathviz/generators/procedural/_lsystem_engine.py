@@ -6,8 +6,7 @@ thickness information.
 """
 
 import logging
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 import numpy as np
 from numpy.random import Generator
@@ -161,19 +160,18 @@ def interpret_turtle(
 
     stack: list[_TurtleState] = []
     segments: list[Segment] = []
-    depth = 0
 
     for ch in instruction_string:
+        depth = len(stack)
         if ch in ("F", "G"):
             step = length * (length_decay ** depth)
             jitter = rng.uniform(-jitter_rad, jitter_rad)
-            effective_angle = jitter
-            if abs(effective_angle) > 1e-10:
+            if abs(jitter) > 1e-10:
                 random_axis = rng.standard_normal(3)
                 norm = np.linalg.norm(random_axis)
                 if norm > 1e-10:
                     random_axis /= norm
-                    _rotate_turtle(state, random_axis, effective_angle)
+                    _rotate_turtle(state, random_axis, jitter)
 
             start = state.position.copy()
             state.position = start + state.heading * step
@@ -206,10 +204,8 @@ def interpret_turtle(
                 up=state.up.copy(),
                 thickness=state.thickness,
             ))
-            depth += 1
         elif ch == "]":
             if stack:
                 state = stack.pop()
-                depth = max(0, depth - 1)
 
     return segments
