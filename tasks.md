@@ -1949,3 +1949,54 @@ visible and functional in the preview viewer.
 - Reset button restores default values
 - Switching generators clears and repopulates the parameter panel
 - Info panel updates with vertex/face/point counts after generation
+
+---
+
+## Task 52: Add demo/placeholder mode for data-driven generators
+
+**Objective:**
+
+The three data-driven generators (`building_extrude`, `heightmap`,
+`soundwave`) crash with `ValueError: input_file parameter is required` when
+run without an `input_file` parameter. This makes them unusable via
+`mathviz render`, `mathviz render-2d`, `mathviz preview`, or any other
+pipeline entry point unless the user supplies an external file.
+
+Each generator should synthesize a built-in demo when `input_file` is not
+provided, so they work out of the box like every other generator.
+
+**Suggested path:**
+
+1. **`soundwave`**: When `input_file` is omitted, synthesize a short WAV-like
+   signal procedurally (e.g., a 2-second sine wave at 440 Hz with amplitude
+   envelope). Use `numpy` to generate the samples directly — no file I/O
+   needed. Log `INFO: No input_file provided, using built-in demo waveform`.
+
+2. **`heightmap`**: When `input_file` is omitted, generate a procedural
+   grayscale field (e.g., a radial gradient, concentric rings, or a simple
+   Perlin-like pattern using numpy). Produce a 2D float array as if it were
+   loaded from an image. Log `INFO: No input_file provided, using built-in
+   demo heightmap`.
+
+3. **`building_extrude`**: When `input_file` is omitted, construct a small
+   in-memory GeoJSON FeatureCollection with a handful of rectangular
+   polygons at varying heights (simulating a city block). Pass the dict
+   directly to `_extract_polygons` instead of loading from disk. Log
+   `INFO: No input_file provided, using built-in demo buildings`.
+
+4. Each generator's `generate()` method should check `input_file` early and
+   branch to the demo path before calling `validate_input_file`. The demo
+   data should be deterministic (seeded by the `seed` parameter) so renders
+   are reproducible.
+
+5. Do not add new dependencies — use only `numpy` and existing stdlib.
+
+**Tests:** `tests/test_generators/test_data_driven_demo.py`
+
+- `soundwave` generates successfully with no `input_file` parameter
+- `heightmap` generates successfully with no `input_file` parameter
+- `building_extrude` generates successfully with no `input_file` parameter
+- Each demo generator produces a valid MathObject with non-empty geometry
+- Demo output is deterministic: same seed produces identical geometry
+- Providing an `input_file` still works as before (no regression)
+- `mathviz render-2d <generator> -o out.png` succeeds for all three
