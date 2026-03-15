@@ -50,6 +50,10 @@ class MandelbulbGenerator(GeneratorBase):
             "extent": DEFAULT_EXTENT,
         }
 
+    def get_default_resolution(self) -> dict[str, Any]:
+        """Return default resolution parameters for the Mandelbulb."""
+        return {"voxel_resolution": DEFAULT_VOXEL_RESOLUTION}
+
     def generate(
         self,
         params: dict[str, Any] | None = None,
