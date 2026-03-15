@@ -2988,3 +2988,59 @@ and stripes.
 - Base surface parameter switches between torus, sphere, klein_bottle
 - Displacement scale of 0 produces the unmodified base surface
 - Generator registers and appears in `mathviz list`
+
+---
+
+## Task 72: L-system / fractal tree generator
+
+**Objective:**
+
+Add a generator that produces 3D branching structures from L-system
+(Lindenmayer system) grammars. L-systems are a classic way to generate
+fractal trees, bushes, ferns, and other organic branching patterns. These
+look striking as both tube meshes and point clouds when laser-engraved.
+
+**Suggested path:**
+
+1. Create `generators/procedural/lsystem.py` with an `LSystemGenerator`.
+
+2. Parameters:
+   - `preset`: named preset — `tree`, `bush`, `fern`, `hilbert3d`,
+     `sierpinski` (default: `tree`)
+   - `iterations`: number of L-system rewriting steps (default: 5)
+   - `angle`: branching angle in degrees (default: 25.0)
+   - `length_scale`: initial segment length (default: 1.0)
+   - `length_decay`: segment length multiplier per generation
+     (default: 0.7)
+   - `thickness_decay`: branch thickness decay per generation
+     (default: 0.6)
+
+3. Each preset defines an axiom, production rules, and a turtle
+   interpretation. For example, `tree`:
+   - Axiom: `F`
+   - Rules: `F → F[+F]F[-F]F`
+   - Turtle: `F` = move forward, `+` = turn right by angle,
+     `-` = turn left, `[` = push state, `]` = pop state
+
+4. Extend the classic 2D turtle to 3D: add pitch (`^`, `&`), roll
+   (`/`, `\\`), and random rotation for organic variation (seed-dependent).
+
+5. The turtle produces a set of line segments (start, end, thickness).
+   Convert these to a `Curve` per branch (or a single connected curve
+   tree). Use TUBE representation for mesh output.
+
+6. For presets like `hilbert3d` and `sierpinski`, the L-system produces
+   space-filling curves and fractal geometry respectively.
+
+7. Seed controls random angle jitter for organic-looking trees.
+
+**Tests:** `tests/test_generators/test_lsystem.py`
+
+- Tree preset produces a branching curve structure
+- Increasing iterations increases the number of segments
+- Different presets produce distinct geometries
+- Angle parameter affects branching spread
+- Output is seed-dependent (random jitter varies)
+- Hilbert 3D preset produces a space-filling curve
+- Generator registers and appears in `mathviz list`
+- `mathviz render-2d lsystem -o test.png` succeeds
