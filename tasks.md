@@ -2286,3 +2286,43 @@ explored before and restore any snapshot to the current session.
 - Loading a snapshot restores generator, params, seed, and container values
 - Loading a snapshot displays the saved geometry without regeneration
 - Preview HTML contains a Load button that opens the snapshot gallery
+
+---
+
+## Task 59: Change default container to 100×100×100 cube
+
+**Objective:**
+
+Change the default container dimensions from 100×100×40 mm to
+100×100×100 mm (a cube). Update the `Container` dataclass default for
+`depth_mm` from `40.0` to `100.0`, and update all documentation,
+docstrings, tests, comments, CLI help text, and config examples that
+reference the old default dimensions.
+
+**Suggested path:**
+
+1. In `src/mathviz/core/container.py`, change `depth_mm` default from
+   `40.0` to `100.0`.
+
+2. In the preview UI (`index.html`), update the default value of the
+   depth input field from `40` to `100`.
+
+3. Search the entire codebase for references to the old defaults:
+   - `40.0` or `40` in context of depth/container dimensions
+   - `100x100x40`, `100×100×40`, or similar dimension strings
+   - Any docstrings, comments, or help text mentioning "40mm depth"
+
+4. Update all documentation files (`docs/`, `README.md`) that mention
+   container dimensions to reflect 100×100×100.
+
+5. Update any test fixtures or assertions that hardcode the old 40mm depth.
+
+6. Update any sampling profile TOML files or config examples that
+   reference the old dimensions.
+
+**Tests:** `tests/test_core/test_container.py` (extend existing)
+
+- `Container()` with no arguments produces 100×100×100 dimensions
+- `Container().usable_volume()` returns (90, 90, 90) with default 5mm margins
+- No references to the old 40mm depth default remain in docs or comments
+- CLI `mathviz info` or help text shows 100×100×100 as default
