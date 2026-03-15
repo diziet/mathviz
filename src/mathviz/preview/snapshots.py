@@ -158,10 +158,18 @@ def _read_snapshot_metadata(snapshot_dir: Path) -> dict[str, Any] | None:
         return None
 
 
+_REQUIRED_METADATA_KEYS = {"generator", "params", "seed", "container", "created_at"}
+
+
 def _snapshot_info_from_dir(snapshot_dir: Path) -> SnapshotInfo | None:
     """Build a SnapshotInfo from a snapshot directory, or None if invalid."""
     metadata = _read_snapshot_metadata(snapshot_dir)
     if metadata is None:
+        return None
+
+    missing = _REQUIRED_METADATA_KEYS - metadata.keys()
+    if missing:
+        logger.warning("Snapshot %s missing metadata keys: %s", snapshot_dir.name, missing)
         return None
 
     snapshot_id = snapshot_dir.name
@@ -171,11 +179,11 @@ def _snapshot_info_from_dir(snapshot_dir: Path) -> SnapshotInfo | None:
 
     return SnapshotInfo(
         snapshot_id=snapshot_id,
-        generator=metadata.get("generator", ""),
-        params=metadata.get("params", {}),
-        seed=metadata.get("seed", 0),
-        container=metadata.get("container", {}),
-        created_at=metadata.get("created_at", ""),
+        generator=metadata["generator"],
+        params=metadata["params"],
+        seed=metadata["seed"],
+        container=metadata["container"],
+        created_at=metadata["created_at"],
         has_thumbnail=has_thumb,
         thumbnail_url=thumb_url,
         geometry_files=geo_files,
@@ -201,15 +209,21 @@ def list_snapshots() -> list[SnapshotInfo]:
 
 
 def get_snapshot_dir(snapshot_id: str) -> Path | None:
-    """Return the path for a snapshot, or None if it doesn't exist."""
-    snapshot_dir = get_snapshots_dir() / snapshot_id
+    """Return the path for a snapshot, or None if it doesn't exist or is invalid."""
+    snapshots_dir = get_snapshots_dir()
+    snapshot_dir = (snapshots_dir / snapshot_id).resolve()
+    if not snapshot_dir.is_relative_to(snapshots_dir.resolve()):
+        return None
     if not snapshot_dir.is_dir():
         return None
     return snapshot_dir
 
 
 def delete_snapshot(snapshot_id: str) -> bool:
-    """Delete a snapshot directory. Returns True if deleted, False if not found."""
+    """Delete a snapshot directory. Returns True if deleted, False if not found.
+
+    Raises OSError if the directory cannot be removed (e.g. permission error).
+    """
     snapshot_dir = get_snapshot_dir(snapshot_id)
     if snapshot_dir is None:
         return False

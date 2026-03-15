@@ -846,7 +846,11 @@ async function openGallery() {
 
 function formatParamsSummary(params) {
   return Object.entries(params)
-    .map(([k, v]) => `${k}=${typeof v === 'number' ? Number(v.toFixed(4)) : v}`)
+    .map(([k, v]) => {
+      if (typeof v === 'number') return `${k}=${Number(v.toFixed(4))}`;
+      if (typeof v === 'string') return `${k}=${v}`;
+      return `${k}=${JSON.stringify(v)}`;
+    })
     .join(', ');
 }
 
@@ -868,9 +872,18 @@ function buildSnapshotCard(snap) {
   const info = document.createElement('div');
   info.className = 'snap-info';
   const dateStr = snap.created_at ? new Date(snap.created_at).toLocaleString() : '—';
-  info.innerHTML = `<div class="snap-gen">${snap.generator}</div>`
-    + `<div class="snap-date">${dateStr}</div>`
-    + `<div class="snap-params">${formatParamsSummary(snap.params)}</div>`;
+  const genDiv = document.createElement('div');
+  genDiv.className = 'snap-gen';
+  genDiv.textContent = snap.generator;
+  const dateDiv = document.createElement('div');
+  dateDiv.className = 'snap-date';
+  dateDiv.textContent = dateStr;
+  const paramsDiv = document.createElement('div');
+  paramsDiv.className = 'snap-params';
+  paramsDiv.textContent = formatParamsSummary(snap.params);
+  info.appendChild(genDiv);
+  info.appendChild(dateDiv);
+  info.appendChild(paramsDiv);
 
   const actions = document.createElement('div');
   actions.className = 'snap-actions';
