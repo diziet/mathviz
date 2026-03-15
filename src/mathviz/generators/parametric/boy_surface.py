@@ -95,14 +95,11 @@ class BoySurfaceGenerator(GeneratorBase):
     aliases = ()
     description = "Boy surface (RP² immersion) with triple self-intersection"
     resolution_params = {"grid_resolution": "Number of grid divisions per axis"}
+    _resolution_defaults = {"grid_resolution": _DEFAULT_GRID_RESOLUTION}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for Boy's surface."""
         return {"scale": _DEFAULT_SCALE}
-
-    def get_default_resolution(self) -> dict[str, Any]:
-        """Return default values for resolution parameters."""
-        return {"grid_resolution": _DEFAULT_GRID_RESOLUTION}
 
     def generate(
         self,

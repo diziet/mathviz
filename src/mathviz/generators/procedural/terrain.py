@@ -109,6 +109,7 @@ class TerrainGenerator(GeneratorBase):
     resolution_params = {
         "pixel_resolution": "Grid points per axis (N² cost)",
     }
+    _resolution_defaults = {"pixel_resolution": _DEFAULT_PIXEL_RESOLUTION}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for terrain generation."""
@@ -119,10 +120,6 @@ class TerrainGenerator(GeneratorBase):
             "base_frequency": _DEFAULT_BASE_FREQUENCY,
             "height_scale": _DEFAULT_HEIGHT_SCALE,
         }
-
-    def get_default_resolution(self) -> dict[str, Any]:
-        """Return default values for resolution parameters."""
-        return {"pixel_resolution": _DEFAULT_PIXEL_RESOLUTION}
 
     def generate(
         self,

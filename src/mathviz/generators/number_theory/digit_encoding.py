@@ -106,6 +106,7 @@ class DigitEncodingGenerator(GeneratorBase):
     resolution_params = {
         "num_digits": "Number of digits to encode",
     }
+    _resolution_defaults = {"num_digits": _DEFAULT_NUM_DIGITS}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for digit encoding."""
@@ -114,10 +115,6 @@ class DigitEncodingGenerator(GeneratorBase):
             "height_scale": 0.1,
             "spacing": 0.1,
         }
-
-    def get_default_resolution(self) -> dict[str, Any]:
-        """Return default values for resolution parameters."""
-        return {"num_digits": _DEFAULT_NUM_DIGITS}
 
     def generate(
         self,

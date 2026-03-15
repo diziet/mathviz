@@ -104,16 +104,13 @@ class AttractorGeneratorBase(GeneratorBase):
     resolution_params = {
         "integration_steps": "Total number of integration time steps",
     }
+    _resolution_defaults = {"integration_steps": DEFAULT_INTEGRATION_STEPS}
 
     # Subclasses must set these
     _t_span_end: float = 100.0
     _default_initial_condition: tuple[float, ...] = (0.0, 0.0, 0.0)
     _perturbation_scale: float = PERTURBATION_SCALE
     _output_dims: int = 3
-
-    def get_default_resolution(self) -> dict[str, Any]:
-        """Return default values for resolution parameters."""
-        return {"integration_steps": DEFAULT_INTEGRATION_STEPS}
 
     @abstractmethod
     def _rhs(self, _t: float, state: np.ndarray, params: dict[str, Any]) -> list[float]:

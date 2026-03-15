@@ -104,6 +104,7 @@ class GyroidGenerator(GeneratorBase):
     resolution_params = {
         "voxel_resolution": "Number of voxels per axis (N³ cost)",
     }
+    _resolution_defaults = {"voxel_resolution": _DEFAULT_VOXEL_RESOLUTION}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for the gyroid generator."""
@@ -111,10 +112,6 @@ class GyroidGenerator(GeneratorBase):
             "cell_size": _DEFAULT_CELL_SIZE,
             "periods": _DEFAULT_PERIODS,
         }
-
-    def get_default_resolution(self) -> dict[str, Any]:
-        """Return default values for resolution parameters."""
-        return {"voxel_resolution": _DEFAULT_VOXEL_RESOLUTION}
 
     def generate(
         self,

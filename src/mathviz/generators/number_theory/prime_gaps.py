@@ -59,6 +59,7 @@ class PrimeGapsGenerator(GeneratorBase):
     resolution_params = {
         "num_primes": "Number of primes to compute gaps between",
     }
+    _resolution_defaults = {"num_primes": _DEFAULT_NUM_PRIMES}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for prime gaps."""
@@ -67,10 +68,6 @@ class PrimeGapsGenerator(GeneratorBase):
             "y_scale": 0.1,
             "ribbon_width": 0.5,
         }
-
-    def get_default_resolution(self) -> dict[str, Any]:
-        """Return default values for resolution parameters."""
-        return {"num_primes": _DEFAULT_NUM_PRIMES}
 
     def generate(
         self,

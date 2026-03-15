@@ -45,6 +45,7 @@ class Julia3DGenerator(GeneratorBase):
     resolution_params = {
         "voxel_resolution": "Voxels per axis (N³ cost)",
     }
+    _resolution_defaults = {"voxel_resolution": DEFAULT_VOXEL_RESOLUTION}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for Julia 3D."""
@@ -56,10 +57,6 @@ class Julia3DGenerator(GeneratorBase):
             "c_im": _DEFAULT_C_IM,
             "c_z": _DEFAULT_C_Z,
         }
-
-    def get_default_resolution(self) -> dict[str, Any]:
-        """Return default values for resolution parameters."""
-        return {"voxel_resolution": DEFAULT_VOXEL_RESOLUTION}
 
     def generate(
         self,

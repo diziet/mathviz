@@ -159,6 +159,7 @@ class SphericalHarmonicsGenerator(GeneratorBase):
     aliases = ()
     description = "Sphere modulated by spherical harmonics"
     resolution_params = {"grid_resolution": "Number of grid divisions per axis"}
+    _resolution_defaults = {"grid_resolution": _DEFAULT_GRID_RESOLUTION}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for spherical harmonics."""
@@ -168,10 +169,6 @@ class SphericalHarmonicsGenerator(GeneratorBase):
             "base_radius": _DEFAULT_BASE_RADIUS,
             "amplitude": _DEFAULT_AMPLITUDE,
         }
-
-    def get_default_resolution(self) -> dict[str, Any]:
-        """Return default values for resolution parameters."""
-        return {"grid_resolution": _DEFAULT_GRID_RESOLUTION}
 
     def generate(
         self,

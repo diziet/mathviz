@@ -119,6 +119,7 @@ class SevenCrossingKnotsGenerator(GeneratorBase):
     resolution_params = {
         "curve_points": "Number of sample points along the knot curve",
     }
+    _resolution_defaults = {"curve_points": _DEFAULT_CURVE_POINTS}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters."""
@@ -126,10 +127,6 @@ class SevenCrossingKnotsGenerator(GeneratorBase):
             "knot_index": _DEFAULT_KNOT_INDEX,
             "scale": _DEFAULT_SCALE,
         }
-
-    def get_default_resolution(self) -> dict[str, Any]:
-        """Return default values for resolution parameters."""
-        return {"curve_points": _DEFAULT_CURVE_POINTS}
 
     def generate(
         self,

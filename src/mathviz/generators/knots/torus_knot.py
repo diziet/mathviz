@@ -91,6 +91,7 @@ class TorusKnotGenerator(GeneratorBase):
     resolution_params = {
         "curve_points": "Number of sample points along the knot curve",
     }
+    _resolution_defaults = {"curve_points": _DEFAULT_CURVE_POINTS}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters, adjusted for alias if applicable."""
@@ -103,10 +104,6 @@ class TorusKnotGenerator(GeneratorBase):
         if self.resolved_name in _ALIASES:
             defaults.update(_ALIASES[self.resolved_name])
         return defaults
-
-    def get_default_resolution(self) -> dict[str, Any]:
-        """Return default values for resolution parameters."""
-        return {"curve_points": _DEFAULT_CURVE_POINTS}
 
     def generate(
         self,

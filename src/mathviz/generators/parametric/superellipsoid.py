@@ -104,6 +104,7 @@ class SuperellipsoidGenerator(GeneratorBase):
     aliases = ()
     description = "Superellipsoid with configurable exponents and radii"
     resolution_params = {"grid_resolution": "Number of grid divisions per axis"}
+    _resolution_defaults = {"grid_resolution": _DEFAULT_GRID_RESOLUTION}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for the superellipsoid."""
@@ -111,10 +112,6 @@ class SuperellipsoidGenerator(GeneratorBase):
             "a1": _DEFAULT_A1, "a2": _DEFAULT_A2, "a3": _DEFAULT_A3,
             "e1": _DEFAULT_E1, "e2": _DEFAULT_E2,
         }
-
-    def get_default_resolution(self) -> dict[str, Any]:
-        """Return default values for resolution parameters."""
-        return {"grid_resolution": _DEFAULT_GRID_RESOLUTION}
 
     def generate(
         self,

@@ -79,6 +79,7 @@ class UlamSpiralGenerator(GeneratorBase):
     resolution_params = {
         "num_points": "Number of integers to place on the spiral",
     }
+    _resolution_defaults = {"num_points": _DEFAULT_NUM_POINTS}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for the Ulam spiral."""
@@ -86,10 +87,6 @@ class UlamSpiralGenerator(GeneratorBase):
             "prime_height": 1.0,
             "spacing": 0.1,
         }
-
-    def get_default_resolution(self) -> dict[str, Any]:
-        """Return default values for resolution parameters."""
-        return {"num_points": _DEFAULT_NUM_POINTS}
 
     def generate(
         self,

@@ -85,6 +85,7 @@ class KeplerOrbitGenerator(GeneratorBase):
     resolution_params = {
         "curve_points": "Number of sample points along the orbit",
     }
+    _resolution_defaults = {"curve_points": _DEFAULT_CURVE_POINTS}
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters."""
@@ -93,10 +94,6 @@ class KeplerOrbitGenerator(GeneratorBase):
             "eccentricity": _DEFAULT_ECCENTRICITY,
             "inclination": _DEFAULT_INCLINATION,
         }
-
-    def get_default_resolution(self) -> dict[str, Any]:
-        """Return default values for resolution parameters."""
-        return {"curve_points": _DEFAULT_CURVE_POINTS}
 
     def generate(
         self,

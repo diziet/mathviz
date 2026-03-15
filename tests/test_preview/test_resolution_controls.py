@@ -122,6 +122,18 @@ class TestResolutionAPI:
 # --- POST /api/generate resolution behavior ---
 
 
+def _generate_vertex_count(client: TestClient, resolution: dict[str, Any] | None) -> int:
+    """Generate a torus and return the mesh vertex count."""
+    body: dict[str, Any] = {"generator": "torus", "seed": 42}
+    if resolution is not None:
+        body["resolution"] = resolution
+    resp = client.post("/api/generate", json=body)
+    assert resp.status_code == 200
+    entry = get_cache().get(resp.json()["geometry_id"])
+    assert entry is not None
+    return entry.math_object.mesh.vertices.shape[0]
+
+
 class TestResolutionGenerate:
     """Tests for resolution-aware generation."""
 
@@ -129,67 +141,17 @@ class TestResolutionGenerate:
         self, client: TestClient,
     ) -> None:
         """Higher grid_resolution produces more vertices."""
-        resp_low = client.post(
-            "/api/generate",
-            json={
-                "generator": "torus",
-                "seed": 42,
-                "resolution": {"grid_resolution": 8},
-            },
-        )
-        resp_high = client.post(
-            "/api/generate",
-            json={
-                "generator": "torus",
-                "seed": 42,
-                "resolution": {"grid_resolution": 32},
-            },
-        )
-        assert resp_low.status_code == 200
-        assert resp_high.status_code == 200
-
-        cache = get_cache()
-        low_entry = cache.get(resp_low.json()["geometry_id"])
-        high_entry = cache.get(resp_high.json()["geometry_id"])
-        assert low_entry is not None
-        assert high_entry is not None
-
-        low_verts = low_entry.math_object.mesh.vertices.shape[0]
-        high_verts = high_entry.math_object.mesh.vertices.shape[0]
-        assert high_verts > low_verts
+        low = _generate_vertex_count(client, {"grid_resolution": 8})
+        high = _generate_vertex_count(client, {"grid_resolution": 32})
+        assert high > low
 
     def test_lower_resolution_produces_fewer_vertices(
         self, client: TestClient,
     ) -> None:
         """Lower grid_resolution produces fewer vertices than default."""
-        resp_default = client.post(
-            "/api/generate",
-            json={
-                "generator": "torus",
-                "seed": 42,
-                "resolution": {"grid_resolution": 32},
-            },
-        )
-        resp_low = client.post(
-            "/api/generate",
-            json={
-                "generator": "torus",
-                "seed": 42,
-                "resolution": {"grid_resolution": 8},
-            },
-        )
-        assert resp_default.status_code == 200
-        assert resp_low.status_code == 200
-
-        cache = get_cache()
-        default_entry = cache.get(resp_default.json()["geometry_id"])
-        low_entry = cache.get(resp_low.json()["geometry_id"])
-        assert default_entry is not None
-        assert low_entry is not None
-
-        default_verts = default_entry.math_object.mesh.vertices.shape[0]
-        low_verts = low_entry.math_object.mesh.vertices.shape[0]
-        assert low_verts < default_verts
+        default = _generate_vertex_count(client, None)
+        low = _generate_vertex_count(client, {"grid_resolution": 8})
+        assert low < default
 
     def test_no_resolution_uses_defaults(self, client: TestClient) -> None:
         """POST without resolution field uses generator defaults."""
