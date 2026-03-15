@@ -2,6 +2,11 @@
 
 Verifies that view mode is only overridden when incompatible with available
 data, not unconditionally after every generation or file load.
+
+# NOTE: These tests verify static HTML source patterns (string matching on
+# the served page). They do NOT exercise runtime JS behavior — a browser-based
+# test (e.g. Playwright) would be needed to cover the runtime conditional
+# paths such as loading a PLY while in wireframe mode.
 """
 
 import re
@@ -89,6 +94,13 @@ class TestViewModeDefault:
 class TestViewModeNotOverridden:
     """Tests that view mode is preserved when compatible with available data."""
 
+    def test_view_mode_needs_mesh_helper_exists(self, client: TestClient) -> None:
+        """The viewModeNeedsMesh helper is defined and checks shaded/wireframe."""
+        html = _get_html(client)
+        assert "function viewModeNeedsMesh()" in html
+        assert "'shaded'" in html
+        assert "'wireframe'" in html
+
     def test_no_unconditional_shaded_override(self, client: TestClient) -> None:
         """displayGenerateResult must not unconditionally set shaded mode."""
         html = _get_html(client)
@@ -96,17 +108,35 @@ class TestViewModeNotOverridden:
         assert "state.viewMode = 'shaded'" not in html
 
     def test_mesh_only_preserves_points_mode(self, client: TestClient) -> None:
-        """For mesh-only generators, view mode stays 'points' (the default)."""
+        """For mesh-only generators, displayGenerateResult does not force shaded."""
         html = _get_html(client)
-        # The logic should only override when incompatible, not force shaded
-        assert "needsMesh && !hasMesh" in html
+        gen_fn = re.search(
+            r"async function displayGenerateResult.*?^}",
+            html,
+            re.MULTILINE | re.DOTALL,
+        )
+        assert gen_fn is not None
+        fn_body = gen_fn.group(0)
+        # Only fallback assignment should be to 'points' (for incompatible mode)
+        assert "state.viewMode = 'shaded'" not in fn_body
+        # The guard uses the helper and only fires when no mesh is available
+        assert "viewModeNeedsMesh()" in fn_body
 
     def test_cloud_only_preserves_points_mode(self, client: TestClient) -> None:
-        """For cloud-only data, points mode is preserved (already compatible)."""
+        """For cloud-only data, displayGenerateResult keeps points mode."""
         html = _get_html(client)
-        # When no mesh but hasCloud, points mode should not be forced — it's
-        # already the default. The guard only kicks in when needsMesh && !hasMesh.
-        assert "needsMesh && !hasMesh" in html
+        gen_fn = re.search(
+            r"async function displayGenerateResult.*?^}",
+            html,
+            re.MULTILINE | re.DOTALL,
+        )
+        assert gen_fn is not None
+        fn_body = gen_fn.group(0)
+        # Cloud-only means !hasMesh, so the guard fires only if mode needs mesh.
+        # Points mode (the default) does not need mesh, so no override occurs.
+        assert "viewModeNeedsMesh() && !hasMesh" in fn_body
+        # Verify dropdown is synced to state (not hardcoded)
+        assert "document.getElementById('view-mode').value = state.viewMode" in fn_body
 
     def test_dropdown_synced_after_generation(self, client: TestClient) -> None:
         """Dropdown value is synced from state.viewMode after generation."""
@@ -122,8 +152,8 @@ class TestViewModeNotOverridden:
     ) -> None:
         """When viewMode needs mesh but no mesh is available, fall back to points."""
         html = _get_html(client)
-        # The guard checks needsMesh (shaded/wireframe) and falls back
-        pattern = r"needsMesh\s*&&\s*!hasMesh"
+        # The guard uses the extracted helper and falls back to points
+        pattern = r"viewModeNeedsMesh\(\)\s*&&\s*!hasMesh"
         assert re.search(pattern, html), (
             "Missing incompatibility guard for mesh-requiring view modes"
         )
@@ -155,7 +185,7 @@ class TestViewModeNotOverridden:
         )
         assert ply_block is not None
         block = ply_block.group(0)
-        assert "needsMesh" in block
+        assert "viewModeNeedsMesh()" in block
         assert "state.viewMode = 'points'" in block
 
     def test_user_wireframe_preserved_across_mesh_regeneration(

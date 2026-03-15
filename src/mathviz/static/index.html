@@ -457,8 +457,7 @@ async function displayGenerateResult(data, generatorName) {
     return;
   }
   /* Only override view mode when current mode is incompatible with data */
-  const needsMesh = (state.viewMode === 'shaded' || state.viewMode === 'wireframe');
-  if (needsMesh && !hasMesh) {
+  if (viewModeNeedsMesh() && !hasMesh) {
     state.viewMode = 'points';
   }
   document.getElementById('view-mode').value = state.viewMode;
@@ -504,8 +503,7 @@ async function loadFromFile(filePath) {
       const {points, vertexCount} = await loadCloudFromPLY(url);
       displayCloud(points, vertexCount, 'file');
       /* PLY is cloud-only: shaded/wireframe need mesh, so fall back to points */
-      const needsMesh = (state.viewMode === 'shaded' || state.viewMode === 'wireframe');
-      if (needsMesh) {
+      if (viewModeNeedsMesh()) {
         state.viewMode = 'points';
       }
     }
@@ -520,6 +518,10 @@ async function loadFromFile(filePath) {
 }
 
 /* ── View mode ── */
+function viewModeNeedsMesh() {
+  return state.viewMode === 'shaded' || state.viewMode === 'wireframe';
+}
+
 function applyViewMode() {
   const mode = state.viewMode;
 
