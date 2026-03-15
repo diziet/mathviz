@@ -2845,3 +2845,35 @@ grid takes 4× as long and a 3×3 grid takes 9× as long as a single render.
 - Batch respects the generation timeout
 - Empty panels list returns 400
 - Single-panel batch works the same as regular generate
+
+---
+
+## Task 69: Fix stale "Usable: 90 x 90 x 30 mm" on page load
+
+**Objective:**
+
+The preview HTML has `Usable: 90 x 90 x 30 mm` hardcoded at line 282,
+reflecting the old 100×100×40 container defaults. The JS function
+`updateUsableVolume()` recalculates it dynamically but is not called on
+initial page load, so users see the stale value until they interact with
+a dimension or margin input.
+
+**Suggested path:**
+
+1. Call `updateUsableVolume()` on page load (in the initialization
+   section, after DOM is ready) so the displayed value always matches
+   the actual input field values.
+
+2. Change the hardcoded initial text from `Usable: 90 x 90 x 30 mm` to
+   `Usable: 90 x 90 x 90 mm` to match the new 100×100×100 defaults
+   (with 5mm margins). This way even before JS runs, the HTML is correct.
+
+3. Audit for any other hardcoded values in the HTML that reference the
+   old 40mm depth default.
+
+**Tests:** `tests/test_preview/test_usable_volume.py`
+
+- Initial HTML usable volume text matches current container defaults
+- `updateUsableVolume()` is called during page initialization
+- Changing depth input updates the usable volume display
+- Usable volume calculation is correct: dimension - 2 * margin per axis
