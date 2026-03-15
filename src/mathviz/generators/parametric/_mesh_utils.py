@@ -108,12 +108,10 @@ def build_wrapped_grid_faces(n_u: int, n_v: int) -> np.ndarray:
 def build_klein_wrapped_faces(n_u: int, n_v: int) -> np.ndarray:
     """Build triangle faces for a Klein bottle grid with shifted u-seam.
 
-    The figure-8 Klein bottle cross-section rotates 180 degrees over a full
-    u-period. At the u-seam (row n_u-1 wrapping to row 0), vertex (n_u-1, v)
-    connects to (0, (v + n_v//2) % n_v) instead of (0, v).
+    The figure-8 Klein bottle cross-section is reflected (v → -v) after a
+    full u-period. At the u-seam (row n_u-1 wrapping to row 0), vertex
+    (n_u-1, v) connects to (0, (n_v - v) % n_v) instead of (0, v).
     """
-    v_shift = n_v // 2
-
     # Interior faces: rows 0..n_u-2, all v columns (v wraps normally)
     rows = np.arange(n_u - 1)
     cols = np.arange(n_v)
@@ -128,13 +126,17 @@ def build_klein_wrapped_faces(n_u: int, n_v: int) -> np.ndarray:
     interior_tri1 = np.stack([i00, i10, i11], axis=-1)
     interior_tri2 = np.stack([i00, i11, i01], axis=-1)
 
-    # Seam faces: row n_u-1 wrapping to row 0 with v_shift
-    last_row = n_u - 1
+    # Seam faces: row n_u-1 wrapping to row 0 with v-reflection
+    # The figure-8 immersion satisfies f(0, v) = f(2π, -v), so vertex
+    # (n_u-1, v) is spatially adjacent to (0, (n_v - v) % n_v).
     sc = np.arange(n_v)
-    s00 = last_row * n_v + sc
-    s01 = last_row * n_v + ((sc + 1) % n_v)
-    s10 = ((sc + v_shift) % n_v)  # row 0, shifted v
-    s11 = ((sc + 1 + v_shift) % n_v)  # row 0, shifted v+1
+    s00 = (n_u - 1) * n_v + sc
+    s01 = (n_u - 1) * n_v + ((sc + 1) % n_v)
+    # Row 0 reflected: v maps to -v, and v+1 maps to -(v+1).
+    # Since v increases clockwise at the seam but counter-clockwise in
+    # row 0 after reflection, we swap the winding to keep faces consistent.
+    s10 = (n_v - sc) % n_v  # row 0, reflected v
+    s11 = (n_v - sc - 1) % n_v  # row 0, reflected v+1
 
     seam_tri1 = np.stack([s00, s10, s11], axis=-1)
     seam_tri2 = np.stack([s00, s11, s01], axis=-1)
