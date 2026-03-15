@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 72 generators across 12 categories. Each generator produces a
+MathViz includes 73 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -529,6 +529,24 @@ Aliases: `ifs`, `barnsley_fern`
 mathviz generate ifs_fractal --output ifs.ply
 mathviz generate ifs_fractal --param preset=maple_leaf --output maple.ply
 mathviz generate ifs_fractal --param preset=spiral --param dimensions=2d_extruded --output spiral.ply
+```
+
+### koch_3d
+
+Koch snowflake curve extruded or revolved into 3D. Generates the classic Koch
+snowflake at a given recursion level, then produces 3D geometry via extrusion
+along the z-axis or revolution around the y-axis.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `level` | 4 | Recursion depth (0–6) |
+| `mode` | extrude | 3D method: `extrude` or `revolve` |
+| `height` | 0.3 | Extrusion height (extrude mode only) |
+
+Aliases: `koch_snowflake_3d`
+
+```bash
+mathviz generate koch_3d --param level=4 --param mode=extrude --seed 42 --output koch.ply
 ```
 
 ## Geometry
