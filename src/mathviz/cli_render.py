@@ -9,9 +9,9 @@ from rich.console import Console
 
 from mathviz.preview.renderer import (
     PYVISTA_INSTALL_MSG,
-    VALID_RENDER_STYLES,
     ProjectionView,
     RenderConfig,
+    RenderStyle,
     render_2d_projection,
     render_to_png,
 )
@@ -44,11 +44,6 @@ def register_render_commands(
     ) -> None:
         """Render a generator to a high-resolution PNG image."""
         configure_logging_fn(verbose, quiet)
-        if style not in VALID_RENDER_STYLES:
-            output_console.print(
-                f"[red]Invalid style: {style!r}. Must be one of {VALID_RENDER_STYLES}[/red]"
-            )
-            raise typer.Exit(code=2)
         _run_render(
             generator_name=generator_name,
             output=output,
@@ -85,12 +80,6 @@ def register_render_commands(
         if view not in valid_views:
             output_console.print(f"[red]Invalid view: {view!r}. Must be one of {valid_views}[/red]")
             raise typer.Exit(code=2)
-        if style not in VALID_RENDER_STYLES:
-            output_console.print(
-                f"[red]Invalid style: {style!r}. Must be one of {VALID_RENDER_STYLES}[/red]"
-            )
-            raise typer.Exit(code=2)
-
         _run_render(
             generator_name=generator_name,
             output=output,
@@ -115,7 +104,7 @@ def _run_render(
     seed: int | None,
     width: int,
     height: int,
-    style: str,
+    style: RenderStyle,
     point_size: float,
     view: ProjectionView | None,
     parse_params_fn: Any,
@@ -132,7 +121,12 @@ def _run_render(
         json_output=False,
     )
 
-    config = RenderConfig(width=width, height=height, style=style, point_size=point_size)
+    try:
+        config = RenderConfig(width=width, height=height, style=style, point_size=point_size)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=2)
+
     obj = result.math_object
 
     try:

@@ -8,7 +8,7 @@ import logging
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, Literal
+from typing import Iterator, Literal, get_args
 
 import numpy as np
 
@@ -22,7 +22,7 @@ PYVISTA_INSTALL_MSG = (
 
 ProjectionView = Literal["top", "front", "side", "angle"]
 RenderStyle = Literal["shaded", "wireframe", "points"]
-VALID_RENDER_STYLES = ("shaded", "wireframe", "points")
+VALID_RENDER_STYLES: tuple[RenderStyle, ...] = get_args(RenderStyle)
 
 # Camera positions for 2D projections: (position, viewup)
 _PROJECTION_CAMERAS: dict[ProjectionView, tuple[tuple[float, ...], tuple[float, ...]]] = {
@@ -111,6 +111,8 @@ def _setup_backlit_scene(plotter: "object", pv_mesh: "object", config: RenderCon
         mesh_kwargs["style"] = "points"
         mesh_kwargs["point_size"] = config.point_size
         mesh_kwargs["render_points_as_spheres"] = True
+    else:
+        raise ValueError(f"Unsupported render style: {config.style!r}")
 
     plotter.add_mesh(pv_mesh, **mesh_kwargs)
 

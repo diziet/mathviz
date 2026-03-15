@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from mathviz.core.math_object import MathObject, Mesh, PointCloud
-from mathviz.preview.renderer import PYVISTA_INSTALL_MSG, VALID_RENDER_STYLES, RenderConfig
+from mathviz.preview.renderer import PYVISTA_INSTALL_MSG, RenderConfig
 
 
 def _sphere_mesh() -> MathObject:
@@ -352,11 +352,11 @@ class TestRenderStyles:
     """Tests for render style options (shaded, wireframe, points)."""
 
     def _render_with_style(
-        self, tmp_path: Path, style: str, point_size: float = 3.0
+        self, tmp_path: Path, style: str, point_size: float = 3.0, suffix: str = ""
     ) -> tuple[MagicMock, Path]:
         """Render a sphere with the given style, return (mock_plotter, output_path)."""
         mock_pv = _make_mock_pyvista()
-        output_file = tmp_path / f"{style}.png"
+        output_file = tmp_path / f"{style}{suffix}.png"
 
         mock_plotter = mock_pv.Plotter.return_value
         mock_plotter.screenshot.side_effect = lambda p: Path(p).write_bytes(
@@ -409,32 +409,19 @@ class TestRenderStyles:
 
     def test_point_size_default_differs_from_custom(self, tmp_path: Path) -> None:
         """Different point_size values produce different add_mesh calls."""
-        _, _ = self._render_with_style(tmp_path, "points", point_size=3.0)
-        mock_pv = _make_mock_pyvista()
-        output_file = tmp_path / "points_large.png"
-        mock_plotter = mock_pv.Plotter.return_value
-        mock_plotter.screenshot.side_effect = lambda p: Path(p).write_bytes(
-            b"\x89PNG" + b"\x01" * 50
-        )
-        config = RenderConfig(style="points", point_size=5.0)
-        with patch.dict(sys.modules, {"pyvista": mock_pv}):
-            from mathviz.preview import renderer
+        default_plotter, _ = self._render_with_style(tmp_path, "points", point_size=3.0)
+        default_size = default_plotter.add_mesh.call_args[1]["point_size"]
 
-            renderer.render_to_png(_sphere_mesh(), output_file, config=config)
-        call_kwargs = mock_plotter.add_mesh.call_args[1]
-        assert call_kwargs["point_size"] == 5.0
+        custom_plotter, _ = self._render_with_style(
+            tmp_path, "points", point_size=5.0, suffix="_large"
+        )
+        custom_size = custom_plotter.add_mesh.call_args[1]["point_size"]
+
+        assert default_size != custom_size
+        assert custom_size == 5.0
 
     def test_default_render_uses_points_style(self, tmp_path: Path) -> None:
         """Default render (no explicit style) uses points style."""
-        mock_pv = _make_mock_pyvista()
-        output_file = tmp_path / "default.png"
-        mock_plotter = mock_pv.Plotter.return_value
-        mock_plotter.screenshot.side_effect = lambda p: Path(p).write_bytes(
-            b"\x89PNG" + b"\x01" * 50
-        )
-        with patch.dict(sys.modules, {"pyvista": mock_pv}):
-            from mathviz.preview import renderer
-
-            renderer.render_to_png(_sphere_mesh(), output_file)
+        mock_plotter, _ = self._render_with_style(tmp_path, "points")
         call_kwargs = mock_plotter.add_mesh.call_args[1]
         assert call_kwargs.get("style") == "points"
