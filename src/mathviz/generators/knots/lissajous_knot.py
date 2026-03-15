@@ -92,6 +92,10 @@ class LissajousKnotGenerator(GeneratorBase):
             "scale": _DEFAULT_SCALE,
         }
 
+    def get_default_resolution(self) -> dict[str, Any]:
+        """Return default values for resolution parameters."""
+        return {"curve_points": _DEFAULT_CURVE_POINTS}
+
     def generate(
         self,
         params: dict[str, Any] | None = None,
