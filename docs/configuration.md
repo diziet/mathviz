@@ -167,6 +167,25 @@ Controls engraving-specific validation and optimization.
 | `depth_compensation` | bool | false | Enable depth-based density compensation |
 | `depth_compensation_factor` | float | 1.5 | Depth compensation multiplier |
 
+## Environment Variables
+
+MathViz reads the following environment variables at runtime:
+
+| Variable | Default | Description |
+|---|---|---|
+| `MATHVIZ_SNAPSHOTS_DIR` | `~/.mathviz/snapshots` | Directory for saved preview snapshots (geometry, metadata, thumbnails) |
+| `MATHVIZ_GENERATION_TIMEOUT` | `300` | Maximum generation time in seconds for the preview server. Values ≤ 0 are ignored with a warning. |
+| `PYVISTA_OFF_SCREEN` | (unset) | Set to `true` for headless rendering without a display (see [rendering.md](rendering.md)) |
+
+Environment variables are checked at startup. Invalid values for
+`MATHVIZ_GENERATION_TIMEOUT` log a warning and fall back to the default.
+
+```bash
+# Example: custom snapshot directory and longer timeout
+export MATHVIZ_SNAPSHOTS_DIR=/mnt/data/mathviz-snapshots
+export MATHVIZ_GENERATION_TIMEOUT=600
+```
+
 ## JSON Schema Generation
 
 Generate JSON Schema files for all config models using:
