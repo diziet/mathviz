@@ -53,11 +53,16 @@ def _validate_params(scale: float, grid_resolution: int) -> None:
 
 
 def _compute_bounding_box(scale: float) -> BoundingBox:
-    """Compute axis-aligned bounding box for the cross-cap."""
-    extent = scale * 1.05
+    """Compute axis-aligned bounding box for the cross-cap.
+
+    The x-component has max |x| = scale/2 (from sin(u)*sin(2v)/2),
+    while y and z reach scale. We use per-axis extents with margin.
+    """
+    x_extent = scale * 0.55  # max |x| = scale/2, with 10% margin
+    yz_extent = scale * 1.05
     return BoundingBox(
-        min_corner=(-extent, -extent, -extent),
-        max_corner=(extent, extent, extent),
+        min_corner=(-x_extent, -yz_extent, -yz_extent),
+        max_corner=(x_extent, yz_extent, yz_extent),
     )
 
 
@@ -103,7 +108,10 @@ class CrossCapGenerator(GeneratorBase):
 
         scale = float(merged["scale"])
         grid_resolution = int(
-            resolution_kwargs.get("grid_resolution", _DEFAULT_GRID_RESOLUTION)
+            resolution_kwargs.get(
+                "grid_resolution",
+                self._resolution_defaults["grid_resolution"],
+            )
         )
 
         _validate_params(scale, grid_resolution)

@@ -164,6 +164,9 @@ def test_parametric_equations() -> None:
 
     Verify that the generated vertices match the expected parametric
     formulas for a subset of (u, v) sample points.
+
+    NOTE: Equations are intentionally duplicated here as an independent
+    oracle rather than importing _evaluate_cross_cap from the module.
     """
     gen = CrossCapGenerator()
     obj = gen.generate(grid_resolution=32)
