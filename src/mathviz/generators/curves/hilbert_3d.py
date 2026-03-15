@@ -109,7 +109,12 @@ class Hilbert3DGenerator(GeneratorBase):
         seed: int = 42,
         **resolution_kwargs: Any,
     ) -> MathObject:
-        """Generate a 3D Hilbert curve."""
+        """Generate a 3D Hilbert curve.
+
+        Note: this generator is deterministic by construction — the output
+        depends only on ``order`` and ``size``. The seed is stored as
+        metadata but does not influence the geometry.
+        """
         merged = self.get_default_params()
         if params:
             merged.update(params)

@@ -45,6 +45,17 @@ def test_order_n_produces_8_to_the_n_points() -> None:
 
 
 # ===========================================================================
+# Helpers
+# ===========================================================================
+
+
+def _to_grid(points: np.ndarray, order: int) -> np.ndarray:
+    """Reverse-normalize curve points back to integer grid coordinates."""
+    grid_max = (1 << order) - 1
+    return np.round(points / points.max() * grid_max).astype(int)
+
+
+# ===========================================================================
 # Uniqueness — visits each grid cell exactly once
 # ===========================================================================
 
@@ -54,10 +65,7 @@ def test_visits_each_grid_cell_exactly_once() -> None:
     gen = Hilbert3DGenerator()
     for order in range(1, 4):
         obj = gen.generate(params={"order": order})
-        points = obj.curves[0].points
-        # Normalize back to integer grid for uniqueness check
-        grid_max = (1 << order) - 1
-        grid_points = np.round(points / points.max() * grid_max).astype(int)
+        grid_points = _to_grid(obj.curves[0].points, order)
         unique = np.unique(grid_points, axis=0)
         assert len(unique) == 8 ** order, (
             f"Order {order}: expected {8 ** order} unique cells, "
@@ -75,10 +83,7 @@ def test_consecutive_points_are_adjacent() -> None:
     gen = Hilbert3DGenerator()
     for order in range(1, 4):
         obj = gen.generate(params={"order": order})
-        points = obj.curves[0].points
-        # Normalize to integer grid
-        grid_max = (1 << order) - 1
-        grid_points = np.round(points / points.max() * grid_max)
+        grid_points = _to_grid(obj.curves[0].points, order)
         diffs = np.diff(grid_points, axis=0)
         distances = np.sum(np.abs(diffs), axis=1)
         assert np.all(distances == 1), (

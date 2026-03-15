@@ -254,6 +254,8 @@ mathviz generate fibonacci_spiral --param turns=6 --output spiral.ply
 3D Hilbert space-filling curve that visits every cell in a cubic grid
 exactly once using recursive coordinate transformation.
 
+Aliases: `hilbert_curve_3d`
+
 | Parameter | Default | Description |
 |---|---|---|
 | `order` | 4 | Recursion level (1–6); produces 8^N points |
