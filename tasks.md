@@ -4633,11 +4633,18 @@ Three issues with the save/load snapshot system:
    - Include seed, container dimensions, and view mode
    - Make it easy to scan and compare snapshots at a glance
 
-3. **Feature — save and restore camera state**: The save payload should
-   include the camera position, target (look-at point), and zoom level.
-   When loading a snapshot, restore the camera to the exact saved viewpoint.
-   This lets users save not just *what* they were looking at but *how* they
-   were looking at it.
+3. **Feature — save and restore full UI state**: The save payload should
+   include ALL display/control state so loading a snapshot restores the
+   exact experience. This includes:
+   - Camera position, target (look-at point), and zoom level
+   - View mode (points, shaded, wireframe)
+   - Per-axis stretch values (X, Y, Z scale factors)
+   - Lock camera mode (off / render / full)
+   - Show bounding box toggle
+   - Show axes toggle
+   - Light/dark background toggle
+   - Compare mode and layout (if applicable)
+   When loading a snapshot, restore all of these to match the saved state.
 
 **Suggested path:**
 
@@ -4656,20 +4663,23 @@ Three issues with the save/load snapshot system:
    - Container dimensions (e.g. "100×100×100 mm, margin 5mm")
    - Camera view info if saved
 
-3. **Camera in save payload**: When saving, capture and include:
+3. **Full UI state in save payload**: When saving, capture and include:
    ```js
-   camera: {
-     position: {x, y, z},
-     target: {x, y, z},  // controls.target
-     zoom: camera.zoom,   // for orthographic, or fov for perspective
+   ui_state: {
+     camera: {position: {x,y,z}, target: {x,y,z}, zoom},
+     view_mode: "points" | "shaded" | "wireframe",
+     stretch: {x: 1.0, y: 1.0, z: 1.0},
+     camera_lock: "off" | "render" | "full",
+     show_bbox: true,
+     show_axes: false,
+     light_bg: false,
    }
    ```
-   On load, after geometry is displayed, restore the camera from the
-   saved state instead of calling `fitCamera`.
+   On load, restore all of these after geometry is displayed.
 
 4. **Server changes**: The snapshot storage (server-side) needs to accept
-   and return the `camera` field. Add it to the snapshot metadata JSON
-   schema.
+   and return the `ui_state` field. Add it to the snapshot metadata JSON
+   schema. Unknown fields should be ignored for forward compatibility.
 
 **Files:**
 
@@ -4679,11 +4689,14 @@ Three issues with the save/load snapshot system:
 **Tests:** `tests/test_preview/test_snapshots.py`
 
 - Save button is enabled after loading a snapshot and re-generating
-- Snapshot save payload includes camera position, target, and zoom
-- Snapshot load restores camera to saved position
+- Snapshot save payload includes full `ui_state` (camera, view mode, stretch, toggles)
+- Snapshot load restores camera, view mode, stretch, and all toggles
 - Gallery card displays parameters in readable format (not single line)
 - Gallery card shows seed and container dimensions
-- Round-trip: save → load → camera matches original position
+- Round-trip: save → load → all UI state matches original (camera, view mode,
+  stretch, toggles)
+- Loading a snapshot saved before `ui_state` existed still works (graceful
+  fallback to defaults)
 
 ---
 
