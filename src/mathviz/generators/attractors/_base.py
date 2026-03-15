@@ -111,6 +111,10 @@ class AttractorGeneratorBase(GeneratorBase):
     _perturbation_scale: float = PERTURBATION_SCALE
     _output_dims: int = 3
 
+    def get_default_resolution(self) -> dict[str, Any]:
+        """Return default values for resolution parameters."""
+        return {"integration_steps": DEFAULT_INTEGRATION_STEPS}
+
     @abstractmethod
     def _rhs(self, _t: float, state: np.ndarray, params: dict[str, Any]) -> list[float]:
         """Compute the right-hand side of the ODE system."""

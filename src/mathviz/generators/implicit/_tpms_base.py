@@ -65,6 +65,10 @@ class TPMSGeneratorBase(GeneratorBase):
         "voxel_resolution": "Number of voxels per axis (N³ cost)",
     }
 
+    def get_default_resolution(self) -> dict[str, Any]:
+        """Return default values for resolution parameters."""
+        return {"voxel_resolution": DEFAULT_VOXEL_RESOLUTION}
+
     @abstractmethod
     def evaluate_field(
         self, voxel_resolution: int, bounds: SpatialBounds,
