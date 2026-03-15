@@ -3949,48 +3949,42 @@ Barnsley fern in 3D, Sierpinski variants, and custom affine transforms.
 
 ---
 
-## Task 96: Fix Klein bottle u-seam wrapping — shifted connectivity for non-orientable surface
+## Task 96: Fix Klein bottle u-seam — vertex duplication for smooth normals
 
 **Objective:**
 
-Fix the Klein bottle mesh so the surface renders as a continuous,
-correctly-connected figure-8 tube. Currently the u-seam (where u wraps
-from 2π back to 0) produces enormous stretched triangles that cut across
-the figure-8 opening, creating a visible "flat face converging to a
-point" artifact in both wireframe and shaded views.
+Fix the remaining Klein bottle shaded mesh artifact. Task 96's earlier
+fix (`build_klein_wrapped_faces` with v-reflection) eliminated the
+stretched seam triangles, but 128 flipped normal pairs remain at u=0
+where seam faces meet interior faces with opposite winding. This causes
+a dark seam line in shaded view because `computeVertexNormals()` averages
+opposing normals to near-zero at those vertices.
 
 **Root cause:**
 
-The figure-8 Klein bottle's cross-section rotates 180° as u goes from
-0 to 2π — this is what makes it non-orientable. `build_wrapped_grid_faces`
-naively connects row `n-1` to row `0` at the same v-index, but because
-of the 180° rotation, vertex `(n-1, v)` is spatially near vertex
-`(0, (v + n/2) % n)`, not `(0, v)`.
+The Klein bottle is non-orientable — face winding must flip somewhere.
+The flip is at u=0, where seam faces (coming from u=127 with reversed
+winding) share vertices with interior faces (u=0 to u=1 with normal
+winding). When Three.js averages face normals per vertex, the opposing
+contributions cancel, producing near-zero normals along the entire u=0
+ring.
 
-Measured distances at the seam (v_idx=32, widest part of figure-8):
-- `(127, 32)` → `(0, 32)`: **2.00 units** (wrong — stretches across opening)
-- `(127, 32)` → `(0, 96)`: **0.05 units** (correct — adjacent on surface)
-
-The naive wrapping creates 256 triangles that span the entire cross-section
-diameter, producing the pinching visual artifact.
+Measured: u=0 vertex normal magnitudes are ~0.001 vs ~0.06 for interior
+vertices (60× weaker).
 
 **Suggested path:**
 
-1. **New face builder**: Add `build_klein_wrapped_faces(n_u, n_v)` to
-   `_mesh_utils.py` (or modify `build_wrapped_grid_faces` with an
-   optional `v_shift` parameter). For the u-seam row, connect
-   `(n_u-1, v)` to `(0, (v + n_v//2) % n_v)` instead of `(0, v)`.
+1. **Duplicate u=0 row vertices**: Add 128 extra vertices (copies of
+   row 0). Interior faces reference the original u=0 vertices; seam
+   faces reference the duplicates. Each copy gets normals only from
+   its own side, eliminating the cancellation.
 
-2. **Update `klein_bottle.py`**: Use the new face builder instead of
-   `build_wrapped_grid_faces`.
+2. **Update `build_klein_wrapped_faces`**: Seam faces should reference
+   vertex indices `n_u * n_v + v` (the duplicate row) instead of `v`
+   for their row-0 connections.
 
-3. **Verify normals**: The shifted wrapping should produce consistent
-   face winding across the seam (no more 256 flipped-normal face pairs).
-   Check that `computeVertexNormals()` produces reasonable results.
-
-4. **Visual verification**: The wireframe should show a smooth figure-8
-   tube with no diagonal stretching at the seam. The shaded view should
-   have continuous lighting with no dark seam.
+3. **Update `klein_bottle.py`**: Append the duplicate row to the vertex
+   array after mesh construction.
 
 **Files:**
 
@@ -4000,12 +3994,11 @@ diameter, producing the pinching visual artifact.
 
 **Tests:**
 
-- No face spans more than 2× the average edge length (no stretched seam faces)
-- All 256 u-seam faces have area comparable to interior faces (within 5×)
-- Adjacent face normals at the u-seam have dot product > 0 (consistent winding)
-- Vertex count and face count unchanged
-- Existing Klein bottle tests still pass
+- No face edge > 2× average edge length
 - Zero coincident vertex pairs (epsilon separation still works)
+- Vertex normals at u=0 have magnitude > 50% of interior mean
+- No adjacent face pair has dot product < -0.5
+- Existing Klein bottle tests still pass
 
 
 ---
@@ -5552,3 +5545,58 @@ and a quick-start guide for new users.
 - `docs/preview-ui.md` exists and covers all documented features
 - Every keyboard shortcut in the code has a corresponding docs entry
 - README links to the preview UI documentation
+
+---
+
+## Task 131: Fix Möbius strip u-seam wrapping — v-reversal for half-twist
+
+**Objective:**
+
+Fix the Möbius strip mesh so it renders as a continuous, correctly-connected
+surface. The u-seam (where u wraps from 2π back to 0) has a half-twist that
+reverses the v-direction, but `_build_u_wrapped_grid_faces` naively connects
+`(n-1, v)` to `(0, v)` without the reversal. This creates 254 seam faces
+with edges up to **18× the median** edge length, producing a visible "><"
+cross pattern in wireframe and shaded views.
+
+**Root cause:**
+
+The Möbius strip half-twist means vertex `(n-1, v_idx)` is spatially near
+`(0, n_v-1-v_idx)`, not `(0, v_idx)`. The left edge of the strip (v=-hw)
+at u=2π should connect to the right edge (v=+hw) at u=0, and vice versa.
+
+Measured distances at the seam:
+- `(127, 0)` → `(0, 0)`: **0.80 units** (wrong — stretches full strip width)
+- `(127, 0)` → `(0, 127)`: **0.07 units** (correct — adjacent on surface)
+
+The naive wrapping creates the "><" artifact: left-to-left and right-to-right
+connections instead of left-to-right crossover.
+
+**Suggested path:**
+
+1. **New face builder**: Add `build_mobius_wrapped_faces(n_u, n_v)` to
+   `_mesh_utils.py`. Interior faces: rows 0 to n-2, open in v (same as
+   current). Seam faces: connect `(n-1, v)` to `(0, n_v-1-v)` with
+   v-reversal. Note: v is open (not periodic) on the Möbius strip, so
+   use `n_v-1-v`, not `(n_v-v) % n_v`.
+
+2. **Vertex duplication at seam**: Same as Klein bottle (Task 96) —
+   duplicate the u=0 row so seam faces and interior faces compute normals
+   independently. This prevents the dark seam line in shaded view.
+
+3. **Update `mobius_strip.py`**: Use `build_mobius_wrapped_faces` and
+   append duplicate row vertices.
+
+**Files:**
+
+- `src/mathviz/generators/parametric/_mesh_utils.py`
+- `src/mathviz/generators/parametric/mobius_strip.py`
+- `tests/test_generators/test_mobius_strip.py`
+
+**Tests:**
+
+- No seam edge > 3× median edge length (eliminates "><" artifact)
+- Seam face areas within 5× of interior face areas
+- Vertex normals at u=0 have magnitude > 50% of interior mean
+- Max edge length < 3× median across entire mesh
+- Existing Möbius strip tests still pass
