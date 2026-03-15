@@ -69,10 +69,11 @@ GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     "logarithmic_spiral": _TUBE_CONFIG,
     "voronoi_3d": _TUBE_CONFIG,
     "soundwave": _TUBE_CONFIG,
-    # Physics (curves)
+    # Physics (curves + surfaces)
     "kepler_orbit": _TUBE_CONFIG,
     "nbody": _TUBE_CONFIG,
     "planetary_positions": _TUBE_CONFIG,
+    "electron_orbital": _SURFACE_CONFIG,
     # Number theory (point clouds)
     "sacks_spiral": _SPARSE_CONFIG,
     "prime_gaps": _SPARSE_CONFIG,
