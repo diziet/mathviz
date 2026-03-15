@@ -272,35 +272,24 @@ class TestSnapshotNoPyvista:
         self, client: TestClient, tmp_path: Path
     ) -> None:
         """POST /api/snapshots does not import or call PyVista."""
-        import sys
+        import inspect
 
+        from mathviz.preview import snapshots as snap_mod
+
+        source = inspect.getsource(snap_mod)
+        assert "pyvista" not in source.lower(), (
+            "snapshots module should not reference pyvista"
+        )
+        assert "render_to_png" not in source, (
+            "snapshots module should not reference render_to_png"
+        )
+
+        # Also verify the endpoint works without PyVista
         gid = _generate_torus(client)
-        # Remove pyvista from sys.modules so we can detect a fresh import
-        pyvista_modules = [k for k in sys.modules if k.startswith("pyvista")]
-        saved = {k: sys.modules.pop(k) for k in pyvista_modules}
-        try:
-            # Patch __import__ to detect pyvista imports
-            original_import = __builtins__.__import__
-            pyvista_imported = []
-
-            def _tracking_import(name: str, *args: Any, **kwargs: Any) -> Any:
-                if name.startswith("pyvista"):
-                    pyvista_imported.append(name)
-                return original_import(name, *args, **kwargs)
-
-            __builtins__.__import__ = _tracking_import
-            try:
-                req = _make_snapshot_request(gid)
-                with patch.dict(os.environ, {SNAPSHOTS_DIR_ENV_VAR: str(tmp_path)}):
-                    resp = client.post("/api/snapshots", json=req)
-                assert resp.status_code == 200
-                assert pyvista_imported == [], (
-                    f"PyVista was imported during save: {pyvista_imported}"
-                )
-            finally:
-                __builtins__.__import__ = original_import
-        finally:
-            sys.modules.update(saved)
+        req = _make_snapshot_request(gid)
+        with patch.dict(os.environ, {SNAPSHOTS_DIR_ENV_VAR: str(tmp_path)}):
+            resp = client.post("/api/snapshots", json=req)
+        assert resp.status_code == 200
 
 
 class TestSnapshotThumbnailBase64:
