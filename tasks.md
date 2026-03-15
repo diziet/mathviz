@@ -3761,7 +3761,103 @@ without meaningfully affecting the mathematical shape.
 
 ---
 
-## Task 91: Quaternion Julia set generator
+## Task 91: Consolidate benchmark tests to eliminate redundant CLI runs
+
+**Objective:**
+
+The benchmark test file runs the full benchmark CLI 3 separate times
+(~11s total), making it the single slowest test file. Consolidate to
+a single shared run where possible.
+
+**Background:**
+
+Current benchmark test structure:
+- `shared_benchmark` fixture (class-scoped): runs lorenz+torus+mobius_strip — **~6s**
+- `test_generators_flag_limits_selection`: runs its own lorenz+torus — **~4s**
+- `test_failed_generator_in_report_not_crash`: runs torus+nonexistent — **~1s**
+- `torus_benchmark` fixture: runs torus only (shared, fast)
+- `test_stage_timings_sum_to_total`: calls `_run_single_generator` directly (fast)
+
+The first test that touches `shared_benchmark` pays a 6s setup cost.
+Then `test_generators_flag_limits_selection` runs a second, nearly
+identical benchmark. These two can be merged.
+
+**Suggested path:**
+
+1. **Merge `test_generators_flag_limits_selection`** into the shared
+   fixture tests. The shared benchmark already runs 3 generators — test
+   that filtering works by verifying the HTML contains exactly those 3,
+   not others.
+
+2. **Make `test_failed_generator_in_report_not_crash` use a fixture too**,
+   or keep it standalone but with a single fast generator
+   (`generators="torus,nonexistent_xyz"` — torus is the fastest).
+
+3. **Consider reducing `FAST_GENERATORS`** from 3 to 2 (drop mobius_strip
+   or lorenz) since the tests don't need 3 generators to verify behavior.
+
+4. **Target**: benchmark tests complete in < 4s total (down from ~11s).
+
+**Files:**
+
+- `tests/test_cli/test_benchmark.py`
+
+**Tests:**
+
+- All existing benchmark test assertions still pass
+- Total benchmark test file runtime < 4 seconds
+- No redundant benchmark CLI invocations (at most 2 total runs)
+
+
+---
+
+## Task 92: Fix flaky `test_parallel_faster_than_sequential` test
+
+**Objective:**
+
+The test `test_parallel_faster_than_sequential` in
+`tests/test_preview/test_batch_generate.py` is a timing-based assertion
+that intermittently fails depending on system load. Make it reliable.
+
+**Background:**
+
+The test asserts that parallel batch generation is faster than sequential.
+This is inherently flaky because:
+- On low-core machines or under load, parallelism overhead can negate gains
+- Timing-based assertions are non-deterministic
+- The test fails sporadically in CI and local runs, then passes on retry
+
+**Suggested path:**
+
+1. **Remove the timing assertion entirely.** Instead, verify that the
+   parallel endpoint *works correctly* (returns correct results for all
+   panels) without asserting it's faster. The parallelism is an
+   implementation detail, not a correctness property.
+
+2. **Alternative**: If a speed assertion is desired, use a generous margin
+   (e.g., parallel must complete in < 2× sequential time) to avoid flakes,
+   or skip the test with `@pytest.mark.slow` and only run it in dedicated
+   perf test suites.
+
+3. **Alternative**: Replace the wall-clock comparison with a structural
+   check — verify that the parallel endpoint uses `ProcessPoolExecutor`
+   or `concurrent.futures` (mock-based), confirming parallelism is wired
+   up without depending on timing.
+
+**Files:**
+
+- `tests/test_preview/test_batch_generate.py`
+
+**Tests:**
+
+- The replacement test passes reliably on 10 consecutive runs
+- No timing-dependent assertions remain
+- Parallel batch generation correctness is still verified
+
+
+---
+
+## Task 93: Quaternion Julia set generator
 
 **Objective:**
 
@@ -3791,7 +3887,7 @@ producing smoother, more organic shapes than the Mandelbulb.
 
 ---
 
-## Task 92: Burning ship fractal heightmap generator
+## Task 94: Burning ship fractal heightmap generator
 
 **Objective:**
 
@@ -3820,7 +3916,7 @@ heightmap.
 
 ---
 
-## Task 93: IFS fractal generator
+## Task 95: IFS fractal generator
 
 **Objective:**
 
@@ -3853,7 +3949,7 @@ Barnsley fern in 3D, Sierpinski variants, and custom affine transforms.
 
 ---
 
-## Task 94: Koch snowflake 3D generator
+## Task 96: Koch snowflake 3D generator
 
 **Objective:**
 
@@ -3879,7 +3975,7 @@ extruded or revolved into a 3D solid.
 
 ---
 
-## Task 95: Electron orbital generator
+## Task 97: Electron orbital generator
 
 **Objective:**
 
@@ -3911,7 +4007,7 @@ isosurfaces for s, p, d, and f orbitals.
 
 ---
 
-## Task 96: Magnetic field lines generator
+## Task 98: Magnetic field lines generator
 
 **Objective:**
 
@@ -3942,7 +4038,7 @@ quadrupole configurations rendered as tube curves.
 
 ---
 
-## Task 97: DNA double helix generator
+## Task 99: DNA double helix generator
 
 **Objective:**
 
@@ -3971,7 +4067,7 @@ base pair rungs connecting them.
 
 ---
 
-## Task 98: Hopf fibration generator
+## Task 100: Hopf fibration generator
 
 **Objective:**
 
@@ -4006,7 +4102,7 @@ stunning mathematical objects.
 
 ---
 
-## Task 99: Gravitational lensing grid generator
+## Task 101: Gravitational lensing grid generator
 
 **Objective:**
 
@@ -4035,7 +4131,7 @@ coordinate grid showing spacetime curvature around a point mass.
 
 ---
 
-## Task 100: Wave interference pattern generator
+## Task 102: Wave interference pattern generator
 
 **Objective:**
 
@@ -4064,7 +4160,7 @@ point sources.
 
 ---
 
-## Task 101: Hilbert curve 3D generator
+## Task 103: Hilbert curve 3D generator
 
 **Objective:**
 
@@ -4092,7 +4188,7 @@ visits every cell in a cubic grid exactly once.
 
 ---
 
-## Task 102: Penrose tiling 3D generator
+## Task 104: Penrose tiling 3D generator
 
 **Objective:**
 
@@ -4120,7 +4216,7 @@ a relief surface.
 
 ---
 
-## Task 103: Weaire-Phelan foam structure generator
+## Task 105: Weaire-Phelan foam structure generator
 
 **Objective:**
 
@@ -4149,7 +4245,7 @@ known foam partition of space into equal-volume cells.
 
 ---
 
-## Task 104: Geodesic sphere generator
+## Task 106: Geodesic sphere generator
 
 **Objective:**
 
@@ -4179,7 +4275,7 @@ frequencies, like Buckminster Fuller domes.
 
 ---
 
-## Task 105: Möbius trefoil generator
+## Task 107: Möbius trefoil generator
 
 **Objective:**
 
@@ -4204,7 +4300,7 @@ trefoil knot shape, combining non-orientability with knot topology.
 
 ---
 
-## Task 106: Linked tori generator
+## Task 108: Linked tori generator
 
 **Objective:**
 
@@ -4228,7 +4324,7 @@ like links in a chain.
 
 ---
 
-## Task 107: Twisted torus generator
+## Task 109: Twisted torus generator
 
 **Objective:**
 
@@ -4257,7 +4353,7 @@ cross-section rotates N times as it goes around the loop.
 
 ---
 
-## Task 108: Rose surface generator
+## Task 110: Rose surface generator
 
 **Objective:**
 
@@ -4282,7 +4378,7 @@ into 3D, producing flower-like petals.
 
 ---
 
-## Task 109: Shell spiral generator
+## Task 111: Shell spiral generator
 
 **Objective:**
 
@@ -4311,7 +4407,7 @@ with expanding cross-section, producing a nautilus-like form.
 
 ---
 
-## Task 110: Gear / involute curve generator
+## Task 112: Gear / involute curve generator
 
 **Objective:**
 
@@ -4340,7 +4436,7 @@ geometry extruded into a 3D solid.
 
 ---
 
-## Task 111: Update documentation for Tasks 77–109 generators
+## Task 113: Update documentation for Tasks 77–109 generators
 
 **Objective:**
 
@@ -4387,7 +4483,7 @@ This is a follow-up to Task 75 (which covers Tasks 70–74 generators).
 
 ---
 
-## Task 113: Realistic K9 glass crystal preview mode
+## Task 115: Realistic K9 glass crystal preview mode
 
 **Objective:**
 
@@ -4463,7 +4559,7 @@ they glow and scatter light.
 
 ---
 
-## Task 112: Disk-based generation cache with UI indicator and invalidation
+## Task 114: Disk-based generation cache with UI indicator and invalidation
 
 **Objective:**
 
@@ -4522,7 +4618,7 @@ and provide a button to force regeneration (bypass cache).
 
 ---
 
-## Task 114: Remove redundant `cell_size` parameter from TPMS generators
+## Task 116: Remove redundant `cell_size` parameter from TPMS generators
 
 **Objective:**
 
@@ -4572,7 +4668,7 @@ and keep only `periods` to eliminate user confusion.
 
 ---
 
-## Task 115: Split Lock Camera into two modes — render lock and full lock
+## Task 117: Split Lock Camera into two modes — render lock and full lock
 
 **Objective:**
 
@@ -4644,7 +4740,7 @@ Clicking the toggle cycles: **Render Lock → Full Lock → Off → Render Lock*
 
 ---
 
-## Task 116: Fix randomize ranges and add editable min/max to parameter UI
+## Task 118: Fix randomize ranges and add editable min/max to parameter UI
 
 **Objective:**
 
@@ -4721,7 +4817,7 @@ Two related issues with the dice (randomize) button:
 
 ---
 
-## Task 117: Collapsible Dimensions/Margins panel, collapsed by default
+## Task 119: Collapsible Dimensions/Margins panel, collapsed by default
 
 **Objective:**
 
@@ -4762,7 +4858,7 @@ it stays out of the way until the user needs it.
 
 ---
 
-## Task 118: Fix save after load, show params in gallery, save camera state
+## Task 120: Fix save after load, show params in gallery, save camera state
 
 **Objective:**
 
@@ -4853,7 +4949,7 @@ Three issues with the save/load snapshot system:
 
 ---
 
-## Task 119: Colored axis labels on bounding box and per-axis stretch controls
+## Task 121: Colored axis labels on bounding box and per-axis stretch controls
 
 **Objective:**
 
@@ -4924,7 +5020,7 @@ Two related features for the preview UI:
 
 ---
 
-## Task 120: Generator thumbnail endpoint with persistent disk cache
+## Task 122: Generator thumbnail endpoint with persistent disk cache
 
 **Objective:**
 
@@ -4983,7 +5079,7 @@ browser (Tasks 118–119).
 
 ---
 
-## Task 121: Visual generator browser modal with category grid
+## Task 123: Visual generator browser modal with category grid
 
 **Objective:**
 
@@ -5066,7 +5162,7 @@ endpoint).
 
 ---
 
-## Task 122: Generator browser keyboard navigation and shortcuts
+## Task 124: Generator browser keyboard navigation and shortcuts
 
 **Objective:**
 
@@ -5134,7 +5230,7 @@ via keyboard. Depends on Task 118.
 
 ---
 
-## Task 123: Point cloud density slider — real-time thinning without regeneration
+## Task 125: Point cloud density slider — real-time thinning without regeneration
 
 **Objective:**
 
@@ -5182,7 +5278,7 @@ pipeline. Useful for performance tuning and visual clarity on dense clouds.
 
 ---
 
-## Task 124: Turntable animation with GIF/MP4 export
+## Task 126: Turntable animation with GIF/MP4 export
 
 **Objective:**
 
@@ -5232,7 +5328,7 @@ animation as a GIF or MP4 for sharing.
 
 ---
 
-## Task 125: Color mapping view mode — vertex coloring by curvature, height, or distance
+## Task 127: Color mapping view mode — vertex coloring by curvature, height, or distance
 
 **Objective:**
 
@@ -5295,7 +5391,7 @@ curvature or a Lorenz attractor colored by velocity would look stunning.
 
 ---
 
-## Task 126: Comprehensive generator documentation with examples and thumbnails
+## Task 128: Comprehensive generator documentation with examples and thumbnails
 
 **Objective:**
 
@@ -5345,7 +5441,7 @@ that produce interesting results.
 
 ---
 
-## Task 127: Document all preview UI features and controls
+## Task 129: Document all preview UI features and controls
 
 **Objective:**
 
