@@ -4196,3 +4196,62 @@ This is a follow-up to Task 75 (which covers Tasks 70–74 generators).
 - Every generator from Tasks 77–106 has an entry in `docs/generators.md`
 - README generator count matches the registry
 - Each entry includes name, category, parameters, and description
+
+---
+
+## Task 108: Disk-based generation cache with UI indicator and invalidation
+
+**Objective:**
+
+Add a disk cache for generated geometry so identical requests return
+instantly without re-running the pipeline. Show cache status in the UI
+and provide a button to force regeneration (bypass cache).
+
+**Suggested path:**
+
+1. **Cache key**: SHA256 hash of deterministic JSON string of
+   `(generator_name, sorted params, seed, container)`.
+
+2. **Disk cache**: Save serialized geometry files (GLB, PLY) to
+   `~/.mathviz/cache/<hash>/` along with a `metadata.json` containing
+   the request params and timestamp. On a generate request, check disk
+   first — if hit, serve the cached files directly.
+
+3. **Cache directory**: Configurable via `MATHVIZ_CACHE_DIR` env var,
+   defaulting to `~/.mathviz/cache`. Create on first use.
+
+4. **Cache headers**: Return `X-Cache: HIT` or `X-Cache: MISS` in the
+   `/api/generate` response so the frontend knows whether the result
+   was cached.
+
+5. **UI indicator**: When the response has `X-Cache: HIT`, show a small
+   "Cached" badge near the loading time / info panel. When `MISS`, show
+   nothing (or "Generated" briefly).
+
+6. **Force regenerate button**: Add a "Regenerate" button (or a small
+   refresh icon next to Generate/Apply) that sends the request with a
+   `force: true` flag. The server skips the cache lookup, runs the
+   pipeline fresh, and overwrites the cache entry with the new result.
+   This lets users force a clean generation when they suspect stale
+   data or want to verify reproducibility.
+
+7. **Cache cleanup**: Add `POST /api/cache/clear` endpoint that deletes
+   all cached entries. Entries older than 7 days are automatically
+   pruned on server startup. Also add `mathviz cache clear` CLI command.
+
+8. **Cache size limit**: Cap total disk usage (default 1GB, configurable
+   via `MATHVIZ_CACHE_MAX_SIZE`). When exceeded, evict oldest entries
+   first.
+
+**Tests:** `tests/test_preview/test_cache.py`
+
+- Same request twice: second call serves from cache (faster, X-Cache: HIT)
+- Different params produce a cache miss
+- `force: true` bypasses cache and overwrites the entry
+- `POST /api/cache/clear` removes all cached files
+- `X-Cache` header is present in all generate responses
+- Cache directory is created automatically on first use
+- Entries older than 7 days are pruned on startup
+- Cache respects max size limit and evicts oldest entries
+- Preview HTML contains a force-regenerate button
+- UI shows "Cached" badge when result is from cache
