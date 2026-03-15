@@ -14,7 +14,7 @@ from mathviz.core.math_object import BoundingBox, MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.generators.parametric._mesh_utils import (
     DEFAULT_SEPARATION_EPSILON,
-    build_wrapped_grid_faces,
+    build_klein_wrapped_faces,
     separate_coincident_vertices,
     validate_separation_epsilon,
 )
@@ -81,7 +81,7 @@ def _generate_klein_mesh(
     x, y, z = _evaluate_klein_bottle(uu, vv, scale)
     vertices = np.column_stack([x.ravel(), y.ravel(), z.ravel()])
     vertices = vertices.astype(np.float64)
-    faces = build_wrapped_grid_faces(n, n)
+    faces = build_klein_wrapped_faces(n, n)
     vertices = separate_coincident_vertices(vertices, faces, separation_epsilon)
     return Mesh(vertices=vertices, faces=faces)
 
