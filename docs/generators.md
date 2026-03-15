@@ -888,6 +888,23 @@ Costa minimal surface via Weierstrass-Enneper representation.
 mathviz generate costa_surface --output costa.ply
 ```
 
+### dini_surface
+
+Dini's surface — twisted pseudospherical surface resembling a seashell or spiral horn.
+Has constant negative Gaussian curvature.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `a` | 1.0 | Scale factor |
+| `b` | 0.2 | Twist rate (helical pitch) |
+| `turns` | 2 | Number of helical turns |
+
+Aliases: `dini`
+
+```bash
+mathviz generate dini_surface --param turns=3 --output dini.ply
+```
+
 ### spherical_harmonics
 
 Sphere modulated by spherical harmonics basis functions.
