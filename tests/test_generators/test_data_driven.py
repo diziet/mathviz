@@ -300,9 +300,10 @@ def test_unsupported_format_raises_error(tmp_path: Path) -> None:
             gen.generate(params={"input_file": str(bad_file)})
 
 
-def test_missing_input_file_param_raises_error() -> None:
-    """Empty input_file parameter raises ValueError."""
+def test_empty_input_file_uses_demo_mode() -> None:
+    """Empty input_file parameter triggers demo mode instead of raising."""
     for gen_cls in [HeightmapGenerator, BuildingExtrudeGenerator, SoundwaveGenerator]:
         gen = gen_cls()
-        with pytest.raises(ValueError, match="input_file parameter is required"):
-            gen.generate()
+        obj = gen.generate()
+        obj.validate_or_raise()
+        assert obj.parameters.get("demo_mode") is True

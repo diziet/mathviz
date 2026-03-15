@@ -2,7 +2,8 @@
 
 Reads a PNG/JPEG image (via Pillow) and converts pixel luminance to a 2D
 scalar field for HEIGHTMAP_RELIEF representation. Optionally supports GeoTIFF
-via rasterio if installed.
+via rasterio if installed. When no input file is provided, generates a
+built-in demo heightmap procedurally.
 """
 
 import logging
@@ -24,6 +25,34 @@ _SUPPORTED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif"}
 _SUPPORTED_GEOTIFF_EXTENSIONS = {".tif", ".tiff"}
 _MAX_PIXEL_DIMENSION = 4096
 _MIN_PIXEL_DIMENSION = 2
+
+
+_DEMO_RESOLUTION = 64
+
+
+def _synthesize_demo_heightmap(seed: int) -> np.ndarray:
+    """Generate a procedural demo heightmap with concentric rings and peaks."""
+    rng = np.random.default_rng(seed)
+    size = _DEMO_RESOLUTION
+    y, x = np.mgrid[0:size, 0:size].astype(np.float64)
+
+    # Normalize to [-1, 1]
+    cx, cy = size / 2.0, size / 2.0
+    nx = (x - cx) / cx
+    ny = (y - cy) / cy
+    r = np.sqrt(nx**2 + ny**2)
+
+    # Concentric rings pattern
+    rings = 0.5 * (1.0 + np.cos(r * 6.0 * np.pi))
+
+    # Radial falloff
+    falloff = np.exp(-2.0 * r**2)
+
+    # Combine with slight noise for texture
+    noise = rng.normal(0, 0.05, (size, size))
+    field = (rings * falloff + noise).clip(0, None)
+
+    return field.astype(np.float64)
 
 
 def _try_load_geotiff(path: Path) -> np.ndarray | None:
@@ -152,24 +181,27 @@ class HeightmapGenerator(GeneratorBase):
         height_scale = float(merged["height_scale"])
         downsample = int(merged["downsample"])
 
-        if not input_file:
-            raise ValueError("input_file parameter is required")
         if height_scale <= 0:
             raise ValueError(f"height_scale must be positive, got {height_scale}")
         if downsample < 1:
             raise ValueError(f"downsample must be >= 1, got {downsample}")
 
-        all_supported = _SUPPORTED_IMAGE_EXTENSIONS | _SUPPORTED_GEOTIFF_EXTENSIONS
-        path = validate_input_file(input_file, all_supported)
+        path: Path | None = None
 
-        # Try GeoTIFF first, fall back to PIL
-        arr = _try_load_geotiff(path)
-        if arr is None:
-            arr = _load_image_as_array(path)
+        if not input_file:
+            logger.info("No input_file provided, using built-in demo heightmap")
+            arr = _synthesize_demo_heightmap(seed)
+            merged["demo_mode"] = True
+        else:
+            all_supported = _SUPPORTED_IMAGE_EXTENSIONS | _SUPPORTED_GEOTIFF_EXTENSIONS
+            path = validate_input_file(input_file, all_supported)
+            arr = _try_load_geotiff(path)
+            if arr is None:
+                arr = _load_image_as_array(path)
+            # Downsample before dimension validation so large images with
+            # high downsample factors are not unnecessarily rejected.
+            arr = _downsample(arr, downsample)
 
-        # Downsample before dimension validation so large images with high
-        # downsample factors are not unnecessarily rejected.
-        arr = _downsample(arr, downsample)
         _validate_dimensions(arr)
         field = _normalize_and_scale(arr, height_scale)
 
@@ -177,9 +209,10 @@ class HeightmapGenerator(GeneratorBase):
         z_max = float(field.max())
         bbox = _compute_aspect_bbox(field, z_min, z_max)
 
+        source = f"file={path.name}, " if path else "demo, "
         logger.info(
-            "Generated heightmap: file=%s, shape=%s, z_range=[%.4f, %.4f]",
-            path.name, field.shape, z_min, z_max,
+            "Generated heightmap: %sshape=%s, z_range=[%.4f, %.4f]",
+            source, field.shape, z_min, z_max,
         )
 
         return MathObject(

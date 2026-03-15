@@ -2,7 +2,8 @@
 
 Parses GeoJSON polygons and extrudes them vertically to create 3D building
 meshes. Each polygon feature is extruded to a height specified by a feature
-property or a default height parameter.
+property or a default height parameter. When no input file is provided,
+generates a built-in demo city block.
 """
 
 import json
@@ -22,6 +23,37 @@ logger = logging.getLogger(__name__)
 _DEFAULT_HEIGHT = 1.0
 _DEFAULT_HEIGHT_PROPERTY = "height"
 _SUPPORTED_EXTENSIONS = {".geojson", ".json"}
+
+
+def _synthesize_demo_buildings(seed: int) -> dict:
+    """Generate a demo GeoJSON FeatureCollection with rectangular buildings."""
+    rng = np.random.default_rng(seed)
+    num_buildings = 6
+    features = []
+
+    for i in range(num_buildings):
+        # Place buildings in a grid pattern with some randomness
+        row, col = divmod(i, 3)
+        base_x = col * 1.5 + rng.uniform(0.0, 0.3)
+        base_y = row * 1.5 + rng.uniform(0.0, 0.3)
+        width = rng.uniform(0.5, 1.0)
+        depth = rng.uniform(0.5, 1.0)
+        height = rng.uniform(0.5, 3.0)
+
+        coords = [
+            [base_x, base_y],
+            [base_x + width, base_y],
+            [base_x + width, base_y + depth],
+            [base_x, base_y + depth],
+            [base_x, base_y],  # closing vertex
+        ]
+        features.append({
+            "type": "Feature",
+            "properties": {"height": float(height)},
+            "geometry": {"type": "Polygon", "coordinates": [coords]},
+        })
+
+    return {"type": "FeatureCollection", "features": features}
 
 
 def _load_geojson(path: Path) -> dict:
@@ -191,15 +223,21 @@ class BuildingExtrudeGenerator(GeneratorBase):
         default_height = float(merged["default_height"])
         height_property = str(merged["height_property"])
 
-        if not input_file:
-            raise ValueError("input_file parameter is required")
         if default_height <= 0:
             raise ValueError(
                 f"default_height must be positive, got {default_height}"
             )
 
-        path = validate_input_file(input_file, _SUPPORTED_EXTENSIONS)
-        data = _load_geojson(path)
+        path: Path | None = None
+
+        if not input_file:
+            logger.info("No input_file provided, using built-in demo buildings")
+            data = _synthesize_demo_buildings(seed)
+            merged["demo_mode"] = True
+        else:
+            path = validate_input_file(input_file, _SUPPORTED_EXTENSIONS)
+            data = _load_geojson(path)
+
         polygons = _extract_polygons(data, height_property, default_height)
 
         mesh_parts: list[tuple[np.ndarray, np.ndarray]] = []
@@ -210,10 +248,10 @@ class BuildingExtrudeGenerator(GeneratorBase):
         all_vertices, all_faces = _merge_meshes(mesh_parts)
         bbox = BoundingBox.from_points(all_vertices)
 
+        source = f"file={path.name}, " if path else "demo, "
         logger.info(
-            "Generated building_extrude: file=%s, polygons=%d, "
-            "vertices=%d, faces=%d",
-            path.name, len(polygons), len(all_vertices), len(all_faces),
+            "Generated building_extrude: %spolygons=%d, vertices=%d, faces=%d",
+            source, len(polygons), len(all_vertices), len(all_faces),
         )
 
         return MathObject(
