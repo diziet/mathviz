@@ -88,6 +88,7 @@ GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     # Heightmaps (scalar field)
     "mandelbrot": _HEIGHTMAP_CONFIG,
     "mandelbrot_heightmap": _HEIGHTMAP_CONFIG,
+    "burning_ship": _HEIGHTMAP_CONFIG,
     "fractal_slice": _HEIGHTMAP_CONFIG,
     "heightmap": _HEIGHTMAP_CONFIG,
     "noise_surface": _HEIGHTMAP_CONFIG,
