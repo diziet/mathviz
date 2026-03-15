@@ -24,6 +24,7 @@ _DEFAULT_GRID_POINTS = 200
 _MIN_GRID_LINES = 2
 _MAX_GRID_LINES = 100
 _MIN_GRID_POINTS = 10
+_MAX_GRID_POINTS = 10_000
 _MIN_GRID_EXTENT = 0.1
 _SOFTENING = 0.3
 
@@ -53,30 +54,10 @@ def _validate_params(
         raise ValueError(
             f"grid_points must be >= {_MIN_GRID_POINTS}, got {grid_points}"
         )
-
-
-def _deflect_point(
-    x: float, y: float, mass: float,
-) -> tuple[float, float, float]:
-    """Apply Schwarzschild-like deflection to a single point.
-
-    Returns deflected (x, y, z) where z encodes deflection magnitude.
-    """
-    r_sq = x * x + y * y
-    r = np.sqrt(r_sq + _SOFTENING * _SOFTENING)
-    # Schwarzschild deflection angle: alpha = 4GM / (c^2 * b)
-    # Simplified: deflection proportional to mass / impact parameter
-    deflection = mass / r
-    # Radial unit vector from center to point
-    inv_r_actual = 1.0 / max(np.sqrt(r_sq), 1e-12)
-    ux = x * inv_r_actual
-    uy = y * inv_r_actual
-    # Deflect point inward (toward mass)
-    dx = x - deflection * ux
-    dy = y - deflection * uy
-    # Z-displacement from deflection magnitude
-    dz = deflection
-    return (dx, dy, dz)
+    if grid_points > _MAX_GRID_POINTS:
+        raise ValueError(
+            f"grid_points must be <= {_MAX_GRID_POINTS}, got {grid_points}"
+        )
 
 
 def _generate_grid_line(
@@ -85,19 +66,32 @@ def _generate_grid_line(
     mass: float,
     is_horizontal: bool,
 ) -> np.ndarray:
-    """Generate a single deflected grid line.
+    """Generate a single deflected grid line (vectorized).
 
     For horizontal lines, positions vary along x with fixed y.
     For vertical lines, positions vary along y with fixed x.
+    Deflection uses softened radius consistently for both magnitude
+    and direction to prevent overshoot near the origin.
     """
-    points = np.empty((len(positions), 3), dtype=np.float64)
-    for i, pos in enumerate(positions):
-        if is_horizontal:
-            x, y = pos, fixed_val
-        else:
-            x, y = fixed_val, pos
-        points[i] = _deflect_point(x, y, mass)
-    return points
+    if is_horizontal:
+        x = positions
+        y = np.full_like(positions, fixed_val)
+    else:
+        x = np.full_like(positions, fixed_val)
+        y = positions
+
+    r_sq = x * x + y * y
+    # Softened radius used for both magnitude and direction
+    r = np.sqrt(r_sq + _SOFTENING * _SOFTENING)
+    deflection = mass / r
+    inv_r = 1.0 / r
+    ux = x * inv_r
+    uy = y * inv_r
+
+    dx = x - deflection * ux
+    dy = y - deflection * uy
+    dz = deflection
+    return np.column_stack((dx, dy, dz))
 
 
 def _build_grid_curves(
@@ -154,7 +148,11 @@ class GravitationalLensingGenerator(GeneratorBase):
         seed: int = 42,
         **resolution_kwargs: Any,
     ) -> MathObject:
-        """Generate a gravitational lensing grid as curves."""
+        """Generate a gravitational lensing grid as curves.
+
+        Note: seed is accepted per GeneratorBase contract but this
+        generator is fully deterministic — seed does not affect output.
+        """
         merged = self.get_default_params()
         if params:
             merged.update(params)

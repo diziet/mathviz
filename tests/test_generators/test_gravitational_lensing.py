@@ -234,3 +234,10 @@ class TestValidation:
         """grid_extent below minimum raises ValueError."""
         with pytest.raises(ValueError, match="grid_extent must be >="):
             gen.generate(params={"grid_extent": 0.0})
+
+    def test_grid_points_too_high_raises(
+        self, gen: GravitationalLensingGenerator
+    ) -> None:
+        """grid_points above maximum raises ValueError."""
+        with pytest.raises(ValueError, match="grid_points must be <="):
+            gen.generate(grid_points=10_000_001)
