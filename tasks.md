@@ -3099,3 +3099,64 @@ cells, or a geodesic dome.
 - `edge_height=0` produces a flat sphere with visible cell boundaries
 - Generator registers and appears in `mathviz list`
 - `mathviz render-2d voronoi_sphere -o test.png` succeeds
+
+---
+
+## Task 74: Extended mathematical knot gallery
+
+**Objective:**
+
+Expand the knot generators beyond the current set (figure-eight, torus
+knot, lissajous knot, seven-crossing knots) with more exotic knots and
+linked structures. These multi-component objects look particularly
+striking in glass when rendered as tubes.
+
+**Suggested path:**
+
+1. Create `generators/knots/exotic_knots.py` with the following knots,
+   each as a separate registered generator:
+
+2. **Pretzel knot** (`pretzel_knot`): A (p, q) pretzel knot
+   parameterization. Parameters: `p` (number of left-hand twists,
+   default: 2), `q` (right-hand twists, default: 3), `curve_points`
+   (default: 1024). Produces a single closed curve.
+
+3. **Borromean rings** (`borromean_rings`): Three mutually linked rings
+   where no two are directly linked — removing any one frees the other
+   two. Parameterize as three elliptical curves in orthogonal planes
+   with slight deformation to create the linking. Parameters:
+   `ring_radius` (default: 1.0), `ring_thickness` for tube
+   (default: 0.08), `curve_points` (default: 512). Produces three
+   closed curves.
+
+4. **Chain links** (`chain_links`): A chain of N interlocking torus
+   links. Parameters: `num_links` (default: 5), `link_radius`
+   (default: 0.5), `link_thickness` (default: 0.1), `curve_points`
+   (default: 256). Each link is a torus curve oriented alternately.
+   Produces N closed curves.
+
+5. **Trefoil on torus** (`trefoil_on_torus`): A (2,3) torus knot
+   rendered alongside a transparent/wireframe torus surface showing
+   how the knot sits on the torus. Parameters: `torus_R` (default: 1.0),
+   `torus_r` (default: 0.4), `curve_points` (default: 1024). Produces
+   curves (the knot) plus a mesh (the torus surface). The knot uses TUBE
+   representation; the torus surface uses WIREFRAME.
+
+6. **Cinquefoil knot** (`cinquefoil_knot`): The (2,5) torus knot — a
+   five-lobed knot that looks like a star. Simple parametric form.
+   Parameters: `curve_points` (default: 1024).
+
+7. All knot generators produce closed curves and use TUBE representation.
+   Multi-component knots (Borromean rings, chain links) return multiple
+   curves in the MathObject.
+
+**Tests:** `tests/test_generators/test_exotic_knots.py`
+
+- Pretzel knot produces a closed curve
+- Borromean rings produces exactly 3 closed curves
+- Chain links with `num_links=5` produces 5 closed curves
+- Chain links with `num_links=1` produces a single ring
+- Trefoil on torus produces both curves and a mesh
+- Cinquefoil knot produces a closed curve distinct from trefoil
+- All generators register and appear in `mathviz list`
+- `mathviz render-2d <name> -o test.png` succeeds for each
