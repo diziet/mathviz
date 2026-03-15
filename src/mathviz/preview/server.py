@@ -16,6 +16,8 @@ from pydantic import BaseModel, Field, ValidationError
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import GeneratorMeta, get_generator_meta, list_generators
 from mathviz.preview.cache import CacheEntry, GeometryCache, compute_cache_key
+from mathviz.preview.cache_integration import load_from_disk, store_to_disk
+from mathviz.preview.disk_cache import DiskCache
 from mathviz.preview.executor import GenerationExecutor, get_timeout_seconds
 from mathviz.preview.lod import (
     cloud_to_binary_ply,
@@ -30,12 +32,18 @@ from mathviz.preview.snapshots import save_snapshot
 logger = logging.getLogger(__name__)
 
 _cache = GeometryCache()
+_disk_cache = DiskCache()
 _executor = GenerationExecutor()
 
 
 def get_cache() -> GeometryCache:
     """Return the global geometry cache."""
     return _cache
+
+
+def get_disk_cache() -> DiskCache:
+    """Return the global disk cache."""
+    return _disk_cache
 
 
 def get_executor() -> GenerationExecutor:
@@ -100,6 +108,7 @@ class GenerateRequest(BaseModel):
     seed: int = 42
     resolution: dict[str, Any] = Field(default_factory=dict)
     container: ContainerParams | None = None
+    force: bool = False
 
 
 class GenerateResponse(BaseModel):
@@ -272,8 +281,8 @@ def _container_cache_dict(container_params: ContainerParams | None) -> dict[str,
     return container_params.model_dump()
 
 
-@app.post("/api/generate", response_model=GenerateResponse)
-def generate_geometry(req: GenerateRequest) -> GenerateResponse:
+@app.post("/api/generate")
+def generate_geometry(req: GenerateRequest) -> Response:
     """Run the pipeline and cache the result."""
     container = _build_container(req.container)
 
@@ -288,51 +297,85 @@ def generate_geometry(req: GenerateRequest) -> GenerateResponse:
         container_kwargs=_container_cache_dict(req.container),
     )
     cache = get_cache()
-    entry = cache.get(cache_key)
+    disk_cache = get_disk_cache()
+    cache_status = "MISS"
 
-    if entry is None:
-        try:
-            result = _executor.submit(
-                req.generator,
-                params=params,
-                seed=req.seed,
-                resolution_kwargs=resolution,
-                container=container,
-                placement=PlacementPolicy(),
-            )
-        except KeyError:
-            raise _generator_not_found(req.generator)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        except TimeoutError:
-            timeout = get_timeout_seconds()
-            logger.error("Generation timed out after %d seconds", timeout)
-            raise HTTPException(
-                status_code=504,
-                detail=f"Generation timed out after {timeout} seconds",
-            )
-        except CancelledError:
-            raise HTTPException(
-                status_code=499,
-                detail="Generation cancelled",
-            )
+    entry = None if req.force else cache.get(cache_key)
 
-        entry = CacheEntry(
-            math_object=result.math_object,
-            generator_name=req.generator,
-            params=req.params,
-            seed=req.seed,
-            resolution_kwargs=req.resolution,
-        )
-        cache.put(cache_key, entry)
-        logger.info("Generated and cached geometry %s", cache_key)
-    else:
+    # Check disk cache if not in memory and not forced
+    if entry is None and not req.force:
+        disk_entry = disk_cache.get(cache_key)
+        if disk_entry is not None:
+            entry = load_from_disk(cache_key, disk_entry, disk_cache, cache)
+            if entry is not None:
+                cache_status = "HIT"
+
+    if entry is not None and not req.force:
+        cache_status = "HIT"
         logger.info("Serving geometry %s from cache", cache_key)
+    else:
+        entry = _run_generation(req, params, resolution, container)
+        cache.put(cache_key, entry)
+        store_to_disk(cache_key, entry, disk_cache)
+        logger.info("Generated and cached geometry %s", cache_key)
 
     from mathviz.preview.batch_routes import build_geometry_urls
 
     mesh_url, cloud_url = build_geometry_urls(cache_key, entry.math_object)
-    return GenerateResponse(geometry_id=cache_key, mesh_url=mesh_url, cloud_url=cloud_url)
+    body = GenerateResponse(
+        geometry_id=cache_key, mesh_url=mesh_url, cloud_url=cloud_url,
+    )
+    return Response(
+        content=body.model_dump_json(),
+        media_type="application/json",
+        headers={"X-Cache": cache_status},
+    )
+
+
+def _run_generation(
+    req: GenerateRequest,
+    params: dict[str, Any] | None,
+    resolution: dict[str, Any] | None,
+    container: Container,
+) -> CacheEntry:
+    """Execute the pipeline and return a CacheEntry."""
+    try:
+        result = _executor.submit(
+            req.generator,
+            params=params,
+            seed=req.seed,
+            resolution_kwargs=resolution,
+            container=container,
+            placement=PlacementPolicy(),
+        )
+    except KeyError:
+        raise _generator_not_found(req.generator)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except TimeoutError:
+        timeout = get_timeout_seconds()
+        logger.error("Generation timed out after %d seconds", timeout)
+        raise HTTPException(
+            status_code=504,
+            detail=f"Generation timed out after {timeout} seconds",
+        )
+    except CancelledError:
+        raise HTTPException(status_code=499, detail="Generation cancelled")
+    return CacheEntry(
+        math_object=result.math_object,
+        generator_name=req.generator,
+        params=req.params,
+        seed=req.seed,
+        resolution_kwargs=req.resolution,
+    )
+
+
+@app.post("/api/cache/clear")
+def clear_cache() -> dict[str, Any]:
+    """Clear all cached entries (memory and disk)."""
+    get_cache().clear()
+    count = get_disk_cache().clear()
+    return {"status": "ok", "entries_removed": count}
 
 
 @app.post("/api/generate/cancel")
