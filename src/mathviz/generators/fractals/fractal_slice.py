@@ -105,6 +105,10 @@ class FractalSliceGenerator(GeneratorBase):
             "slice_position": _DEFAULT_SLICE_POSITION,
         }
 
+    def get_default_resolution(self) -> dict[str, Any]:
+        """Return default values for resolution parameters."""
+        return {"pixel_resolution": DEFAULT_PIXEL_RESOLUTION}
+
     def generate(
         self,
         params: dict[str, Any] | None = None,

@@ -57,6 +57,10 @@ class Julia3DGenerator(GeneratorBase):
             "c_z": _DEFAULT_C_Z,
         }
 
+    def get_default_resolution(self) -> dict[str, Any]:
+        """Return default values for resolution parameters."""
+        return {"voxel_resolution": DEFAULT_VOXEL_RESOLUTION}
+
     def generate(
         self,
         params: dict[str, Any] | None = None,
