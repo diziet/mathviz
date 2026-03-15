@@ -279,7 +279,7 @@ canvas{display:block}
       <div class="editor-row dim-row"><label for="margin-y">Y</label><input type="number" id="margin-y" class="control-input" value="5" min="0" step="0.5"></div>
       <div class="editor-row dim-row"><label for="margin-z">Z</label><input type="number" id="margin-z" class="control-input" value="5" min="0" step="0.5"></div>
 
-      <div id="usable-volume">Usable: 90 x 90 x 30 mm</div>
+      <div id="usable-volume">Usable: 90 x 90 x 90 mm</div>
 
       <div class="container-buttons">
         <button id="container-apply-btn">Apply</button>
@@ -2222,6 +2222,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ── Init: load from URL params ── */
+updateUsableVolume();
 const qp = parseQueryParams();
 seedInput.value = qp.seed;
 
