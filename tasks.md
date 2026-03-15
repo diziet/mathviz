@@ -4236,10 +4236,11 @@ and provide a button to force regeneration (bypass cache).
    data or want to verify reproducibility.
 
 7. **Cache cleanup**: Add `POST /api/cache/clear` endpoint that deletes
-   all cached entries. Entries older than 7 days are automatically
-   pruned on server startup. Also add `mathviz cache clear` CLI command.
+   all cached entries. Also add `mathviz cache clear` CLI command.
+   No automatic pruning — cache persists until manually cleared or
+   size limit is hit.
 
-8. **Cache size limit**: Cap total disk usage (default 1GB, configurable
+8. **Cache size limit**: Cap total disk usage (default 5GB, configurable
    via `MATHVIZ_CACHE_MAX_SIZE`). When exceeded, evict oldest entries
    first.
 
@@ -4251,7 +4252,6 @@ and provide a button to force regeneration (bypass cache).
 - `POST /api/cache/clear` removes all cached files
 - `X-Cache` header is present in all generate responses
 - Cache directory is created automatically on first use
-- Entries older than 7 days are pruned on startup
-- Cache respects max size limit and evicts oldest entries
+- Cache respects 5GB max size limit and evicts oldest entries when full
 - Preview HTML contains a force-regenerate button
 - UI shows "Cached" badge when result is from cache
