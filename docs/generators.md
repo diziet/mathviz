@@ -1029,6 +1029,22 @@ surfaces (Möbius-torus); even twists produce orientable surfaces.
 mathviz generate twisted_torus --param twist=1 --output twisted_torus.ply
 ```
 
+### shell_spiral
+
+Logarithmic spiral with exponentially expanding cross-section, producing
+a nautilus-like seashell form.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `growth_rate` | 0.1 | Spiral expansion rate |
+| `turns` | 3 | Number of spiral turns |
+| `opening_rate` | 0.08 | Cross-section growth rate |
+| `ellipticity` | 1.0 | Cross-section shape (1.0 = circular) |
+
+```bash
+mathviz generate shell_spiral --param turns=5 --output shell_spiral.ply
+```
+
 ### rose_surface
 
 Rhodonea (rose) curve revolved into 3D, producing flower-like petal
