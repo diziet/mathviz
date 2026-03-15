@@ -78,6 +78,7 @@ GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     "electron_orbital": _SURFACE_CONFIG,
     "magnetic_field": _TUBE_CONFIG,
     "gravitational_lensing": _TUBE_CONFIG,
+    "wave_interference": _SURFACE_CONFIG,
     # Number theory (point clouds)
     "sacks_spiral": _SPARSE_CONFIG,
     "prime_gaps": _SPARSE_CONFIG,
