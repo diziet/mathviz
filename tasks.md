@@ -2386,3 +2386,65 @@ speed and produces a clear picture of where time is spent.
 - Failed generators appear in the report with error messages, not crashes
 - Per-stage timings sum approximately to total time (within 10% tolerance)
 - Text summary is printed to stdout
+
+---
+
+## Task 61: Batch render CLI command for all generators
+
+**Objective:**
+
+Add a `mathviz render-all` CLI command that renders every generator across
+multiple views in parallel and organizes outputs into a structured directory.
+This replaces the ad-hoc shell one-liner with a proper, repeatable command.
+
+**Suggested path:**
+
+1. Add a `mathviz render-all` command in `cli_render.py` (or a new
+   `cli_render_batch.py` if the file would exceed 300 lines). Options:
+   - `--output-dir PATH`: base output directory (default: `renders/`)
+   - `--views`: comma-separated views to render (default: `top,front,side,angle`)
+   - `--workers N`: parallel workers (default: `os.cpu_count()`)
+   - `--generators`: comma-separated list to limit scope (default: all
+     non-data-driven generators, plus data-driven if demo mode is available)
+   - `--style`: render style — `shaded`, `wireframe`, `points`
+     (default: `points`)
+   - `--width` / `--height`: image dimensions (default: 1920×1080)
+
+2. Output directory structure:
+   ```
+   renders/
+     lorenz/
+       lorenz_top.png
+       lorenz_front.png
+       lorenz_side.png
+       lorenz_angle.png
+     torus/
+       torus_top.png
+       ...
+   ```
+   Each generator gets its own subdirectory so renders from different
+   runs or styles don't collide.
+
+3. Use `concurrent.futures.ProcessPoolExecutor` to parallelize across
+   generator+view combinations. Show a progress indicator (e.g., rich
+   progress bar or simple counter: `[42/180] Rendering lorenz angle...`).
+
+4. At the end, print a summary: total renders, successes, failures, total
+   time. List any failed generator+view combinations with their error
+   messages.
+
+5. Skip generators that error out and continue with the rest. Do not abort
+   the entire batch on a single failure.
+
+6. If `--output-dir` already exists, render into it without clearing
+   existing files (overwrite only matching filenames).
+
+**Tests:** `tests/test_cli/test_render_all.py`
+
+- `mathviz render-all --generators lorenz,torus --views top` creates
+  `renders/lorenz/lorenz_top.png` and `renders/torus/torus_top.png`
+- Output directory structure has one subdirectory per generator
+- `--workers 1` runs sequentially without error
+- Failed generators are reported in the summary, not raised as exceptions
+- `--output-dir custom_dir/` creates renders in the specified directory
+- Default views produce 4 images per generator
