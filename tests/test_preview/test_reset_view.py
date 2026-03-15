@@ -52,54 +52,50 @@ class TestResetViewButton:
         assert 'id="reset-view-btn"' in html
         assert "Reset View" in html
 
-    def test_reset_view_calls_fit_camera(self, html: str) -> None:
-        """Clicking the button calls fitCamera on the active geometry."""
-        assert "fitCamera(active)" in html or "fitCamera" in html
+    def test_html_contains_fit_camera_in_reset(self, html: str) -> None:
+        """HTML contains resetView function that calls fitCamera."""
+        assert "fitCamera(active)" in html
         assert "resetView" in html
 
-    def test_reset_view_reads_active_geometry(self, html: str) -> None:
-        """Reset uses whichever of meshGroup or cloudPoints is active."""
-        assert "state.meshGroup" in html
-        assert "state.cloudPoints" in html
-        assert "resetView" in html
-
-    def test_reset_view_works_with_mesh(self, html: str) -> None:
-        """Button works when viewing mesh geometry (meshGroup is checked first)."""
-        # The resetView function checks state.meshGroup || state.cloudPoints
+    def test_html_contains_active_geometry_check(self, html: str) -> None:
+        """HTML checks both meshGroup and cloudPoints for active geometry."""
         assert "state.meshGroup || state.cloudPoints" in html
 
-    def test_reset_view_works_with_point_cloud(self, html: str) -> None:
-        """Button works when viewing point cloud geometry."""
-        # cloudPoints is the fallback when meshGroup is null
-        assert "state.cloudPoints" in html
-        assert "resetView" in html
+    def test_html_contains_reset_btn_click_handler(self, html: str) -> None:
+        """HTML wires resetView to the button click event."""
+        assert "resetViewBtn.addEventListener('click', resetView)" in html
 
-    def test_reset_view_disabled_when_no_geometry(self, html: str) -> None:
-        """Button is disabled when no geometry is loaded."""
+    def test_html_reset_btn_starts_disabled(self, html: str) -> None:
+        """Button is disabled in the initial HTML (no geometry loaded)."""
         assert 'id="reset-view-btn" disabled' in html
 
-    def test_reset_view_enabled_after_geometry_load(self, html: str) -> None:
-        """Button is enabled after geometry is loaded via enableResetView."""
+    def test_html_contains_enable_reset_view_call(self, html: str) -> None:
+        """HTML calls enableResetView after geometry display."""
         assert "enableResetView()" in html
-        assert "disabled = false" in html or '.disabled = false' in html
+        assert "resetViewBtn.disabled = false" in html
 
-    def test_reset_view_disabled_on_clear_scene(self, html: str) -> None:
-        """Button is disabled when scene is cleared."""
-        # clearScene sets reset-view-btn.disabled = true
-        assert "reset-view-btn" in html
-        assert "disabled = true" in html or '.disabled = true' in html
+    def test_html_disables_reset_on_clear_scene(self, html: str) -> None:
+        """HTML disables reset button when clearScene is called."""
+        assert "resetViewBtn.disabled = true" in html
 
-    def test_keyboard_shortcut_home_key(self, html: str) -> None:
-        """Home key triggers reset view."""
+    def test_html_contains_home_key_shortcut(self, html: str) -> None:
+        """HTML binds the Home key to reset view."""
         assert "'Home'" in html
         assert "resetView" in html
 
-    def test_keyboard_shortcut_zero_key(self, html: str) -> None:
-        """0 key triggers reset view."""
-        assert "'0'" in html
-        assert "resetView" in html
+    def test_html_shortcut_checks_modifier_keys(self, html: str) -> None:
+        """Keyboard shortcut skips when modifier keys are held."""
+        assert "e.ctrlKey" in html
+        assert "e.metaKey" in html
+        assert "e.altKey" in html
 
-    def test_keyboard_shortcut_skips_inputs(self, html: str) -> None:
-        """Keyboard shortcut does not fire when typing in input fields."""
+    def test_html_shortcut_checks_disabled_state(self, html: str) -> None:
+        """Keyboard shortcut respects the button's disabled state."""
+        assert "resetViewBtn.disabled" in html
+
+    def test_html_shortcut_guards_editable_elements(self, html: str) -> None:
+        """Keyboard shortcut skips input, select, textarea, and contentEditable."""
         assert "INPUT" in html
         assert "SELECT" in html
+        assert "TEXTAREA" in html
+        assert "isContentEditable" in html
