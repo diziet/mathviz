@@ -11,8 +11,8 @@ from mathviz.cli import app
 
 runner = CliRunner()
 
-# Use lightweight generators that are fast to run
-FAST_GENERATORS = "lorenz,torus,mobius_strip"
+# Use two lightweight generators — enough to test multi-generator behavior
+FAST_GENERATORS = "lorenz,torus"
 
 
 @dataclass
@@ -63,21 +63,13 @@ def shared_benchmark(tmp_path_factory: pytest.TempPathFactory) -> BenchmarkResul
     return _build_benchmark(tmp_path_factory, "benchmark")
 
 
-@pytest.fixture(scope="class")
-def torus_benchmark(tmp_path_factory: pytest.TempPathFactory) -> BenchmarkResult:
-    """Run a torus-only benchmark once and share across tests."""
-    return _build_benchmark(
-        tmp_path_factory, "benchmark_torus", generators="torus", runs="1",
-    )
-
-
 class TestBenchmarkCommand:
     """Test that benchmark command runs and produces correct output."""
 
     def test_benchmark_runs_without_error(
         self, shared_benchmark: BenchmarkResult,
     ) -> None:
-        """mathviz benchmark runs without error on at least 3 generators."""
+        """mathviz benchmark runs without error on at least 2 generators."""
         assert shared_benchmark.result.exit_code == 0, (
             f"Exit code {shared_benchmark.result.exit_code}: "
             f"{shared_benchmark.result.output}"
@@ -101,46 +93,63 @@ class TestBenchmarkCommand:
         for stage in ["Generate", "Represent", "Transform", "Validate", "Total"]:
             assert stage in shared_benchmark.html_content
 
-    def test_generators_flag_limits_selection(self, tmp_path: Path) -> None:
-        """--generators lorenz,torus limits the benchmark to those generators."""
-        result, output = _run_benchmark(tmp_path, generators="lorenz,torus")
-        assert result.exit_code == 0
-        html_content = output.read_text(encoding="utf-8")
-        assert "lorenz" in html_content
-        assert "torus" in html_content
-        assert html_content.count("<tr>") >= 3  # header + 2 data rows
+    def test_report_contains_exactly_requested_generators(
+        self, shared_benchmark: BenchmarkResult,
+    ) -> None:
+        """Report contains rows for all requested generators."""
+        assert shared_benchmark.result.exit_code == 0
+        html = shared_benchmark.html_content
+        for name in FAST_GENERATORS.split(","):
+            assert name in html
+        # Header + one data row per generator
+        generator_count = len(FAST_GENERATORS.split(","))
+        assert html.count("<tr>") >= generator_count + 1
 
     def test_single_run_produces_results(
-        self, torus_benchmark: BenchmarkResult,
+        self, shared_benchmark: BenchmarkResult,
     ) -> None:
-        """--runs 1 produces results with a single run per generator."""
-        assert torus_benchmark.result.exit_code == 0
-        assert "torus" in torus_benchmark.html_content
-        assert "Runs: 1" in torus_benchmark.html_content
+        """Default single-run benchmark includes run count in output."""
+        assert shared_benchmark.result.exit_code == 0
+        assert "torus" in shared_benchmark.html_content
+        assert "Runs: 1" in shared_benchmark.html_content
 
     def test_text_summary_printed_to_stdout(
-        self, torus_benchmark: BenchmarkResult,
+        self, shared_benchmark: BenchmarkResult,
     ) -> None:
         """Text summary is printed to stdout."""
-        assert torus_benchmark.result.exit_code == 0
-        assert "Benchmark" in torus_benchmark.result.output
-        assert "torus" in torus_benchmark.result.output
+        assert shared_benchmark.result.exit_code == 0
+        assert "Benchmark" in shared_benchmark.result.output
+        assert "torus" in shared_benchmark.result.output
+
+
+@pytest.fixture(scope="class")
+def error_benchmark(tmp_path_factory: pytest.TempPathFactory) -> BenchmarkResult:
+    """Run a benchmark with one valid + one invalid generator."""
+    return _build_benchmark(
+        tmp_path_factory, "benchmark_error",
+        generators="torus,nonexistent_generator_xyz",
+    )
 
 
 class TestBenchmarkErrorHandling:
-    """Test error handling in benchmark command."""
+    """Test error handling and generator filtering in benchmark command."""
 
     def test_failed_generator_in_report_not_crash(
-        self, tmp_path: Path,
+        self, error_benchmark: BenchmarkResult,
     ) -> None:
         """Failed generators appear in the report with error messages."""
-        result, output = _run_benchmark(
-            tmp_path, generators="torus,nonexistent_generator_xyz",
-        )
-        assert result.exit_code == 0
-        html_content = output.read_text(encoding="utf-8")
-        assert "nonexistent_generator_xyz" in html_content
-        assert "torus" in html_content
+        assert error_benchmark.result.exit_code == 0
+        assert "nonexistent_generator_xyz" in error_benchmark.html_content
+        assert "torus" in error_benchmark.html_content
+
+    def test_generators_flag_excludes_unrequested(
+        self, error_benchmark: BenchmarkResult,
+    ) -> None:
+        """--generators flag actively excludes generators not in the list."""
+        assert error_benchmark.result.exit_code == 0
+        # Only torus was requested (nonexistent doesn't produce output rows)
+        # so lorenz must be absent — proving the flag filters, not just includes
+        assert "lorenz" not in error_benchmark.html_content
 
 
 class TestBenchmarkTimings:
