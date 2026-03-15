@@ -4,7 +4,14 @@ import logging
 import os
 import threading
 import time
-from concurrent.futures import Future, ProcessPoolExecutor, TimeoutError
+from concurrent.futures import (
+    CancelledError,
+    Future,
+    ProcessPoolExecutor,
+    TimeoutError,
+    as_completed,
+)
+from concurrent.futures.process import BrokenProcessPool
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -15,6 +22,7 @@ from mathviz.pipeline.runner import run as run_pipeline
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_SECONDS = 300
+BATCH_TIMEOUT_ERROR = "Batch timed out"
 _ENV_VAR = "MATHVIZ_GENERATION_TIMEOUT"
 
 
@@ -83,12 +91,19 @@ class GenerationExecutor:
         self._lock = threading.Lock()
         self._current_task: GenerationTask | None = None
         self._pool: ProcessPoolExecutor | None = None
+        self._batch_pool: ProcessPoolExecutor | None = None
 
     def _ensure_pool(self) -> ProcessPoolExecutor:
         """Create the process pool if needed. Must be called under self._lock."""
         if self._pool is None:
             self._pool = ProcessPoolExecutor(max_workers=1)
         return self._pool
+
+    def _ensure_batch_pool(self, worker_count: int) -> ProcessPoolExecutor:
+        """Create the batch pool if needed. Must be called under self._lock."""
+        if self._batch_pool is None:
+            self._batch_pool = ProcessPoolExecutor(max_workers=worker_count)
+        return self._batch_pool
 
     def submit(
         self,
@@ -136,11 +151,10 @@ class GenerationExecutor:
         timeout = get_timeout_seconds()
         worker_count = min(len(jobs), os.cpu_count() or 1)
 
-        pool = ProcessPoolExecutor(max_workers=worker_count)
-        try:
-            return self._run_batch(pool, jobs, timeout)
-        finally:
-            pool.shutdown(wait=False, cancel_futures=True)
+        with self._lock:
+            pool = self._ensure_batch_pool(worker_count)
+
+        return self._run_batch(pool, jobs, timeout)
 
     def _run_batch(
         self,
@@ -149,7 +163,7 @@ class GenerationExecutor:
         timeout: float,
     ) -> BatchResult:
         """Execute batch jobs on pool, collecting results until timeout."""
-        futures: list[tuple[int, Future]] = []
+        future_to_idx: dict[Future, int] = {}
         for i, job in enumerate(jobs):
             future = pool.submit(
                 _run_pipeline_in_process,
@@ -160,29 +174,34 @@ class GenerationExecutor:
                 job["container"],
                 job["placement"],
             )
-            futures.append((i, future))
+            future_to_idx[future] = i
 
         deadline = time.monotonic() + timeout
         result = BatchResult()
         result.panels = [BatchPanelResult(index=i) for i in range(len(jobs))]
 
-        for idx, future in futures:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
+        try:
+            for future in as_completed(future_to_idx, timeout=timeout):
+                idx = future_to_idx[future]
+                try:
+                    pipeline_result = future.result(timeout=0)
+                    result.panels[idx].pipeline_result = pipeline_result
+                except (KeyError, ValueError) as exc:
+                    result.panels[idx].error = "Generation failed"
+                    logger.error("Batch panel %d failed: %s", idx, exc)
+                except (BrokenProcessPool, CancelledError) as exc:
+                    result.panels[idx].error = "Generation failed"
+                    logger.error("Batch panel %d failed: %s", idx, exc)
+        except TimeoutError:
+            pass  # Some futures didn't complete — handled below
+
+        # Mark any panels that didn't complete as timed out
+        for future, idx in future_to_idx.items():
+            panel = result.panels[idx]
+            if panel.pipeline_result is None and panel.error is None:
                 result.timed_out = True
                 future.cancel()
-                result.panels[idx].error = "Batch timed out"
-                continue
-            try:
-                pipeline_result = future.result(timeout=remaining)
-                result.panels[idx].pipeline_result = pipeline_result
-            except TimeoutError:
-                result.timed_out = True
-                future.cancel()
-                result.panels[idx].error = "Batch timed out"
-            except Exception as exc:
-                result.panels[idx].error = str(exc)
-                logger.error("Batch panel %d failed: %s", idx, exc)
+                panel.error = BATCH_TIMEOUT_ERROR
 
         return result
 
@@ -216,3 +235,6 @@ class GenerationExecutor:
             if self._pool is not None:
                 self._pool.shutdown(wait=True)
                 self._pool = None
+            if self._batch_pool is not None:
+                self._batch_pool.shutdown(wait=True)
+                self._batch_pool = None

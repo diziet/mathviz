@@ -2014,21 +2014,30 @@ async function generateBatchPanels(panelIndices) {
     }
     const data = await resp.json();
 
+    const limit = Math.min(data.panels.length, panelIndices.length);
     let completed = 0;
-    for (let j = 0; j < data.panels.length; j++) {
+    const loadPromises = [];
+    for (let j = 0; j < limit; j++) {
       const panelResult = data.panels[j];
       const panelIndex = panelIndices[j];
       if (panelResult.error) {
         setPanelSpinnerError(panelIndex, panelResult.error);
+        state.comparePanels[panelIndex].loading = false;
+        completed++;
+        loadPromises.push(Promise.resolve());
       } else {
-        await loadPanelGeometry(panelIndex, panelResult);
-        setPanelSpinner(panelIndex, false);
+        loadPromises.push(
+          loadPanelGeometry(panelIndex, panelResult).then(() => {
+            setPanelSpinner(panelIndex, false);
+            state.comparePanels[panelIndex].loading = false;
+            completed++;
+            document.getElementById('loading-text').textContent =
+              `Generating ${completed}/${total}...`;
+          })
+        );
       }
-      state.comparePanels[panelIndex].loading = false;
-      completed++;
-      document.getElementById('loading-text').textContent =
-        `Generating ${completed}/${total}...`;
     }
+    await Promise.all(loadPromises);
   } catch (err) {
     console.error('Batch generate error:', err);
     for (const i of panelIndices) {

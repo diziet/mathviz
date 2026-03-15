@@ -325,10 +325,9 @@ def generate_geometry(req: GenerateRequest) -> GenerateResponse:
     else:
         logger.info("Serving geometry %s from cache", cache_key)
 
-    obj = entry.math_object
-    mesh_url = f"/api/geometry/{cache_key}/mesh" if obj.mesh is not None else None
-    cloud_url = f"/api/geometry/{cache_key}/cloud" if obj.point_cloud is not None else None
+    from mathviz.preview.batch_routes import build_geometry_urls
 
+    mesh_url, cloud_url = build_geometry_urls(cache_key, entry.math_object)
     return GenerateResponse(geometry_id=cache_key, mesh_url=mesh_url, cloud_url=cloud_url)
 
 

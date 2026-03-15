@@ -123,13 +123,17 @@ class TestBatchGenerate:
 
     def test_batch_respects_timeout(self, client: TestClient) -> None:
         """Batch respects the generation timeout."""
-        from mathviz.preview.executor import BatchPanelResult, BatchResult
+        from mathviz.preview.executor import (
+            BATCH_TIMEOUT_ERROR,
+            BatchPanelResult,
+            BatchResult,
+        )
         import mathviz.preview.server as server_mod
 
         timed_out_result = BatchResult(
             panels=[
-                BatchPanelResult(index=0, error="Batch timed out"),
-                BatchPanelResult(index=1, error="Batch timed out"),
+                BatchPanelResult(index=0, error=BATCH_TIMEOUT_ERROR),
+                BatchPanelResult(index=1, error=BATCH_TIMEOUT_ERROR),
             ],
             timed_out=True,
         )
