@@ -145,13 +145,13 @@ class TestRandomizeRespectsMins:
 class TestMinMaxFieldsInHTML:
     """Preview HTML contains editable min/max range fields."""
 
-    def test_min_input_fields_exist(self, preview_html: str) -> None:
-        """HTML contains min range input elements."""
-        assert 'id="param-range-min-' in preview_html
+    def test_min_input_fields_created(self, preview_html: str) -> None:
+        """JS creates min range input elements with correct ID pattern."""
+        assert "param-range-min-" in preview_html
 
-    def test_max_input_fields_exist(self, preview_html: str) -> None:
-        """HTML contains max range input elements."""
-        assert 'id="param-range-max-' in preview_html
+    def test_max_input_fields_created(self, preview_html: str) -> None:
+        """JS creates max range input elements with correct ID pattern."""
+        assert "param-range-max-" in preview_html
 
     def test_range_row_class_exists(self, preview_html: str) -> None:
         """HTML contains param-range-row CSS class."""
