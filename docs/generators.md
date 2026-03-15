@@ -606,6 +606,24 @@ with optional dual (Goldberg) polyhedron mode.
 mathviz generate geodesic_sphere --param frequency=6 --seed 42 --output geodesic.ply
 ```
 
+### gear
+
+Involute gear: mechanical gear tooth profiles extruded as spur or helical
+gear solids.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `num_teeth` | 20 | Number of teeth (6–200) |
+| `module` | 1.0 | Tooth size (standard gear module) |
+| `pressure_angle` | 20 | Pressure angle in degrees, exclusive (0, 45) |
+| `face_width` | 0.5 | Extrusion height along z-axis |
+| `helix_angle` | 0 | Helix angle in degrees (0 = spur gear) |
+| `curve_points` | 32 | Points per tooth profile |
+
+```bash
+mathviz generate gear --param num_teeth=24 --param helix_angle=15 --output gear.ply
+```
+
 ### voronoi_3d
 
 3D Voronoi cell boundaries as wireframe edges.
