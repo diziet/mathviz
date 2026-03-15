@@ -29,22 +29,11 @@ def _clean_registry():
 # --- Mesh validity ---
 
 
-def test_trefoil_produces_nonempty_mesh() -> None:
-    """Trefoil Seifert surface produces a valid, non-empty mesh."""
+@pytest.mark.parametrize("knot_type", ["trefoil", "figure_eight"])
+def test_produces_nonempty_mesh(knot_type: str) -> None:
+    """Seifert surface produces a valid, non-empty mesh."""
     gen = SeifertSurfaceGenerator()
-    obj = gen.generate(params={"knot_type": "trefoil"}, grid_resolution=32)
-    obj.validate_or_raise()
-
-    assert obj.mesh is not None
-    assert len(obj.mesh.vertices) > 0
-    assert len(obj.mesh.faces) > 0
-    assert obj.bounding_box is not None
-
-
-def test_figure_eight_produces_nonempty_mesh() -> None:
-    """Figure-eight Seifert surface produces a valid, non-empty mesh."""
-    gen = SeifertSurfaceGenerator()
-    obj = gen.generate(params={"knot_type": "figure_eight"}, grid_resolution=32)
+    obj = gen.generate(params={"knot_type": knot_type}, grid_resolution=32)
     obj.validate_or_raise()
 
     assert obj.mesh is not None
@@ -171,29 +160,15 @@ def test_seed_recorded() -> None:
 # --- Determinism ---
 
 
-def test_determinism_trefoil() -> None:
-    """Same params produce identical trefoil geometry."""
+@pytest.mark.parametrize("knot_type", ["trefoil", "figure_eight"])
+def test_determinism(knot_type: str) -> None:
+    """Same params produce identical geometry."""
     gen = SeifertSurfaceGenerator()
     obj1 = gen.generate(
-        params={"knot_type": "trefoil"}, seed=42, grid_resolution=16,
+        params={"knot_type": knot_type}, seed=42, grid_resolution=16,
     )
     obj2 = gen.generate(
-        params={"knot_type": "trefoil"}, seed=42, grid_resolution=16,
-    )
-
-    assert obj1.mesh is not None and obj2.mesh is not None
-    np.testing.assert_array_equal(obj1.mesh.vertices, obj2.mesh.vertices)
-    np.testing.assert_array_equal(obj1.mesh.faces, obj2.mesh.faces)
-
-
-def test_determinism_figure_eight() -> None:
-    """Same params produce identical figure-eight geometry."""
-    gen = SeifertSurfaceGenerator()
-    obj1 = gen.generate(
-        params={"knot_type": "figure_eight"}, seed=42, grid_resolution=16,
-    )
-    obj2 = gen.generate(
-        params={"knot_type": "figure_eight"}, seed=42, grid_resolution=16,
+        params={"knot_type": knot_type}, seed=42, grid_resolution=16,
     )
 
     assert obj1.mesh is not None and obj2.mesh is not None
@@ -235,6 +210,15 @@ def test_invalid_knot_type_raises() -> None:
     gen = SeifertSurfaceGenerator()
     with pytest.raises(ValueError, match="knot_type must be one of"):
         gen.generate(params={"knot_type": "cinquefoil"})
+
+
+def test_invalid_theta_raises() -> None:
+    """Out-of-range theta raises ValueError."""
+    gen = SeifertSurfaceGenerator()
+    with pytest.raises(ValueError, match="theta must be in"):
+        gen.generate(params={"theta": -0.1})
+    with pytest.raises(ValueError, match="theta must be in"):
+        gen.generate(params={"theta": 7.0})
 
 
 def test_invalid_grid_resolution_raises() -> None:

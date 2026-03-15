@@ -35,6 +35,10 @@ def _validate_params(knot_type: str, theta: float, grid_resolution: int) -> None
         raise ValueError(
             f"knot_type must be one of {_VALID_KNOT_TYPES}, got {knot_type!r}"
         )
+    if not 0.0 <= theta <= 2 * np.pi:
+        raise ValueError(
+            f"theta must be in [0, 2π], got {theta}"
+        )
     if grid_resolution < _MIN_GRID_RESOLUTION:
         raise ValueError(
             f"grid_resolution must be >= {_MIN_GRID_RESOLUTION}, "
@@ -46,8 +50,26 @@ def _stereographic_project(
     s3w: np.ndarray, s3x: np.ndarray, s3y: np.ndarray, s3z: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Stereographic projection from S³ south pole to R³."""
-    denom = np.maximum(1.0 + s3w, 1e-8)
+    raw_denom = 1.0 + s3w
+    n_clamped = int(np.sum(raw_denom < 1e-8))
+    if n_clamped > 0:
+        logger.warning(
+            "Stereographic projection clamped %d/%d points near south pole",
+            n_clamped, raw_denom.size,
+        )
+    denom = np.maximum(raw_denom, 1e-8)
     return s3x / denom, s3y / denom, s3z / denom
+
+
+def _build_surface_mesh(
+    x: np.ndarray, y: np.ndarray, z: np.ndarray, n: int,
+) -> Mesh:
+    """Build a mesh from coordinate grids with open-u / wrapped-v topology."""
+    vertices = np.column_stack(
+        [x.ravel(), y.ravel(), z.ravel()]
+    ).astype(np.float64)
+    faces = build_mixed_grid_faces(n, n, wrap_u=False, wrap_v=True)
+    return Mesh(vertices=vertices, faces=faces)
 
 
 def _generate_trefoil_fiber(theta: float, n: int) -> Mesh:
@@ -84,12 +106,7 @@ def _generate_trefoil_fiber(theta: float, n: int) -> Mesh:
     s3z = sa * np.sin(gamma)
 
     x, y, z = _stereographic_project(s3w, s3x, s3y, s3z)
-
-    vertices = np.column_stack(
-        [x.ravel(), y.ravel(), z.ravel()]
-    ).astype(np.float64)
-    faces = build_mixed_grid_faces(n, n, wrap_u=False, wrap_v=True)
-    return Mesh(vertices=vertices, faces=faces)
+    return _build_surface_mesh(x, y, z, n)
 
 
 def _figure_eight_knot(
@@ -121,12 +138,7 @@ def _generate_figure_eight_surface(theta: float, n: int) -> Mesh:
     x = (1.0 - s) * cx + s * kx
     y = (1.0 - s) * cy + s * ky
     z = (1.0 - s) * cz + s * kz
-
-    vertices = np.column_stack(
-        [x.ravel(), y.ravel(), z.ravel()]
-    ).astype(np.float64)
-    faces = build_mixed_grid_faces(n, n, wrap_u=False, wrap_v=True)
-    return Mesh(vertices=vertices, faces=faces)
+    return _build_surface_mesh(x, y, z, n)
 
 
 def _compute_bounding_box(vertices: np.ndarray) -> BoundingBox:

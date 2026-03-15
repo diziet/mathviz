@@ -841,7 +841,7 @@ the figure-eight knot.
 | Parameter | Default | Description |
 |---|---|---|
 | `knot_type` | `trefoil` | Knot type: `trefoil` or `figure_eight` |
-| `theta` | 0.0 | Milnor fiber angle |
+| `theta` | 0.0 | Milnor fiber angle (trefoil) / phase offset (figure-eight) |
 
 Aliases: `seifert`
 
