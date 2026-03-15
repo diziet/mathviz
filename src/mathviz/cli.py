@@ -18,6 +18,7 @@ from mathviz.cli_output import (
     serialize_checks,
     write_report,
 )
+from mathviz.cli_benchmark import register_benchmark_command
 from mathviz.cli_preview import register_preview_command
 from mathviz.cli_render import register_render_commands
 from mathviz.cli_utils import register_util_commands
@@ -389,6 +390,7 @@ def validate(
     raise typer.Exit(code=exit_code)
 
 
+register_benchmark_command(app, _configure_logging, console)
 register_preview_command(app, _parse_params, _configure_logging, console)
 register_render_commands(app, _parse_params, _configure_logging, _run_pipeline, console)
 register_util_commands(app, _configure_logging, console)
