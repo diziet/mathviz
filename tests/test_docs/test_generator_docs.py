@@ -5,7 +5,6 @@ every generator in the registry.
 """
 
 import re
-from pathlib import Path
 
 import pytest
 
@@ -15,14 +14,7 @@ from mathviz.core.generator import GeneratorBase
 import mathviz.core.generator as _gen_module
 _gen_module._ensure_discovered()
 
-ROOT = Path(__file__).parent.parent.parent
-GENERATORS_DOC = ROOT / "docs" / "generators.md"
-README_PATH = ROOT / "README.md"
-
-
-def _read_text(path: Path) -> str:
-    """Read file contents as UTF-8 text."""
-    return path.read_text(encoding="utf-8")
+from tests.test_docs.conftest import GENERATORS_DOC, README_PATH, read_text
 
 
 def _get_concrete_generators() -> list[type[GeneratorBase]]:
@@ -69,11 +61,6 @@ def _extract_doc_h2_headings(content: str) -> set[str]:
 class TestEveryGeneratorDocumented:
     """Every generator in the registry has an entry in docs/generators.md."""
 
-    @pytest.fixture()
-    def gen_doc(self) -> str:
-        """Load generators.md content."""
-        return _read_text(GENERATORS_DOC)
-
     def test_all_generators_have_entry(self, gen_doc: str) -> None:
         """Every registered generator name appears as an h3 heading."""
         doc_headings = _extract_doc_headings(gen_doc)
@@ -86,11 +73,6 @@ class TestEveryGeneratorDocumented:
 
 class TestEntryContents:
     """Every entry includes name, category, parameters, and description."""
-
-    @pytest.fixture()
-    def gen_doc(self) -> str:
-        """Load generators.md content."""
-        return _read_text(GENERATORS_DOC)
 
     def _get_section(self, gen_doc: str, name: str) -> str:
         """Extract the section for a generator between its h3 and the next h2/h3."""
@@ -145,7 +127,7 @@ class TestNoPhantomGenerators:
 
     def test_no_phantom_generators(self) -> None:
         """Every h3 heading in docs/generators.md is a registered generator."""
-        gen_doc = _read_text(GENERATORS_DOC)
+        gen_doc = read_text(GENERATORS_DOC)
         doc_headings = _extract_doc_headings(gen_doc)
         registered = set(_get_all_generator_names())
         phantoms = doc_headings - registered
@@ -159,7 +141,7 @@ class TestReadmeGeneratorCount:
 
     def test_readme_count_matches_registry(self) -> None:
         """The '**N generators**' in README matches the registry count."""
-        readme = _read_text(README_PATH)
+        readme = read_text(README_PATH)
         match = re.search(r"\*\*(\d+) generators\*\*", readme)
         assert match is not None, (
             "README.md does not contain a '**N generators**' count"
@@ -176,7 +158,7 @@ class TestCategoryHeadings:
 
     def test_all_categories_have_heading(self) -> None:
         """Every category in the registry has a corresponding h2 heading."""
-        gen_doc = _read_text(GENERATORS_DOC)
+        gen_doc = read_text(GENERATORS_DOC)
         doc_h2 = _extract_doc_h2_headings(gen_doc)
         # Normalize to lowercase for matching
         doc_h2_lower = {h.lower() for h in doc_h2}
