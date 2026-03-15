@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 73 generators across 12 categories. Each generator produces a
+MathViz includes 74 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -1174,6 +1174,27 @@ Aliases: `solar_system`
 
 ```bash
 mathviz generate planetary_positions --output solar.ply
+```
+
+### electron_orbital
+
+Hydrogen atom electron orbital probability density isosurface. Computes |ψ(r,θ,φ)|²
+for hydrogen wavefunctions using radial functions and spherical harmonics. Different
+(n, l, m) quantum numbers produce iconic orbital shapes: s-orbitals (spheres),
+p-orbitals (dumbbells), d-orbitals (cloverleaf), and higher.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `n` | 3 | Principal quantum number (≥ 1) |
+| `l` | 2 | Angular momentum quantum number (0 ≤ l < n) |
+| `m` | 0 | Magnetic quantum number (−l ≤ m ≤ l) |
+| `iso_level` | 0.01 | Isosurface threshold for probability density |
+| `voxel_resolution` | 128 | Voxels per axis (N³ cost) |
+
+Aliases: `hydrogen_orbital`
+
+```bash
+mathviz generate electron_orbital --param n=2 --param l=1 --param m=0 --output orbital.ply
 ```
 
 ## Procedural
