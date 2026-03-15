@@ -862,15 +862,16 @@ function createParamInput(name, value, description) {
   return wrapper;
 }
 
-function addResolutionWarning(input, wrapper) {
+function addResolutionWarning(input, wrapper, defaultValue) {
   const warn = document.createElement('div');
   warn.className = 'resolution-warning';
   warn.style.display = 'none';
   wrapper.appendChild(warn);
+  const threshold = defaultValue * 4;
   function checkWarn() {
     const v = parseFloat(input.value);
-    if (!Number.isNaN(v) && v > 256) {
-      warn.textContent = 'High value — may be slow (N\u00B3 cost)';
+    if (!Number.isNaN(v) && v > threshold) {
+      warn.textContent = 'High value \u2014 may be slow';
       warn.style.display = 'block';
     } else {
       warn.style.display = 'none';
@@ -913,7 +914,7 @@ function populateParamFields(data) {
       const desc = (data.descriptions && data.descriptions[name]) || null;
       const el = createParamInput(name, value, desc);
       const numInput = el.querySelector('input[type="number"]');
-      if (numInput) addResolutionWarning(numInput, el);
+      if (numInput) addResolutionWarning(numInput, el, value);
       paramResFields.appendChild(el);
     }
   }
