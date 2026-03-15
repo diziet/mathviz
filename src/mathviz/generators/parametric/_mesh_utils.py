@@ -1,6 +1,7 @@
 """Shared mesh face-building utilities for parametric surface generators."""
 
 import numpy as np
+from scipy.spatial import cKDTree
 
 from mathviz.core.math_object import BoundingBox
 
@@ -17,6 +18,58 @@ def compute_padded_bounding_box(vertices: np.ndarray) -> BoundingBox:
         min_corner=tuple(vmin - padding),
         max_corner=tuple(vmax + padding),
     )
+
+
+def _compute_vertex_normals(
+    vertices: np.ndarray, faces: np.ndarray,
+) -> np.ndarray:
+    """Compute per-vertex normals by averaging adjacent face normals."""
+    v0 = vertices[faces[:, 0]]
+    v1 = vertices[faces[:, 1]]
+    v2 = vertices[faces[:, 2]]
+    face_normals = np.cross(v1 - v0, v2 - v0)
+
+    vertex_normals = np.zeros_like(vertices)
+    for col in range(3):
+        np.add.at(vertex_normals, faces[:, col], face_normals)
+
+    lengths = np.linalg.norm(vertex_normals, axis=1, keepdims=True)
+    lengths = np.where(lengths < 1e-12, 1.0, lengths)
+    return vertex_normals / lengths
+
+
+def separate_coincident_vertices(
+    vertices: np.ndarray,
+    faces: np.ndarray,
+    epsilon: float = 0.005,
+) -> np.ndarray:
+    """Offset one vertex in each coincident pair along its face normal.
+
+    Finds vertex pairs closer than ``epsilon * 0.1`` and displaces the
+    higher-indexed vertex by ``epsilon`` along its averaged face normal.
+    Returns a copy of *vertices* with offsets applied; *faces* is unchanged.
+    """
+    if epsilon <= 0:
+        return vertices.copy()
+
+    threshold = epsilon * 0.1
+    tree = cKDTree(vertices)
+    pairs = tree.query_pairs(threshold, output_type="ndarray")
+    if len(pairs) == 0:
+        return vertices.copy()
+
+    normals = _compute_vertex_normals(vertices, faces)
+    result = vertices.copy()
+
+    displaced: set[int] = set()
+    for idx_a, idx_b in pairs:
+        target = max(idx_a, idx_b)
+        if target in displaced:
+            continue
+        displaced.add(target)
+        result[target] += epsilon * normals[target]
+
+    return result
 
 
 def build_wrapped_grid_faces(n_u: int, n_v: int) -> np.ndarray:
