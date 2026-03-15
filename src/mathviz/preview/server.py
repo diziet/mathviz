@@ -425,15 +425,21 @@ def create_snapshot(req: SnapshotRequest) -> SnapshotResponse:
             detail="No generated geometry found for the given geometry_id.",
         )
 
+    thumbnail_png: bytes | None = None
     if req.thumbnail is not None:
         try:
             import base64
 
-            base64.b64decode(req.thumbnail)
+            thumbnail_png = base64.b64decode(req.thumbnail, validate=True)
         except (ValueError, base64.binascii.Error):
             raise HTTPException(
                 status_code=400,
                 detail="Invalid base64 thumbnail data.",
+            )
+        if not thumbnail_png[:8].startswith(b"\x89PNG"):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid thumbnail: not a PNG image.",
             )
 
     container_dict = (
@@ -448,9 +454,9 @@ def create_snapshot(req: SnapshotRequest) -> SnapshotResponse:
             seed=req.seed,
             container=container_dict,
             geometry_id=req.geometry_id,
-            thumbnail_b64=req.thumbnail,
+            thumbnail_png=thumbnail_png,
         )
-    except (OSError, ValueError) as exc:
+    except OSError as exc:
         raise HTTPException(
             status_code=500,
             detail=f"Failed to save snapshot: {exc}",

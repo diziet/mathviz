@@ -334,6 +334,15 @@ class TestSnapshotThumbnailBase64:
         assert resp.status_code == 400
         assert "thumbnail" in resp.json()["detail"].lower()
 
+    def test_non_png_base64_returns_400(self, client: TestClient) -> None:
+        """Valid base64 of non-PNG data returns 400, not 500."""
+        gid = _generate_torus(client)
+        req = _make_snapshot_request(gid)
+        req["thumbnail"] = base64.b64encode(b"GIF89a not a png").decode()
+        resp = client.post("/api/snapshots", json=req)
+        assert resp.status_code == 400
+        assert "png" in resp.json()["detail"].lower()
+
     def test_server_responsive_after_save(
         self, client: TestClient, tmp_path: Path
     ) -> None:

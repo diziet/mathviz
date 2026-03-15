@@ -967,11 +967,14 @@ const saveToast = document.getElementById('save-toast');
 
 function captureCanvasThumbnail(size) {
   const src = renderer.domElement;
+  const side = Math.min(src.width, src.height);
+  const sx = (src.width - side) / 2;
+  const sy = (src.height - side) / 2;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
-  ctx.drawImage(src, 0, 0, src.width, src.height, 0, 0, size, size);
+  ctx.drawImage(src, sx, sy, side, side, 0, 0, size, size);
   const dataUrl = canvas.toDataURL('image/png');
   return dataUrl.replace(/^data:image\/png;base64,/, '');
 }
