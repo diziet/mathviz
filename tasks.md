@@ -2448,3 +2448,73 @@ This replaces the ad-hoc shell one-liner with a proper, repeatable command.
 - Failed generators are reported in the summary, not raised as exceptions
 - `--output-dir custom_dir/` creates renders in the specified directory
 - Default views produce 4 images per generator
+
+---
+
+## Task 62: Multi-panel comparison view in preview UI
+
+**Objective:**
+
+Add a comparison mode to the preview UI that renders 2×2 or 3×3 viewports
+of the same generator with different parameters/seeds side by side. All
+viewports share a single camera — rotating one rotates all. Each viewport
+has a compact, collapsible parameter overlay so the user can tweak
+individual panels without taking up much screen space.
+
+**Suggested path:**
+
+1. **Layout toggle**: Add a "Compare" button or dropdown in the controls
+   panel that switches between single view (current) and grid mode
+   (2×2 or 3×3). Store the layout in `state.compareMode` (`null`, `2x2`,
+   `3x3`).
+
+2. **Viewport splitting**: Use a single `WebGLRenderer` with
+   `renderer.setViewport()` and `renderer.setScissor()` to divide the
+   canvas into equal regions. In the render loop, iterate over each
+   panel and render its scene from the shared camera. One `OrbitControls`
+   instance controls the camera for all panels.
+
+3. **Per-panel scenes**: Each panel gets its own `THREE.Scene` containing
+   its geometry. All panels share the same `THREE.PerspectiveCamera` and
+   lighting setup. When the user rotates/zooms, all panels update
+   identically.
+
+4. **Per-panel state**: Each panel stores: `{generator, params, seed,
+   scene, meshGroup, cloudPoints}`. On first entering compare mode,
+   populate all panels with the current generator and params. The user
+   can then modify individual panels.
+
+5. **Compact parameter overlay**: Each viewport has a small overlay in
+   its bottom-left corner showing the seed and any parameters that differ
+   from panel 1 (the "base"). Clicking the overlay expands it into a
+   minimal inline editor (small inputs, no labels — just
+   `param_name: value` rows). Clicking outside or pressing Escape
+   collapses it. The overlay should be semi-transparent so it doesn't
+   fully obscure the geometry.
+
+6. **Generation**: Each panel generates independently. When a panel's
+   params change (and Auto-Apply is on, or the user hits Enter/Apply),
+   only that panel regenerates. Show a small per-panel loading spinner.
+
+7. **Shared controls**: View mode (points/wireframe/shaded), point size,
+   background color, bounding box toggle, and Lock Camera all apply
+   globally to every panel.
+
+8. **Switching back**: Exiting compare mode returns to single-view,
+   keeping panel 1's geometry as the active scene.
+
+9. **Panel labels**: Each panel shows a small label in the top-left
+   (e.g., "A", "B", "C", "D" or "1", "2", "3", "4") to help the user
+   reference them.
+
+**Tests:** `tests/test_preview/test_compare_view.py`
+
+- Preview HTML contains a compare mode toggle (button or dropdown)
+- Selecting 2×2 mode creates 4 viewport regions in the canvas
+- Selecting 3×3 mode creates 9 viewport regions
+- All viewports share the same camera object
+- Each viewport has its own scene with independent geometry
+- Per-panel parameter overlay is present in the DOM for each viewport
+- Exiting compare mode returns to single-view with panel 1's geometry
+- Shared controls (view mode, point size, background) apply to all panels
+- Changing params in one panel does not affect other panels
