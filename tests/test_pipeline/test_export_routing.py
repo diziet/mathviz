@@ -16,6 +16,12 @@ from mathviz.pipeline.runner import ExportConfig, _detect_export_type, _run_expo
 # --- Helpers ---
 
 
+def _get_executor() -> "GenerationExecutor":  # noqa: F821
+    """Return the module-level executor used by the preview server."""
+    from mathviz.preview.server import get_executor
+    return get_executor()
+
+
 def _cube_mesh() -> Mesh:
     """Create a minimal cube mesh."""
     vertices = np.array([
@@ -262,7 +268,9 @@ class TestPreviewServerGeometryRouting:
             math_object=cloud_obj,
             validation=ValidationResult(),
         )
-        with patch("mathviz.preview.server.run_pipeline", return_value=mock_result):
+        with patch.object(
+            _get_executor(), "submit", return_value=mock_result
+        ):
             resp = client.post(
                 "/api/generate",
                 json={"generator": "torus", "seed": 99},
@@ -282,7 +290,9 @@ class TestPreviewServerGeometryRouting:
             math_object=cloud_obj,
             validation=ValidationResult(),
         )
-        with patch("mathviz.preview.server.run_pipeline", return_value=mock_result):
+        with patch.object(
+            _get_executor(), "submit", return_value=mock_result
+        ):
             resp = client.post(
                 "/api/generate",
                 json={"generator": "torus", "seed": 99},

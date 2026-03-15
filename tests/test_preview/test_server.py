@@ -134,7 +134,7 @@ class TestGenerate:
         assert resp1.status_code == 200
         assert get_cache().size == 1
 
-        with patch("mathviz.preview.server.run_pipeline", wraps=None) as mock_run:
+        with patch("mathviz.preview.executor.run_pipeline", wraps=None) as mock_run:
             resp2 = client.post("/api/generate", json=payload)
             assert resp2.status_code == 200
             mock_run.assert_not_called()

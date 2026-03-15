@@ -3,6 +3,7 @@
 import importlib.resources
 import io
 import logging
+from concurrent.futures import CancelledError, TimeoutError
 from pathlib import Path
 from typing import Any
 
@@ -13,8 +14,8 @@ from pydantic import BaseModel, Field, ValidationError
 
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import GeneratorMeta, get_generator_meta, list_generators
-from mathviz.pipeline.runner import run as run_pipeline
 from mathviz.preview.cache import CacheEntry, GeometryCache, compute_cache_key
+from mathviz.preview.executor import GenerationExecutor, get_timeout_seconds
 from mathviz.preview.lod import (
     cloud_to_binary_ply,
     decimate_mesh,
@@ -27,11 +28,17 @@ from mathviz.preview.snapshots import save_snapshot
 logger = logging.getLogger(__name__)
 
 _cache = GeometryCache()
+_executor = GenerationExecutor()
 
 
 def get_cache() -> GeometryCache:
     """Return the global geometry cache."""
     return _cache
+
+
+def get_executor() -> GenerationExecutor:
+    """Return the global generation executor."""
+    return _executor
 
 
 def reset_cache() -> None:
@@ -233,7 +240,7 @@ def generate_geometry(req: GenerateRequest) -> GenerateResponse:
 
     if entry is None:
         try:
-            result = run_pipeline(
+            result = _executor.submit(
                 req.generator,
                 params=params,
                 seed=req.seed,
@@ -245,6 +252,18 @@ def generate_geometry(req: GenerateRequest) -> GenerateResponse:
             raise _generator_not_found(req.generator)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except TimeoutError:
+            timeout = get_timeout_seconds()
+            logger.error("Generation timed out after %d seconds", timeout)
+            raise HTTPException(
+                status_code=504,
+                detail=f"Generation timed out after {timeout} seconds",
+            )
+        except CancelledError:
+            raise HTTPException(
+                status_code=499,
+                detail="Generation cancelled",
+            )
 
         entry = CacheEntry(
             math_object=result.math_object,
@@ -263,6 +282,15 @@ def generate_geometry(req: GenerateRequest) -> GenerateResponse:
     cloud_url = f"/api/geometry/{cache_key}/cloud" if obj.point_cloud is not None else None
 
     return GenerateResponse(geometry_id=cache_key, mesh_url=mesh_url, cloud_url=cloud_url)
+
+
+@app.post("/api/generate/cancel")
+def cancel_generation() -> dict[str, str]:
+    """Cancel the currently running generation, if any."""
+    if _executor.cancel():
+        logger.info("Generation cancelled by user")
+        return {"status": "cancelled"}
+    raise HTTPException(status_code=404, detail="No generation in progress")
 
 
 @app.get("/api/geometry/{geometry_id}/mesh")

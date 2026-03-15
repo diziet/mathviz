@@ -71,7 +71,14 @@ canvas{display:block}
 #loading{
   position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   color:#aaa;font-size:16px;display:none;
+  text-align:center;
 }
+#loading-elapsed{font-size:13px;opacity:0.7;margin-top:4px}
+#cancel-btn{
+  margin-top:8px;padding:6px 16px;border:1px solid #888;border-radius:4px;
+  background:rgba(200,60,60,0.2);color:#ccc;cursor:pointer;font-size:13px;
+}
+#cancel-btn:hover{background:rgba(200,60,60,0.4)}
 
 /* Left-side controls column (container + params) */
 #left-column{
@@ -253,7 +260,11 @@ canvas{display:block}
 </head>
 <body>
 <div id="canvas-container">
-  <div id="loading">Loading geometry...</div>
+  <div id="loading">
+    <div id="loading-text">Generating...</div>
+    <div id="loading-elapsed"></div>
+    <button id="cancel-btn" type="button">Cancel</button>
+  </div>
 
   <div id="left-column">
     <div id="container-panel">
@@ -650,10 +661,47 @@ async function displayGenerateResult(data, generatorName) {
   applyViewMode();
 }
 
+/* ── Loading / cancel helpers ── */
+let _loadingTimer = null;
+let _loadingStart = 0;
+let _cancelController = null;
+
+function showLoading(message) {
+  const loadingEl = document.getElementById('loading');
+  document.getElementById('loading-text').textContent = message || 'Generating...';
+  document.getElementById('loading-elapsed').textContent = '';
+  loadingEl.style.display = 'block';
+  _loadingStart = Date.now();
+  _loadingTimer = setInterval(() => {
+    const elapsed = Math.round((Date.now() - _loadingStart) / 1000);
+    document.getElementById('loading-elapsed').textContent = elapsed + 's';
+  }, 1000);
+}
+
+function hideLoading() {
+  document.getElementById('loading').style.display = 'none';
+  if (_loadingTimer) { clearInterval(_loadingTimer); _loadingTimer = null; }
+  _cancelController = null;
+}
+
+function extractErrorMessage(errData, status) {
+  if (errData && (errData.error || errData.detail)) return errData.error || errData.detail;
+  return 'Generate failed: ' + status;
+}
+
+document.getElementById('cancel-btn').addEventListener('click', async () => {
+  try {
+    await fetch('/api/generate/cancel', {method: 'POST'});
+  } catch (_) { /* ignore */ }
+  if (_cancelController) _cancelController.abort();
+  hideLoading();
+  updateInfo({generator: 'Generation cancelled'});
+});
+
 /* ── Loading workflows ── */
 async function loadFromAPI(generator, genParams, seed) {
-  const loadingEl = document.getElementById('loading');
-  loadingEl.style.display = 'block';
+  showLoading('Generating...');
+  _cancelController = new AbortController();
 
   try {
     const body = {generator, params: genParams, seed, container: getContainerParams()};
@@ -661,24 +709,28 @@ async function loadFromAPI(generator, genParams, seed) {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body),
+      signal: _cancelController.signal,
     });
-    if (!resp.ok) throw new Error(`Generate failed: ${resp.status}`);
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => null);
+      throw new Error(extractErrorMessage(errData, resp.status));
+    }
     const data = await resp.json();
     state.geometryId = data.geometry_id;
     state.generatedWith = {generator, params: genParams, seed, container: body.container};
     document.getElementById('save-btn').disabled = false;
     await displayGenerateResult(data, generator);
   } catch (err) {
+    if (err.name === 'AbortError') return;
     console.error('Load error:', err);
     updateInfo({generator: generator + ' (error)'});
   } finally {
-    loadingEl.style.display = 'none';
+    hideLoading();
   }
 }
 
 async function loadFromFile(filePath) {
-  const loadingEl = document.getElementById('loading');
-  loadingEl.style.display = 'block';
+  showLoading('Loading file...');
 
   try {
     const savedCamera = saveCameraIfLocked();
@@ -704,7 +756,7 @@ async function loadFromFile(filePath) {
     console.error('File load error:', err);
     updateInfo({generator: 'file (error)'});
   } finally {
-    loadingEl.style.display = 'none';
+    hideLoading();
   }
 }
 
@@ -969,8 +1021,7 @@ function buildSnapshotCard(snap) {
 
 async function loadSnapshot(snap) {
   closeGallery();
-  const loadingEl = document.getElementById('loading');
-  loadingEl.style.display = 'block';
+  showLoading('Loading snapshot...');
 
   try {
     /* Set generator selector */
@@ -1032,7 +1083,7 @@ async function loadSnapshot(snap) {
   } catch (err) {
     console.error('Load snapshot error:', err);
   } finally {
-    loadingEl.style.display = 'none';
+    hideLoading();
   }
 }
 
@@ -1426,8 +1477,8 @@ async function applyParams() {
 
   paramError.style.display = 'none';
   paramLoadingEl.style.display = 'block';
-  const loadingEl = document.getElementById('loading');
-  loadingEl.style.display = 'block';
+  showLoading('Generating...');
+  _cancelController = new AbortController();
 
   try {
     const body = {generator: currentGen, params: genParams, seed, resolution, container: getContainerParams()};
@@ -1435,23 +1486,24 @@ async function applyParams() {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body),
+      signal: _cancelController.signal,
     });
     if (!resp.ok) {
       const errData = await resp.json().catch(() => null);
-      const msg = errData && errData.detail ? errData.detail : `Generate failed: ${resp.status}`;
-      paramError.textContent = msg;
+      paramError.textContent = extractErrorMessage(errData, resp.status);
       paramError.style.display = 'block';
       return;
     }
     const data = await resp.json();
     await displayGenerateResult(data, currentGen);
   } catch (err) {
+    if (err.name === 'AbortError') return;
     console.error('Apply error:', err);
     paramError.textContent = 'Failed to generate: ' + err.message;
     paramError.style.display = 'block';
   } finally {
     paramLoadingEl.style.display = 'none';
-    loadingEl.style.display = 'none';
+    hideLoading();
   }
 }
 
