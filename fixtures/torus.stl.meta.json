@@ -10,18 +10,18 @@
   "representation": "surface_shell",
   "description": "",
   "generation_time_seconds": null,
-  "export_timestamp": "2026-03-14T19:36:58.331936+00:00",
+  "export_timestamp": "2026-03-15T10:10:13.408368+00:00",
   "version": "0.1.0",
   "bounding_box": {
     "min_corner": [
       5.0,
       5.0,
-      7.142857142857141
+      37.14285714285714
     ],
     "max_corner": [
       95.0,
       95.0,
-      32.85714285714286
+      62.85714285714286
     ]
   },
   "export_format": "stl"

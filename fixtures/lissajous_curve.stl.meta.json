@@ -16,18 +16,18 @@
   "representation": "tube",
   "description": "",
   "generation_time_seconds": null,
-  "export_timestamp": "2026-03-14T19:36:58.754644+00:00",
+  "export_timestamp": "2026-03-15T10:10:14.064496+00:00",
   "version": "0.1.0",
   "bounding_box": {
     "min_corner": [
-      35.0,
-      35.06519296396788,
+      5.0,
+      5.195578891903651,
       5.0
     ],
     "max_corner": [
-      65.0,
-      64.93480703603211,
-      35.0
+      95.0,
+      94.80442110809635,
+      95.0
     ]
   },
   "export_format": "stl"

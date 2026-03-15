@@ -11,18 +11,18 @@
   "representation": "weighted_cloud",
   "description": "",
   "generation_time_seconds": null,
-  "export_timestamp": "2026-03-14T19:36:58.749973+00:00",
+  "export_timestamp": "2026-03-15T10:10:14.057245+00:00",
   "version": "0.1.0",
   "bounding_box": {
     "min_corner": [
-      28.999999999999996,
-      30.499999999999996,
-      5.0
+      5.0,
+      8.214285714285708,
+      17.85714285714286
     ],
     "max_corner": [
-      71.0,
-      69.5,
-      35.0
+      95.0,
+      91.78571428571429,
+      82.14285714285714
     ]
   },
   "export_format": "ply"
