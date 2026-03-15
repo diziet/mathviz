@@ -1,6 +1,7 @@
 """Tests for generation timeout and cancel mechanism."""
 
 import os
+import pickle
 import time
 import threading
 from typing import Any
@@ -9,6 +10,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
+from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import register
 from mathviz.core.math_object import MathObject, Mesh
 from mathviz.generators.parametric.torus import TorusGenerator
@@ -72,8 +74,8 @@ class TestGenerationTimeout:
                 json={"generator": "torus", "seed": 42},
             )
         data = resp.json()
-        assert "error" in data
-        assert "timed out" in data["error"].lower()
+        assert "detail" in data
+        assert "timed out" in data["detail"].lower()
 
     def test_timeout_configurable_via_env(self) -> None:
         """Timeout is configurable via MATHVIZ_GENERATION_TIMEOUT."""
@@ -107,7 +109,7 @@ class TestCancelEndpoint:
         resp = client.post("/api/generate/cancel")
         assert resp.status_code == 404
         data = resp.json()
-        assert "error" in data
+        assert "detail" in data
 
     def test_cancel_returns_200_when_generation_running(
         self, client: TestClient
@@ -176,3 +178,24 @@ class TestPreviewUI:
         resp = client.get("/")
         html = resp.text
         assert "/api/generate/cancel" in html
+
+
+# --- Picklability of pipeline args ---
+
+
+class TestPicklability:
+    """Ensure objects sent across process boundary survive pickling."""
+
+    def test_container_survives_pickle_roundtrip(self) -> None:
+        """Container can be pickled and unpickled for subprocess use."""
+        container = Container.with_uniform_margin()
+        restored = pickle.loads(pickle.dumps(container))
+        assert restored.width_mm == container.width_mm
+        assert restored.height_mm == container.height_mm
+        assert restored.depth_mm == container.depth_mm
+
+    def test_placement_policy_survives_pickle_roundtrip(self) -> None:
+        """PlacementPolicy can be pickled and unpickled for subprocess use."""
+        policy = PlacementPolicy()
+        restored = pickle.loads(pickle.dumps(policy))
+        assert type(restored) is PlacementPolicy

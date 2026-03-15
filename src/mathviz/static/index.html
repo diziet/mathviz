@@ -681,6 +681,12 @@ function showLoading(message) {
 function hideLoading() {
   document.getElementById('loading').style.display = 'none';
   if (_loadingTimer) { clearInterval(_loadingTimer); _loadingTimer = null; }
+  _cancelController = null;
+}
+
+function extractErrorMessage(errData, status) {
+  if (errData && (errData.error || errData.detail)) return errData.error || errData.detail;
+  return 'Generate failed: ' + status;
 }
 
 document.getElementById('cancel-btn').addEventListener('click', async () => {
@@ -695,6 +701,7 @@ document.getElementById('cancel-btn').addEventListener('click', async () => {
 /* ── Loading workflows ── */
 async function loadFromAPI(generator, genParams, seed) {
   showLoading('Generating...');
+  _cancelController = new AbortController();
 
   try {
     const body = {generator, params: genParams, seed, container: getContainerParams()};
@@ -702,11 +709,11 @@ async function loadFromAPI(generator, genParams, seed) {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body),
+      signal: _cancelController.signal,
     });
     if (!resp.ok) {
       const errData = await resp.json().catch(() => null);
-      const msg = errData && (errData.error || errData.detail) || `Generate failed: ${resp.status}`;
-      throw new Error(msg);
+      throw new Error(extractErrorMessage(errData, resp.status));
     }
     const data = await resp.json();
     state.geometryId = data.geometry_id;
@@ -714,6 +721,7 @@ async function loadFromAPI(generator, genParams, seed) {
     document.getElementById('save-btn').disabled = false;
     await displayGenerateResult(data, generator);
   } catch (err) {
+    if (err.name === 'AbortError') return;
     console.error('Load error:', err);
     updateInfo({generator: generator + ' (error)'});
   } finally {
@@ -1470,6 +1478,7 @@ async function applyParams() {
   paramError.style.display = 'none';
   paramLoadingEl.style.display = 'block';
   showLoading('Generating...');
+  _cancelController = new AbortController();
 
   try {
     const body = {generator: currentGen, params: genParams, seed, resolution, container: getContainerParams()};
@@ -1477,17 +1486,18 @@ async function applyParams() {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body),
+      signal: _cancelController.signal,
     });
     if (!resp.ok) {
       const errData = await resp.json().catch(() => null);
-      const msg = errData && (errData.error || errData.detail) || `Generate failed: ${resp.status}`;
-      paramError.textContent = msg;
+      paramError.textContent = extractErrorMessage(errData, resp.status);
       paramError.style.display = 'block';
       return;
     }
     const data = await resp.json();
     await displayGenerateResult(data, currentGen);
   } catch (err) {
+    if (err.name === 'AbortError') return;
     console.error('Apply error:', err);
     paramError.textContent = 'Failed to generate: ' + err.message;
     paramError.style.display = 'block';

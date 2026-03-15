@@ -9,7 +9,7 @@ from typing import Any
 
 import trimesh
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, Field, ValidationError
 
 from mathviz.core.container import Container, PlacementPolicy
@@ -255,14 +255,14 @@ def generate_geometry(req: GenerateRequest) -> GenerateResponse:
         except TimeoutError:
             timeout = get_timeout_seconds()
             logger.error("Generation timed out after %d seconds", timeout)
-            return JSONResponse(
+            raise HTTPException(
                 status_code=504,
-                content={"error": f"Generation timed out after {timeout // 60} minutes"},
+                detail=f"Generation timed out after {timeout} seconds",
             )
         except CancelledError:
-            return JSONResponse(
+            raise HTTPException(
                 status_code=499,
-                content={"error": "Generation cancelled"},
+                detail="Generation cancelled",
             )
 
         entry = CacheEntry(
@@ -285,12 +285,12 @@ def generate_geometry(req: GenerateRequest) -> GenerateResponse:
 
 
 @app.post("/api/generate/cancel")
-def cancel_generation() -> JSONResponse:
+def cancel_generation() -> dict[str, str]:
     """Cancel the currently running generation, if any."""
     if _executor.cancel():
         logger.info("Generation cancelled by user")
-        return JSONResponse(status_code=200, content={"status": "cancelled"})
-    return JSONResponse(status_code=404, content={"error": "No generation in progress"})
+        return {"status": "cancelled"}
+    raise HTTPException(status_code=404, detail="No generation in progress")
 
 
 @app.get("/api/geometry/{geometry_id}/mesh")

@@ -66,8 +66,8 @@ class GenerationExecutor:
         self._current_task: GenerationTask | None = None
         self._pool: ProcessPoolExecutor | None = None
 
-    def _get_pool(self) -> ProcessPoolExecutor:
-        """Lazily create the process pool."""
+    def _ensure_pool(self) -> ProcessPoolExecutor:
+        """Create the process pool if needed. Must be called under self._lock."""
         if self._pool is None:
             self._pool = ProcessPoolExecutor(max_workers=1)
         return self._pool
@@ -83,20 +83,19 @@ class GenerationExecutor:
     ) -> PipelineResult:
         """Run the pipeline with timeout. Raises TimeoutError or CancelledError."""
         timeout = get_timeout_seconds()
-        pool = self._get_pool()
 
-        future = pool.submit(
-            _run_pipeline_in_process,
-            generator,
-            params,
-            seed,
-            resolution_kwargs,
-            container,
-            placement,
-        )
-
-        task = GenerationTask(future=future)
         with self._lock:
+            pool = self._ensure_pool()
+            future = pool.submit(
+                _run_pipeline_in_process,
+                generator,
+                params,
+                seed,
+                resolution_kwargs,
+                container,
+                placement,
+            )
+            task = GenerationTask(future=future)
             self._current_task = task
 
         try:
@@ -130,12 +129,14 @@ class GenerationExecutor:
 
     def _terminate_pool(self) -> None:
         """Kill the pool and recreate it to ensure the process is dead."""
-        if self._pool is not None:
-            self._pool.shutdown(wait=False, cancel_futures=True)
-            self._pool = None
+        with self._lock:
+            if self._pool is not None:
+                self._pool.shutdown(wait=False, cancel_futures=True)
+                self._pool = None
 
     def shutdown(self) -> None:
         """Shut down the executor cleanly."""
-        if self._pool is not None:
-            self._pool.shutdown(wait=True)
-            self._pool = None
+        with self._lock:
+            if self._pool is not None:
+                self._pool.shutdown(wait=True)
+                self._pool = None
