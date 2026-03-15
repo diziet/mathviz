@@ -134,6 +134,7 @@ canvas{display:block}
 }
 #param-panel button:hover{background:rgba(128,128,128,0.3)}
 #param-panel.light-bg .control-input{background:rgba(255,255,255,0.5);border-color:#aaa}
+#param-panel.light-bg .param-range-row input{background:rgba(255,255,255,0.5);border-color:#aaa;color:#222}
 /* Save button (bottom-right) */
 #save-btn{
   position:absolute;bottom:12px;right:12px;
@@ -211,6 +212,11 @@ canvas{display:block}
 .snap-actions .snap-delete:hover{background:rgba(220,50,50,0.4)}
 
 .param-hint{font-size:10px;opacity:0.5;margin-top:2px}
+.param-range-row{display:flex;gap:4px;align-items:center;margin-top:2px}
+.param-range-row span{font-size:10px;opacity:0.6;flex:0 0 auto}
+.param-range-row input{flex:1;width:0;min-width:0;font-size:11px;padding:1px 3px;
+  background:rgba(255,255,255,0.08);border:1px solid rgba(128,128,128,0.3);
+  border-radius:3px;color:inherit}
 .param-buttons{display:flex;gap:6px}
 #param-error{font-size:11px;color:#ff6b6b;display:none;word-break:break-word}
 #param-loading{font-size:11px;opacity:0.6;display:none}
@@ -1787,6 +1793,31 @@ function createParamInput(name, value, description) {
 
   const wrapper = document.createElement('div');
   wrapper.appendChild(row);
+  if (typeof value === 'number') {
+    const rangeRow = document.createElement('div');
+    rangeRow.className = 'param-range-row';
+    const minLabel = document.createElement('span');
+    minLabel.textContent = 'min';
+    const minInput = document.createElement('input');
+    minInput.type = 'number';
+    minInput.id = 'param-range-min-' + name;
+    minInput.dataset.rangeParam = name;
+    minInput.dataset.rangeBound = 'min';
+    minInput.step = Number.isInteger(value) ? '1' : '0.01';
+    const maxLabel = document.createElement('span');
+    maxLabel.textContent = 'max';
+    const maxInput = document.createElement('input');
+    maxInput.type = 'number';
+    maxInput.id = 'param-range-max-' + name;
+    maxInput.dataset.rangeParam = name;
+    maxInput.dataset.rangeBound = 'max';
+    maxInput.step = Number.isInteger(value) ? '1' : '0.01';
+    rangeRow.appendChild(minLabel);
+    rangeRow.appendChild(minInput);
+    rangeRow.appendChild(maxLabel);
+    rangeRow.appendChild(maxInput);
+    wrapper.appendChild(rangeRow);
+  }
   if (description) {
     const hint = document.createElement('div');
     hint.className = 'param-hint';
@@ -1854,6 +1885,15 @@ function populateParamFields(data) {
   }
 }
 
+function populateRangeFields(ranges) {
+  for (const [name, range] of Object.entries(ranges)) {
+    const minInput = document.getElementById('param-range-min-' + name);
+    const maxInput = document.getElementById('param-range-max-' + name);
+    if (minInput) minInput.value = range.min;
+    if (maxInput) maxInput.value = range.max;
+  }
+}
+
 async function fetchAndPopulateParams(generatorName) {
   paramPanel.style.display = 'flex';
   paramError.style.display = 'none';
@@ -1867,6 +1907,13 @@ async function fetchAndPopulateParams(generatorName) {
     const data = await resp.json();
     cachedParamDefaults = data;
     populateParamFields(data);
+
+    const ranges = await fetchParamRanges(generatorName);
+    if (ranges) {
+      cachedParamRanges = ranges;
+      cachedParamRangesGen = generatorName;
+      populateRangeFields(ranges);
+    }
   } catch (e) {
     console.error('Failed to fetch params:', e);
     paramPanel.style.display = 'none';
