@@ -22,7 +22,7 @@ mathviz generate <generator_name> [OPTIONS]
 | `--profile` | string | | Sampling profile name (preview, production, custom) |
 | `--width` | float | 100.0 | Container width in mm |
 | `--height` | float | 100.0 | Container height in mm |
-| `--depth` | float | 40.0 | Container depth in mm |
+| `--depth` | float | 100.0 | Container depth in mm |
 | `--dry-run` | flag | | Show what would happen without running |
 | `--report` | path | | Write JSON report to file |
 | `--json` | flag | | Output as JSON |
@@ -109,7 +109,7 @@ mathviz validate <generator_name> [OPTIONS]
 | `--profile` | string | | Sampling profile name |
 | `--width` | float | 100.0 | Container width in mm |
 | `--height` | float | 100.0 | Container height in mm |
-| `--depth` | float | 40.0 | Container depth in mm |
+| `--depth` | float | 100.0 | Container depth in mm |
 | `--json` | flag | | Output as JSON |
 | `--verbose` | flag | | Enable debug logging |
 | `--quiet` | flag | | Suppress non-error output |
@@ -283,7 +283,7 @@ mathviz transform <input_path> <output_path> [OPTIONS]
 |---|---|---|---|
 | `--width` | float | 100.0 | Container width in mm |
 | `--height` | float | 100.0 | Container height in mm |
-| `--depth` | float | 40.0 | Container depth in mm |
+| `--depth` | float | 100.0 | Container depth in mm |
 | `--format` | string | | Output format override |
 | `--verbose` | flag | | Enable debug logging |
 | `--quiet` | flag | | Suppress non-error output |
@@ -291,7 +291,7 @@ mathviz transform <input_path> <output_path> [OPTIONS]
 Examples:
 
 ```bash
-# Fit to default container (100x100x40mm)
+# Fit to default container (100x100x100mm)
 mathviz transform model.stl fitted.stl
 
 # Fit to custom container

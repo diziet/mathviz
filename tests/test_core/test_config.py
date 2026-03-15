@@ -145,7 +145,7 @@ class TestMergeOrder:
         """With no config layers, built-in defaults are used."""
         resolved = resolve_config()
         assert resolved.container.width_mm == 100.0
-        assert resolved.container.depth_mm == 40.0
+        assert resolved.container.depth_mm == 100.0
 
     def test_project_overrides_builtin(self, tmp_project_dir: Path) -> None:
         """Project config overrides built-in defaults."""

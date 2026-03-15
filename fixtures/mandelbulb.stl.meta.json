@@ -12,18 +12,18 @@
   "representation": "sparse_shell",
   "description": "",
   "generation_time_seconds": null,
-  "export_timestamp": "2026-03-14T19:36:58.744428+00:00",
+  "export_timestamp": "2026-03-15T10:10:14.050640+00:00",
   "version": "0.1.0",
   "bounding_box": {
     "min_corner": [
-      35.13157882188496,
-      35.0,
+      5.39473646565488,
+      5.0,
       5.0
     ],
     "max_corner": [
-      64.86842117811504,
-      65.0,
-      35.0
+      94.60526353434511,
+      95.0,
+      95.0
     ]
   },
   "export_format": "stl"

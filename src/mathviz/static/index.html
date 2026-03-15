@@ -217,7 +217,7 @@ canvas{display:block}
       <div class="section-title">Dimensions (mm)</div>
       <div class="editor-row dim-row"><label for="dim-w">W</label><input type="number" id="dim-w" class="control-input" value="100" min="1" step="1"></div>
       <div class="editor-row dim-row"><label for="dim-h">H</label><input type="number" id="dim-h" class="control-input" value="100" min="1" step="1"></div>
-      <div class="editor-row dim-row"><label for="dim-d">D</label><input type="number" id="dim-d" class="control-input" value="40" min="1" step="1"></div>
+      <div class="editor-row dim-row"><label for="dim-d">D</label><input type="number" id="dim-d" class="control-input" value="100" min="1" step="1"></div>
 
       <div class="section-title">Margins (mm)</div>
       <label><input type="checkbox" id="uniform-margin" checked> Uniform</label>
@@ -927,7 +927,7 @@ async function loadSnapshot(snap) {
       const c = snap.container;
       document.getElementById('dim-w').value = c.width_mm ?? 100;
       document.getElementById('dim-h').value = c.height_mm ?? 100;
-      document.getElementById('dim-d').value = c.depth_mm ?? 40;
+      document.getElementById('dim-d').value = c.depth_mm ?? 100;
       document.getElementById('margin-x').value = c.margin_x_mm ?? 5;
       document.getElementById('margin-y').value = c.margin_y_mm ?? 5;
       document.getElementById('margin-z').value = c.margin_z_mm ?? 5;
@@ -1103,7 +1103,7 @@ document.getElementById('seed-random-btn').addEventListener('click', () => {
 });
 
 /* ── Container editor ── */
-const CONTAINER_DEFAULTS = {w: 100, h: 100, d: 40, mx: 5, my: 5, mz: 5};
+const CONTAINER_DEFAULTS = {w: 100, h: 100, d: 100, mx: 5, my: 5, mz: 5};
 
 const dimW = document.getElementById('dim-w');
 const dimH = document.getElementById('dim-h');
@@ -1131,7 +1131,7 @@ function getContainerParams() {
   return {
     width_mm: parseNum(dimW, 100),
     height_mm: parseNum(dimH, 100),
-    depth_mm: parseNum(dimD, 40),
+    depth_mm: parseNum(dimD, 100),
     margin_x_mm: parseNum(marginX, 5),
     margin_y_mm: parseNum(marginY, 5),
     margin_z_mm: parseNum(marginZ, 5),

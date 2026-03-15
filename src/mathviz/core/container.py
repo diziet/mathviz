@@ -10,7 +10,7 @@ class Container(BaseModel):
 
     width_mm: float = Field(default=100.0, gt=0, description="X-axis dimension in mm")
     height_mm: float = Field(default=100.0, gt=0, description="Y-axis dimension in mm")
-    depth_mm: float = Field(default=40.0, gt=0, description="Z-axis dimension in mm")
+    depth_mm: float = Field(default=100.0, gt=0, description="Z-axis dimension in mm")
     margin_x_mm: float = Field(default=5.0, ge=0, description="X-axis margin in mm")
     margin_y_mm: float = Field(default=5.0, ge=0, description="Y-axis margin in mm")
     margin_z_mm: float = Field(default=5.0, ge=0, description="Z-axis margin in mm")
@@ -42,7 +42,7 @@ class Container(BaseModel):
         cls,
         w: float = 100,
         h: float = 100,
-        d: float = 40,
+        d: float = 100,
         margin: float = 5,
     ) -> "Container":
         """Create a container with uniform margins on all axes."""
