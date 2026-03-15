@@ -13,12 +13,16 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
-from mathviz.generators.parametric._mesh_utils import build_open_grid_faces
+from mathviz.generators.parametric._mesh_utils import (
+    build_open_grid_faces,
+    separate_coincident_vertices,
+)
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_SCALE = 1.0
 _DEFAULT_GRID_RESOLUTION = 128
+_DEFAULT_SEPARATION_EPSILON = 0.005
 _MIN_GRID_RESOLUTION = 3
 
 
@@ -66,7 +70,9 @@ def _compute_bounding_box(scale: float) -> BoundingBox:
     )
 
 
-def _generate_cross_cap_mesh(scale: float, grid_resolution: int) -> Mesh:
+def _generate_cross_cap_mesh(
+    scale: float, grid_resolution: int, separation_epsilon: float,
+) -> Mesh:
     """Build triangle mesh for the cross-cap surface."""
     n = grid_resolution
     u_vals = np.linspace(0, np.pi, n, endpoint=True)
@@ -77,6 +83,7 @@ def _generate_cross_cap_mesh(scale: float, grid_resolution: int) -> Mesh:
     vertices = np.column_stack([x.ravel(), y.ravel(), z.ravel()])
     vertices = vertices.astype(np.float64)
     faces = build_open_grid_faces(n, n)
+    vertices = separate_coincident_vertices(vertices, faces, separation_epsilon)
     return Mesh(vertices=vertices, faces=faces)
 
 
@@ -93,7 +100,10 @@ class CrossCapGenerator(GeneratorBase):
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for the cross-cap."""
-        return {"scale": _DEFAULT_SCALE}
+        return {
+            "scale": _DEFAULT_SCALE,
+            "separation_epsilon": _DEFAULT_SEPARATION_EPSILON,
+        }
 
     def generate(
         self,
@@ -107,6 +117,7 @@ class CrossCapGenerator(GeneratorBase):
             merged.update(params)
 
         scale = float(merged["scale"])
+        separation_epsilon = float(merged["separation_epsilon"])
         grid_resolution = int(
             resolution_kwargs.get(
                 "grid_resolution",
@@ -116,7 +127,7 @@ class CrossCapGenerator(GeneratorBase):
 
         _validate_params(scale, grid_resolution)
 
-        mesh = _generate_cross_cap_mesh(scale, grid_resolution)
+        mesh = _generate_cross_cap_mesh(scale, grid_resolution, separation_epsilon)
         bbox = _compute_bounding_box(scale)
 
         merged["grid_resolution"] = grid_resolution
