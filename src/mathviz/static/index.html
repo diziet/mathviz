@@ -134,6 +134,7 @@ canvas{display:block}
 }
 #param-panel button:hover{background:rgba(128,128,128,0.3)}
 #param-panel.light-bg .control-input{background:rgba(255,255,255,0.5);border-color:#aaa}
+#param-panel.light-bg .param-range-row input{background:rgba(255,255,255,0.5);border-color:#aaa;color:#222}
 /* Save button (bottom-right) */
 #save-btn{
   position:absolute;bottom:12px;right:12px;
@@ -211,6 +212,11 @@ canvas{display:block}
 .snap-actions .snap-delete:hover{background:rgba(220,50,50,0.4)}
 
 .param-hint{font-size:10px;opacity:0.5;margin-top:2px}
+.param-range-row{display:flex;gap:4px;align-items:center;margin-top:2px}
+.param-range-row span{font-size:10px;opacity:0.6;flex:0 0 auto}
+.param-range-row input{flex:1;width:0;min-width:0;font-size:11px;padding:1px 3px;
+  background:rgba(255,255,255,0.08);border:1px solid rgba(128,128,128,0.3);
+  border-radius:3px;color:inherit}
 .param-buttons{display:flex;gap:6px}
 #param-error{font-size:11px;color:#ff6b6b;display:none;word-break:break-word}
 #param-loading{font-size:11px;opacity:0.6;display:none}
@@ -1754,6 +1760,18 @@ const paramLoadingEl = document.getElementById('param-loading');
 
 let cachedParamDefaults = null;
 
+function _createRangeBoundInput(name, bound, value) {
+  const label = document.createElement('span');
+  label.textContent = bound;
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.id = 'param-range-' + bound + '-' + name;
+  input.dataset.rangeParam = name;
+  input.dataset.rangeBound = bound;
+  input.step = Number.isInteger(value) ? '1' : '0.01';
+  return [label, input];
+}
+
 function createParamInput(name, value, description) {
   const row = document.createElement('div');
   row.className = 'editor-row param-row';
@@ -1787,6 +1805,17 @@ function createParamInput(name, value, description) {
 
   const wrapper = document.createElement('div');
   wrapper.appendChild(row);
+  if (typeof value === 'number') {
+    const rangeRow = document.createElement('div');
+    rangeRow.className = 'param-range-row';
+    const [minLabel, minInput] = _createRangeBoundInput(name, 'min', value);
+    const [maxLabel, maxInput] = _createRangeBoundInput(name, 'max', value);
+    rangeRow.appendChild(minLabel);
+    rangeRow.appendChild(minInput);
+    rangeRow.appendChild(maxLabel);
+    rangeRow.appendChild(maxInput);
+    wrapper.appendChild(rangeRow);
+  }
   if (description) {
     const hint = document.createElement('div');
     hint.className = 'param-hint';
@@ -1854,6 +1883,15 @@ function populateParamFields(data) {
   }
 }
 
+function populateRangeFields(ranges) {
+  for (const [name, range] of Object.entries(ranges)) {
+    const minInput = document.getElementById('param-range-min-' + name);
+    const maxInput = document.getElementById('param-range-max-' + name);
+    if (minInput) minInput.value = range.min;
+    if (maxInput) maxInput.value = range.max;
+  }
+}
+
 async function fetchAndPopulateParams(generatorName) {
   paramPanel.style.display = 'flex';
   paramError.style.display = 'none';
@@ -1862,11 +1900,21 @@ async function fetchAndPopulateParams(generatorName) {
   cachedParamRangesGen = null;
 
   try {
-    const resp = await fetch('/api/generators/' + encodeURIComponent(generatorName) + '/params');
-    if (!resp.ok) { paramPanel.style.display = 'none'; return; }
-    const data = await resp.json();
+    const paramsUrl = '/api/generators/' + encodeURIComponent(generatorName) + '/params';
+    const [paramsResp, ranges] = await Promise.all([
+      fetch(paramsUrl),
+      fetchParamRanges(generatorName),
+    ]);
+    if (!paramsResp.ok) { paramPanel.style.display = 'none'; return; }
+    const data = await paramsResp.json();
     cachedParamDefaults = data;
     populateParamFields(data);
+
+    if (ranges) {
+      cachedParamRanges = ranges;
+      cachedParamRangesGen = generatorName;
+      populateRangeFields(ranges);
+    }
   } catch (e) {
     console.error('Failed to fetch params:', e);
     paramPanel.style.display = 'none';
@@ -1887,9 +1935,7 @@ function resetParamDefaults() {
   paramError.style.display = 'none';
 }
 
-async function applyParams() {
-  const currentGen = searchInput.value;
-  if (!currentGen) return;
+async function _doGenerate(currentGen) {
   const genParams = getEditorParams();
   const resolution = getEditorResolution();
   const seed = parseSeed();
@@ -1909,21 +1955,30 @@ async function applyParams() {
     });
     if (!resp.ok) {
       const errData = await resp.json().catch(() => null);
-      paramError.textContent = extractErrorMessage(errData, resp.status);
-      paramError.style.display = 'block';
-      return;
+      const errMsg = extractErrorMessage(errData, resp.status);
+      return {ok: false, status: resp.status, error: errMsg};
     }
     updateCacheStatus(resp);
     const data = await resp.json();
     await displayGenerateResult(data, currentGen);
+    return {ok: true};
   } catch (err) {
-    if (err.name === 'AbortError') return;
-    console.error('Apply error:', err);
-    paramError.textContent = 'Failed to generate: ' + err.message;
-    paramError.style.display = 'block';
+    if (err.name === 'AbortError') return {ok: false, status: 0, aborted: true};
+    console.error('Generate error:', err);
+    return {ok: false, status: 0, error: 'Failed to generate: ' + err.message};
   } finally {
     paramLoadingEl.style.display = 'none';
     hideLoading();
+  }
+}
+
+async function applyParams() {
+  const currentGen = searchInput.value;
+  if (!currentGen) return;
+  const result = await _doGenerate(currentGen);
+  if (result && !result.ok && !result.aborted && result.error) {
+    paramError.textContent = result.error;
+    paramError.style.display = 'block';
   }
 }
 
@@ -1955,6 +2010,35 @@ function randomizeInRange(min, max, step) {
   return Math.min(chosen, max);
 }
 
+function _fillRandomValues(ranges) {
+  for (const input of paramFields.querySelectorAll('input[data-param-name]')) {
+    const name = input.dataset.paramName;
+    const type = input.dataset.paramType;
+    if (type === 'boolean') {
+      input.checked = Math.random() > 0.5;
+      continue;
+    }
+    if (type === 'number') {
+      const range = ranges[name];
+      if (!range) continue;
+      const minInput = document.getElementById('param-range-min-' + name);
+      const maxInput = document.getElementById('param-range-max-' + name);
+      let mn = minInput ? parseFloat(minInput.value) : NaN;
+      let mx = maxInput ? parseFloat(maxInput.value) : NaN;
+      if (Number.isNaN(mn)) mn = range.min;
+      if (Number.isNaN(mx)) mx = range.max;
+      if (mn > mx) { const tmp = mn; mn = mx; mx = tmp; }
+      const step = range.step;
+      const val = randomizeInRange(mn, mx, step);
+      input.value = Number.isInteger(step) && step >= 1 ? Math.round(val) : parseFloat(val.toFixed(6));
+    }
+  }
+  const seedEl = document.getElementById('seed-input');
+  if (seedEl) seedEl.value = Math.floor(Math.random() * 1000000);
+}
+
+const MAX_RANDOMIZE_ATTEMPTS = 3;
+
 async function randomizeParams() {
   const currentGen = searchInput.value;
   if (!currentGen) return;
@@ -1965,27 +2049,19 @@ async function randomizeParams() {
   }
   const ranges = cachedParamRanges || {};
 
-  for (const input of paramFields.querySelectorAll('input[data-param-name]')) {
-    const name = input.dataset.paramName;
-    const type = input.dataset.paramType;
-    if (type === 'boolean') {
-      input.checked = Math.random() > 0.5;
-      continue;
-    }
-    const range = ranges[name];
-    if (range && type === 'number') {
-      const val = randomizeInRange(range.min, range.max, range.step);
-      input.value = Number.isInteger(range.step) && range.step >= 1 ? Math.round(val) : parseFloat(val.toFixed(6));
-    }
+  for (let attempt = 0; attempt < MAX_RANDOMIZE_ATTEMPTS; attempt++) {
+    _fillRandomValues(ranges);
+    const result = await _doGenerate(currentGen);
+    if (!result) return;
+    if (result.aborted) return;
+    if (result.ok) return;
+    if (result.status === 400 && attempt < MAX_RANDOMIZE_ATTEMPTS - 1) continue;
+    paramError.textContent = result.error || 'Generation failed';
+    paramError.style.display = 'block';
+    return;
   }
-
-  // Randomize seed (0–999999)
-  const seedInput = document.getElementById('seed-input');
-  seedInput.value = Math.floor(Math.random() * 1000000);
-
-  if (state.autoApply) {
-    applyParams();
-  }
+  paramError.textContent = 'Randomize failed after ' + MAX_RANDOMIZE_ATTEMPTS + ' attempts — try adjusting min/max ranges';
+  paramError.style.display = 'block';
 }
 
 document.getElementById('param-randomize-btn').addEventListener('click', randomizeParams);
