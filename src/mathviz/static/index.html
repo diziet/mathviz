@@ -1014,9 +1014,7 @@ handleEnterKey(document.getElementById('controls'), () => {
 });
 
 handleEnterKey(document.getElementById('container-panel'), () => {
-  const currentGen = searchInput.value;
-  if (!currentGen) return;
-  loadFromAPI(currentGen, {}, parseSeed());
+  applyParams();
 });
 
 handleEnterKey(document.getElementById('param-panel'), () => {
