@@ -189,6 +189,18 @@ def _create_plotter(
     config: RenderConfig | None = None,
 ) -> Iterator[tuple["object", RenderConfig]]:
     """Create a PyVista plotter with scene setup, screenshot on exit."""
+    config = config or RenderConfig()
+    with _create_plotter_bare(obj, config) as (plotter, resolved_config):
+        yield plotter, resolved_config
+        plotter.screenshot(str(Path(output_path)))
+
+
+@contextmanager
+def _create_plotter_bare(
+    obj: MathObject,
+    config: RenderConfig | None = None,
+) -> Iterator[tuple["object", RenderConfig]]:
+    """Create a PyVista plotter with scene setup, no automatic screenshot."""
     require_pyvista()
     import pyvista as pv
 
@@ -203,7 +215,6 @@ def _create_plotter(
     try:
         _setup_backlit_scene(plotter, pv_mesh, config)
         yield plotter, config
-        plotter.screenshot(str(Path(output_path)))
     finally:
         plotter.close()
 
@@ -262,14 +273,20 @@ def render_all_views(
     config: RenderConfig | None = None,
     use_2d: bool = False,
 ) -> list[Path]:
-    """Render all named views, saving each with view name in filename."""
+    """Render all named views with a single plotter for efficiency."""
     stem = output_path.stem
     suffix = output_path.suffix or ".png"
     parent = output_path.parent
-    render_fn = render_2d_projection if use_2d else render_to_png
     paths: list[Path] = []
-    for view_name in _VIEW_CAMERAS:
-        view_path = parent / f"{stem}_{view_name}{suffix}"
-        render_fn(obj, view_path, view=view_name, config=config)
-        paths.append(view_path)
+
+    with _create_plotter_bare(obj, config) as (plotter, _):
+        if use_2d:
+            plotter.enable_parallel_projection()
+        for view_name in _VIEW_CAMERAS:
+            _apply_camera_view(plotter, view_name)
+            view_path = parent / f"{stem}_{view_name}{suffix}"
+            plotter.screenshot(str(view_path))
+            paths.append(view_path)
+
+    logger.info("Rendered %d views to %s", len(paths), parent)
     return paths

@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+from typing import Iterator
 from types import ModuleType
 from unittest.mock import MagicMock, patch
 
@@ -54,6 +55,20 @@ def _make_mock_pyvista() -> MagicMock:
     mock_pv.Light = MagicMock(return_value=MagicMock())
     mock_pv.OFF_SCREEN = False
     return mock_pv
+
+
+@pytest.fixture()
+def pyvista_env(tmp_path: Path) -> Iterator[tuple[MagicMock, "ModuleType", Path]]:
+    """Provide a mocked pyvista environment with (mock_plotter, renderer, tmp_path)."""
+    mock_pv = _make_mock_pyvista()
+    mock_plotter = mock_pv.Plotter.return_value
+    mock_plotter.screenshot.side_effect = lambda p: Path(p).write_bytes(
+        b"\x89PNG" + b"\x01" * 50
+    )
+    with patch.dict(sys.modules, {"pyvista": mock_pv}):
+        from mathviz.preview import renderer
+
+        yield mock_plotter, renderer, tmp_path
 
 
 def _render_with_view(
@@ -144,19 +159,11 @@ class TestRenderWithView:
         assert frt_plotter.camera.position == angle_plotter.camera.position
         assert frt_plotter.camera.up == angle_plotter.camera.up
 
-    def test_default_view_is_front_right_top(self, tmp_path: Path) -> None:
+    def test_default_view_is_front_right_top(self, pyvista_env: tuple) -> None:
         """Default render (no explicit view) uses front-right-top camera."""
-        mock_pv = _make_mock_pyvista()
+        mock_plotter, renderer, tmp_path = pyvista_env
         output_file = tmp_path / "default.png"
-        mock_plotter = mock_pv.Plotter.return_value
-        mock_plotter.screenshot.side_effect = lambda p: Path(p).write_bytes(
-            b"\x89PNG" + b"\x01" * 50
-        )
-
-        with patch.dict(sys.modules, {"pyvista": mock_pv}):
-            from mathviz.preview import renderer
-
-            renderer.render_to_png(_sphere_mesh(), output_file)
+        renderer.render_to_png(_sphere_mesh(), output_file)
 
         expected_pos, expected_up = get_view_camera("front-right-top")
         assert mock_plotter.camera.position == expected_pos
@@ -211,56 +218,32 @@ class TestRender2dWithExpandedViews:
 class TestRenderAllViews:
     """Tests for --view all rendering multiple files."""
 
-    def test_render_all_produces_multiple_files(self, tmp_path: Path) -> None:
+    def test_render_all_produces_multiple_files(self, pyvista_env: tuple) -> None:
         """--view all produces one file per named view."""
-        mock_pv = _make_mock_pyvista()
-        mock_plotter = mock_pv.Plotter.return_value
-        mock_plotter.screenshot.side_effect = lambda p: Path(p).write_bytes(
-            b"\x89PNG" + b"\x01" * 50
-        )
-
+        mock_plotter, renderer, tmp_path = pyvista_env
         output_file = tmp_path / "torus.png"
-        with patch.dict(sys.modules, {"pyvista": mock_pv}):
-            from mathviz.preview import renderer
-
-            paths = renderer.render_all_views(_sphere_mesh(), output_file)
+        paths = renderer.render_all_views(_sphere_mesh(), output_file)
 
         assert len(paths) == 26
         for p in paths:
             assert p.exists()
 
-    def test_render_all_names_files_with_view_suffix(self, tmp_path: Path) -> None:
+    def test_render_all_names_files_with_view_suffix(self, pyvista_env: tuple) -> None:
         """--view all names files with view name appended to stem."""
-        mock_pv = _make_mock_pyvista()
-        mock_plotter = mock_pv.Plotter.return_value
-        mock_plotter.screenshot.side_effect = lambda p: Path(p).write_bytes(
-            b"\x89PNG" + b"\x01" * 50
-        )
-
+        mock_plotter, renderer, tmp_path = pyvista_env
         output_file = tmp_path / "torus.png"
-        with patch.dict(sys.modules, {"pyvista": mock_pv}):
-            from mathviz.preview import renderer
-
-            paths = renderer.render_all_views(_sphere_mesh(), output_file)
+        paths = renderer.render_all_views(_sphere_mesh(), output_file)
 
         filenames = {p.name for p in paths}
         assert "torus_front.png" in filenames
         assert "torus_top.png" in filenames
         assert "torus_front-right-top.png" in filenames
 
-    def test_render_all_2d_uses_parallel_projection(self, tmp_path: Path) -> None:
+    def test_render_all_2d_uses_parallel_projection(self, pyvista_env: tuple) -> None:
         """--view all with use_2d=True uses parallel projection."""
-        mock_pv = _make_mock_pyvista()
-        mock_plotter = mock_pv.Plotter.return_value
-        mock_plotter.screenshot.side_effect = lambda p: Path(p).write_bytes(
-            b"\x89PNG" + b"\x01" * 50
-        )
-
+        mock_plotter, renderer, tmp_path = pyvista_env
         output_file = tmp_path / "torus.png"
-        with patch.dict(sys.modules, {"pyvista": mock_pv}):
-            from mathviz.preview import renderer
-
-            renderer.render_all_views(_sphere_mesh(), output_file, use_2d=True)
+        renderer.render_all_views(_sphere_mesh(), output_file, use_2d=True)
 
         mock_plotter.enable_parallel_projection.assert_called()
 

@@ -142,17 +142,14 @@ def _run_render(
     try:
         if view == "all":
             paths = render_all_views(obj, output, config=config, use_2d=use_2d)
-            if not quiet:
-                for p in paths:
-                    console.print(f"[green]Rendered to {p}[/green]")
         elif use_2d:
-            rendered_path = render_2d_projection(obj, output, view=view, config=config)
-            if not quiet:
-                console.print(f"[green]Rendered to {rendered_path}[/green]")
+            paths = [render_2d_projection(obj, output, view=view, config=config)]
         else:
-            rendered_path = render_to_png(obj, output, view=view, config=config)
-            if not quiet:
-                console.print(f"[green]Rendered to {rendered_path}[/green]")
+            paths = [render_to_png(obj, output, view=view, config=config)]
     except ImportError:
         console.print(f"[red]{PYVISTA_INSTALL_MSG}[/red]")
         raise typer.Exit(code=2)
+
+    if not quiet:
+        for p in paths:
+            console.print(f"[green]Rendered to {p}[/green]")
