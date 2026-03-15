@@ -1517,3 +1517,81 @@ and allow the user to edit them and re-render.
 - Parameter panel updates when generator selection changes
 - Apply button sends params in the POST body
 - Reset button restores default values
+
+---
+
+## Task 45: Add resolution controls to preview UI
+
+**Objective:**
+
+Add a "Resolution" section to the preview UI that displays the current
+generator's resolution parameters (e.g., `integration_steps`,
+`voxel_resolution`, `grid_resolution`, `curve_points`, `pixel_resolution`)
+with their default values, and lets the user increase or decrease them to
+get higher or lower fidelity renders. The output stats (vertex count, face
+count, point count) should also be displayed after each render so the user
+can see the effect of resolution changes.
+
+Currently, resolution parameters are hardcoded as module-level constants in
+each generator (e.g., `_DEFAULT_INTEGRATION_STEPS = 100_000`,
+`_DEFAULT_VOXEL_RESOLUTION = 128`) and passed via `resolution_kwargs` to
+`generate()`. The `POST /api/generate` request body already has a `resolution`
+field, but the default values are not programmatically exposed.
+
+**Suggested path:**
+
+1. **Add `get_default_resolution()` to the Generator base class**: A new
+   method returning a dict of resolution param names to their default values,
+   e.g., `{"integration_steps": 100000}` for lorenz or
+   `{"voxel_resolution": 128}` for mandelbulb. Each generator subclass
+   overrides this. The values should match the existing module-level
+   `_DEFAULT_*` constants. This complements the existing `resolution_params`
+   dict on `GeneratorMeta` which has descriptions but not default values.
+
+2. **Expose via API**: The `GET /api/generators/{name}/params` endpoint
+   (from Task 44) should include resolution defaults in its response:
+   ```json
+   {
+     "params": {"sigma": 10.0, ...},
+     "resolution": {"integration_steps": {"default": 100000, "description": "Total number of integration time steps"}},
+   }
+   ```
+   If Task 44 isn't implemented yet, add a standalone
+   `GET /api/generators/{name}/resolution` endpoint instead.
+
+3. **Resolution section in the UI**: Add a distinct "Resolution" section in
+   the parameter/controls area (visually separated from mathematical params).
+   For each resolution parameter:
+   - Show the parameter name and description
+   - A numeric input pre-filled with the default value
+   - Show a cost warning where applicable (descriptions already include
+     hints like "N² cost" or "N³ cost")
+   - Reasonable input constraints: `min="1"`, no upper limit but warn the
+     user visually if they pick a very high value (e.g., voxel_resolution
+     > 256 or integration_steps > 500000)
+
+4. **Output stats display**: After each render completes, update the info
+   panel to show the resulting vertex count, face count, and point count.
+   The existing `#info-panel` already has `#info-vertices`, `#info-faces`,
+   and `#info-points` elements — ensure these are populated from the
+   `MathObject` stats after generation. Add a "Triangles" or "Faces" count
+   if not already shown.
+
+5. **Interaction**: The resolution fields are sent in the `resolution` field
+   of `POST /api/generate` (this field already exists in `GenerateRequest`).
+   Changing resolution and clicking Apply (shared with Task 44's Apply
+   button, or a separate "Re-render" button) triggers regeneration. Defaults
+   stay unchanged — the inputs just let the user override them.
+
+**Tests:** `tests/test_preview/test_resolution_controls.py`
+
+- `get_default_resolution()` returns correct defaults for lorenz (integration_steps=100000)
+- `get_default_resolution()` returns correct defaults for mandelbulb (voxel_resolution=128)
+- `get_default_resolution()` returns correct defaults for torus (grid_resolution=128)
+- Every generator with `resolution_params` also returns values from `get_default_resolution()`
+- API endpoint returns resolution defaults with descriptions
+- `POST /api/generate` with higher resolution produces more vertices/points than default
+- `POST /api/generate` with lower resolution produces fewer vertices/points
+- `POST /api/generate` with no resolution field uses defaults (unchanged behavior)
+- Preview HTML contains resolution input fields
+- Info panel displays vertex/face/point counts after generation
