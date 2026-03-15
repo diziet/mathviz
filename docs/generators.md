@@ -1029,6 +1029,20 @@ surfaces (Möbius-torus); even twists produce orientable surfaces.
 mathviz generate twisted_torus --param twist=1 --output twisted_torus.ply
 ```
 
+### rose_surface
+
+Rhodonea (rose) curve revolved into 3D, producing flower-like petal
+patterns via r = cos(k1·θ)·cos(k2·φ) on a sphere.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `k1` | 3 | Petal count parameter |
+| `k2` | 2 | Secondary frequency |
+
+```bash
+mathviz generate rose_surface --param k1=5 --output rose_surface.ply
+```
+
 ### enneper_surface
 
 Enneper minimal surface with configurable range and order.
