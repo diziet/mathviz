@@ -9,11 +9,13 @@ from rich.console import Console
 
 from mathviz.preview.renderer import (
     PYVISTA_INSTALL_MSG,
-    ProjectionView,
+    VALID_VIEW_NAMES,
     RenderConfig,
     RenderStyle,
     render_2d_projection,
+    render_all_views,
     render_to_png,
+    resolve_view_name,
 )
 
 logger = logging.getLogger(__name__)
@@ -33,6 +35,7 @@ def register_render_commands(
     def render(
         generator_name: str = typer.Argument(help="Generator name to render"),
         output: Path = typer.Option(..., "--output", "-o", help="Output PNG file path"),
+        view: str = typer.Option("front-right-top", "--view", help="Camera view name or 'all'"),
         param: Optional[list[str]] = typer.Option(None, "--param", help="key=value parameter"),
         seed: Optional[int] = typer.Option(None, "--seed", help="Random seed"),
         width: int = typer.Option(1920, "--width", help="Image width in pixels"),
@@ -53,7 +56,8 @@ def register_render_commands(
             height=height,
             style=style,
             point_size=point_size,
-            view=None,
+            view=view,
+            use_2d=False,
             parse_params_fn=parse_params_fn,
             run_pipeline_fn=run_pipeline_fn,
             console=output_console,
@@ -64,7 +68,7 @@ def register_render_commands(
     def render_2d(
         generator_name: str = typer.Argument(help="Generator name to render"),
         output: Path = typer.Option(..., "--output", "-o", help="Output PNG file path"),
-        view: str = typer.Option("top", "--view", help="Projection view: top/front/side/angle"),
+        view: str = typer.Option("top", "--view", help="Camera view name or 'all'"),
         param: Optional[list[str]] = typer.Option(None, "--param", help="key=value parameter"),
         seed: Optional[int] = typer.Option(None, "--seed", help="Random seed"),
         width: int = typer.Option(1920, "--width", help="Image width in pixels"),
@@ -76,10 +80,6 @@ def register_render_commands(
     ) -> None:
         """Render a 2D projection of a generator to PNG."""
         configure_logging_fn(verbose, quiet)
-        valid_views = ("top", "front", "side", "angle")
-        if view not in valid_views:
-            output_console.print(f"[red]Invalid view: {view!r}. Must be one of {valid_views}[/red]")
-            raise typer.Exit(code=2)
         _run_render(
             generator_name=generator_name,
             output=output,
@@ -90,6 +90,7 @@ def register_render_commands(
             style=style,
             point_size=point_size,
             view=view,
+            use_2d=True,
             parse_params_fn=parse_params_fn,
             run_pipeline_fn=run_pipeline_fn,
             console=output_console,
@@ -106,13 +107,22 @@ def _run_render(
     height: int,
     style: RenderStyle,
     point_size: float,
-    view: ProjectionView | None,
+    view: str,
+    use_2d: bool,
     parse_params_fn: Any,
     run_pipeline_fn: Any,
     console: Console,
     quiet: bool,
 ) -> None:
     """Shared render logic for render and render-2d commands."""
+    # Validate view name early
+    if view != "all":
+        try:
+            resolve_view_name(view)
+        except ValueError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=2)
+
     params = parse_params_fn(param_list)
     result = run_pipeline_fn(
         generator_name=generator_name,
@@ -130,13 +140,16 @@ def _run_render(
     obj = result.math_object
 
     try:
-        if view is not None:
-            rendered_path = render_2d_projection(obj, output, view=view, config=config)
+        if view == "all":
+            paths = render_all_views(obj, output, config=config, use_2d=use_2d)
+        elif use_2d:
+            paths = [render_2d_projection(obj, output, view=view, config=config)]
         else:
-            rendered_path = render_to_png(obj, output, config=config)
+            paths = [render_to_png(obj, output, view=view, config=config)]
     except ImportError:
         console.print(f"[red]{PYVISTA_INSTALL_MSG}[/red]")
         raise typer.Exit(code=2)
 
     if not quiet:
-        console.print(f"[green]Rendered to {rendered_path}[/green]")
+        for p in paths:
+            console.print(f"[green]Rendered to {p}[/green]")
