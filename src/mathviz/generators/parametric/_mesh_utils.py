@@ -7,6 +7,9 @@ from mathviz.core.math_object import BoundingBox
 
 _BBOX_RELATIVE_PADDING = 0.02
 _BBOX_ABSOLUTE_PADDING = 1e-6
+DEFAULT_SEPARATION_EPSILON = 0.005
+COINCIDENCE_THRESHOLD = 1e-8
+_MAX_SEPARATION_EPSILON = 1.0
 
 
 def compute_padded_bounding_box(vertices: np.ndarray) -> BoundingBox:
@@ -38,25 +41,33 @@ def _compute_vertex_normals(
     return vertex_normals / lengths
 
 
-_COINCIDENCE_THRESHOLD = 1e-8
+def validate_separation_epsilon(epsilon: float) -> None:
+    """Validate separation_epsilon parameter."""
+    if epsilon < 0:
+        raise ValueError(f"separation_epsilon must be >= 0, got {epsilon}")
+    if epsilon > _MAX_SEPARATION_EPSILON:
+        raise ValueError(
+            f"separation_epsilon must be <= {_MAX_SEPARATION_EPSILON}, "
+            f"got {epsilon}"
+        )
 
 
 def separate_coincident_vertices(
     vertices: np.ndarray,
     faces: np.ndarray,
-    epsilon: float = 0.005,
+    epsilon: float = DEFAULT_SEPARATION_EPSILON,
 ) -> np.ndarray:
     """Offset one vertex in each coincident pair along its face normal.
 
-    Finds truly coincident vertex pairs (distance < 1e-8) and displaces
-    the higher-indexed vertex by ``epsilon`` along its averaged face
-    normal. Returns a copy of *vertices*; *faces* is unchanged.
+    Finds truly coincident vertex pairs (distance < COINCIDENCE_THRESHOLD)
+    and displaces the higher-indexed vertex by ``epsilon`` along its
+    averaged face normal. Returns a copy of *vertices*; *faces* is unchanged.
     """
-    if epsilon <= 0:
+    if epsilon == 0:
         return vertices.copy()
 
     tree = cKDTree(vertices)
-    pairs = tree.query_pairs(_COINCIDENCE_THRESHOLD, output_type="ndarray")
+    pairs = tree.query_pairs(COINCIDENCE_THRESHOLD, output_type="ndarray")
     if len(pairs) == 0:
         return vertices.copy()
 

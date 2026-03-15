@@ -5,6 +5,7 @@ import pytest
 from scipy.spatial import cKDTree
 
 from mathviz.core.generator import clear_registry, register
+from mathviz.generators.parametric._mesh_utils import COINCIDENCE_THRESHOLD
 from mathviz.generators.parametric.boy_surface import BoySurfaceGenerator
 from mathviz.generators.parametric.cross_cap import CrossCapGenerator
 from mathviz.generators.parametric.klein_bottle import KleinBottleGenerator
@@ -18,8 +19,6 @@ _GENERATORS = [
 ]
 
 _GRID = 64
-_EPSILON = 0.005
-_COINCIDENCE_THRESHOLD = 1e-8
 
 
 @pytest.fixture(autouse=True)
@@ -54,7 +53,7 @@ def test_default_epsilon_no_coincident_pairs(gen_cls: type) -> None:
     assert obj.mesh is not None
 
     count = _count_coincident_pairs(
-        obj.mesh.vertices, _COINCIDENCE_THRESHOLD,
+        obj.mesh.vertices, COINCIDENCE_THRESHOLD,
     )
     assert count == 0, (
         f"{gen_cls.name}: {count} coincident pairs remain after separation"
@@ -95,7 +94,7 @@ def test_epsilon_zero_has_coincident_pairs(gen_cls: type) -> None:
     assert obj.mesh is not None
 
     count = _count_coincident_pairs(
-        obj.mesh.vertices, _COINCIDENCE_THRESHOLD,
+        obj.mesh.vertices, COINCIDENCE_THRESHOLD,
     )
     assert count > 0, (
         f"{gen_cls.name}: expected coincident pairs with epsilon=0"
@@ -167,3 +166,24 @@ def test_validate_still_passes(gen_cls: type) -> None:
     gen = gen_cls()
     obj = gen.generate(grid_resolution=32)
     obj.validate_or_raise()
+
+
+# ------------------------------------------------------------------
+# Validation rejects negative and excessively large epsilon
+# ------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("gen_cls", _GENERATORS, ids=lambda c: c.name)
+def test_negative_epsilon_raises(gen_cls: type) -> None:
+    """Negative separation_epsilon raises ValueError."""
+    gen = gen_cls()
+    with pytest.raises(ValueError, match="separation_epsilon must be >= 0"):
+        gen.generate(params={"separation_epsilon": -0.01}, grid_resolution=16)
+
+
+@pytest.mark.parametrize("gen_cls", _GENERATORS, ids=lambda c: c.name)
+def test_excessive_epsilon_raises(gen_cls: type) -> None:
+    """Excessively large separation_epsilon raises ValueError."""
+    gen = gen_cls()
+    with pytest.raises(ValueError, match="separation_epsilon must be <="):
+        gen.generate(params={"separation_epsilon": 1000.0}, grid_resolution=16)

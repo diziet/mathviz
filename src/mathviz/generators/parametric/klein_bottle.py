@@ -13,15 +13,16 @@ from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.generators.parametric._mesh_utils import (
+    DEFAULT_SEPARATION_EPSILON,
     build_wrapped_grid_faces,
     separate_coincident_vertices,
+    validate_separation_epsilon,
 )
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_SCALE = 1.0
 _DEFAULT_GRID_RESOLUTION = 128
-_DEFAULT_SEPARATION_EPSILON = 0.005
 _MIN_GRID_RESOLUTION = 3
 
 
@@ -56,10 +57,12 @@ def _validate_params(scale: float, grid_resolution: int) -> None:
         )
 
 
-def _compute_bounding_box(scale: float) -> BoundingBox:
+def _compute_bounding_box(
+    scale: float, separation_epsilon: float,
+) -> BoundingBox:
     """Compute axis-aligned bounding box for the Klein bottle."""
-    xy_extent = scale * 3.5
-    z_extent = scale * 1.5
+    xy_extent = scale * 3.5 + separation_epsilon
+    z_extent = scale * 1.5 + separation_epsilon
     return BoundingBox(
         min_corner=(-xy_extent, -xy_extent, -z_extent),
         max_corner=(xy_extent, xy_extent, z_extent),
@@ -98,7 +101,7 @@ class KleinBottleGenerator(GeneratorBase):
         """Return default parameters for the Klein bottle."""
         return {
             "scale": _DEFAULT_SCALE,
-            "separation_epsilon": _DEFAULT_SEPARATION_EPSILON,
+            "separation_epsilon": DEFAULT_SEPARATION_EPSILON,
         }
 
     def generate(
@@ -119,9 +122,10 @@ class KleinBottleGenerator(GeneratorBase):
         )
 
         _validate_params(scale, grid_resolution)
+        validate_separation_epsilon(separation_epsilon)
 
         mesh = _generate_klein_mesh(scale, grid_resolution, separation_epsilon)
-        bbox = _compute_bounding_box(scale)
+        bbox = _compute_bounding_box(scale, separation_epsilon)
 
         merged["grid_resolution"] = grid_resolution
 

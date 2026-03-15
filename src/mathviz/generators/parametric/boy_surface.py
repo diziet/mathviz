@@ -14,15 +14,16 @@ from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.generators.parametric._mesh_utils import (
+    DEFAULT_SEPARATION_EPSILON,
     build_open_grid_faces,
     separate_coincident_vertices,
+    validate_separation_epsilon,
 )
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_SCALE = 1.0
 _DEFAULT_GRID_RESOLUTION = 128
-_DEFAULT_SEPARATION_EPSILON = 0.005
 _MIN_GRID_RESOLUTION = 4
 _SQRT2 = np.sqrt(2.0)
 
@@ -111,7 +112,7 @@ class BoySurfaceGenerator(GeneratorBase):
         """Return default parameters for Boy's surface."""
         return {
             "scale": _DEFAULT_SCALE,
-            "separation_epsilon": _DEFAULT_SEPARATION_EPSILON,
+            "separation_epsilon": DEFAULT_SEPARATION_EPSILON,
         }
 
     def generate(
@@ -132,6 +133,7 @@ class BoySurfaceGenerator(GeneratorBase):
         )
 
         _validate_params(scale, grid_resolution)
+        validate_separation_epsilon(separation_epsilon)
 
         mesh = _generate_boy_mesh(scale, grid_resolution, separation_epsilon)
         bbox = _compute_bounding_box(scale, separation_epsilon)
