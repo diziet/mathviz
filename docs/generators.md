@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 71 generators across 12 categories. Each generator produces a
+MathViz includes 72 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -507,6 +507,28 @@ Mandelbrot escape-time heightmap for 3D relief engraving.
 
 ```bash
 mathviz generate mandelbrot_heightmap --param zoom=10 --param center_real=-0.75 --output mandelbrot.ply
+```
+
+### ifs_fractal
+
+IFS fractal generator (Barnsley fern, maple leaf, spiral, custom affine transforms).
+
+| Parameter | Default | Description |
+|---|---|---|
+| `preset` | barnsley_fern | IFS preset (barnsley_fern, maple_leaf, spiral, custom) |
+| `dimensions` | 3d | Output mode (3d, 2d_extruded) |
+
+The `custom` preset requires additional parameters: `matrices` (list of 2×2 or
+3×3 affine matrices), `offsets` (list of translation vectors matching matrix
+dimension), and `probabilities` (list of non-negative floats summing to 1.0).
+Note: 3×3 custom matrices are incompatible with `dimensions=2d_extruded`.
+
+Aliases: `ifs`, `barnsley_fern`
+
+```bash
+mathviz generate ifs_fractal --output ifs.ply
+mathviz generate ifs_fractal --param preset=maple_leaf --output maple.ply
+mathviz generate ifs_fractal --param preset=spiral --param dimensions=2d_extruded --output spiral.ply
 ```
 
 ## Geometry
