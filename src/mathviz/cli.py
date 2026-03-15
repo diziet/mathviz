@@ -21,6 +21,7 @@ from mathviz.cli_output import (
 from mathviz.cli_benchmark import register_benchmark_command
 from mathviz.cli_preview import register_preview_command
 from mathviz.cli_render import register_render_commands
+from mathviz.cli_render_batch import register_render_all_command
 from mathviz.cli_utils import register_util_commands
 from mathviz.core.config import (
     deep_merge,
@@ -393,6 +394,7 @@ def validate(
 register_benchmark_command(app, _configure_logging, console)
 register_preview_command(app, _parse_params, _configure_logging, console)
 register_render_commands(app, _parse_params, _configure_logging, _run_pipeline, console)
+register_render_all_command(app, _configure_logging, console)
 register_util_commands(app, _configure_logging, console)
 app.add_typer(grid_app)
 
