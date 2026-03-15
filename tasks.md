@@ -2131,3 +2131,59 @@ of different settings from the exact same viewpoint.
 - `fitCamera` is not called during regeneration when `cameraLocked` is true
 - Reset View button works regardless of lock state
 - Toggling the checkbox updates `state.cameraLocked`
+
+---
+
+## Task 56: Auto-apply toggle and controls panel layout reorganization
+
+**Objective:**
+
+Two changes to the preview UI controls:
+
+1. **Auto-Apply toggle**: Add an "Auto-Apply" checkbox next to parameter
+   inputs. When enabled, changing any parameter value via the up/down
+   spinner buttons (or arrow keys) immediately triggers regeneration
+   without needing to click Apply. This is useful for fast generators
+   where the user wants to interactively explore parameter space by
+   stepping values up and down.
+
+2. **Panel layout**: Move the parameter/resolution editor panel (from
+   Tasks 44/51) to sit below the container dimensions and margins section
+   (from Task 43), instead of to the right of it. The current right-side
+   placement overlaps with the 3D visualization. The controls panel should
+   flow vertically: generator selector → container dimensions/margins →
+   parameters/resolution → view mode/options.
+
+**Suggested path:**
+
+1. Add `<label><input type="checkbox" id="auto-apply"> Auto-Apply</label>`
+   near the parameter editor section heading.
+
+2. Add `autoApply: false` to the `state` object.
+
+3. Listen for `input` events (not just `change`) on numeric parameter
+   inputs. The `input` event fires on every spinner click and arrow key
+   press. When `state.autoApply` is true, debounce and trigger
+   regeneration (e.g., 300ms debounce to avoid flooding during rapid
+   clicks).
+
+4. The debounce should reset on each new input event so only the final
+   value triggers a render.
+
+5. For the layout change: restructure the HTML so the parameter/resolution
+   panel is a vertical section within the existing right-side controls
+   column, placed after the container editor section. Remove any
+   side-by-side or separate column positioning.
+
+6. Ensure the controls panel is scrollable if the combined sections exceed
+   the viewport height.
+
+**Tests:** `tests/test_preview/test_auto_apply.py`
+
+- Preview HTML contains an "Auto-Apply" checkbox with id `auto-apply`
+- JS state object includes `autoApply` initialized to `false`
+- When auto-apply is enabled, changing an input value triggers regeneration
+- Regeneration is debounced (not fired on every keystroke immediately)
+- When auto-apply is disabled, changing inputs does not trigger regeneration
+- Parameter section appears below container dimensions in DOM order
+- Controls panel is scrollable when content overflows
