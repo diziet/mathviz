@@ -1731,6 +1731,24 @@ If re-centering in `mesh_to_glb`, also re-center in `cloud_to_binary_ply`
 so point cloud data is consistent. Store the translation offset in the API
 response if needed for round-tripping back to absolute coordinates.
 
+Additionally, **normalize coordinates to unit scale** during serialization.
+Currently the geometry is in raw mm (vertices at 5-95 for a 100mm container).
+The Three.js camera is set up with `near=0.01, far=100` (line 199 of
+`index.html`). When the container is large (e.g., 100x100x100mm), `fitCamera`
+places the camera ~162 units from the center — well beyond the far clipping
+plane of 100. **This causes the entire scene to be invisible** (clipped).
+
+The fix should either:
+- **Scale geometry to unit space** in the serialization layer (divide by
+  container max dimension so the scene fits in roughly ±1 units), OR
+- **Update `fitCamera` to adjust the camera's near/far planes** dynamically
+  based on the geometry size: `camera.near = dist * 0.01;
+  camera.far = dist * 10; camera.updateProjectionMatrix();`
+
+The dynamic clipping plane approach is simpler and handles any geometry size.
+The normalization approach is cleaner but requires the bounding box to also
+be scaled to match.
+
 **Tests:** `tests/test_preview/test_bounding_box.py`
 
 - Bounding box and geometry overlap visually (box contains the geometry)
@@ -1740,3 +1758,6 @@ response if needed for round-tripping back to absolute coordinates.
 - Bounding box dimensions match the container dimensions
 - Toggling the bounding box checkbox shows/hides the box (existing behavior preserved)
 - `fitCamera` centers the view on the geometry (not on the origin if different)
+- Large container (100x100x100mm) renders correctly without clipping
+- Small container (10x10x10mm) renders correctly without near-plane clipping
+- Camera far plane is sufficient to contain the geometry at any container size
