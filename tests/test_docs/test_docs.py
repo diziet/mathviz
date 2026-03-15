@@ -16,6 +16,7 @@ EXPECTED_DOC_FILES = [
     "rendering.md",
     "grid.md",
     "api.md",
+    "preview.md",
 ]
 
 
