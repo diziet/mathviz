@@ -122,6 +122,14 @@ class AttractorGeneratorBase(GeneratorBase):
         """Validate ODE-specific parameters (called before integration)."""
         ...
 
+    def _get_initial_condition(self, params: dict[str, Any]) -> np.ndarray:
+        """Return the initial condition vector for integration.
+
+        Override in subclasses that need parameter-dependent initial
+        conditions (e.g. Sprott systems with per-variant ICs).
+        """
+        return np.array(self._default_initial_condition)
+
     def generate(
         self,
         params: dict[str, Any] | None = None,
@@ -152,7 +160,7 @@ class AttractorGeneratorBase(GeneratorBase):
         merged["integration_steps"] = integration_steps
 
         rng = default_rng(seed)
-        ic = np.array(self._default_initial_condition)
+        ic = self._get_initial_condition(merged)
         perturbation = rng.normal(scale=self._perturbation_scale, size=len(ic))
         initial_condition = ic + perturbation
 

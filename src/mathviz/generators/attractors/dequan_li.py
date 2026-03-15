@@ -10,6 +10,7 @@ With default parameters a=40, c=1.833, d=0.16, e=0.65, f=20, k=55,
 the attractor produces a complex multi-scroll chaotic trajectory.
 """
 
+import math
 from typing import Any
 
 import numpy as np
@@ -48,12 +49,14 @@ class DequanLiGenerator(AttractorGeneratorBase):
 
     def _validate_ode_params(self, params: dict[str, Any]) -> None:
         """Validate Dequan Li ODE parameters."""
-        a = float(params["a"])
-        if a <= 0:
-            raise ValueError(f"a must be positive, got {a}")
-        k = float(params["k"])
-        if k <= 0:
-            raise ValueError(f"k must be positive, got {k}")
+        for name in ("a", "c", "d", "e", "f", "k"):
+            val = float(params[name])
+            if not math.isfinite(val):
+                raise ValueError(f"{name} must be finite, got {val}")
+        if float(params["a"]) <= 0:
+            raise ValueError(f"a must be positive, got {params['a']}")
+        if float(params["k"]) <= 0:
+            raise ValueError(f"k must be positive, got {params['k']}")
 
     def _rhs(
         self, _t: float, state: np.ndarray, params: dict[str, Any],

@@ -13,14 +13,16 @@ a point cloud with SPARSE_SHELL representation.
 """
 
 import logging
+import math
 from typing import Any
 
 import numpy as np
 from numpy.random import default_rng
 
 from mathviz.core.generator import GeneratorBase, register
-from mathviz.core.math_object import BoundingBox, MathObject, PointCloud
+from mathviz.core.math_object import MathObject, PointCloud
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.attractors._base import compute_bounding_box
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +42,8 @@ def _iterate_clifford(
         points[i, 0] = x
         points[i, 1] = y
         points[i, 2] = float(i) / num_points
-        x_new = np.sin(a * y) + c * np.cos(a * x)
-        y_new = np.sin(b * x) + d * np.cos(b * y)
+        x_new = math.sin(a * y) + c * math.cos(a * x)
+        y_new = math.sin(b * x) + d * math.cos(b * y)
         x, y = x_new, y_new
 
     return points
@@ -100,9 +102,7 @@ class CliffordGenerator(GeneratorBase):
 
         merged["num_points"] = num_points
         cloud = PointCloud(points=points)
-        min_corner = tuple(float(v) for v in points.min(axis=0))
-        max_corner = tuple(float(v) for v in points.max(axis=0))
-        bbox = BoundingBox(min_corner=min_corner, max_corner=max_corner)
+        bbox = compute_bounding_box(points)
 
         logger.info(
             "Generated Clifford attractor: %d points", num_points,
