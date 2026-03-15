@@ -21,6 +21,7 @@ from mathviz.preview.lod import (
     mesh_to_glb,
     subsample_cloud,
 )
+from mathviz.preview.snapshots import save_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +98,22 @@ class GeneratorInfo(BaseModel):
     aliases: list[str]
     description: str
     resolution_params: dict[str, str]
+
+
+class SnapshotRequest(BaseModel):
+    """Request body for POST /api/snapshots."""
+
+    generator: str
+    params: dict[str, Any] = Field(default_factory=dict)
+    seed: int = 42
+    container: ContainerParams | None = None
+    geometry_id: str
+
+
+class SnapshotResponse(BaseModel):
+    """Response body for POST /api/snapshots."""
+
+    snapshot_id: str
 
 
 # --- Helpers ---
@@ -315,6 +332,32 @@ def _serve_stl_as_glb(stl_path: Path) -> Response:
     buf = io.BytesIO()
     mesh.export(buf, file_type="glb")
     return Response(content=buf.getvalue(), media_type="model/gltf-binary")
+
+
+@app.post("/api/snapshots", response_model=SnapshotResponse)
+def create_snapshot(req: SnapshotRequest) -> SnapshotResponse:
+    """Save current geometry and configuration as a snapshot."""
+    entry = get_cache().get(req.geometry_id)
+    if entry is None:
+        raise HTTPException(
+            status_code=400,
+            detail="No generated geometry found for the given geometry_id.",
+        )
+
+    container_dict = (
+        req.container.model_dump() if req.container else ContainerParams().model_dump()
+    )
+
+    snapshot_id, snapshot_path = save_snapshot(
+        math_object=entry.math_object,
+        generator=req.generator,
+        params=req.params,
+        seed=req.seed,
+        container=container_dict,
+        geometry_id=req.geometry_id,
+    )
+
+    return SnapshotResponse(snapshot_id=snapshot_id)
 
 
 @app.get("/", response_class=HTMLResponse)
