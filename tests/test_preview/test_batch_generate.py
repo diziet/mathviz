@@ -1,6 +1,5 @@
 """Tests for POST /api/generate-batch endpoint."""
 
-import time
 from typing import Any
 from unittest.mock import patch
 
@@ -63,31 +62,42 @@ class TestBatchGenerate:
             assert panel["mesh_url"] is not None
             assert panel["error"] is None
 
-    def test_parallel_faster_than_sequential(self, client: TestClient) -> None:
-        """Panels are generated in parallel (total time < 2x single panel)."""
-        # Generate one panel to get baseline timing
-        single_panel = [_make_panel(seed=100)]
-        t0 = time.monotonic()
-        resp1 = client.post("/api/generate-batch", json={"panels": single_panel})
-        single_time = time.monotonic() - t0
-        assert resp1.status_code == 200
+    def test_batch_uses_parallel_execution(self, client: TestClient) -> None:
+        """Batch generation submits jobs to a ProcessPoolExecutor."""
+        import mathviz.preview.executor as executor_mod
 
-        # Reset cache so batch must regenerate
-        reset_cache()
+        original_ensure = executor_mod.GenerationExecutor._ensure_batch_pool
 
-        # Generate 4 panels in batch
-        batch_panels = [_make_panel(seed=100 + i) for i in range(4)]
-        t0 = time.monotonic()
-        resp2 = client.post("/api/generate-batch", json={"panels": batch_panels})
-        batch_time = time.monotonic() - t0
-        assert resp2.status_code == 200
-        assert len(resp2.json()["panels"]) == 4
+        pool_workers: list[int] = []
+        submit_calls: list[int] = []
 
-        # Batch should be faster than 4x single (allow up to 2x)
-        assert batch_time < single_time * 2, (
-            f"Batch took {batch_time:.2f}s vs single {single_time:.2f}s "
-            f"(expected < {single_time * 2:.2f}s)"
-        )
+        def _tracking_ensure(self_inner: Any, worker_count: int) -> Any:
+            pool_workers.append(worker_count)
+            pool = original_ensure(self_inner, worker_count)
+            original_submit = pool.submit
+
+            def _tracking_submit(*args: Any, **kwargs: Any) -> Any:
+                submit_calls.append(1)
+                return original_submit(*args, **kwargs)
+
+            pool.submit = _tracking_submit  # type: ignore[method-assign]
+            return pool
+
+        with patch.object(
+            executor_mod.GenerationExecutor,
+            "_ensure_batch_pool",
+            _tracking_ensure,
+        ):
+            panels = [_make_panel(seed=i) for i in range(4)]
+            resp = client.post("/api/generate-batch", json={"panels": panels})
+
+        assert resp.status_code == 200
+        assert len(resp.json()["panels"]) == 4
+        # Verify pool was created with multiple workers
+        assert len(pool_workers) >= 1
+        assert pool_workers[0] > 1, "Batch pool should use multiple workers"
+        # Verify all 4 panels were submitted to the pool
+        assert len(submit_calls) == 4
 
     def test_failed_panel_does_not_crash_batch(self, client: TestClient) -> None:
         """Failed panels return error without crashing the batch."""
