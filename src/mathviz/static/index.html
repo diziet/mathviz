@@ -179,7 +179,7 @@ canvas{display:block}
     <select id="view-mode">
       <option value="shaded">Shaded Mesh</option>
       <option value="wireframe">Wireframe</option>
-      <option value="points">Point Cloud</option>
+      <option value="points" selected>Point Cloud</option>
     </select>
 
     <div class="section-title">Point Size</div>
@@ -219,7 +219,7 @@ const state = {
   meshGroup: null,
   cloudPoints: null,
   bboxHelper: null,
-  viewMode: 'shaded',
+  viewMode: 'points',
   pointSize: 2,
   darkBg: true,
 };
@@ -371,15 +371,16 @@ function loadMeshFromGLB(url) {
         });
         const shadedMesh = new THREE.Mesh(geom, shadedMat);
         shadedMesh.name = 'shaded';
+        shadedMesh.visible = (state.viewMode === 'shaded');
         const wireMesh = new THREE.Mesh(geom, wireMat);
         wireMesh.name = 'wireframe';
-        wireMesh.visible = false;
+        wireMesh.visible = (state.viewMode === 'wireframe');
 
         /* Point cloud from mesh vertices */
         const pointsMat = new THREE.PointsMaterial({color: 0x44ccff, size: state.pointSize * 0.01});
         const pts = new THREE.Points(geom, pointsMat);
         pts.name = 'points';
-        pts.visible = false;
+        pts.visible = (state.viewMode === 'points');
 
         group.add(shadedMesh, wireMesh, pts);
       });
@@ -435,10 +436,10 @@ async function displayGenerateResult(data, generatorName) {
     displayCloud(points, vertexCount, generatorName);
   }
 
-  if (!hasMesh && hasCloud) {
+  if (hasCloud || !hasMesh) {
     state.viewMode = 'points';
     document.getElementById('view-mode').value = 'points';
-  } else if (hasMesh) {
+  } else {
     state.viewMode = 'shaded';
     document.getElementById('view-mode').value = 'shaded';
   }
