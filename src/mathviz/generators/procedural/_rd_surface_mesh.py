@@ -13,7 +13,7 @@ from mathviz.generators.parametric._mesh_utils import (
     build_wrapped_grid_faces,
 )
 
-_VALID_SURFACES = ("torus", "sphere", "klein_bottle")
+VALID_SURFACES = ("torus", "sphere", "klein_bottle")
 
 
 def generate_base_mesh(surface: str, resolution: int) -> Mesh:
@@ -25,7 +25,7 @@ def generate_base_mesh(surface: str, resolution: int) -> Mesh:
     }
     if surface not in builders:
         raise ValueError(
-            f"Unknown surface {surface!r}, expected one of {_VALID_SURFACES}"
+            f"Unknown surface {surface!r}, expected one of {VALID_SURFACES}"
         )
     return builders[surface](resolution)
 

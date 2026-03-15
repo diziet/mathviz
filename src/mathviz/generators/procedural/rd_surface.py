@@ -20,7 +20,7 @@ from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.generators.procedural._rd_surface_mesh import (
-    _VALID_SURFACES,
+    VALID_SURFACES,
     build_mesh_laplacian,
     compute_vertex_normals,
     generate_base_mesh,
@@ -41,6 +41,12 @@ _MIN_ITERATIONS = 100
 _MAX_ITERATIONS = 50000
 
 
+def _require_positive(name: str, value: float) -> None:
+    """Raise ValueError if value is not positive."""
+    if value <= 0:
+        raise ValueError(f"{name} must be positive, got {value}")
+
+
 def _validate_params(
     base_surface: str,
     feed_rate: float,
@@ -52,18 +58,14 @@ def _validate_params(
     grid_resolution: int,
 ) -> None:
     """Validate reaction-diffusion surface parameters."""
-    if base_surface not in _VALID_SURFACES:
+    if base_surface not in VALID_SURFACES:
         raise ValueError(
-            f"base_surface must be one of {_VALID_SURFACES}, got {base_surface!r}"
+            f"base_surface must be one of {VALID_SURFACES}, got {base_surface!r}"
         )
-    if feed_rate <= 0:
-        raise ValueError(f"feed_rate must be positive, got {feed_rate}")
-    if kill_rate <= 0:
-        raise ValueError(f"kill_rate must be positive, got {kill_rate}")
-    if diffusion_u <= 0:
-        raise ValueError(f"diffusion_u must be positive, got {diffusion_u}")
-    if diffusion_v <= 0:
-        raise ValueError(f"diffusion_v must be positive, got {diffusion_v}")
+    _require_positive("feed_rate", feed_rate)
+    _require_positive("kill_rate", kill_rate)
+    _require_positive("diffusion_u", diffusion_u)
+    _require_positive("diffusion_v", diffusion_v)
     if displacement_scale < 0:
         raise ValueError(
             f"displacement_scale must be >= 0, got {displacement_scale}"
@@ -94,10 +96,8 @@ def _init_vertex_concentrations(
     patch_fraction = 0.05
 
     for _ in range(num_patches):
-        center = rng.integers(0, num_vertices)
         patch_size = max(1, int(num_vertices * patch_fraction))
         indices = rng.choice(num_vertices, size=patch_size, replace=False)
-        # Weight by "closeness" to center index (topological, not spatial)
         u_field[indices] = 0.50
         v_field[indices] = 0.25
         noise = rng.uniform(-0.01, 0.01, patch_size)
@@ -119,13 +119,21 @@ def _run_gray_scott_mesh(
 ) -> np.ndarray:
     """Run Gray-Scott iteration on mesh vertices using the mesh Laplacian."""
     dt = 1.0
-    for _ in range(iterations):
+    check_interval = max(1, iterations // 10)
+    for step in range(iterations):
         lap_u = laplacian @ u_field
         lap_v = laplacian @ v_field
         uvv = u_field * v_field * v_field
 
         u_field += dt * (diffusion_u * lap_u - uvv + feed_rate * (1.0 - u_field))
         v_field += dt * (diffusion_v * lap_v + uvv - (feed_rate + kill_rate) * v_field)
+
+        if step % check_interval == 0:
+            if not (np.all(np.isfinite(u_field)) and np.all(np.isfinite(v_field))):
+                raise RuntimeError(
+                    f"Gray-Scott diverged at step {step}: NaN/Inf detected. "
+                    f"Reduce diffusion_u/diffusion_v or increase grid_resolution."
+                )
 
         np.clip(u_field, 0.0, 1.0, out=u_field)
         np.clip(v_field, 0.0, 1.0, out=v_field)
@@ -182,7 +190,11 @@ class ReactionDiffusionSurface(GeneratorBase):
         seed: int = 42,
         **resolution_kwargs: Any,
     ) -> MathObject:
-        """Generate a reaction-diffusion patterned surface mesh."""
+        """Generate a reaction-diffusion patterned surface mesh.
+
+        Note: grid_resolution is a resolution kwarg, not a params entry.
+        Pass it as a keyword argument: generate(grid_resolution=64).
+        """
         merged = self.get_default_params()
         if params:
             merged.update(params)
