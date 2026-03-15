@@ -27,7 +27,7 @@ MAX_C_MAGNITUDE = 10.0
 
 
 def validate_fractal_params(
-    power: float,
+    power: float | None,
     max_iterations: int,
     resolution: int,
     extent: float,
@@ -36,7 +36,7 @@ def validate_fractal_params(
     min_resolution: int = MIN_VOXEL_RESOLUTION,
 ) -> None:
     """Validate common fractal generator parameters."""
-    if power < MIN_POWER:
+    if power is not None and power < MIN_POWER:
         raise ValueError(f"power must be >= {MIN_POWER}, got {power}")
     if max_iterations < MIN_MAX_ITERATIONS:
         raise ValueError(
@@ -52,15 +52,35 @@ def validate_fractal_params(
         raise ValueError(f"extent must be positive, got {extent}")
 
 
-def validate_c_params(c_re: float, c_im: float, c_z: float) -> None:
-    """Validate Julia 3D c parameters are within safe bounds."""
-    for name, val in [("c_re", c_re), ("c_im", c_im), ("c_z", c_z)]:
+def _validate_c_components(components: list[tuple[str, float]]) -> None:
+    """Validate that c parameter components are within safe bounds."""
+    for name, val in components:
         if abs(val) > MAX_C_MAGNITUDE:
             raise ValueError(
                 f"{name} magnitude {abs(val):.1f} exceeds maximum "
                 f"{MAX_C_MAGNITUDE}; use a value in [-{MAX_C_MAGNITUDE}, "
                 f"{MAX_C_MAGNITUDE}]"
             )
+
+
+def validate_c_params(c_re: float, c_im: float, c_z: float) -> None:
+    """Validate Julia 3D c parameters are within safe bounds."""
+    _validate_c_components([("c_re", c_re), ("c_im", c_im), ("c_z", c_z)])
+
+
+def validate_quaternion_c_params(
+    c_real: float, c_i: float, c_j: float, c_k: float,
+) -> None:
+    """Validate quaternion Julia c parameters are within safe bounds."""
+    _validate_c_components([
+        ("c_real", c_real), ("c_i", c_i), ("c_j", c_j), ("c_k", c_k),
+    ])
+
+
+def validate_escape_radius(escape_radius: float) -> None:
+    """Validate escape radius is positive."""
+    if escape_radius <= 0:
+        raise ValueError(f"escape_radius must be positive, got {escape_radius}")
 
 
 def build_voxel_grid(
