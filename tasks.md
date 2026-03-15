@@ -2739,3 +2739,46 @@ The Lock Camera checkbox has two bugs:
 - Concurrent `displayGenerateResult` calls are serialized or debounced
 - Reset View still works when camera is locked
 - Near/far clipping planes update even when locked
+
+---
+
+## Task 67: Fix snapshot save crash — VTK NSWindow threading error
+
+**Objective:**
+
+The `POST /api/snapshots` endpoint crashes the entire preview server on
+macOS. The save endpoint calls PyVista to render a thumbnail, but VTK's
+Cocoa renderer requires NSWindow on the main thread. FastAPI handles
+requests on worker threads, so VTK throws
+`NSInternalInconsistencyException: NSWindow should only be instantiated
+on the main thread` and kills the process. All subsequent requests fail
+with `NetworkError`.
+
+**Suggested path:**
+
+1. Remove the server-side PyVista thumbnail rendering from the save
+   endpoint entirely.
+
+2. Instead, capture the thumbnail client-side from the Three.js canvas
+   using `canvas.toDataURL('image/png')` (the renderer already has
+   `preserveDrawingBuffer: true`). Downscale to ~256×256 using an
+   offscreen canvas. Send the base64-encoded PNG in the POST body as
+   a `thumbnail` field.
+
+3. On the server, decode the base64 PNG and save it as `thumbnail.png`
+   in the snapshot directory.
+
+4. If no thumbnail is provided in the request (e.g., from a CLI caller),
+   simply skip thumbnail generation — do not attempt PyVista rendering.
+
+5. Ensure the save endpoint cannot crash the server under any
+   circumstances — wrap in appropriate error handling and return a proper
+   HTTP error response instead of crashing.
+
+**Tests:** `tests/test_preview/test_snapshots_save.py` (extend existing)
+
+- `POST /api/snapshots` does not import or call PyVista
+- Saving with a base64 thumbnail field creates thumbnail.png on disk
+- Saving without a thumbnail field succeeds (no thumbnail.png created)
+- Server remains responsive after a save operation
+- Invalid base64 thumbnail returns 400, does not crash the server
