@@ -2213,9 +2213,12 @@ or re-use.
    Each directory contains `metadata.json` plus the geometry files
    (`mesh.glb`, `cloud.ply`, or both).
 
-3. Also render a thumbnail PNG (small resolution, e.g., 256x256) using the
-   existing PyVista renderer and save it as `thumbnail.png` in the snapshot
-   directory. If PyVista is not available, skip the thumbnail gracefully.
+3. **Thumbnail**: Capture the thumbnail client-side from the Three.js
+   canvas (`canvas.toDataURL()`) and send it as a base64 PNG in the POST
+   body. The server decodes and saves it as `thumbnail.png`. Do NOT use
+   PyVista for thumbnails — VTK's Cocoa renderer crashes on macOS when
+   called from a non-main thread (`NSWindow should only be instantiated
+   on the main thread`), which kills the entire server process.
 
 4. Add a floating "Save" button in the bottom-right corner of the preview
    UI. On click, POST to `/api/snapshots` with the current state. Show a
