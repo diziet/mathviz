@@ -1013,6 +1013,22 @@ rotated 90° so each passes through its neighbor.
 mathviz generate linked_tori --param num_tori=3 --output linked_tori.ply
 ```
 
+### twisted_torus
+
+Torus where the circular cross-section rotates N half-twists around the
+loop. twist=0 gives a standard torus; odd twists produce non-orientable
+surfaces (Möbius-torus); even twists produce orientable surfaces.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `twist` | 3 | Number of half-twists |
+| `major_radius` | 1.0 | Major radius of the torus |
+| `minor_radius` | 0.3 | Minor (tube) radius |
+
+```bash
+mathviz generate twisted_torus --param twist=1 --output twisted_torus.ply
+```
+
 ### enneper_surface
 
 Enneper minimal surface with configurable range and order.
