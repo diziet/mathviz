@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 76 generators across 12 categories. Each generator produces a
+MathViz includes 77 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -1251,6 +1251,26 @@ Aliases: `mag_field`
 
 ```bash
 mathviz generate magnetic_field --param field_type=quadrupole --param num_lines=32 --output field.ply
+```
+
+### gravitational_lensing
+
+Warped coordinate grid showing spacetime curvature around a point mass.
+Grid lines are deflected using the Schwarzschild deflection formula and
+extruded to 3D using the deflection magnitude as z-displacement.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `mass` | 1.0 | Point mass strength |
+| `grid_lines` | 20 | Number of grid lines per axis |
+| `grid_extent` | 5.0 | Spatial extent of the grid |
+
+Resolution: `grid_points` (default 200) — sample points per grid line.
+
+Aliases: `grav_lens`, `spacetime_grid`
+
+```bash
+mathviz generate gravitational_lensing --param mass=2.0 --param grid_lines=30 --output lensing.ply
 ```
 
 ## Procedural
