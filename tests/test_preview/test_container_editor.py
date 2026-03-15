@@ -96,7 +96,7 @@ class TestGenerateWithContainer:
         assert resp_default.json()["geometry_id"] != resp_custom.json()["geometry_id"]
 
     def test_default_container_matches_no_container(self, client: TestClient) -> None:
-        """Omitting container uses default (100x100x40, 5mm margins)."""
+        """Omitting container uses default (100x100x100, 5mm margins)."""
         resp = client.post(
             "/api/generate",
             json={"generator": "torus", "seed": 42},
@@ -143,11 +143,11 @@ class TestUsableVolume:
         assert c.usable_volume == (90.0, 60.0, 34.0)
 
     def test_usable_volume_default_container(self) -> None:
-        """Default container (100x100x40, 5mm margins) has usable 90x90x30."""
+        """Default container (100x100x100, 5mm margins) has usable 90x90x90."""
         from mathviz.core.container import Container
 
         c = Container.with_uniform_margin()
-        assert c.usable_volume == (90.0, 90.0, 30.0)
+        assert c.usable_volume == (90.0, 90.0, 90.0)
 
 
 # --- HTML panel presence ---

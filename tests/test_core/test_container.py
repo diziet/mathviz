@@ -48,7 +48,23 @@ class TestContainerUsableVolume:
     def test_default_container(self) -> None:
         """Default container has expected usable volume."""
         c = Container()
-        assert c.usable_volume == (90.0, 90.0, 30.0)
+        assert c.usable_volume == (90.0, 90.0, 90.0)
+
+
+class TestDefaultContainerIsCube:
+    """Verify the default container is a 100x100x100 cube."""
+
+    def test_default_dimensions_are_100_cube(self) -> None:
+        """Container() with no arguments produces 100x100x100 dimensions."""
+        c = Container()
+        assert c.width_mm == 100.0
+        assert c.height_mm == 100.0
+        assert c.depth_mm == 100.0
+
+    def test_default_usable_volume_with_margins(self) -> None:
+        """Container().usable_volume returns (90, 90, 90) with default 5mm margins."""
+        c = Container()
+        assert c.usable_volume == (90.0, 90.0, 90.0)
 
 
 class TestContainerWithUniformMargin:
@@ -59,7 +75,7 @@ class TestContainerWithUniformMargin:
         c = Container.with_uniform_margin()
         assert c.width_mm == 100
         assert c.height_mm == 100
-        assert c.depth_mm == 40
+        assert c.depth_mm == 100
         assert c.margin_x_mm == 5
         assert c.margin_y_mm == 5
         assert c.margin_z_mm == 5

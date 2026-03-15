@@ -68,7 +68,7 @@ def _make_snapshot_request(geometry_id: str) -> dict[str, Any]:
         "container": {
             "width_mm": 100.0,
             "height_mm": 100.0,
-            "depth_mm": 40.0,
+            "depth_mm": 100.0,
             "margin_x_mm": 5.0,
             "margin_y_mm": 5.0,
             "margin_z_mm": 5.0,
