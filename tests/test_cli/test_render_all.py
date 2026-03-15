@@ -156,6 +156,22 @@ class TestRenderAllErrorHandling:
         assert (output_dir / "lorenz" / "lorenz_top.png").exists()
 
 
+class TestViewAliasIntegration:
+    """Test that view aliases are resolved end-to-end through the CLI."""
+
+    @patch("mathviz.cli_render_batch._render_single_job", _mock_render_single_job)
+    def test_side_alias_resolves_to_right_in_filename(
+        self, tmp_path: Path,
+    ) -> None:
+        """--views side creates file with resolved name 'right', not alias 'side'."""
+        result, output_dir = _invoke_render_all(tmp_path, views="side")
+        assert result.exit_code == 0
+        # The mock creates files using the view name it receives.
+        # If alias resolution works, the file should be lorenz_right.png
+        assert (output_dir / "lorenz" / "lorenz_right.png").exists()
+        assert not (output_dir / "lorenz" / "lorenz_side.png").exists()
+
+
 class TestFilterGenerators:
     """Test generator filtering logic."""
 

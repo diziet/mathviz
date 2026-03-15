@@ -256,9 +256,8 @@ def register_render_all_command(
         configure_logging_fn(verbose, quiet)
 
         # Parse and validate views
-        view_list = [v.strip() for v in views.split(",")]
         try:
-            _validate_views(view_list)
+            view_list = _validate_views([v.strip() for v in views.split(",")])
         except ValueError as exc:
             output_console.print(f"[red]{exc}[/red]")
             raise typer.Exit(code=2)
