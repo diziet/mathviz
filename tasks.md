@@ -3453,7 +3453,96 @@ a model of the real projective plane immersed in 3D.
 
 ---
 
-## Task 83: Bour's minimal surface generator
+## Task 83: Enable parallel test execution with pytest-xdist
+
+**Objective:**
+
+Tests currently run sequentially even though  is installed.
+Enable parallel test execution by default so the full test suite runs
+faster, especially on multi-core machines.
+
+**Suggested path:**
+
+1. Add  under  in
+   . This uses all available CPU cores.
+
+2. Ensure no tests share mutable global state, temp directories, or
+   fixed port numbers that would cause conflicts under parallel execution.
+   Use  fixtures instead of hardcoded paths.
+
+3. If any tests require serial execution (e.g. they bind to a fixed port
+   for the preview server), mark them with  or
+   isolate them in a separate test group.
+
+4. Verify the full suite passes with . Fix any flaky or
+   order-dependent tests that surface.
+
+**Files:**
+
+- 
+- Any test files that need isolation fixes
+
+**Tests:**
+
+- ============================= test session starts ==============================
+platform darwin -- Python 3.14.3, pytest-8.4.2, pluggy-1.6.0
+rootdir: /Users/alex/projects/mathviz/mathviz
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.12.1, cov-5.0.0, asyncio-1.3.0, xdist-3.5.0, testmon-2.1.1
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+created: 10/10 workers
+10 workers [1607 items]
+
+........................................................................ [  4%]
+........................................................................ [  8%]
+........................................................................ [ 13%]
+........................................................................ [ 17%]
+........................................................................ [ 22%]
+........................................................................ [ 26%]
+........................................................................ [ 31%]
+........................................................................ [ 35%]
+........................................................................ [ 40%]
+........................................................................ [ 44%]
+.............................................................s.......... [ 49%]
+........................................................................ [ 53%]
+........................................................................ [ 58%]
+........................................................................ [ 62%]
+........................................................................ [ 67%]
+........................................................................ [ 71%]
+........................................................................ [ 76%]
+........................................................................ [ 80%]
+........................................................................ [ 85%]
+....................s................................................... [ 89%]
+........................................................................ [ 94%]
+........................................................................ [ 98%]
+.......................                                                  [100%]
+=============================== warnings summary ===============================
+tests/test_generators/test_curves.py::test_cardioid_tube_watertight
+  /Users/alex/projects/mathviz/mathviz/src/mathviz/shared/tube_thickening.py:46: UserWarning: Tube radius 0.0500 exceeds minimum segment length 0.0148; self-intersection likely
+    _warn_self_intersection(points, radius)
+
+tests/test_generators/test_curves.py::test_lissajous_curve_tube_watertight
+  /Users/alex/projects/mathviz/mathviz/src/mathviz/shared/tube_thickening.py:46: UserWarning: Tube radius 0.0500 exceeds minimum segment length 0.0430; self-intersection likely
+    _warn_self_intersection(points, radius)
+
+tests/test_generators/test_knots.py::test_trefoil_defaults_p2_q3
+tests/test_generators/test_knots.py::test_full_pipeline_tube_produces_watertight_mesh
+tests/test_generators/test_knots.py::test_alias_provenance_recorded_in_generator_name
+  /Users/alex/projects/mathviz/mathviz/src/mathviz/shared/tube_thickening.py:46: UserWarning: Tube radius 0.1000 exceeds minimum segment length 0.0833; self-intersection likely
+    _warn_self_intersection(points, radius)
+
+tests/test_shared/test_tube_thickening.py::TestClosedCircleTorus::test_torus_mesh_has_no_seam_gap
+tests/test_shared/test_tube_thickening.py::TestClosedCircleTorus::test_torus_vertex_positions_are_smooth
+  /Users/alex/projects/mathviz/mathviz/src/mathviz/shared/tube_thickening.py:46: UserWarning: Tube radius 0.1000 exceeds minimum segment length 0.0981; self-intersection likely
+    _warn_self_intersection(points, radius)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 1605 passed, 2 skipped, 7 warnings in 28.92s ================= runs the full suite without failures
+- Test suite wall-clock time is measurably faster than sequential
+- No tests fail intermittently due to resource conflicts
+
+## Task 84: Bour's minimal surface generator
 
 **Objective:**
 
@@ -3482,7 +3571,7 @@ between a helicoid and a catenoid.
 
 ---
 
-## Task 84: Menger sponge generator
+## Task 85: Menger sponge generator
 
 **Objective:**
 
@@ -3512,7 +3601,7 @@ fractal created by repeatedly removing sub-cubes.
 
 ---
 
-## Task 85: Sierpinski tetrahedron generator
+## Task 86: Sierpinski tetrahedron generator
 
 **Objective:**
 
@@ -3541,7 +3630,7 @@ octahedra from a tetrahedron.
 
 ---
 
-## Task 86: Apollonian gasket 3D generator
+## Task 87: Apollonian gasket 3D generator
 
 **Objective:**
 
@@ -3573,7 +3662,7 @@ sphere.
 
 ---
 
-## Task 87: Quaternion Julia set generator
+## Task 88: Quaternion Julia set generator
 
 **Objective:**
 
@@ -3603,7 +3692,7 @@ producing smoother, more organic shapes than the Mandelbulb.
 
 ---
 
-## Task 88: Burning ship fractal heightmap generator
+## Task 89: Burning ship fractal heightmap generator
 
 **Objective:**
 
@@ -3632,7 +3721,7 @@ heightmap.
 
 ---
 
-## Task 89: IFS fractal generator
+## Task 90: IFS fractal generator
 
 **Objective:**
 
@@ -3665,7 +3754,7 @@ Barnsley fern in 3D, Sierpinski variants, and custom affine transforms.
 
 ---
 
-## Task 90: Koch snowflake 3D generator
+## Task 91: Koch snowflake 3D generator
 
 **Objective:**
 
@@ -3691,7 +3780,7 @@ extruded or revolved into a 3D solid.
 
 ---
 
-## Task 91: Electron orbital generator
+## Task 92: Electron orbital generator
 
 **Objective:**
 
@@ -3723,7 +3812,7 @@ isosurfaces for s, p, d, and f orbitals.
 
 ---
 
-## Task 92: Magnetic field lines generator
+## Task 93: Magnetic field lines generator
 
 **Objective:**
 
@@ -3754,7 +3843,7 @@ quadrupole configurations rendered as tube curves.
 
 ---
 
-## Task 93: DNA double helix generator
+## Task 94: DNA double helix generator
 
 **Objective:**
 
@@ -3783,7 +3872,7 @@ base pair rungs connecting them.
 
 ---
 
-## Task 94: Hopf fibration generator
+## Task 95: Hopf fibration generator
 
 **Objective:**
 
@@ -3818,7 +3907,7 @@ stunning mathematical objects.
 
 ---
 
-## Task 95: Gravitational lensing grid generator
+## Task 96: Gravitational lensing grid generator
 
 **Objective:**
 
@@ -3847,7 +3936,7 @@ coordinate grid showing spacetime curvature around a point mass.
 
 ---
 
-## Task 96: Wave interference pattern generator
+## Task 97: Wave interference pattern generator
 
 **Objective:**
 
@@ -3876,7 +3965,7 @@ point sources.
 
 ---
 
-## Task 97: Hilbert curve 3D generator
+## Task 98: Hilbert curve 3D generator
 
 **Objective:**
 
@@ -3904,7 +3993,7 @@ visits every cell in a cubic grid exactly once.
 
 ---
 
-## Task 98: Penrose tiling 3D generator
+## Task 99: Penrose tiling 3D generator
 
 **Objective:**
 
@@ -3932,7 +4021,7 @@ a relief surface.
 
 ---
 
-## Task 99: Weaire-Phelan foam structure generator
+## Task 100: Weaire-Phelan foam structure generator
 
 **Objective:**
 
@@ -3961,7 +4050,7 @@ known foam partition of space into equal-volume cells.
 
 ---
 
-## Task 100: Geodesic sphere generator
+## Task 101: Geodesic sphere generator
 
 **Objective:**
 
@@ -3991,7 +4080,7 @@ frequencies, like Buckminster Fuller domes.
 
 ---
 
-## Task 101: Möbius trefoil generator
+## Task 102: Möbius trefoil generator
 
 **Objective:**
 
@@ -4016,7 +4105,7 @@ trefoil knot shape, combining non-orientability with knot topology.
 
 ---
 
-## Task 102: Linked tori generator
+## Task 103: Linked tori generator
 
 **Objective:**
 
@@ -4040,7 +4129,7 @@ like links in a chain.
 
 ---
 
-## Task 103: Twisted torus generator
+## Task 104: Twisted torus generator
 
 **Objective:**
 
@@ -4069,7 +4158,7 @@ cross-section rotates N times as it goes around the loop.
 
 ---
 
-## Task 104: Rose surface generator
+## Task 105: Rose surface generator
 
 **Objective:**
 
@@ -4094,7 +4183,7 @@ into 3D, producing flower-like petals.
 
 ---
 
-## Task 105: Shell spiral generator
+## Task 106: Shell spiral generator
 
 **Objective:**
 
@@ -4123,7 +4212,7 @@ with expanding cross-section, producing a nautilus-like form.
 
 ---
 
-## Task 106: Gear / involute curve generator
+## Task 107: Gear / involute curve generator
 
 **Objective:**
 
@@ -4152,7 +4241,7 @@ geometry extruded into a 3D solid.
 
 ---
 
-## Task 107: Update documentation for Tasks 77–106 generators
+## Task 108: Update documentation for Tasks 77–107 generators
 
 **Objective:**
 
@@ -4199,7 +4288,7 @@ This is a follow-up to Task 75 (which covers Tasks 70–74 generators).
 
 ---
 
-## Task 109: Realistic K9 glass crystal preview mode
+## Task 110: Realistic K9 glass crystal preview mode
 
 **Objective:**
 
@@ -4275,7 +4364,7 @@ they glow and scatter light.
 
 ---
 
-## Task 108: Disk-based generation cache with UI indicator and invalidation
+## Task 109: Disk-based generation cache with UI indicator and invalidation
 
 **Objective:**
 
@@ -4334,7 +4423,7 @@ and provide a button to force regeneration (bypass cache).
 
 ---
 
-## Task 110: Remove redundant `cell_size` parameter from TPMS generators
+## Task 111: Remove redundant `cell_size` parameter from TPMS generators
 
 **Objective:**
 
@@ -4384,7 +4473,7 @@ and keep only `periods` to eliminate user confusion.
 
 ---
 
-## Task 111: Split Lock Camera into two modes — render lock and full lock
+## Task 112: Split Lock Camera into two modes — render lock and full lock
 
 **Objective:**
 
@@ -4456,7 +4545,7 @@ Clicking the toggle cycles: **Render Lock → Full Lock → Off → Render Lock*
 
 ---
 
-## Task 112: Fix randomize ranges and add editable min/max to parameter UI
+## Task 113: Fix randomize ranges and add editable min/max to parameter UI
 
 **Objective:**
 
@@ -4533,7 +4622,7 @@ Two related issues with the dice (randomize) button:
 
 ---
 
-## Task 113: Collapsible Dimensions/Margins panel, collapsed by default
+## Task 114: Collapsible Dimensions/Margins panel, collapsed by default
 
 **Objective:**
 
@@ -4574,7 +4663,7 @@ it stays out of the way until the user needs it.
 
 ---
 
-## Task 114: Fix save after load, show params in gallery, save camera state
+## Task 115: Fix save after load, show params in gallery, save camera state
 
 **Objective:**
 
