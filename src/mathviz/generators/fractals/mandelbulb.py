@@ -43,6 +43,14 @@ class MandelbulbGenerator(GeneratorBase):
     }
     _resolution_defaults = {"voxel_resolution": DEFAULT_VOXEL_RESOLUTION}
 
+    def get_param_ranges(self) -> dict[str, dict[str, float]]:
+        """Return exploration ranges for the Mandelbulb parameters."""
+        return {
+            "power": {"min": 2.0, "max": 16.0, "step": 0.5},
+            "max_iterations": {"min": 3, "max": 30, "step": 1},
+            "extent": {"min": 0.8, "max": 2.5, "step": 0.1},
+        }
+
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for the Mandelbulb."""
         return {

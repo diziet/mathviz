@@ -125,6 +125,15 @@ class LorenzGenerator(GeneratorBase):
     }
     _resolution_defaults = {"integration_steps": _DEFAULT_INTEGRATION_STEPS}
 
+    def get_param_ranges(self) -> dict[str, dict[str, float]]:
+        """Return exploration ranges for the Lorenz attractor parameters."""
+        return {
+            "sigma": {"min": 5.0, "max": 20.0, "step": 0.5},
+            "rho": {"min": 15.0, "max": 50.0, "step": 0.5},
+            "beta": {"min": 0.5, "max": 5.0, "step": 0.1},
+            "transient_steps": {"min": 0, "max": 5000, "step": 100},
+        }
+
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for the Lorenz generator."""
         return {
