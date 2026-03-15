@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 66 generators across 12 categories. Each generator produces a
+MathViz includes 67 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -403,6 +403,22 @@ Aliases: `fractal_cross_section`
 
 ```bash
 mathviz generate fractal_slice --param slice_axis=y --output slice.ply
+```
+
+### menger_sponge
+
+Menger sponge fractal via recursive cube subdivision. Removes the center of each
+face plus the center cube at every level, keeping 20 of 27 sub-cubes.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `level` | 3 | Recursion depth (0–4) |
+| `size` | 1.0 | Side length of the bounding cube |
+
+Aliases: `menger`
+
+```bash
+mathviz generate menger_sponge --param level=2 --output menger.ply
 ```
 
 ### mandelbrot_heightmap
