@@ -23,9 +23,9 @@ def _clean_registry():
 
 
 def test_produces_mesh_with_expected_structure() -> None:
-    """Generator produces a mesh with expected cell structure."""
+    """cells_only produces a mesh with expected cell structure."""
     gen = VoronoiSphereGenerator()
-    obj = gen.generate(params={"num_cells": 20}, seed=42)
+    obj = gen.generate(params={"num_cells": 20, "cell_style": "cells_only"}, seed=42)
     obj.validate_or_raise()
 
     assert obj.mesh is not None
@@ -36,6 +36,23 @@ def test_produces_mesh_with_expected_structure() -> None:
     assert obj.generator_name == "voronoi_sphere"
     assert obj.category == "geometry"
     assert obj.bounding_box is not None
+
+
+def test_ridges_only_returns_curves_not_mesh() -> None:
+    """ridges_only returns curves for the representation layer to thicken."""
+    gen = VoronoiSphereGenerator()
+    obj = gen.generate(params={"num_cells": 20, "cell_style": "ridges_only"}, seed=42)
+    obj.validate_or_raise()
+
+    assert obj.curves is not None
+    assert len(obj.curves) > 0
+    assert obj.mesh is None
+    assert obj.generator_name == "voronoi_sphere"
+    assert obj.bounding_box is not None
+
+    for curve in obj.curves:
+        assert curve.points.shape[1] == 3
+        assert len(curve.points) >= 2
 
 
 # ---------------------------------------------------------------------------
@@ -52,8 +69,6 @@ def test_num_cells_6_icosahedron_like() -> None:
     obj.validate_or_raise()
 
     assert obj.mesh is not None
-    # 6 cells, each a polygon with ~5 sides => ~6 * (sides-2) triangles
-    # Should have a small number of faces consistent with 6 cells
     assert len(obj.mesh.faces) >= 6
     assert len(obj.mesh.faces) < 100
 
@@ -66,13 +81,28 @@ def test_num_cells_6_icosahedron_like() -> None:
 def test_num_cells_64_denser() -> None:
     """num_cells=64 produces more geometry than num_cells=6."""
     gen = VoronoiSphereGenerator()
-    obj_sparse = gen.generate(params={"num_cells": 6}, seed=42)
-    obj_dense = gen.generate(params={"num_cells": 64}, seed=42)
+    obj_sparse = gen.generate(
+        params={"num_cells": 6, "cell_style": "cells_only"}, seed=42,
+    )
+    obj_dense = gen.generate(
+        params={"num_cells": 64, "cell_style": "cells_only"}, seed=42,
+    )
 
     assert obj_sparse.mesh is not None
     assert obj_dense.mesh is not None
     assert len(obj_dense.mesh.vertices) > len(obj_sparse.mesh.vertices)
     assert len(obj_dense.mesh.faces) > len(obj_sparse.mesh.faces)
+
+
+def test_num_cells_64_more_ridge_curves() -> None:
+    """num_cells=64 produces more ridge curves than num_cells=6."""
+    gen = VoronoiSphereGenerator()
+    obj_sparse = gen.generate(params={"num_cells": 6}, seed=42)
+    obj_dense = gen.generate(params={"num_cells": 64}, seed=42)
+
+    assert obj_sparse.curves is not None
+    assert obj_dense.curves is not None
+    assert len(obj_dense.curves) > len(obj_sparse.curves)
 
 
 # ---------------------------------------------------------------------------
@@ -86,10 +116,11 @@ def test_seed_determinism() -> None:
     obj1 = gen.generate(seed=42)
     obj2 = gen.generate(seed=42)
 
-    assert obj1.mesh is not None
-    assert obj2.mesh is not None
-    np.testing.assert_array_equal(obj1.mesh.vertices, obj2.mesh.vertices)
-    np.testing.assert_array_equal(obj1.mesh.faces, obj2.mesh.faces)
+    assert obj1.curves is not None
+    assert obj2.curves is not None
+    assert len(obj1.curves) == len(obj2.curves)
+    for c1, c2 in zip(obj1.curves, obj2.curves):
+        np.testing.assert_array_equal(c1.points, c2.points)
 
 
 def test_different_seeds_differ() -> None:
@@ -98,9 +129,11 @@ def test_different_seeds_differ() -> None:
     obj1 = gen.generate(seed=42)
     obj2 = gen.generate(seed=99)
 
-    assert obj1.mesh is not None
-    assert obj2.mesh is not None
-    assert not np.array_equal(obj1.mesh.vertices, obj2.mesh.vertices)
+    assert obj1.curves is not None
+    assert obj2.curves is not None
+    all_pts1 = np.concatenate([c.points for c in obj1.curves])
+    all_pts2 = np.concatenate([c.points for c in obj2.curves])
+    assert not np.array_equal(all_pts1, all_pts2)
 
 
 # ---------------------------------------------------------------------------
@@ -109,49 +142,44 @@ def test_different_seeds_differ() -> None:
 
 
 def test_cell_style_ridges_only() -> None:
-    """ridges_only style produces tube mesh geometry."""
+    """ridges_only style produces curves for representation layer."""
     gen = VoronoiSphereGenerator()
     obj = gen.generate(
         params={"num_cells": 12, "cell_style": "ridges_only"}, seed=42,
     )
     obj.validate_or_raise()
-    assert obj.mesh is not None
-    assert len(obj.mesh.vertices) > 0
+    assert obj.curves is not None
+    assert obj.mesh is None
+    assert len(obj.curves) > 0
 
 
 def test_cell_style_cells_only() -> None:
-    """cells_only style produces cell face mesh."""
+    """cells_only style produces cell face mesh only."""
     gen = VoronoiSphereGenerator()
     obj = gen.generate(
         params={"num_cells": 12, "cell_style": "cells_only"}, seed=42,
     )
     obj.validate_or_raise()
     assert obj.mesh is not None
+    assert obj.curves is None
     assert len(obj.mesh.vertices) > 0
 
 
 def test_cell_style_both() -> None:
-    """both style produces more geometry than either alone."""
+    """both style produces mesh and curves together."""
     gen = VoronoiSphereGenerator()
-    obj_ridges = gen.generate(
-        params={"num_cells": 12, "cell_style": "ridges_only"}, seed=42,
-    )
-    obj_cells = gen.generate(
-        params={"num_cells": 12, "cell_style": "cells_only"}, seed=42,
-    )
-    obj_both = gen.generate(
+    obj = gen.generate(
         params={"num_cells": 12, "cell_style": "both"}, seed=42,
     )
-
-    assert obj_both.mesh is not None
-    assert obj_ridges.mesh is not None
-    assert obj_cells.mesh is not None
-    assert len(obj_both.mesh.vertices) > len(obj_ridges.mesh.vertices)
-    assert len(obj_both.mesh.vertices) > len(obj_cells.mesh.vertices)
+    obj.validate_or_raise()
+    assert obj.mesh is not None
+    assert obj.curves is not None
+    assert len(obj.mesh.vertices) > 0
+    assert len(obj.curves) > 0
 
 
 def test_cell_style_changes_geometry() -> None:
-    """Different cell_style values produce different vertex counts."""
+    """Different cell_style values produce different geometry types."""
     gen = VoronoiSphereGenerator()
     obj_r = gen.generate(
         params={"num_cells": 20, "cell_style": "ridges_only"}, seed=42,
@@ -159,9 +187,9 @@ def test_cell_style_changes_geometry() -> None:
     obj_c = gen.generate(
         params={"num_cells": 20, "cell_style": "cells_only"}, seed=42,
     )
-    assert obj_r.mesh is not None
-    assert obj_c.mesh is not None
-    assert len(obj_r.mesh.vertices) != len(obj_c.mesh.vertices)
+    # ridges_only -> curves only; cells_only -> mesh only
+    assert obj_r.curves is not None and obj_r.mesh is None
+    assert obj_c.mesh is not None and obj_c.curves is None
 
 
 # ---------------------------------------------------------------------------
@@ -177,13 +205,30 @@ def test_edge_height_zero_flat_sphere() -> None:
         seed=42,
     )
     obj.validate_or_raise()
-    assert obj.mesh is not None
+    assert obj.curves is not None
 
-    # All ridge vertices should be near the sphere radius (1.0 default)
-    distances = np.linalg.norm(obj.mesh.vertices, axis=1)
-    # Tube thickening adds width, so check the median is near radius
-    median_dist = np.median(distances)
-    assert abs(median_dist - 1.0) < 0.2
+    # All curve points should be at exactly the sphere radius (1.0 default)
+    all_pts = np.concatenate([c.points for c in obj.curves])
+    distances = np.linalg.norm(all_pts, axis=1)
+    np.testing.assert_allclose(distances, 1.0, atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# arc_resolution is configurable
+# ---------------------------------------------------------------------------
+
+
+def test_arc_resolution_changes_point_count() -> None:
+    """Custom arc_resolution changes the number of points per curve."""
+    gen = VoronoiSphereGenerator()
+    obj_low = gen.generate(params={"num_cells": 12}, seed=42, arc_resolution=4)
+    obj_high = gen.generate(params={"num_cells": 12}, seed=42, arc_resolution=32)
+
+    assert obj_low.curves is not None
+    assert obj_high.curves is not None
+    low_pts = sum(len(c.points) for c in obj_low.curves)
+    high_pts = sum(len(c.points) for c in obj_high.curves)
+    assert high_pts > low_pts
 
 
 # ---------------------------------------------------------------------------
@@ -228,3 +273,22 @@ def test_negative_radius() -> None:
     gen = VoronoiSphereGenerator()
     with pytest.raises(ValueError, match="radius must be positive"):
         gen.generate(params={"radius": -1.0})
+
+
+def test_edge_width_zero_with_ridges_rejected() -> None:
+    """edge_width=0 with ridge styles is rejected."""
+    gen = VoronoiSphereGenerator()
+    with pytest.raises(ValueError, match="edge_width must be > 0"):
+        gen.generate(params={"edge_width": 0.0, "cell_style": "ridges_only"})
+    with pytest.raises(ValueError, match="edge_width must be > 0"):
+        gen.generate(params={"edge_width": 0.0, "cell_style": "both"})
+
+
+def test_edge_width_zero_cells_only_allowed() -> None:
+    """edge_width=0 is fine for cells_only since ridges aren't used."""
+    gen = VoronoiSphereGenerator()
+    obj = gen.generate(
+        params={"edge_width": 0.0, "cell_style": "cells_only"}, seed=42,
+    )
+    obj.validate_or_raise()
+    assert obj.mesh is not None
