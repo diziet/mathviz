@@ -62,8 +62,8 @@ compliance.
 
 ### 6. Export (optional)
 
-Writes the final geometry to disk. Supports mesh formats (STL, OBJ) and point
-cloud formats (PLY, XYZ, PCD).
+Writes the final geometry to disk. Supports mesh formats (STL, OBJ, GLB) and
+point cloud formats (PLY, XYZ, PCD).
 
 - **Input**: `MathObject`, `ExportConfig` (path, format, export type)
 - **Output**: file written to disk

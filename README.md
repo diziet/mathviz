@@ -17,7 +17,7 @@ unique form rendered as a monochrome point cloud of micro-fractures.
 - **High-resolution rendering** to PNG (3D and 2D projections)
 - **Configurable containers**: glass block dimensions, margins, and placement policies
 - **Sampling profiles**: preview (fast) and production (high-quality)
-- **Format conversion**: STL, OBJ, PLY, XYZ, PCD
+- **Format conversion**: STL, OBJ, PLY, GLB, XYZ, PCD
 
 ## Installation
 
@@ -105,6 +105,8 @@ See [docs/generators.md](docs/generators.md) for full parameter tables and examp
 | `mathviz preview` | Start interactive 3D preview server |
 | `mathviz render` | High-resolution 3D PNG rendering |
 | `mathviz render-2d` | 2D projection rendering |
+| `mathviz render-all` | Batch render all generators in parallel |
+| `mathviz benchmark` | Pipeline performance benchmarking |
 | `mathviz convert` | Convert geometry between formats |
 | `mathviz sample` | Sample a mesh into a point cloud |
 | `mathviz transform` | Fit geometry within a container |
@@ -126,7 +128,8 @@ See [docs/cli.md](docs/cli.md) for full flag reference and examples.
 - [CLI Reference](docs/cli.md) — every CLI command with flags, options, and examples
 - [Configuration](docs/configuration.md) — config file format, precedence rules, sampling profiles
 - [Representation Strategies](docs/representation.md) — how raw geometry is realized for engraving
-- [Rendering](docs/rendering.md) — `render` and `render-2d` commands, optional dependencies
+- [Preview UI](docs/preview.md) — interactive 3D preview with comparison mode, snapshots, and keyboard shortcuts
+- [Rendering](docs/rendering.md) — `render`, `render-2d`, and `render-all` commands, optional dependencies
 - [Grid Layout](docs/grid.md) — grid manifest format and grid CLI
 - [Python API](docs/api.md) — using MathViz as a Python library
 
