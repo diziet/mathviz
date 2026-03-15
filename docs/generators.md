@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 48 generators across 12 categories. Each generator produces a
+MathViz includes 59 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -128,6 +128,92 @@ Aliases: `double_pendulum_attractor`
 
 ```bash
 mathviz generate double_pendulum --param theta1=3.0 --output pendulum.ply
+```
+
+### clifford
+
+Clifford 2D iterated-map attractor (point cloud). Extended to 3D via scaled
+iteration count as z-coordinate.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `a` | -1.4 | Map parameter a |
+| `b` | 1.6 | Map parameter b |
+| `c` | 1.0 | Map parameter c |
+| `d` | 0.7 | Map parameter d |
+
+Resolution: `num_points` (default: 500000)
+
+Aliases: `clifford_attractor`
+
+Output varies with seed (random initial condition).
+
+Recommended representation: SPARSE_SHELL
+
+```bash
+mathviz generate clifford --output clifford.ply
+mathviz generate clifford --param a=-1.7 --param b=1.3 --seed 7 --output clifford.ply
+```
+
+### dequan_li
+
+Dequan Li multi-scroll chaotic attractor trajectory.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `a` | 40.0 | System parameter a |
+| `c` | 1.833 | System parameter c |
+| `d` | 0.16 | System parameter d |
+| `e` | 0.65 | System parameter e |
+| `f` | 20.0 | System parameter f |
+| `k` | 55.0 | System parameter k |
+| `transient_steps` | 1000 | Initial transient steps to discard |
+
+Resolution: `integration_steps` (default: 100000)
+
+Aliases: `dequan_li_attractor`
+
+Output varies with seed (initial condition perturbation).
+
+Recommended representation: TUBE
+
+```bash
+mathviz generate dequan_li --output dequan_li.ply
+```
+
+### sprott
+
+Sprott minimal chaotic flows (multiple variants). Selectable via the `system`
+parameter. Each variant is a 3D ODE with very few terms producing visually
+distinct attractors.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `system` | `"sprott_a"` | Variant to use (sprott_a, sprott_b, sprott_g, sprott_n, sprott_s) |
+| `transient_steps` | 1000 | Initial transient steps to discard |
+
+Resolution: `integration_steps` (default: 100000)
+
+Aliases: `sprott_attractor`
+
+Output varies with seed (initial condition perturbation).
+
+Recommended representation: TUBE
+
+**Parameter presets:**
+
+| Preset | `system` | Description |
+|---|---|---|
+| Sprott A | `sprott_a` | Simplest quadratic flow with chaos |
+| Sprott B | `sprott_b` | Minimal chaotic jerk system |
+| Sprott G | `sprott_g` | Chaotic flow with one quadratic nonlinearity |
+| Sprott N | `sprott_n` | Chaotic flow with quadratic z term |
+| Sprott S | `sprott_s` | Chaotic flow with quadratic z term (variant) |
+
+```bash
+mathviz generate sprott --output sprott_a.ply
+mathviz generate sprott --param system=sprott_b --output sprott_b.ply
+mathviz generate sprott --param system=sprott_g --seed 7 --output sprott_g.ply
 ```
 
 ## Curves
@@ -375,6 +461,31 @@ mathviz generate generic_parametric \
 mathviz generate voronoi_3d --param num_points=50 --seed 42 --output voronoi.ply
 ```
 
+### voronoi_sphere
+
+Voronoi tessellation on a sphere surface with geodesic cells. Distributes seed
+points via perturbed Fibonacci spiral and computes spherical Voronoi diagram.
+Supports ridge curves, cell face meshes, or both.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `num_cells` | 64 | Number of Voronoi cells |
+| `radius` | 1.0 | Sphere radius |
+| `edge_width` | 0.05 | Width of ridge edges |
+| `edge_height` | 0.1 | Height of ridges above sphere |
+| `cell_style` | `"ridges_only"` | Style: `ridges_only`, `cells_only`, or `both` |
+
+Resolution: `arc_resolution` (default: 16)
+
+Output varies with seed (Fibonacci sphere perturbation).
+
+Recommended representation: TUBE
+
+```bash
+mathviz generate voronoi_sphere --output vsphere.ply
+mathviz generate voronoi_sphere --param num_cells=128 --param cell_style=both --output vsphere.ply
+```
+
 ## Implicit Surfaces
 
 Triply periodic minimal surfaces extracted via marching cubes.
@@ -496,6 +607,98 @@ Knots with crossing number 7, selectable by knot_index.
 
 ```bash
 mathviz generate seven_crossing_knots --param knot_index=3 --output knot7.ply
+```
+
+### trefoil_on_torus
+
+(2,3) torus knot rendered alongside its host torus surface, showing how the
+knot sits on the torus. Produces both a knot curve (TUBE) and a torus mesh
+(WIREFRAME).
+
+| Parameter | Default | Description |
+|---|---|---|
+| `torus_R` | 1.0 | Major radius of the torus |
+| `torus_r` | 0.4 | Minor (tube) radius of the torus |
+
+Resolution: `curve_points` (default: 1024), `torus_resolution` (default: 32)
+
+Recommended representation: TUBE (knot) + WIREFRAME (torus)
+
+```bash
+mathviz generate trefoil_on_torus --output trefoil_torus.ply
+mathviz generate trefoil_on_torus --param torus_R=1.5 --output trefoil_torus.ply
+```
+
+### pretzel_knot
+
+Pretzel knot with p left-hand and q right-hand twists, forming a closed curve
+with p+q lobes.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `p` | 2 | Number of left-hand twists |
+| `q` | 3 | Number of right-hand twists |
+
+Resolution: `curve_points` (default: 1024)
+
+Recommended representation: TUBE
+
+```bash
+mathviz generate pretzel_knot --output pretzel.ply
+mathviz generate pretzel_knot --param p=3 --param q=5 --output pretzel35.ply
+```
+
+### cinquefoil_knot
+
+Cinquefoil (2,5) torus knot — a five-lobed star knot rendered as a standalone
+generator.
+
+No additional parameters.
+
+Resolution: `curve_points` (default: 1024)
+
+Recommended representation: TUBE
+
+```bash
+mathviz generate cinquefoil_knot --output cinquefoil.ply
+```
+
+### borromean_rings
+
+Three mutually linked rings — removing any one frees the other two. Each ring
+lies in an orthogonal plane with slight deformation to create linking.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `ring_radius` | 1.0 | Radius of each ring |
+| `ring_thickness` | 0.08 | Tube thickness for representation |
+
+Resolution: `curve_points` (default: 512)
+
+Recommended representation: TUBE
+
+```bash
+mathviz generate borromean_rings --output borromean.ply
+mathviz generate borromean_rings --param ring_radius=1.5 --output borromean.ply
+```
+
+### chain_links
+
+Chain of interlocking torus links with alternating orientation (xy/xz planes).
+
+| Parameter | Default | Description |
+|---|---|---|
+| `num_links` | 5 | Number of chain links |
+| `link_radius` | 0.5 | Radius of each link |
+| `link_thickness` | 0.1 | Tube thickness for representation |
+
+Resolution: `curve_points` (default: 256)
+
+Recommended representation: TUBE
+
+```bash
+mathviz generate chain_links --output chain.ply
+mathviz generate chain_links --param num_links=8 --param link_radius=0.3 --output chain8.ply
 ```
 
 ## Number Theory
@@ -772,8 +975,94 @@ Gray-Scott reaction-diffusion pattern as heightmap.
 
 Aliases: `gray_scott`
 
+**Parameter presets:**
+
+| Preset | `feed_rate` | `kill_rate` | Description |
+|---|---|---|---|
+| Default (spots) | 0.035 | 0.065 | Isolated spot patterns |
+| Stripes | 0.055 | 0.062 | Stripe / labyrinthine patterns |
+| Maze | 0.029 | 0.057 | Dense maze-like patterns |
+
 ```bash
-mathviz generate reaction_diffusion --param feed_rate=0.04 --param kill_rate=0.06 --output rd.ply
+mathviz generate reaction_diffusion --output rd.ply
+mathviz generate reaction_diffusion --param feed_rate=0.055 --param kill_rate=0.062 --output rd_stripes.ply
+mathviz generate reaction_diffusion --param feed_rate=0.029 --param kill_rate=0.057 --output rd_maze.ply
+```
+
+### lsystem
+
+L-system fractal trees, bushes, ferns, and space-filling curves. Produces 3D
+branching structures from Lindenmayer system grammars with named presets and
+configurable parameters for organic variation.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `preset` | `"tree"` | Named preset (tree, bush, fern, hilbert3d, sierpinski) |
+| `iterations` | 5 | Number of rewriting iterations (1–10) |
+| `angle` | 25.0 | Branch angle in degrees |
+| `length_scale` | 1.0 | Initial segment length |
+| `length_decay` | 0.7 | Length multiplier per generation (0–1] |
+| `thickness_decay` | 0.6 | Thickness multiplier per generation (0–1] |
+| `jitter` | 5.0 | Random angle jitter in degrees |
+
+Output varies with seed (angle jitter randomization).
+
+Recommended representation: TUBE
+
+**Parameter presets:**
+
+| Preset | Angle | Iterations | Description |
+|---|---|---|---|
+| tree | 25.0 | 5 | Simple branching tree |
+| bush | 22.5 | 4 | Dense bush with many branches |
+| fern | 25.0 | 6 | Fern-like branching pattern |
+| hilbert3d | 90.0 | 2 | 3D Hilbert space-filling curve |
+| sierpinski | 120.0 | 6 | Sierpinski triangle as continuous path |
+
+```bash
+mathviz generate lsystem --output tree.ply
+mathviz generate lsystem --param preset=bush --param iterations=5 --output bush.ply
+mathviz generate lsystem --param preset=fern --param angle=30 --seed 7 --output fern.ply
+mathviz generate lsystem --param preset=hilbert3d --param iterations=3 --output hilbert.ply
+```
+
+### rd_surface
+
+Gray-Scott reaction-diffusion on curved surface meshes. Runs the Gray-Scott
+model on a surface mesh (torus, sphere, or Klein bottle) using the mesh
+Laplacian for diffusion. Displaces vertices along normals proportional to the
+V concentration to produce Turing-pattern geometry.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `base_surface` | `"torus"` | Base mesh: `torus`, `sphere`, or `klein_bottle` |
+| `feed_rate` | 0.055 | Feed rate (F) |
+| `kill_rate` | 0.062 | Kill rate (k) |
+| `diffusion_u` | 0.16 | Diffusion rate of U |
+| `diffusion_v` | 0.08 | Diffusion rate of V |
+| `iterations` | 5000 | Number of simulation steps (100–50000) |
+| `displacement_scale` | 0.1 | Vertex displacement along normals |
+
+Resolution: `grid_resolution` (default: 128)
+
+Aliases: `reaction_diffusion_surface`
+
+Output varies with seed (random V-concentration patches).
+
+Recommended representation: SURFACE_SHELL
+
+**Parameter presets:**
+
+| Preset | `feed_rate` | `kill_rate` | Description |
+|---|---|---|---|
+| Spots | 0.035 | 0.065 | Isolated spot patterns |
+| Stripes | 0.055 | 0.062 | Stripe / labyrinthine patterns |
+| Maze | 0.029 | 0.057 | Dense maze-like patterns |
+
+```bash
+mathviz generate rd_surface --output rd_torus.ply
+mathviz generate rd_surface --param base_surface=sphere --param feed_rate=0.035 --param kill_rate=0.065 --output rd_spots.ply
+mathviz generate rd_surface --param base_surface=klein_bottle --param feed_rate=0.029 --param kill_rate=0.057 --output rd_maze.ply
 ```
 
 ### terrain
