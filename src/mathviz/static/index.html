@@ -393,7 +393,6 @@ const state = {
   pointSize: 2,
   darkBg: true,
   cameraLocked: false,
-  isGenerating: false,
   generationId: 0,
   autoApply: false,
   geometryId: null,
@@ -599,6 +598,16 @@ function updateClippingPlanes(object3d) {
   camera.updateProjectionMatrix();
 }
 
+/* Lock-aware camera + bounding box setup for newly loaded geometry */
+function setupCameraForObject(object3d) {
+  addBoundingBox(object3d);
+  if (!state.cameraLocked) {
+    fitCamera(object3d);
+  } else {
+    updateClippingPlanes(object3d);
+  }
+}
+
 /* Save camera state before clearScene when lock is active */
 function saveCameraIfLocked() {
   if (!state.cameraLocked) return null;
@@ -676,12 +685,7 @@ async function displayMesh(url, label) {
   const {group, totalVertices, totalFaces} = await loadMeshFromGLB(url);
   state.meshGroup = group;
   scene.add(group);
-  if (!state.cameraLocked) {
-    addBoundingBox(group);
-    fitCamera(group);
-  } else {
-    updateClippingPlanes(group);
-  }
+  setupCameraForObject(group);
   enableResetView();
   updateInfo({generator: label, vertices: totalVertices, faces: totalFaces});
 }
@@ -690,12 +694,7 @@ function displayCloud(points, vertexCount, label) {
   state.cloudPoints = points;
   scene.add(points);
   if (!state.meshGroup) {
-    if (!state.cameraLocked) {
-      addBoundingBox(points);
-      fitCamera(points);
-    } else {
-      updateClippingPlanes(points);
-    }
+    setupCameraForObject(points);
     document.getElementById('view-mode').value = 'points';
     state.viewMode = 'points';
   }
@@ -707,7 +706,6 @@ function displayCloud(points, vertexCount, label) {
 async function displayGenerateResult(data, generatorName) {
   state.generationId += 1;
   const myGenerationId = state.generationId;
-  state.isGenerating = true;
 
   const savedCamera = saveCameraIfLocked();
   clearScene();
@@ -725,7 +723,6 @@ async function displayGenerateResult(data, generatorName) {
   }
 
   if (!hasMesh && !hasCloud) {
-    state.isGenerating = false;
     applyViewMode();
     return;
   }
@@ -735,7 +732,6 @@ async function displayGenerateResult(data, generatorName) {
   }
   document.getElementById('view-mode').value = state.viewMode;
   restoreCameraIfSaved(savedCamera);
-  state.isGenerating = false;
   applyViewMode();
 }
 
@@ -938,8 +934,11 @@ function resetView() {
   if (!active) return;
   const wasLocked = state.cameraLocked;
   if (wasLocked) controls.enabled = true;
-  fitCamera(active);
-  if (wasLocked) controls.enabled = false;
+  try {
+    fitCamera(active);
+  } finally {
+    if (wasLocked) controls.enabled = false;
+  }
 }
 
 resetViewBtn.addEventListener('click', resetView);
