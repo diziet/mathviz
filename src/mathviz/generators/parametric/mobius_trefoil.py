@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 
 from mathviz.core.generator import GeneratorBase, register
-from mathviz.core.math_object import BoundingBox, MathObject, Mesh
+from mathviz.core.math_object import MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.generators.parametric._mesh_utils import compute_padded_bounding_box
 
@@ -38,6 +38,8 @@ def _compute_bishop_frames(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Compute parallel-transport (Bishop) frames along a closed curve.
 
+    After propagation, corrects for holonomy drift by measuring the angular
+    discrepancy at the seam and distributing it evenly across all frames.
     Returns normal and binormal arrays each of shape (N, 3).
     """
     n = len(curve)
@@ -68,8 +70,49 @@ def _compute_bishop_frames(
             ))
             normals[i] = _rotate_around_axis(normals[i - 1], b, angle)
 
+    # Correct holonomy drift: measure angular discrepancy at the seam and
+    # distribute correction evenly so the frame closes smoothly.
+    normals = _correct_frame_holonomy(normals, tangents)
+
     binormals = np.cross(tangents, normals)
     return normals, binormals
+
+
+def _correct_frame_holonomy(
+    normals: np.ndarray, tangents: np.ndarray,
+) -> np.ndarray:
+    """Distribute holonomy correction evenly across all frames."""
+    n = len(normals)
+    # Transport the last normal one more step to see where it lands vs normals[0]
+    transported = _transport_one_step(normals[-1], tangents[-1], tangents[0])
+    # Measure angle between transported frame and initial frame
+    cos_angle = np.clip(np.dot(transported, normals[0]), -1.0, 1.0)
+    cross = np.cross(transported, normals[0])
+    sign = np.sign(np.dot(cross, tangents[0]))
+    holonomy = sign * np.arccos(cos_angle)
+
+    if abs(holonomy) < 1e-12:
+        return normals
+
+    # Rotate each frame by -(i/n)*holonomy around its tangent
+    corrected = np.empty_like(normals)
+    for i in range(n):
+        correction_angle = -(float(i) / n) * holonomy
+        corrected[i] = _rotate_around_axis(normals[i], tangents[i], correction_angle)
+    return corrected
+
+
+def _transport_one_step(
+    normal: np.ndarray, tangent_from: np.ndarray, tangent_to: np.ndarray,
+) -> np.ndarray:
+    """Parallel-transport a normal vector one step between tangents."""
+    b = np.cross(tangent_from, tangent_to)
+    b_norm = np.linalg.norm(b)
+    if b_norm < 1e-10:
+        return normal.copy()
+    b = b / b_norm
+    angle = np.arccos(np.clip(np.dot(tangent_from, tangent_to), -1.0, 1.0))
+    return _rotate_around_axis(normal, b, angle)
 
 
 def _rotate_around_axis(
@@ -138,11 +181,13 @@ def _build_mobius_seam_faces(n_u: int, n_v: int) -> np.ndarray:
     interior_t1 = np.stack([i00, i10, i11], axis=-1)
     interior_t2 = np.stack([i00, i11, i01], axis=-1)
 
-    # Seam faces: row n_u-1 connects to row 0 with v-reversal
+    # Seam faces: row n_u-1 connects to row 0 with v-reversal.
+    # The v-reversal implements the Möbius half-twist, so winding at the seam
+    # is intentionally flipped relative to interior faces — this is what makes
+    # the surface non-orientable.
     sc = np.arange(n_v - 1)
     s00 = (n_u - 1) * n_v + sc
     s01 = (n_u - 1) * n_v + (sc + 1)
-    # Row 0, reversed: v maps to (n_v-1-v)
     s10 = (n_v - 1 - sc)
     s11 = (n_v - 1 - sc - 1)
 
@@ -201,17 +246,23 @@ class MobiusTrefoilGenerator(GeneratorBase):
         seed: int = 42,
         **resolution_kwargs: Any,
     ) -> MathObject:
-        """Generate a Möbius trefoil mesh."""
+        """Generate a Möbius trefoil mesh.
+
+        The seed parameter is accepted for base-class contract compatibility
+        and recorded in the MathObject, but does not affect geometry (this
+        generator is purely deterministic with no randomness).
+        """
         merged = self.get_default_params()
         if params:
             merged.update(params)
 
+        defaults = self._resolution_defaults
         width = float(merged["width"])
         curve_points = int(
-            resolution_kwargs.get("curve_points", _DEFAULT_CURVE_POINTS)
+            resolution_kwargs.get("curve_points", defaults["curve_points"])
         )
         grid_resolution = int(
-            resolution_kwargs.get("grid_resolution", _DEFAULT_GRID_RESOLUTION)
+            resolution_kwargs.get("grid_resolution", defaults["grid_resolution"])
         )
 
         _validate_params(width, curve_points, grid_resolution)

@@ -21,50 +21,61 @@ def _clean_registry():
     clear_registry(suppress_discovery=True)
 
 
+@pytest.fixture()
+def mesh_obj_128():
+    """Generate a Möbius trefoil mesh with 128 curve points."""
+    gen = MobiusTrefoilGenerator()
+    return gen.generate(grid_resolution=16, curve_points=128)
+
+
+@pytest.fixture()
+def mesh_obj_256():
+    """Generate a Möbius trefoil mesh with 256 curve points."""
+    gen = MobiusTrefoilGenerator()
+    return gen.generate(grid_resolution=16, curve_points=256)
+
+
+@pytest.fixture()
+def tri_mesh_256(mesh_obj_256):
+    """Build a trimesh from the 256-point Möbius trefoil."""
+    return trimesh.Trimesh(
+        vertices=mesh_obj_256.mesh.vertices,
+        faces=mesh_obj_256.mesh.faces,
+        process=False,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Produces a valid mesh
 # ---------------------------------------------------------------------------
 
 
-def test_default_produces_valid_mesh() -> None:
+def test_default_produces_valid_mesh(mesh_obj_128) -> None:
     """Default parameters produce a valid, non-empty mesh."""
-    gen = MobiusTrefoilGenerator()
-    obj = gen.generate(grid_resolution=16, curve_points=128)
-    obj.validate_or_raise()
+    mesh_obj_128.validate_or_raise()
 
-    assert obj.mesh is not None
-    assert len(obj.mesh.vertices) > 0
-    assert len(obj.mesh.faces) > 0
-    assert obj.bounding_box is not None
+    assert mesh_obj_128.mesh is not None
+    assert len(mesh_obj_128.mesh.vertices) > 0
+    assert len(mesh_obj_128.mesh.faces) > 0
+    assert mesh_obj_128.bounding_box is not None
 
 
-def test_no_nan_or_inf_vertices() -> None:
+def test_no_nan_or_inf_vertices(mesh_obj_128) -> None:
     """Mesh vertices contain no NaN or infinite values."""
-    gen = MobiusTrefoilGenerator()
-    obj = gen.generate(grid_resolution=16, curve_points=128)
-    assert obj.mesh is not None
-    assert np.all(np.isfinite(obj.mesh.vertices))
+    assert np.all(np.isfinite(mesh_obj_128.mesh.vertices))
 
 
-def test_face_indices_in_range() -> None:
+def test_face_indices_in_range(mesh_obj_128) -> None:
     """All face indices reference valid vertex positions."""
-    gen = MobiusTrefoilGenerator()
-    obj = gen.generate(grid_resolution=16, curve_points=128)
-    assert obj.mesh is not None
-    assert np.all(obj.mesh.faces >= 0)
-    assert np.all(obj.mesh.faces < len(obj.mesh.vertices))
+    assert np.all(mesh_obj_128.mesh.faces >= 0)
+    assert np.all(mesh_obj_128.mesh.faces < len(mesh_obj_128.mesh.vertices))
 
 
-def test_vertices_within_bounding_box() -> None:
+def test_vertices_within_bounding_box(mesh_obj_128) -> None:
     """All mesh vertices lie within the declared bounding box."""
-    gen = MobiusTrefoilGenerator()
-    obj = gen.generate(grid_resolution=16, curve_points=128)
-    assert obj.mesh is not None
-    assert obj.bounding_box is not None
-
-    verts = obj.mesh.vertices
-    min_c = np.array(obj.bounding_box.min_corner)
-    max_c = np.array(obj.bounding_box.max_corner)
+    verts = mesh_obj_128.mesh.vertices
+    min_c = np.array(mesh_obj_128.bounding_box.min_corner)
+    max_c = np.array(mesh_obj_128.bounding_box.max_corner)
 
     tolerance = 1e-6
     assert np.all(verts >= min_c - tolerance)
@@ -76,36 +87,17 @@ def test_vertices_within_bounding_box() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_surface_not_watertight() -> None:
+def test_surface_not_watertight(tri_mesh_256) -> None:
     """Möbius trefoil has a Möbius half-twist and is not watertight."""
-    gen = MobiusTrefoilGenerator()
-    obj = gen.generate(grid_resolution=16, curve_points=256)
-    assert obj.mesh is not None
-
-    tri_mesh = trimesh.Trimesh(
-        vertices=obj.mesh.vertices,
-        faces=obj.mesh.faces,
-        process=False,
-    )
-    assert not tri_mesh.is_watertight
+    assert not tri_mesh_256.is_watertight
 
 
-def test_surface_has_single_boundary() -> None:
-    """A Möbius strip has exactly one boundary loop (non-orientable sign)."""
-    gen = MobiusTrefoilGenerator()
-    obj = gen.generate(grid_resolution=16, curve_points=256)
-    assert obj.mesh is not None
-
-    tri_mesh = trimesh.Trimesh(
-        vertices=obj.mesh.vertices,
-        faces=obj.mesh.faces,
-        process=False,
-    )
-    # A Möbius strip has a single boundary component
-    edges = tri_mesh.edges_sorted
-    edge_counts = {}
+def test_surface_has_single_boundary(tri_mesh_256) -> None:
+    """A Möbius strip has boundary edges (non-orientable sign)."""
+    edges = tri_mesh_256.edges_sorted
+    edge_counts: dict[tuple[int, int], int] = {}
     for edge in edges:
-        key = tuple(edge)
+        key = (int(edge[0]), int(edge[1]))
         edge_counts[key] = edge_counts.get(key, 0) + 1
 
     # Boundary edges appear exactly once (not shared by two faces)
