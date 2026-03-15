@@ -154,11 +154,18 @@ def test_vertices_within_bounding_box() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_invalid_n_raises_value_error() -> None:
+def test_invalid_n_too_low_raises_value_error() -> None:
     """n < 2 raises ValueError."""
     gen = CalabiYauGenerator()
     with pytest.raises(ValueError, match="n must be >= 2"):
         gen.generate(params={"n": 1}, grid_resolution=16)
+
+
+def test_invalid_n_too_high_raises_value_error() -> None:
+    """n > 20 raises ValueError."""
+    gen = CalabiYauGenerator()
+    with pytest.raises(ValueError, match="n must be <= 20"):
+        gen.generate(params={"n": 21}, grid_resolution=16)
 
 
 def test_invalid_grid_resolution_raises_value_error() -> None:

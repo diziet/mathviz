@@ -26,6 +26,13 @@ _MIN_N = 2
 _MAX_N = 20
 
 
+def _complex_power(z: np.ndarray, exponent: float) -> np.ndarray:
+    """Raise complex array to a real power, preserving branch structure."""
+    r = np.abs(z)
+    theta = np.angle(z)
+    return (r ** exponent) * np.exp(1.0j * exponent * theta)
+
+
 def _evaluate_patch(
     u: np.ndarray,
     v: np.ndarray,
@@ -70,13 +77,6 @@ def _evaluate_patch(
     return x_out, y_out, z_out
 
 
-def _complex_power(z: np.ndarray, exponent: float) -> np.ndarray:
-    """Raise complex array to a real power, preserving branch structure."""
-    r = np.abs(z)
-    theta = np.angle(z)
-    return (r ** exponent) * np.exp(1.0j * exponent * theta)
-
-
 def _validate_params(n: int, alpha: float, grid_resolution: int) -> None:
     """Validate Calabi-Yau parameters."""
     if n < _MIN_N:
@@ -118,9 +118,9 @@ def _generate_calabi_yau_mesh(
     return Mesh(vertices=vertices, faces=faces)
 
 
-def _compute_bounding_box(n: int) -> BoundingBox:
+def _compute_bounding_box() -> BoundingBox:
     """Compute conservative bounding box for Calabi-Yau surface."""
-    # The surface is bounded by roughly 1.5 in each direction for any n
+    # Conservative envelope: surface fits within ±2.0 for any valid n
     extent = 2.0
     return BoundingBox(
         min_corner=(-extent, -extent, -extent),
@@ -169,7 +169,7 @@ class CalabiYauGenerator(GeneratorBase):
         _validate_params(n, alpha, grid_resolution)
 
         mesh = _generate_calabi_yau_mesh(n, alpha, grid_resolution)
-        bbox = _compute_bounding_box(n)
+        bbox = _compute_bounding_box()
 
         merged["grid_resolution"] = grid_resolution
 
