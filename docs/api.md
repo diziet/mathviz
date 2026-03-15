@@ -13,7 +13,7 @@ result = run(
     generator="lorenz",
     params={"sigma": 12.0, "rho": 28.0},
     seed=42,
-    container=Container(width_mm=100, height_mm=100, depth_mm=40),
+    container=Container(width_mm=100, height_mm=100, depth_mm=100),
     placement=PlacementPolicy(),
     export_config=ExportConfig(path="lorenz.ply"),
 )
@@ -97,7 +97,7 @@ obj = representation_strategy.apply(obj, config)
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.pipeline.transformer import fit
 
-container = Container(width_mm=100, height_mm=100, depth_mm=40)
+container = Container(width_mm=100, height_mm=100, depth_mm=100)
 policy = PlacementPolicy(anchor="center", depth_bias=1.2)
 
 obj = fit(obj, container, policy)

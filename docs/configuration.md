@@ -104,7 +104,7 @@ Defines the glass block dimensions and margins.
 |---|---|---|---|
 | `width_mm` | float | 100.0 | Block width in millimeters |
 | `height_mm` | float | 100.0 | Block height in millimeters |
-| `depth_mm` | float | 40.0 | Block depth in millimeters |
+| `depth_mm` | float | 100.0 | Block depth in millimeters |
 | `margin_x_mm` | float | 5.0 | Horizontal margin |
 | `margin_y_mm` | float | 5.0 | Vertical margin |
 | `margin_z_mm` | float | 5.0 | Depth margin |
