@@ -123,6 +123,7 @@ canvas{display:block}
 .param-buttons{display:flex;gap:6px}
 #param-error{font-size:11px;color:#ff6b6b;display:none;word-break:break-word}
 #param-loading{font-size:11px;opacity:0.6;display:none}
+.resolution-warning{font-size:10px;color:#ffaa33;margin-top:-4px}
 </style>
 </head>
 <body>
@@ -861,6 +862,24 @@ function createParamInput(name, value, description) {
   return wrapper;
 }
 
+function addResolutionWarning(input, wrapper) {
+  const warn = document.createElement('div');
+  warn.className = 'resolution-warning';
+  warn.style.display = 'none';
+  wrapper.appendChild(warn);
+  function checkWarn() {
+    const v = parseFloat(input.value);
+    if (!Number.isNaN(v) && v > 256) {
+      warn.textContent = 'High value — may be slow (N\u00B3 cost)';
+      warn.style.display = 'block';
+    } else {
+      warn.style.display = 'none';
+    }
+  }
+  input.addEventListener('input', checkWarn);
+  checkWarn();
+}
+
 function collectParamValues(paramContainer) {
   const values = {};
   for (const input of paramContainer.querySelectorAll('input[data-param-name]')) {
@@ -892,7 +911,10 @@ function populateParamFields(data) {
     paramResSection.style.display = 'block';
     for (const [name, value] of Object.entries(data.resolution)) {
       const desc = (data.descriptions && data.descriptions[name]) || null;
-      paramResFields.appendChild(createParamInput(name, value, desc));
+      const el = createParamInput(name, value, desc);
+      const numInput = el.querySelector('input[type="number"]');
+      if (numInput) addResolutionWarning(numInput, el);
+      paramResFields.appendChild(el);
     }
   }
 }
