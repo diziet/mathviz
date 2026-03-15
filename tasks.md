@@ -2686,14 +2686,24 @@ purely determined by parameters (not seed).
 
 ---
 
-## Task 66: Fix Lock Camera — disable OrbitControls when locked
+## Task 66: Fix Lock Camera — disable interaction and fix regeneration race
 
 **Objective:**
 
-The Lock Camera checkbox correctly preserves the camera position during
-regeneration (Auto-Apply works), but it does not prevent the user from
-manually rotating, panning, or zooming the camera. Checking "Lock Camera"
-should freeze all camera interaction.
+The Lock Camera checkbox has two bugs:
+
+1. **Does not prevent camera movement**: Checking "Lock Camera" sets
+   `state.cameraLocked = true` but never disables `OrbitControls`. The
+   user can still rotate, pan, and zoom freely.
+
+2. **Intermittent failure with Auto-Apply**: Camera lock sometimes fails
+   during rapid Auto-Apply regeneration. Root causes:
+   - `addBoundingBox()` is called unconditionally in `displayMesh()` and
+     may affect the scene even when locked
+   - No guard against concurrent `displayGenerateResult()` calls — rapid
+     auto-apply can fire overlapping async operations where the second
+     call's `saveCameraIfLocked()` captures a partially-modified state
+     from the first call
 
 **Suggested path:**
 
@@ -2701,16 +2711,31 @@ should freeze all camera interaction.
    `controls.enabled = !e.target.checked`. This disables all
    OrbitControls interaction (rotate, pan, zoom) when locked.
 
-2. The Reset View button should temporarily re-enable controls, reframe
-   the camera, then re-disable if still locked.
+2. Gate `addBoundingBox()` calls in `displayMesh()` and `displayCloud()`
+   behind `!state.cameraLocked` — when locked, keep the existing
+   bounding box or hide it.
 
-3. Visual feedback: when locked, optionally change the cursor over the
-   canvas to `not-allowed` or add a subtle border/indicator so the user
-   knows interaction is disabled.
+3. Add a generation guard to `displayGenerateResult()`: set a flag like
+   `state.isGenerating = true` at the start. If another call arrives
+   while generating, cancel/ignore the previous one. This prevents
+   overlapping async operations from corrupting camera state.
+
+4. When camera is locked and geometry regenerates, update only
+   `camera.near` and `camera.far` (for clipping) but do NOT change
+   position, target, or projection.
+
+5. The Reset View button should still work when locked — temporarily
+   re-enable controls, reframe, then re-disable.
+
+6. Visual feedback: change cursor to `not-allowed` over the canvas when
+   locked.
 
 **Tests:** `tests/test_preview/test_lock_camera.py` (extend existing)
 
 - Toggling Lock Camera on sets `controls.enabled` to false
 - Toggling Lock Camera off sets `controls.enabled` to true
+- `addBoundingBox` is skipped during regeneration when locked
+- Camera position is identical before and after 5 rapid auto-apply cycles
+- Concurrent `displayGenerateResult` calls are serialized or debounced
 - Reset View still works when camera is locked
-- Camera position does not change from user interaction when locked
+- Near/far clipping planes update even when locked
