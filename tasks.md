@@ -2518,3 +2518,54 @@ individual panels without taking up much screen space.
 - Exiting compare mode returns to single-view with panel 1's geometry
 - Shared controls (view mode, point size, background) apply to all panels
 - Changing params in one panel does not affect other panels
+
+---
+
+## Task 63: Generation timeout and cancel mechanism in preview server
+
+**Objective:**
+
+Add a 5-minute timeout to the pipeline generation in the preview server.
+If generation exceeds 5 minutes, kill it and return an error to the UI.
+Also add a cancel button so users can abort long-running generations
+without waiting for the timeout.
+
+**Suggested path:**
+
+1. **Server-side timeout**: Run the pipeline in a separate process (using
+   `concurrent.futures.ProcessPoolExecutor` or `multiprocessing.Process`)
+   so it can be killed cleanly. Set a 300-second (5-minute) timeout. If
+   the process exceeds the timeout, terminate it and return HTTP 504 with
+   a JSON body: `{"error": "Generation timed out after 5 minutes"}`.
+
+2. **Cancel endpoint**: Add `POST /api/generate/cancel` that terminates
+   the running generation process. Return 200 if a generation was
+   cancelled, 404 if nothing is running. Store the running process/future
+   in server state so it can be referenced.
+
+3. **UI cancel button**: While generation is in progress (loading spinner
+   is visible), show a "Cancel" button next to the spinner. On click,
+   POST to `/api/generate/cancel`. On success, hide the spinner and show
+   "Generation cancelled".
+
+4. **Timeout configuration**: The timeout should be configurable via
+   `MATHVIZ_GENERATION_TIMEOUT` env var (in seconds), defaulting to 300.
+
+5. **Cleanup**: When a generation is timed out or cancelled, ensure any
+   temporary files or partial results are cleaned up. The process should
+   be terminated, not just abandoned.
+
+6. **UI feedback**: Show elapsed time next to the loading spinner
+   (e.g., "Generating... 12s") so users know how long they've been
+   waiting and can decide whether to cancel.
+
+**Tests:** `tests/test_preview/test_generation_timeout.py`
+
+- Generation that exceeds timeout returns HTTP 504
+- Response body contains a meaningful error message
+- `POST /api/generate/cancel` returns 200 when generation is running
+- `POST /api/generate/cancel` returns 404 when nothing is running
+- Cancelled generation does not leave orphan processes
+- Preview HTML shows a cancel button during generation
+- Timeout is configurable via environment variable
+- Normal (fast) generation still works correctly with timeout in place
