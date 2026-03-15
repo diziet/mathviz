@@ -300,6 +300,7 @@ canvas{display:block}
       <div class="param-buttons">
         <button id="param-apply-btn">Apply</button>
         <button id="param-reset-btn">Reset</button>
+        <button id="param-randomize-btn" title="Randomize parameters (R)">&#x1F3B2;</button>
       </div>
     </div>
   </div>
@@ -1492,6 +1493,7 @@ async function fetchAndPopulateParams(generatorName) {
   paramPanel.style.display = 'flex';
   paramError.style.display = 'none';
   cachedParamDefaults = null;
+  cachedParamRanges = null;
 
   try {
     const resp = await fetch('/api/generators/' + encodeURIComponent(generatorName) + '/params');
@@ -1560,6 +1562,70 @@ async function applyParams() {
 
 document.getElementById('param-apply-btn').addEventListener('click', applyParams);
 document.getElementById('param-reset-btn').addEventListener('click', resetParamDefaults);
+
+/* ── Randomize parameters ── */
+let cachedParamRanges = null;
+
+async function fetchParamRanges(generatorName) {
+  try {
+    const resp = await fetch('/api/generators/' + encodeURIComponent(generatorName) + '/param-ranges');
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch (e) {
+    console.error('Failed to fetch param ranges:', e);
+    return null;
+  }
+}
+
+function randomizeInRange(min, max, step) {
+  if (step <= 0) return min;
+  const steps = Math.floor((max - min) / step);
+  const chosen = min + Math.floor(Math.random() * (steps + 1)) * step;
+  return Math.min(chosen, max);
+}
+
+async function randomizeParams() {
+  const currentGen = searchInput.value;
+  if (!currentGen) return;
+
+  if (!cachedParamRanges) {
+    cachedParamRanges = await fetchParamRanges(currentGen);
+  }
+  const ranges = cachedParamRanges || {};
+
+  for (const input of paramFields.querySelectorAll('input[data-param-name]')) {
+    const name = input.dataset.paramName;
+    const type = input.dataset.paramType;
+    if (type === 'boolean') {
+      input.checked = Math.random() > 0.5;
+      continue;
+    }
+    const range = ranges[name];
+    if (range && type === 'number') {
+      const val = randomizeInRange(range.min, range.max, range.step);
+      input.value = Number.isInteger(range.step) && range.step >= 1 ? Math.round(val) : parseFloat(val.toFixed(6));
+    }
+  }
+
+  // Randomize seed (0–999999)
+  const seedInput = document.getElementById('seed-input');
+  seedInput.value = Math.floor(Math.random() * 1000000);
+
+  if (state.autoApply) {
+    applyParams();
+  }
+}
+
+document.getElementById('param-randomize-btn').addEventListener('click', randomizeParams);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'r' || e.key === 'R') {
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    e.preventDefault();
+    randomizeParams();
+  }
+});
 
 /* ── Auto-Apply toggle with debounced input ── */
 let autoApplyTimer = null;
