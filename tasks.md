@@ -1319,3 +1319,63 @@ doesn't exist.
 - Preview server `GET /` returns 200 with HTML content
 - The HTML content contains expected markers (e.g., Three.js script tag or app container div)
 - Package data glob in pyproject.toml includes `static/*.html`
+
+---
+
+## Task 42: Add generator switcher with type-ahead search to preview UI
+
+**Objective:**
+
+Add a generator selection UI to the preview viewer so users can browse and
+switch between all available generators without restarting the server or
+editing the URL. The UI should include a searchable dropdown (type-ahead /
+autocomplete) in the top controls panel that lists all registered generators,
+grouped or sortable by category. Selecting a generator loads it immediately
+in the viewer. This replaces the current workflow of manually editing the
+`?generator=` query parameter in the URL.
+
+**Suggested path:**
+
+1. **Generator selector in the controls panel**: Add a combobox/dropdown at
+   the top of the existing `#controls` div in `index.html`. It should:
+   - Fetch the full generator list from `GET /api/generators` on page load
+   - Display generators in a searchable dropdown with type-ahead filtering
+     (user types "lor" and sees "lorenz", "lorenz_attractor" etc.)
+   - Show the generator category as secondary text or group headers
+     (e.g., "attractors", "parametric", "fractals")
+   - Pre-select the current generator from the URL query param if present
+   - On selection, call `POST /api/generate` with the new generator name
+     and reload the 3D scene without a full page refresh
+
+2. **Implementation approach**: Since the viewer is a single HTML file using
+   vanilla JS + Three.js from CDN, keep the combobox implementation
+   lightweight — no framework dependencies. Options:
+   - A custom `<input>` + filtered `<div>` dropdown (straightforward, no deps)
+   - An HTML `<datalist>` element for native browser autocomplete (simplest
+     but limited styling)
+   - The custom approach is preferred for consistent styling with the existing
+     dark/light theme controls
+
+3. **URL sync**: When a generator is selected, update the browser URL
+   (`history.replaceState`) with the new `?generator=` param so the URL
+   remains shareable and bookmarkable.
+
+4. **Seed control**: Add a small seed input field next to the generator
+   dropdown so users can regenerate with a different seed without URL editing.
+   Include a "randomize" button (dice icon or "Random" text) that picks a
+   random seed and regenerates.
+
+5. **Styling**: Match the existing controls panel style — dark translucent
+   background, light text, compact layout. The dropdown should overlay the
+   3D canvas when open and not push other controls around.
+
+**Tests:** `tests/test_preview/test_generator_switcher.py`
+
+- `GET /api/generators` returns a non-empty list with name and category fields
+- Preview `GET /` HTML contains the generator selector input element
+- Preview `GET /` HTML contains JavaScript that fetches `/api/generators`
+- Selecting a generator triggers a `POST /api/generate` with the correct name
+- URL is updated with the selected generator name after switching
+- Seed input field is present and changing it triggers regeneration
+- Generator list includes all registered generators (compare against registry)
+- Type-ahead filtering narrows the visible list correctly
