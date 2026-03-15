@@ -26,7 +26,7 @@ unique form rendered as a monochrome point cloud of micro-fractures.
 
 ## Features
 
-- **78 generators** across 12 categories (attractors, fractals, knots, parametric surfaces, and more)
+- **79 generators** across 12 categories (attractors, fractals, knots, parametric surfaces, and more)
 - **Linear pipeline**: Generate → Represent → Transform → Sample → Validate → Export
 - **9 representation strategies** for controlling how forms appear when engraved
 - **Deterministic output**: every form is reproducible from its seed
@@ -106,7 +106,7 @@ mathviz generate gyroid --profile production --output gyroid.ply
 | knots | 9 | `torus_knot`, `figure_eight_knot`, `lissajous_knot`, `seven_crossing_knots`, `trefoil_on_torus`, `pretzel_knot`, `cinquefoil_knot`, `borromean_rings`, `chain_links` | Mathematical knot curves and linked structures |
 | number_theory | 4 | `digit_encoding`, `prime_gaps`, `sacks_spiral`, `ulam_spiral` | Number-theoretic visualizations |
 | parametric | 17 | `bour_surface`, `boy_surface`, `calabi_yau`, `costa_surface`, `cross_cap`, `dini_surface`, `dna_helix`, `dupin_cyclide`, `enneper_surface`, `klein_bottle`, `lissajous_surface`, `mobius_strip`, `roman_surface`, `seifert_surface`, `spherical_harmonics`, `superellipsoid`, `torus` | Parametric surface meshes |
-| physics | 5 | `kepler_orbit`, `nbody`, `planetary_positions`, `electron_orbital`, `gravitational_lensing` | Physics simulations |
+| physics | 6 | `kepler_orbit`, `nbody`, `planetary_positions`, `electron_orbital`, `gravitational_lensing`, `wave_interference` | Physics simulations |
 | procedural | 5 | `noise_surface`, `reaction_diffusion`, `terrain`, `lsystem`, `rd_surface` | Procedurally generated surfaces and structures |
 | surfaces | 1 | `parabolic_envelope` | Ruled surfaces and envelopes |
 

@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 77 generators across 12 categories. Each generator produces a
+MathViz includes 78 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -1271,6 +1271,29 @@ Aliases: `grav_lens`, `spacetime_grid`
 
 ```bash
 mathviz generate gravitational_lensing --param mass=2.0 --param grid_lines=30 --output lensing.ply
+```
+
+### wave_interference
+
+3D standing wave interference pattern from multiple point sources with
+isosurface extraction. Computes the superposition of spherical waves
+sin(k·r − ωt) / r on a voxel grid and extracts an isosurface via marching
+cubes.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `num_sources` | 3 | Number of point sources (1–20) |
+| `wavelength` | 0.5 | Wavelength of each spherical wave |
+| `source_spacing` | 1.0 | Spacing between sources on z=0 plane |
+| `iso_level` | 0.5 | Isosurface threshold (0–1, normalized field) |
+| `time` | 0.0 | Time parameter for wave animation |
+
+Resolution: `voxel_resolution` (default 128) — voxels per axis (N³ cost).
+
+Aliases: `wave_pattern`, `interference`
+
+```bash
+mathviz generate wave_interference --param num_sources=5 --param wavelength=0.3 --seed 42 --output wave.ply
 ```
 
 ## Procedural
