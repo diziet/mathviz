@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).parent.parent
+ROOT = Path(__file__).parent.parent.parent
 README_PATH = ROOT / "README.md"
 DOCS_DIR = ROOT / "docs"
 
