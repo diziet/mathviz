@@ -8,7 +8,6 @@ import logging
 from typing import Any
 
 import numpy as np
-from numpy.random import default_rng
 
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, Curve, MathObject
@@ -144,16 +143,15 @@ class DNAHelixGenerator(GeneratorBase):
         rise_per_turn = float(merged["rise_per_turn"])
         base_pairs_per_turn = int(merged["base_pairs_per_turn"])
         curve_points = int(
-            resolution_kwargs.get("curve_points", _DEFAULT_CURVE_POINTS)
+            resolution_kwargs.get(
+                "curve_points", self._resolution_defaults["curve_points"],
+            )
         )
 
         _validate_params(
             turns, radius, rise_per_turn, base_pairs_per_turn, curve_points,
         )
         merged["curve_points"] = curve_points
-
-        # Not used for geometry, but consumed per project convention
-        default_rng(seed)
 
         # Backbone helices: offset by pi (180 degrees)
         helix_a = _compute_helix(turns, radius, rise_per_turn, curve_points, 0.0)

@@ -122,10 +122,10 @@ class TestDNAHelixRegistration:
 class TestDNAHelixDeterminism:
     """Tests for deterministic output."""
 
-    def test_same_seed_deterministic(self, gen: DNAHelixGenerator) -> None:
-        """Same seed and params produce identical output."""
+    def test_deterministic_across_seeds(self, gen: DNAHelixGenerator) -> None:
+        """Output is identical regardless of seed (no randomness involved)."""
         obj1 = gen.generate(seed=42, curve_points=_TEST_CURVE_POINTS)
-        obj2 = gen.generate(seed=42, curve_points=_TEST_CURVE_POINTS)
+        obj2 = gen.generate(seed=99, curve_points=_TEST_CURVE_POINTS)
         assert obj1.curves is not None and obj2.curves is not None
         assert len(obj1.curves) == len(obj2.curves)
         for c1, c2 in zip(obj1.curves, obj2.curves):
