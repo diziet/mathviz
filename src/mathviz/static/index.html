@@ -351,7 +351,7 @@ canvas{display:block}
     <div class="section-title">Options</div>
     <label><input type="checkbox" id="show-bbox" checked> Bounding Box</label>
     <label><input type="checkbox" id="toggle-bg"> Light Background</label>
-    <label><input type="checkbox" id="lock-camera"> Lock Camera</label>
+    <button id="lock-camera" data-mode="render" title="Camera: Locked (movable)">&#x1f512; Render Lock</button>
 
     <div id="crystal-controls" style="display:none">
       <div class="section-title">Crystal Settings</div>
@@ -425,7 +425,7 @@ const state = {
   viewMode: 'points',
   pointSize: 2,
   darkBg: true,
-  cameraLocked: false,
+  cameraLocked: 'render',
   generationId: 0,
   autoApply: false,
   geometryId: null,
@@ -639,7 +639,7 @@ function updateClippingPlanes(object3d) {
 /* Lock-aware camera + bounding box setup for newly loaded geometry */
 function setupCameraForObject(object3d) {
   addBoundingBox(object3d);
-  if (!state.cameraLocked) {
+  if (state.cameraLocked === 'off') {
     fitCamera(object3d);
   } else {
     updateClippingPlanes(object3d);
@@ -648,7 +648,7 @@ function setupCameraForObject(object3d) {
 
 /* Save camera state before clearScene when lock is active */
 function saveCameraIfLocked() {
-  if (!state.cameraLocked) return null;
+  if (state.cameraLocked === 'off') return null;
   return {
     target: controls.target.clone(),
     position: camera.position.clone(),
@@ -1178,10 +1178,23 @@ document.getElementById('toggle-bg').addEventListener('change', (e) => {
   if (state.compareMode) updatePanelBackgrounds();
 });
 
-document.getElementById('lock-camera').addEventListener('change', (e) => {
-  state.cameraLocked = e.target.checked;
-  controls.enabled = !e.target.checked;
-  renderer.domElement.style.cursor = e.target.checked ? 'not-allowed' : '';
+document.getElementById('lock-camera').addEventListener('click', () => {
+  const cycle = { render: 'full', full: 'off', off: 'render' };
+  const labels = {
+    render: '\u{1f512} Render Lock',
+    full: '\u{1f512} Full Lock',
+    off: '\u{1f513} Free',
+  };
+  const next = cycle[state.cameraLocked];
+  state.cameraLocked = next;
+  const btn = document.getElementById('lock-camera');
+  btn.dataset.mode = next;
+  btn.textContent = labels[next];
+  btn.title = next === 'render' ? 'Camera: Locked (movable)'
+    : next === 'full' ? 'Camera: Frozen'
+    : 'Camera: Free';
+  controls.enabled = next !== 'full';
+  renderer.domElement.style.cursor = next === 'full' ? 'not-allowed' : '';
 });
 
 /* ── Crystal control wiring ── */
@@ -1226,12 +1239,12 @@ document.getElementById('crystal-led-color').addEventListener('input', (e) => {
 function resetView() {
   const active = state.meshGroup || state.cloudPoints;
   if (!active) return;
-  const wasLocked = state.cameraLocked;
-  if (wasLocked) controls.enabled = true;
+  const wasFullLock = state.cameraLocked === 'full';
+  if (wasFullLock) controls.enabled = true;
   try {
     fitCamera(active);
   } finally {
-    if (wasLocked) controls.enabled = false;
+    if (wasFullLock) controls.enabled = false;
   }
 }
 
@@ -2494,7 +2507,7 @@ function exitCompareMode() {
     const active = state.meshGroup || state.cloudPoints;
     if (active) {
       addBoundingBox(active);
-      if (!state.cameraLocked) fitCamera(active);
+      if (state.cameraLocked === 'off') fitCamera(active);
       enableResetView();
     }
     applyViewMode();
