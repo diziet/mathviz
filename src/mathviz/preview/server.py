@@ -114,7 +114,6 @@ class SnapshotResponse(BaseModel):
     """Response body for POST /api/snapshots."""
 
     snapshot_id: str
-    path: str
 
 
 # --- Helpers ---
@@ -358,7 +357,7 @@ def create_snapshot(req: SnapshotRequest) -> SnapshotResponse:
         geometry_id=req.geometry_id,
     )
 
-    return SnapshotResponse(snapshot_id=snapshot_id, path=str(snapshot_path))
+    return SnapshotResponse(snapshot_id=snapshot_id)
 
 
 @app.get("/", response_class=HTMLResponse)

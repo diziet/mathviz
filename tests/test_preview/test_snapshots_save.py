@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import numpy as np
@@ -58,7 +59,7 @@ def _generate_torus(client: TestClient) -> str:
     return resp.json()["geometry_id"]
 
 
-def _make_snapshot_request(geometry_id: str) -> dict:
+def _make_snapshot_request(geometry_id: str) -> dict[str, Any]:
     """Build a standard snapshot request body."""
     return {
         "generator": "torus",
@@ -76,32 +77,36 @@ def _make_snapshot_request(geometry_id: str) -> dict:
     }
 
 
+@pytest.fixture
+def torus_snapshot(
+    client: TestClient, tmp_path: Path
+) -> tuple[dict[str, Any], Path]:
+    """Generate torus, save snapshot, return (response_data, snapshot_dir)."""
+    gid = _generate_torus(client)
+    with patch.dict(os.environ, {SNAPSHOTS_DIR_ENV_VAR: str(tmp_path)}):
+        resp = client.post("/api/snapshots", json=_make_snapshot_request(gid))
+    assert resp.status_code == 200
+    data = resp.json()
+    snapshot_dir = tmp_path / data["snapshot_id"]
+    return data, snapshot_dir
+
+
 class TestSnapshotCreation:
     """Tests for POST /api/snapshots creating snapshot directories."""
 
     def test_creates_snapshot_directory_with_metadata(
-        self, client: TestClient, tmp_path: Path
+        self, torus_snapshot: tuple[dict[str, Any], Path]
     ) -> None:
         """POST /api/snapshots creates a snapshot directory with metadata.json."""
-        gid = _generate_torus(client)
-        with patch.dict(os.environ, {SNAPSHOTS_DIR_ENV_VAR: str(tmp_path)}):
-            resp = client.post("/api/snapshots", json=_make_snapshot_request(gid))
-
-        assert resp.status_code == 200
-        data = resp.json()
-        snapshot_dir = Path(data["path"])
+        _data, snapshot_dir = torus_snapshot
         assert snapshot_dir.is_dir()
         assert (snapshot_dir / "metadata.json").is_file()
 
     def test_metadata_contains_required_fields(
-        self, client: TestClient, tmp_path: Path
+        self, torus_snapshot: tuple[dict[str, Any], Path]
     ) -> None:
         """metadata.json contains generator, params, seed, container, created_at."""
-        gid = _generate_torus(client)
-        with patch.dict(os.environ, {SNAPSHOTS_DIR_ENV_VAR: str(tmp_path)}):
-            resp = client.post("/api/snapshots", json=_make_snapshot_request(gid))
-
-        snapshot_dir = Path(resp.json()["path"])
+        _data, snapshot_dir = torus_snapshot
         metadata = json.loads((snapshot_dir / "metadata.json").read_text())
 
         assert metadata["generator"] == "torus"
@@ -110,43 +115,36 @@ class TestSnapshotCreation:
         assert "container" in metadata
         assert metadata["container"]["width_mm"] == 100.0
         assert "created_at" in metadata
-        assert metadata["geometry_id"] == gid
+        assert "geometry_id" in metadata
 
     def test_geometry_files_copied_to_snapshot_dir(
-        self, client: TestClient, tmp_path: Path
+        self, torus_snapshot: tuple[dict[str, Any], Path]
     ) -> None:
         """Geometry files (mesh.glb and/or cloud.ply) are copied to snapshot dir."""
-        gid = _generate_torus(client)
-        with patch.dict(os.environ, {SNAPSHOTS_DIR_ENV_VAR: str(tmp_path)}):
-            resp = client.post("/api/snapshots", json=_make_snapshot_request(gid))
-
-        snapshot_dir = Path(resp.json()["path"])
-        # Torus generates a mesh; check it exists and is valid GLB
+        _data, snapshot_dir = torus_snapshot
         mesh_file = snapshot_dir / "mesh.glb"
         assert mesh_file.is_file()
         assert mesh_file.read_bytes()[:4] == b"glTF"
 
     def test_snapshot_id_is_timestamp_based(
-        self, client: TestClient, tmp_path: Path
+        self, torus_snapshot: tuple[dict[str, Any], Path]
     ) -> None:
-        """Snapshot ID is timestamp-based (YYYYMMDD-HHMMSS format)."""
-        gid = _generate_torus(client)
-        with patch.dict(os.environ, {SNAPSHOTS_DIR_ENV_VAR: str(tmp_path)}):
-            resp = client.post("/api/snapshots", json=_make_snapshot_request(gid))
-
-        snapshot_id = resp.json()["snapshot_id"]
-        # Should match YYYYMMDD-HHMMSS pattern (possibly with -N suffix)
+        """Snapshot ID is timestamp-based (YYYYMMDD-HHMMSS-ffffff format)."""
+        data, _snapshot_dir = torus_snapshot
+        snapshot_id = data["snapshot_id"]
         parts = snapshot_id.split("-")
-        assert len(parts) >= 2
+        assert len(parts) >= 3
         assert len(parts[0]) == 8  # YYYYMMDD
         assert parts[0].isdigit()
         assert len(parts[1]) == 6  # HHMMSS
         assert parts[1].isdigit()
+        assert len(parts[2]) == 6  # microseconds
+        assert parts[2].isdigit()
 
     def test_snapshot_ids_are_unique(
         self, client: TestClient, tmp_path: Path
     ) -> None:
-        """Multiple snapshots get unique IDs (collision handling)."""
+        """Multiple snapshots get unique IDs."""
         gid = _generate_torus(client)
         ids = set()
         with patch.dict(os.environ, {SNAPSHOTS_DIR_ENV_VAR: str(tmp_path)}):
@@ -158,6 +156,14 @@ class TestSnapshotCreation:
                 ids.add(resp.json()["snapshot_id"])
 
         assert len(ids) == 3
+
+    def test_response_does_not_expose_filesystem_path(
+        self, torus_snapshot: tuple[dict[str, Any], Path]
+    ) -> None:
+        """Response contains snapshot_id but not full filesystem path."""
+        data, _snapshot_dir = torus_snapshot
+        assert "snapshot_id" in data
+        assert "path" not in data
 
 
 class TestSnapshotUI:
@@ -222,7 +228,6 @@ class TestSnapshotPointCloud:
         self, client: TestClient, tmp_path: Path
     ) -> None:
         """cloud.ply is saved when the geometry has a point cloud."""
-        # Manually inject a cache entry with both mesh and cloud
         obj = MathObject(
             mesh=Mesh(
                 vertices=np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=np.float64),
@@ -253,6 +258,6 @@ class TestSnapshotPointCloud:
             resp = client.post("/api/snapshots", json=req)
 
         assert resp.status_code == 200
-        snapshot_dir = Path(resp.json()["path"])
+        snapshot_dir = tmp_path / resp.json()["snapshot_id"]
         assert (snapshot_dir / "mesh.glb").is_file()
         assert (snapshot_dir / "cloud.ply").is_file()

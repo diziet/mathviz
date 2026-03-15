@@ -263,6 +263,7 @@ const state = {
   cameraLocked: false,
   autoApply: false,
   geometryId: null,
+  generatedWith: null,
 };
 
 const DARK_COLOR = 0x1a1a2e;
@@ -539,6 +540,7 @@ async function loadFromAPI(generator, genParams, seed) {
     if (!resp.ok) throw new Error(`Generate failed: ${resp.status}`);
     const data = await resp.json();
     state.geometryId = data.geometry_id;
+    state.generatedWith = {generator, params: genParams, seed, container: body.container};
     document.getElementById('save-btn').disabled = false;
     await displayGenerateResult(data, generator);
   } catch (err) {
@@ -697,15 +699,16 @@ const saveBtn = document.getElementById('save-btn');
 const saveToast = document.getElementById('save-toast');
 
 saveBtn.addEventListener('click', async () => {
-  if (!state.geometryId) return;
+  if (!state.geometryId || !state.generatedWith) return;
   saveBtn.disabled = true;
 
   try {
+    const gw = state.generatedWith;
     const body = {
-      generator: searchInput.value,
-      params: getEditorParams(),
-      seed: parseSeed(),
-      container: getContainerParams(),
+      generator: gw.generator,
+      params: gw.params,
+      seed: gw.seed,
+      container: gw.container,
       geometry_id: state.geometryId,
     };
     const resp = await fetch('/api/snapshots', {
@@ -714,10 +717,16 @@ saveBtn.addEventListener('click', async () => {
       body: JSON.stringify(body),
     });
     if (!resp.ok) throw new Error(`Save failed: ${resp.status}`);
+    saveToast.textContent = 'Saved!';
+    saveToast.style.background = 'rgba(34,139,34,0.9)';
     saveToast.classList.add('visible');
     setTimeout(() => saveToast.classList.remove('visible'), 2000);
   } catch (err) {
     console.error('Save error:', err);
+    saveToast.textContent = 'Save failed';
+    saveToast.style.background = 'rgba(220,50,50,0.9)';
+    saveToast.classList.add('visible');
+    setTimeout(() => saveToast.classList.remove('visible'), 2000);
   } finally {
     saveBtn.disabled = false;
   }

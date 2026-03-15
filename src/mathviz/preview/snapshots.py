@@ -30,10 +30,9 @@ def get_snapshots_dir() -> Path:
     return DEFAULT_SNAPSHOTS_DIR
 
 
-def _generate_snapshot_id() -> str:
-    """Generate a timestamp-based snapshot ID (YYYYMMDD-HHMMSS)."""
-    now = datetime.now(timezone.utc)
-    return now.strftime("%Y%m%d-%H%M%S")
+def _generate_snapshot_id(now: datetime) -> str:
+    """Generate a timestamp-based snapshot ID with microsecond precision."""
+    return now.strftime("%Y%m%d-%H%M%S-%f")
 
 
 def _write_metadata(
@@ -43,6 +42,7 @@ def _write_metadata(
     seed: int,
     container: dict[str, Any],
     geometry_id: str,
+    created_at: datetime,
 ) -> None:
     """Write metadata.json to the snapshot directory."""
     metadata = {
@@ -50,7 +50,7 @@ def _write_metadata(
         "params": params,
         "seed": seed,
         "container": container,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": created_at.isoformat(),
         "geometry_id": geometry_id,
     }
     meta_path = snapshot_dir / "metadata.json"
@@ -86,7 +86,7 @@ def _save_thumbnail(snapshot_dir: Path, math_object: MathObject) -> None:
         thumbnail_path = snapshot_dir / "thumbnail.png"
         render_to_png(math_object, thumbnail_path, config=config)
         logger.info("Saved thumbnail to %s", thumbnail_path)
-    except (ImportError, ValueError) as exc:
+    except (ImportError, ValueError, OSError, RuntimeError) as exc:
         logger.warning("Could not render thumbnail: %s", exc)
 
 
@@ -99,7 +99,8 @@ def save_snapshot(
     geometry_id: str,
 ) -> tuple[str, Path]:
     """Save a snapshot and return (snapshot_id, snapshot_dir)."""
-    snapshot_id = _generate_snapshot_id()
+    now = datetime.now(timezone.utc)
+    snapshot_id = _generate_snapshot_id(now)
     snapshots_dir = get_snapshots_dir()
     snapshot_dir = snapshots_dir / snapshot_id
 
@@ -113,9 +114,15 @@ def save_snapshot(
 
     snapshot_dir.mkdir(parents=True, exist_ok=True)
 
-    _write_metadata(snapshot_dir, generator, params, seed, container, geometry_id)
-    _save_geometry_files(snapshot_dir, math_object)
-    _save_thumbnail(snapshot_dir, math_object)
+    try:
+        _write_metadata(
+            snapshot_dir, generator, params, seed, container, geometry_id, now
+        )
+        _save_geometry_files(snapshot_dir, math_object)
+        _save_thumbnail(snapshot_dir, math_object)
+    except Exception:
+        shutil.rmtree(snapshot_dir, ignore_errors=True)
+        raise
 
     logger.info("Saved snapshot %s to %s", snapshot_id, snapshot_dir)
     return snapshot_id, snapshot_dir
