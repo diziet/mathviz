@@ -70,6 +70,10 @@ class GeneratorBase(ABC):
         """Generate geometry in abstract coordinate space."""
         ...
 
+    def get_default_resolution(self) -> dict[str, Any]:
+        """Return default values for resolution parameters."""
+        return {}
+
     def get_param_schema(self) -> dict[str, Any]:
         """Return JSON-schema-like description of all parameters for CLI/UI."""
         return {}

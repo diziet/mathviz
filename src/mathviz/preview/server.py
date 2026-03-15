@@ -145,6 +145,26 @@ def get_generator_details(name: str) -> GeneratorInfo:
     return _generator_info_from_meta(meta)
 
 
+@app.get("/api/generators/{name}/params")
+def get_generator_params(name: str) -> dict[str, Any]:
+    """Return default parameters, resolution defaults, and descriptions."""
+    try:
+        meta = get_generator_meta(name)
+    except KeyError:
+        raise _generator_not_found(name)
+
+    instance = meta.generator_class.create(resolved_name=name)
+    params = instance.get_default_params()
+    resolution = instance.get_default_resolution()
+    descriptions = dict(meta.resolution_params)
+
+    return {
+        "params": params,
+        "resolution": resolution,
+        "descriptions": descriptions,
+    }
+
+
 def _build_container(container_params: ContainerParams | None) -> Container:
     """Build a Container from request params, or return the default."""
     if container_params is None:
@@ -199,6 +219,8 @@ def generate_geometry(req: GenerateRequest) -> GenerateResponse:
             )
         except KeyError:
             raise _generator_not_found(req.generator)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         entry = CacheEntry(
             math_object=result.math_object,
