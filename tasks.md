@@ -3687,7 +3687,81 @@ sphere.
 
 ---
 
-## Task 90: Quaternion Julia set generator
+## Task 90: Epsilon separation for self-intersecting parametric surfaces
+
+**Objective:**
+
+Add a tiny epsilon offset at self-intersection regions of non-orientable
+and self-intersecting parametric surfaces to eliminate coincident vertices,
+z-fighting, degenerate normals, and visual pinching in the renderer.
+
+**Background:**
+
+Four parametric surfaces produce coincident vertex pairs where the surface
+passes through itself in 3D:
+
+| Surface | Coincident pairs | Cause |
+|---|---|---|
+| `klein_bottle` | 128 | v=0 and v=π map to same circle |
+| `cross_cap` | 510 | Self-intersection along a line segment |
+| `roman_surface` | 258 | Self-intersection curves + pinch points |
+| `boy_surface` | 258 | Triple point and self-intersection curves |
+
+When vertices from different parameter-space regions land at identical 3D
+positions, the mesh has degenerate triangles, undefined normals, and
+z-fighting artifacts. An epsilon separation (displacing one sheet slightly
+along the local surface normal at the intersection) fixes the visual
+without meaningfully affecting the mathematical shape.
+
+**Suggested path:**
+
+1. **Shared helper in `_mesh_utils.py`**: Add a function
+   `separate_coincident_vertices(vertices, faces, epsilon=1e-3)` that:
+   - Builds a KDTree of all vertices
+   - Finds pairs closer than `epsilon * 0.1`
+   - For each pair, computes approximate face normals from adjacent faces
+   - Offsets one vertex in each pair by `epsilon` along its face normal
+   - Returns the modified vertex array
+
+2. **Per-surface integration**: Call the helper after mesh construction in
+   each of the four generators:
+   - `klein_bottle.py` — after `_generate_klein_mesh`
+   - `cross_cap.py` — after `_generate_cross_cap_mesh`
+   - `roman_surface.py` — after `_generate_roman_mesh`
+   - `boy_surface.py` — after `_generate_boy_mesh`
+
+3. **Alternative per-surface approach**: If a shared helper is awkward
+   (different surfaces have different self-intersection geometry), add
+   surface-specific epsilon logic. For example, the Klein bottle could
+   offset vertices near v=0 vs v=π by ±epsilon along z.
+
+4. **Epsilon as parameter**: Expose `separation_epsilon` as an optional
+   parameter (default ~0.005) so users can tune or disable it (set to 0).
+
+**Files:**
+
+- `src/mathviz/generators/parametric/_mesh_utils.py`
+- `src/mathviz/generators/parametric/klein_bottle.py`
+- `src/mathviz/generators/parametric/cross_cap.py`
+- `src/mathviz/generators/parametric/roman_surface.py`
+- `src/mathviz/generators/parametric/boy_surface.py`
+- `tests/test_generators/test_epsilon_separation.py`
+
+**Tests:**
+
+- For each of the four surfaces, generate mesh and confirm zero coincident
+  vertex pairs (no pair closer than `epsilon * 0.5`)
+- Default epsilon produces visually distinct sheets (min NN distance > 0)
+- Setting `separation_epsilon=0` disables separation and coincident pairs
+  return
+- Mesh vertex count and face count are unchanged (no vertices added/removed)
+- Bounding box is not significantly changed (within 1% of original)
+- All four surfaces still pass their existing test suites
+
+
+---
+
+## Task 91: Quaternion Julia set generator
 
 **Objective:**
 
@@ -3717,7 +3791,7 @@ producing smoother, more organic shapes than the Mandelbulb.
 
 ---
 
-## Task 91: Burning ship fractal heightmap generator
+## Task 92: Burning ship fractal heightmap generator
 
 **Objective:**
 
@@ -3746,7 +3820,7 @@ heightmap.
 
 ---
 
-## Task 92: IFS fractal generator
+## Task 93: IFS fractal generator
 
 **Objective:**
 
@@ -3779,7 +3853,7 @@ Barnsley fern in 3D, Sierpinski variants, and custom affine transforms.
 
 ---
 
-## Task 93: Koch snowflake 3D generator
+## Task 94: Koch snowflake 3D generator
 
 **Objective:**
 
@@ -3805,7 +3879,7 @@ extruded or revolved into a 3D solid.
 
 ---
 
-## Task 94: Electron orbital generator
+## Task 95: Electron orbital generator
 
 **Objective:**
 
@@ -3837,7 +3911,7 @@ isosurfaces for s, p, d, and f orbitals.
 
 ---
 
-## Task 95: Magnetic field lines generator
+## Task 96: Magnetic field lines generator
 
 **Objective:**
 
@@ -3868,7 +3942,7 @@ quadrupole configurations rendered as tube curves.
 
 ---
 
-## Task 96: DNA double helix generator
+## Task 97: DNA double helix generator
 
 **Objective:**
 
@@ -3897,7 +3971,7 @@ base pair rungs connecting them.
 
 ---
 
-## Task 97: Hopf fibration generator
+## Task 98: Hopf fibration generator
 
 **Objective:**
 
@@ -3932,7 +4006,7 @@ stunning mathematical objects.
 
 ---
 
-## Task 98: Gravitational lensing grid generator
+## Task 99: Gravitational lensing grid generator
 
 **Objective:**
 
@@ -3961,7 +4035,7 @@ coordinate grid showing spacetime curvature around a point mass.
 
 ---
 
-## Task 99: Wave interference pattern generator
+## Task 100: Wave interference pattern generator
 
 **Objective:**
 
@@ -3990,7 +4064,7 @@ point sources.
 
 ---
 
-## Task 100: Hilbert curve 3D generator
+## Task 101: Hilbert curve 3D generator
 
 **Objective:**
 
@@ -4018,7 +4092,7 @@ visits every cell in a cubic grid exactly once.
 
 ---
 
-## Task 101: Penrose tiling 3D generator
+## Task 102: Penrose tiling 3D generator
 
 **Objective:**
 
@@ -4046,7 +4120,7 @@ a relief surface.
 
 ---
 
-## Task 102: Weaire-Phelan foam structure generator
+## Task 103: Weaire-Phelan foam structure generator
 
 **Objective:**
 
@@ -4075,7 +4149,7 @@ known foam partition of space into equal-volume cells.
 
 ---
 
-## Task 103: Geodesic sphere generator
+## Task 104: Geodesic sphere generator
 
 **Objective:**
 
@@ -4105,7 +4179,7 @@ frequencies, like Buckminster Fuller domes.
 
 ---
 
-## Task 104: Möbius trefoil generator
+## Task 105: Möbius trefoil generator
 
 **Objective:**
 
@@ -4130,7 +4204,7 @@ trefoil knot shape, combining non-orientability with knot topology.
 
 ---
 
-## Task 105: Linked tori generator
+## Task 106: Linked tori generator
 
 **Objective:**
 
@@ -4154,7 +4228,7 @@ like links in a chain.
 
 ---
 
-## Task 106: Twisted torus generator
+## Task 107: Twisted torus generator
 
 **Objective:**
 
@@ -4183,7 +4257,7 @@ cross-section rotates N times as it goes around the loop.
 
 ---
 
-## Task 107: Rose surface generator
+## Task 108: Rose surface generator
 
 **Objective:**
 
@@ -4208,7 +4282,7 @@ into 3D, producing flower-like petals.
 
 ---
 
-## Task 108: Shell spiral generator
+## Task 109: Shell spiral generator
 
 **Objective:**
 
@@ -4237,7 +4311,7 @@ with expanding cross-section, producing a nautilus-like form.
 
 ---
 
-## Task 109: Gear / involute curve generator
+## Task 110: Gear / involute curve generator
 
 **Objective:**
 
@@ -4266,7 +4340,7 @@ geometry extruded into a 3D solid.
 
 ---
 
-## Task 110: Update documentation for Tasks 77–109 generators
+## Task 111: Update documentation for Tasks 77–109 generators
 
 **Objective:**
 
@@ -4313,7 +4387,7 @@ This is a follow-up to Task 75 (which covers Tasks 70–74 generators).
 
 ---
 
-## Task 112: Realistic K9 glass crystal preview mode
+## Task 113: Realistic K9 glass crystal preview mode
 
 **Objective:**
 
@@ -4389,7 +4463,7 @@ they glow and scatter light.
 
 ---
 
-## Task 111: Disk-based generation cache with UI indicator and invalidation
+## Task 112: Disk-based generation cache with UI indicator and invalidation
 
 **Objective:**
 
@@ -4448,7 +4522,7 @@ and provide a button to force regeneration (bypass cache).
 
 ---
 
-## Task 113: Remove redundant `cell_size` parameter from TPMS generators
+## Task 114: Remove redundant `cell_size` parameter from TPMS generators
 
 **Objective:**
 
@@ -4498,7 +4572,7 @@ and keep only `periods` to eliminate user confusion.
 
 ---
 
-## Task 114: Split Lock Camera into two modes — render lock and full lock
+## Task 115: Split Lock Camera into two modes — render lock and full lock
 
 **Objective:**
 
@@ -4570,7 +4644,7 @@ Clicking the toggle cycles: **Render Lock → Full Lock → Off → Render Lock*
 
 ---
 
-## Task 115: Fix randomize ranges and add editable min/max to parameter UI
+## Task 116: Fix randomize ranges and add editable min/max to parameter UI
 
 **Objective:**
 
@@ -4647,7 +4721,7 @@ Two related issues with the dice (randomize) button:
 
 ---
 
-## Task 116: Collapsible Dimensions/Margins panel, collapsed by default
+## Task 117: Collapsible Dimensions/Margins panel, collapsed by default
 
 **Objective:**
 
@@ -4688,7 +4762,7 @@ it stays out of the way until the user needs it.
 
 ---
 
-## Task 117: Fix save after load, show params in gallery, save camera state
+## Task 118: Fix save after load, show params in gallery, save camera state
 
 **Objective:**
 
@@ -4779,7 +4853,7 @@ Three issues with the save/load snapshot system:
 
 ---
 
-## Task 118: Colored axis labels on bounding box and per-axis stretch controls
+## Task 119: Colored axis labels on bounding box and per-axis stretch controls
 
 **Objective:**
 
@@ -4850,7 +4924,7 @@ Two related features for the preview UI:
 
 ---
 
-## Task 119: Generator thumbnail endpoint with persistent disk cache
+## Task 120: Generator thumbnail endpoint with persistent disk cache
 
 **Objective:**
 
@@ -4909,7 +4983,7 @@ browser (Tasks 118–119).
 
 ---
 
-## Task 120: Visual generator browser modal with category grid
+## Task 121: Visual generator browser modal with category grid
 
 **Objective:**
 
@@ -4992,7 +5066,7 @@ endpoint).
 
 ---
 
-## Task 121: Generator browser keyboard navigation and shortcuts
+## Task 122: Generator browser keyboard navigation and shortcuts
 
 **Objective:**
 
@@ -5060,7 +5134,7 @@ via keyboard. Depends on Task 118.
 
 ---
 
-## Task 122: Point cloud density slider — real-time thinning without regeneration
+## Task 123: Point cloud density slider — real-time thinning without regeneration
 
 **Objective:**
 
@@ -5108,7 +5182,7 @@ pipeline. Useful for performance tuning and visual clarity on dense clouds.
 
 ---
 
-## Task 123: Turntable animation with GIF/MP4 export
+## Task 124: Turntable animation with GIF/MP4 export
 
 **Objective:**
 
@@ -5158,7 +5232,7 @@ animation as a GIF or MP4 for sharing.
 
 ---
 
-## Task 124: Color mapping view mode — vertex coloring by curvature, height, or distance
+## Task 125: Color mapping view mode — vertex coloring by curvature, height, or distance
 
 **Objective:**
 
@@ -5221,7 +5295,7 @@ curvature or a Lorenz attractor colored by velocity would look stunning.
 
 ---
 
-## Task 125: Comprehensive generator documentation with examples and thumbnails
+## Task 126: Comprehensive generator documentation with examples and thumbnails
 
 **Objective:**
 
@@ -5271,7 +5345,7 @@ that produce interesting results.
 
 ---
 
-## Task 126: Document all preview UI features and controls
+## Task 127: Document all preview UI features and controls
 
 **Objective:**
 
