@@ -1681,3 +1681,62 @@ wireframe from the CLI.
 - Default style (no flag) renders as points
 - `--point-size 5` with `--style points` produces visually different output than default
 - Invalid style value is rejected with a clear error
+
+---
+
+## Task 48: Fix bounding box and geometry in different coordinate spaces in preview
+
+**Objective:**
+
+Fix the bug where the bounding box wireframe and the 3D geometry are rendered
+in completely different positions in the preview viewer. The bounding box
+appears at the origin while the geometry is far away, making the bounding box
+useless for visualizing fit.
+
+**Root cause:** The `addBoundingBox()` function in `index.html` draws the
+container box centered at the origin (±half-dimensions scaled by 0.01). But
+the geometry from the pipeline is in mm space — the transformer places
+vertices at coordinates like (5, 5, 7) to (95, 95, 33) for a 100x100x40mm
+container. The mesh is centered around (50, 50, 20), not the origin. The
+bounding box and geometry are in completely different coordinate spaces with
+different origins and different scales.
+
+**Suggested path:**
+
+There are two clean approaches — pick one:
+
+**Option A — Compute bounding box from actual geometry (simplest):**
+Replace the container-based bounding box with one computed from the actual
+mesh geometry. Change `addBoundingBox(object3d)` to use
+`new THREE.Box3().setFromObject(object3d)` instead of hardcoded container
+dimensions. This always matches the geometry regardless of coordinate space.
+The container dimensions would only be shown as text info, not as a 3D box.
+
+**Option B — Align coordinate spaces (more correct):**
+Ensure both the bounding box and geometry share the same coordinate space.
+Either:
+- Re-center the geometry to the origin in the GLB serialization step
+  (`mesh_to_glb` in `lod.py`), translating vertices so the mesh center is
+  at (0,0,0). Then the container box at ±half-dimensions will align.
+- Or move the bounding box to match the geometry's actual position: compute
+  the mesh center and offset the box to match.
+
+Option B is preferred because it preserves the container visualization, which
+becomes important for Task 43 (container editor). The re-centering should
+happen in the serialization layer (`mesh_to_glb`) so the Three.js scene
+always receives geometry centered at the origin. The bounding box then
+correctly represents the container the geometry fits within.
+
+If re-centering in `mesh_to_glb`, also re-center in `cloud_to_binary_ply`
+so point cloud data is consistent. Store the translation offset in the API
+response if needed for round-tripping back to absolute coordinates.
+
+**Tests:** `tests/test_preview/test_bounding_box.py`
+
+- Bounding box and geometry overlap visually (box contains the geometry)
+- Bounding box center matches geometry center (within tolerance)
+- Geometry is centered at approximately the origin after serialization
+- Point cloud data is also centered at the origin
+- Bounding box dimensions match the container dimensions
+- Toggling the bounding box checkbox shows/hides the box (existing behavior preserved)
+- `fitCamera` centers the view on the geometry (not on the origin if different)
