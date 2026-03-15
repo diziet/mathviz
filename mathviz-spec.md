@@ -33,7 +33,7 @@ Generator ──▶ MathObject(raw) ──▶ RepresentationStrategy ──▶ T
 
 2. **Representation** — A `RepresentationStrategy` decides how the raw geometry should be physically realized for engraving. This is a fabrication policy, not a generator concern. Examples: keep a Lorenz trajectory as a raw point cloud; thicken a torus knot curve into a tube mesh; convert a gyroid implicit field into a surface shell clipped to a slab; render a Mandelbulb as a sparse shell rather than a solid fill. The strategy produces one or more candidate representations as new MathObjects. The operator selects which to use (or the default is applied automatically).
 
-3. **Transform** — The `Transformer` scales, centers, and fits the geometry into a physical container (defined in millimeters) according to a `PlacementPolicy`. Preserves aspect ratio by default, with optional depth bias, anchor mode, and perceptual corrections for the shallow 40mm glass block.
+3. **Transform** — The `Transformer` scales, centers, and fits the geometry into a physical container (defined in millimeters) according to a `PlacementPolicy`. Preserves aspect ratio by default, with optional depth bias, anchor mode, and perceptual corrections for the glass block.
 
 4. **Sample** — The `Sampler` converts surface meshes or volumes into point clouds at a specified density. This stage is skipped if the object is already a point cloud and no resampling is requested.
 
@@ -217,7 +217,7 @@ class Container(BaseModel):
     """Physical glass block dimensions. Margins are always per-axis."""
     width_mm: float = 100.0      # x-axis
     height_mm: float = 100.0     # y-axis
-    depth_mm: float = 40.0       # z-axis
+    depth_mm: float = 100.0      # z-axis
     margin_x_mm: float = 5.0
     margin_y_mm: float = 5.0
     margin_z_mm: float = 5.0
@@ -231,7 +231,7 @@ class Container(BaseModel):
         )
 
     @classmethod
-    def with_uniform_margin(cls, w: float = 100, h: float = 100, d: float = 40, margin: float = 5) -> "Container":
+    def with_uniform_margin(cls, w: float = 100, h: float = 100, d: float = 100, margin: float = 5) -> "Container":
         """Convenience constructor for uniform margins."""
         return cls(width_mm=w, height_mm=h, depth_mm=d,
                    margin_x_mm=margin, margin_y_mm=margin, margin_z_mm=margin)
@@ -239,10 +239,9 @@ class Container(BaseModel):
 class PlacementPolicy(BaseModel):
     """Controls how geometry is positioned and scaled within the container.
 
-    The glass block is 100×100×40mm. The shallow depth is an optical constraint,
-    not just a geometric one. Many forms that are mathematically balanced in xyz
-    will read badly when compressed into 30mm usable depth. This policy lets the
-    operator tune placement for the medium.
+    The default glass block is 100×100×100mm. When using shallow blocks, many forms
+    that are mathematically balanced in xyz will read badly when compressed. This
+    policy lets the operator tune placement for the medium.
     """
     anchor: Literal["center", "front", "back", "top", "bottom", "left", "right"] = "center"
     viewing_axis: Literal["+z", "-z", "+x", "-x", "+y", "-y"] = "+z"
@@ -256,7 +255,7 @@ class PlacementPolicy(BaseModel):
 
 Margins are always per-axis. The convenience constructor `Container.with_uniform_margin()` covers the common case. No dual-path None-check logic.
 
-Default: 100×100×40mm block with 5mm margins → 90×90×30mm usable volume.
+Default: 100×100×100mm block with 5mm margins → 90×90×90mm usable volume.
 
 ### 3.3 RepresentationStrategy
 
@@ -1119,7 +1118,7 @@ Optional `mathviz.toml` in working directory:
 [container]
 width_mm = 100
 height_mm = 100
-depth_mm = 40
+depth_mm = 100
 margin_x_mm = 5
 margin_y_mm = 5
 margin_z_mm = 5
@@ -1200,7 +1199,7 @@ rotation_degrees = [0, 0, 0]
 [container]
 width_mm = 100
 height_mm = 100
-depth_mm = 40
+depth_mm = 100
 margin_x_mm = 5
 margin_y_mm = 5
 margin_z_mm = 5
@@ -1920,8 +1919,8 @@ Surface point: r(θ,φ) · (sin θ cos φ, sin θ sin φ, cos θ)
 
 ### Point Density
 
-Subsurface laser engraving typically operates at 500–1000 DPI equivalent in 3D (~20–40 points per mm per axis). For a 90×90×30mm usable volume:
-- At 20 pts/mm: 1800 × 1800 × 600 = ~1.9 billion potential points (maximum theoretical)
+Subsurface laser engraving typically operates at 500–1000 DPI equivalent in 3D (~20–40 points per mm per axis). For a 90×90×90mm usable volume:
+- At 20 pts/mm: 1800 × 1800 × 1800 = ~5.8 billion potential points (maximum theoretical)
 - Actual objects use far fewer (surface-only, sparse structures)
 - Typical: 100K–5M points
 
@@ -1929,7 +1928,7 @@ The `point_budget` parameter caps output. Default: 2M for production.
 
 ### Engraving Depth and Aspect Ratio
 
-The z-axis (depth) is 40mm vs 100mm width/height. Mathematically balanced objects appear compressed. The `PlacementPolicy.depth_bias` parameter lets the operator exaggerate or further compress depth to optimize visual readability in the medium. The default of 1.0 applies no correction; values of 1.2–1.5 may help for objects with important z-axis structure.
+The default container is a 100×100×100mm cube. When using non-cubic containers (e.g. shallow blocks), mathematically balanced objects may appear compressed. The `PlacementPolicy.depth_bias` parameter lets the operator exaggerate or further compress depth to optimize visual readability in the medium. The default of 1.0 applies no correction; values of 1.2–1.5 may help for objects with important z-axis structure in shallow containers.
 
 ### Fracture Point Visibility
 

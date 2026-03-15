@@ -1389,7 +1389,7 @@ in the viewer. This replaces the current workflow of manually editing the
 Add a second controls panel to the preview viewer that lets users edit the
 container (glass block) dimensions and margins, then re-render the geometry
 to fit the new bounding box. Currently the preview server hardcodes
-`Container.with_uniform_margin()` (100x100x40mm, 5mm margins). This panel
+`Container.with_uniform_margin()` (100x100x100mm, 5mm margins). This panel
 gives users interactive control over the physical dimensions their geometry
 will be fitted into, so they can see how the object scales and fits before
 exporting.
@@ -1400,17 +1400,17 @@ exporting.
    (opposite the existing controls on the right) or below the existing
    controls. The panel should contain:
    - **Dimensions section**: Three numeric inputs for Width (X), Height (Y),
-     and Depth (Z) in mm, defaulting to 100, 100, 40
+     and Depth (Z) in mm, defaulting to 100, 100, 100
    - **Margins section**: Three numeric inputs for X, Y, Z margins in mm,
      defaulting to 5, 5, 5. Optionally a "uniform margin" checkbox that
      locks all three to the same value (common case)
    - **Usable volume display**: Read-only text showing the computed usable
-     volume after margins (e.g., "Usable: 90 x 90 x 30 mm"), updated live
+     volume after margins (e.g., "Usable: 90 x 90 x 90 mm"), updated live
      as the user types
    - **Apply button**: Triggers re-generation with the new container
      dimensions. Does NOT auto-regenerate on every keystroke (generation can
      be slow for complex generators like mandelbulb)
-   - **Reset button**: Restores defaults (100x100x40, 5mm margins)
+   - **Reset button**: Restores defaults (100x100x100, 5mm margins)
 
 2. **Server changes** (`server.py`): Extend the `GenerateRequest` model to
    accept optional container parameters:
@@ -1436,7 +1436,7 @@ exporting.
 - `POST /api/generate` with custom container dimensions returns 200
 - Custom container dimensions change the transformer scale in the result
 - Invalid margins (margin >= half dimension) return 422 with error message
-- Default container values (100x100x40, margins 5) match current behavior
+- Default container values (100x100x100, margins 5) match current behavior
 - Usable volume calculation is correct (dimension - 2*margin per axis)
 - Preview HTML contains the container editor panel with dimension inputs
 - Apply button triggers a new `POST /api/generate` with container params
@@ -1696,7 +1696,7 @@ useless for visualizing fit.
 **Root cause:** The `addBoundingBox()` function in `index.html` draws the
 container box centered at the origin (±half-dimensions scaled by 0.01). But
 the geometry from the pipeline is in mm space — the transformer places
-vertices at coordinates like (5, 5, 7) to (95, 95, 33) for a 100x100x40mm
+vertices at coordinates like (5, 5, 7) to (95, 95, 95) for a 100x100x100mm
 container. The mesh is centered around (50, 50, 20), not the origin. The
 bounding box and geometry are in completely different coordinate spaces with
 different origins and different scales.
