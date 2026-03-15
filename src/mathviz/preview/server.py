@@ -68,7 +68,7 @@ class ContainerParams(BaseModel):
 
     width_mm: float = 100.0
     height_mm: float = 100.0
-    depth_mm: float = 40.0
+    depth_mm: float = 100.0
     margin_x_mm: float = 5.0
     margin_y_mm: float = 5.0
     margin_z_mm: float = 5.0

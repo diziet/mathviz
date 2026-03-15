@@ -96,7 +96,7 @@ def register_util_commands(
         output_path: Path = typer.Argument(help="Output geometry file"),
         width: float = typer.Option(100.0, "--width", help="Container width (mm)"),
         height: float = typer.Option(100.0, "--height", help="Container height (mm)"),
-        depth: float = typer.Option(40.0, "--depth", help="Container depth (mm)"),
+        depth: float = typer.Option(100.0, "--depth", help="Container depth (mm)"),
         fmt: Optional[str] = typer.Option(None, "--format", help="Output format override"),
         verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
         quiet: bool = typer.Option(False, "--quiet", help="Suppress non-error output"),
