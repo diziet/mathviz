@@ -13,7 +13,11 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
-from mathviz.generators.parametric._mesh_utils import compute_padded_bounding_box
+from mathviz.generators.parametric._mesh_utils import (
+    _build_v_wrapped_interior_faces,
+    build_wrapped_grid_faces,
+    compute_padded_bounding_box,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +25,7 @@ _DEFAULT_TWIST = 3
 _DEFAULT_MAJOR_RADIUS = 1.0
 _DEFAULT_MINOR_RADIUS = 0.3
 _DEFAULT_GRID_RESOLUTION = 128
-_MIN_GRID_RESOLUTION = 3
+_MIN_GRID_RESOLUTION = 4
 _MIN_TWIST = 0
 
 
@@ -44,46 +48,16 @@ def _evaluate_twisted_torus(
     return x, y, z
 
 
-def _build_even_twist_faces(n: int) -> np.ndarray:
-    """Build faces for even twist (wraps in both u and v)."""
-    row = np.arange(n)
-    col = np.arange(n)
-    rr, cc = np.meshgrid(row, col, indexing="ij")
-    rr, cc = rr.ravel(), cc.ravel()
-
-    i00 = rr * n + cc
-    i10 = ((rr + 1) % n) * n + cc
-    i01 = rr * n + ((cc + 1) % n)
-    i11 = ((rr + 1) % n) * n + ((cc + 1) % n)
-
-    tri1 = np.stack([i00, i10, i11], axis=-1)
-    tri2 = np.stack([i00, i11, i01], axis=-1)
-    return np.concatenate([tri1, tri2], axis=0).astype(np.int64)
-
-
-def _build_odd_twist_faces(n: int) -> np.ndarray:
+def _build_odd_twist_seam_faces(n: int) -> np.ndarray:
     """Build faces for odd twist (non-orientable seam).
 
-    Interior rows (0..n-2) wrap in v normally. At the u-seam (row n-1
-    to row 0), vertex (n-1, j) connects to (0, (j + n//2) % n) with
-    reversed winding, creating a non-orientable surface analogous to
-    a Klein bottle or Möbius strip.
+    Interior rows (0..n-2) wrap in v normally via _build_v_wrapped_interior_faces.
+    At the u-seam (row n-1 to row 0), vertex (n-1, j) connects to
+    (0, (j + n//2) % n) with reversed winding, creating a non-orientable
+    surface analogous to a Klein bottle or Möbius strip.
     """
     half = n // 2
-
-    # Interior faces: rows 0..n-2
-    rows = np.arange(n - 1)
-    cols = np.arange(n)
-    rr, cc = np.meshgrid(rows, cols, indexing="ij")
-    rr, cc = rr.ravel(), cc.ravel()
-
-    i00 = rr * n + cc
-    i10 = (rr + 1) * n + cc
-    i01 = rr * n + ((cc + 1) % n)
-    i11 = (rr + 1) * n + ((cc + 1) % n)
-
-    interior_t1 = np.stack([i00, i10, i11], axis=-1)
-    interior_t2 = np.stack([i00, i11, i01], axis=-1)
+    interior_t1, interior_t2 = _build_v_wrapped_interior_faces(n - 1, n)
 
     # Seam faces: row n-1 connects to row 0 with half-period v shift.
     # Winding is reversed to make the surface non-orientable — the face
@@ -120,11 +94,10 @@ def _build_twisted_torus_mesh(
     vertices = np.column_stack([x.ravel(), y.ravel(), z.ravel()])
     vertices = vertices.astype(np.float64)
 
-    is_even_twist = (twist % 2 == 0)
-    if is_even_twist:
-        faces = _build_even_twist_faces(n)
+    if twist % 2 == 0:
+        faces = build_wrapped_grid_faces(n, n)
     else:
-        faces = _build_odd_twist_faces(n)
+        faces = _build_odd_twist_seam_faces(n)
 
     return Mesh(vertices=vertices, faces=faces)
 
@@ -146,6 +119,11 @@ def _validate_params(
         raise ValueError(
             f"grid_resolution must be >= {_MIN_GRID_RESOLUTION}, "
             f"got {grid_resolution}"
+        )
+    if twist % 2 != 0 and grid_resolution % 2 != 0:
+        raise ValueError(
+            f"grid_resolution must be even when twist is odd, "
+            f"got grid_resolution={grid_resolution} with twist={twist}"
         )
     if minor_radius >= major_radius:
         logger.warning(
@@ -199,8 +177,9 @@ class TwistedTorusGenerator(GeneratorBase):
         twist = int(merged["twist"])
         major_radius = float(merged["major_radius"])
         minor_radius = float(merged["minor_radius"])
+        defaults = self._resolution_defaults
         grid_resolution = int(
-            resolution_kwargs.get("grid_resolution", _DEFAULT_GRID_RESOLUTION)
+            resolution_kwargs.get("grid_resolution", defaults["grid_resolution"])
         )
 
         _validate_params(major_radius, minor_radius, twist, grid_resolution)

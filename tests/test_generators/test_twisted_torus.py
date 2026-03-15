@@ -247,4 +247,11 @@ def test_grid_resolution_below_minimum_raises() -> None:
     """Too low grid resolution raises ValueError."""
     gen = TwistedTorusGenerator()
     with pytest.raises(ValueError, match="grid_resolution"):
-        gen.generate(grid_resolution=2)
+        gen.generate(grid_resolution=3)
+
+
+def test_odd_grid_resolution_with_odd_twist_raises() -> None:
+    """Odd grid resolution with odd twist raises ValueError."""
+    gen = TwistedTorusGenerator()
+    with pytest.raises(ValueError, match="grid_resolution must be even"):
+        gen.generate(params={"twist": 1}, grid_resolution=33)
