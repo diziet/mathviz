@@ -85,8 +85,12 @@ class TPMSGeneratorBase(GeneratorBase):
         if params:
             merged.update(params)
 
-        # Silently ignore cell_size if passed (removed parameter)
-        merged.pop("cell_size", None)
+        if "cell_size" in merged:
+            logger.warning(
+                "cell_size parameter is deprecated and ignored; "
+                "use periods to control spatial extent"
+            )
+            merged.pop("cell_size")
 
         periods = int(merged["periods"])
         voxel_resolution = int(

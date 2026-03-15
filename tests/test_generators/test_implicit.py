@@ -215,25 +215,6 @@ def test_determinism_with_seed(gyroid: GyroidGenerator) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_cell_size_param_ignored_gracefully(gyroid: GyroidGenerator) -> None:
-    """Passing cell_size as a parameter is silently ignored."""
-    obj = gyroid.generate(
-        params={"cell_size": 2.0, "periods": 1},
-        voxel_resolution=_TEST_VOXEL_RESOLUTION,
-    )
-    obj.validate_or_raise()
-    assert obj.mesh is not None
-    assert len(obj.mesh.vertices) > 0
-    assert "cell_size" not in obj.parameters
-
-
-def test_default_params_no_cell_size(gyroid: GyroidGenerator) -> None:
-    """Default params dict does not contain cell_size."""
-    defaults = gyroid.get_default_params()
-    assert "cell_size" not in defaults
-    assert "periods" in defaults
-
-
 def test_zero_periods_raises(gyroid: GyroidGenerator) -> None:
     """Zero periods raises ValueError."""
     with pytest.raises(ValueError, match="periods must be >= 1"):

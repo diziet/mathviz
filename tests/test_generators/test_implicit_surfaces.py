@@ -7,11 +7,12 @@ import trimesh
 from mathviz.core.generator import GeneratorBase, clear_registry, register
 from mathviz.generators.implicit.costa_surface import CostaSurfaceGenerator
 from mathviz.generators.implicit.genus2_surface import Genus2SurfaceGenerator
+from mathviz.generators.implicit.gyroid import GyroidGenerator
 from mathviz.generators.implicit.schwarz_d import SchwarzDGenerator
 from mathviz.generators.implicit.schwarz_p import SchwarzPGenerator
 
 _ALL_GENERATORS = [
-    SchwarzPGenerator, SchwarzDGenerator,
+    GyroidGenerator, SchwarzPGenerator, SchwarzDGenerator,
     CostaSurfaceGenerator, Genus2SurfaceGenerator,
 ]
 
@@ -33,8 +34,8 @@ _TEST_VOXEL_RESOLUTION = 32
 # TPMS generators (Schwarz P & D) — parameterized
 # ===========================================================================
 
-_TPMS_GENERATORS = [SchwarzPGenerator, SchwarzDGenerator]
-_TPMS_IDS = ["schwarz_p", "schwarz_d"]
+_TPMS_GENERATORS = [GyroidGenerator, SchwarzPGenerator, SchwarzDGenerator]
+_TPMS_IDS = ["gyroid", "schwarz_p", "schwarz_d"]
 
 
 @pytest.mark.parametrize("gen_cls", _TPMS_GENERATORS, ids=_TPMS_IDS)
@@ -79,8 +80,10 @@ def test_tpms_default_params_no_cell_size(
 
 
 @pytest.mark.parametrize("gen_cls", _TPMS_GENERATORS, ids=_TPMS_IDS)
-def test_tpms_cell_size_param_ignored(gen_cls: type[GeneratorBase]) -> None:
-    """Passing cell_size as a parameter is silently ignored."""
+def test_tpms_cell_size_param_ignored_with_warning(
+    gen_cls: type[GeneratorBase], caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Passing cell_size logs a deprecation warning and is ignored."""
     gen = gen_cls()
     obj = gen.generate(
         params={"cell_size": 2.0, "periods": 1},
@@ -90,6 +93,7 @@ def test_tpms_cell_size_param_ignored(gen_cls: type[GeneratorBase]) -> None:
     assert obj.mesh is not None
     assert len(obj.mesh.vertices) > 0
     assert "cell_size" not in obj.parameters
+    assert "cell_size parameter is deprecated" in caplog.text
 
 
 @pytest.mark.parametrize("gen_cls", _TPMS_GENERATORS, ids=_TPMS_IDS)
