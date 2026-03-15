@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 81 generators across 12 categories. Each generator produces a
+MathViz includes 83 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -589,6 +589,21 @@ mathviz generate generic_parametric \
   --param y_expr="sin(u)*sin(v)" \
   --param z_expr="cos(v)" \
   --output sphere.ply
+```
+
+### geodesic_sphere
+
+Geodesic sphere: triangulated sphere at various subdivision frequencies,
+with optional dual (Goldberg) polyhedron mode.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `frequency` | 4 | Subdivision frequency (1–32) |
+| `radius` | 1.0 | Sphere radius |
+| `dual` | false | Produce dual Goldberg polyhedron |
+
+```bash
+mathviz generate geodesic_sphere --param frequency=6 --seed 42 --output geodesic.ply
 ```
 
 ### voronoi_3d
