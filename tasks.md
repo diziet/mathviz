@@ -4149,3 +4149,103 @@ geometry extruded into a 3D solid.
 - helix_angle=0 produces a straight spur gear
 - helix_angle>0 produces twisted teeth
 - Registers and renders successfully
+
+---
+
+## Task 107: Pipeline generation cache
+
+**Objective:**
+
+Add a caching layer so that identical generation requests (same generator,
+params, seed, container) return cached geometry instead of re-running the
+pipeline. This makes the preview UI much faster when switching view modes,
+adjusting point size, or toggling camera options — none of which require
+regeneration.
+
+**Suggested path:**
+
+1. **Cache key**: Hash of `(generator_name, params, seed, container)` as
+   a deterministic JSON string → SHA256 hex digest.
+
+2. **In-memory LRU cache**: Keep the N most recent `PipelineResult`
+   objects in memory (default N=32, configurable via
+   `MATHVIZ_CACHE_SIZE`). Use `functools.lru_cache` or a simple
+   `OrderedDict`-based LRU.
+
+3. **Disk cache** (optional tier): When a result is evicted from memory,
+   write the serialized geometry files (GLB, PLY) to
+   `~/.mathviz/cache/<hash>/`. On cache miss, check disk before
+   regenerating. Configurable via `MATHVIZ_CACHE_DIR`, disabled by
+   default.
+
+4. **Integration**: In the preview server's `/api/generate` endpoint,
+   check the cache before running the pipeline. On hit, return the
+   cached geometry URLs immediately. On miss, run the pipeline and
+   store the result.
+
+5. **Cache invalidation**: Add `POST /api/cache/clear` endpoint.
+   Add `--no-cache` flag to CLI commands. Disk cache entries older than
+   7 days are automatically pruned on startup.
+
+6. **Cache headers**: Return `X-Cache: HIT` or `X-Cache: MISS` in the
+   API response so the UI can display whether the result was cached.
+
+7. **UI indicator**: Show a small "cached" badge next to the loading
+   time when a cached result is served.
+
+**Tests:** `tests/test_preview/test_cache.py`
+
+- Same request twice returns cached result (second call is faster)
+- Different params produce a cache miss
+- Cache respects LRU eviction at max size
+- `POST /api/cache/clear` empties the cache
+- `X-Cache` header is present in API responses
+- `--no-cache` flag bypasses the cache
+- Cache key is deterministic (same inputs → same key)
+
+---
+
+## Task 108: Update documentation for Tasks 77–106 generators
+
+**Objective:**
+
+Update `docs/generators.md` and `README.md` to cover all 30 new
+generators added in Tasks 77–106 (Calabi-Yau, Roman surface, Seifert,
+Dini, Dupin cyclide, cross-cap, Bour, Menger sponge, Sierpinski
+tetrahedron, Apollonian 3D, quaternion Julia, burning ship, IFS, Koch 3D,
+electron orbitals, magnetic field, DNA helix, Hopf fibration,
+gravitational lensing, wave interference, Hilbert 3D, Penrose 3D,
+Weaire-Phelan, geodesic sphere, Möbius trefoil, linked tori, twisted
+torus, rose surface, shell spiral, gear).
+
+This is a follow-up to Task 75 (which covers Tasks 70–74 generators).
+
+**Suggested path:**
+
+1. Add an entry in `docs/generators.md` for each of the 30 generators,
+   following the same format as Task 75: name, category, description,
+   parameters table, sample command.
+
+2. Group the new generators under their categories:
+   - Parametric Surfaces: Calabi-Yau, Roman, Seifert, Dini, Dupin,
+     cross-cap, Bour, DNA helix, Hopf fibration, Möbius trefoil,
+     linked tori, twisted torus, rose surface, shell spiral
+   - Fractals: Menger sponge, Sierpinski tetrahedron, Apollonian 3D,
+     quaternion Julia, burning ship, IFS, Koch 3D
+   - Physics: electron orbitals, magnetic field, gravitational lensing,
+     wave interference
+   - Curves: Hilbert 3D
+   - Procedural: Penrose 3D
+   - Geometry: Weaire-Phelan, geodesic sphere, gear
+
+3. Update the README generator count to reflect the full catalog.
+
+4. For visually striking generators (Hopf fibration, electron orbitals,
+   Calabi-Yau, Menger sponge), include recommended parameter presets
+   with example commands.
+
+**Tests:** `tests/test_docs/test_generator_docs.py` (extend existing)
+
+- Every generator from Tasks 77–106 has an entry in `docs/generators.md`
+- README generator count matches the registry
+- Each entry includes name, category, parameters, and description
