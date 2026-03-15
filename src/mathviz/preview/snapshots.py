@@ -1,13 +1,15 @@
 """Snapshot persistence for the preview server.
 
 Saves geometry, metadata, and optional thumbnail to a local directory
-for later comparison or re-use.
+for later comparison or re-use. Supports listing, loading, and deleting
+saved snapshots.
 """
 
 import json
 import logging
 import os
 import shutil
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -20,6 +22,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_SNAPSHOTS_DIR = Path.home() / ".mathviz" / "snapshots"
 SNAPSHOTS_DIR_ENV_VAR = "MATHVIZ_SNAPSHOTS_DIR"
 THUMBNAIL_SIZE = 256
+GEOMETRY_FILES = {"mesh.glb", "cloud.ply"}
 
 
 def get_snapshots_dir() -> Path:
@@ -126,3 +129,90 @@ def save_snapshot(
 
     logger.info("Saved snapshot %s to %s", snapshot_id, snapshot_dir)
     return snapshot_id, snapshot_dir
+
+
+@dataclass
+class SnapshotInfo:
+    """Summary of a saved snapshot for gallery display."""
+
+    snapshot_id: str
+    generator: str
+    params: dict[str, Any]
+    seed: int
+    container: dict[str, Any]
+    created_at: str
+    has_thumbnail: bool
+    thumbnail_url: str | None
+    geometry_files: list[str]
+
+
+def _read_snapshot_metadata(snapshot_dir: Path) -> dict[str, Any] | None:
+    """Read and parse metadata.json from a snapshot directory."""
+    meta_path = snapshot_dir / "metadata.json"
+    if not meta_path.is_file():
+        return None
+    try:
+        return json.loads(meta_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Could not read metadata from %s: %s", meta_path, exc)
+        return None
+
+
+def _snapshot_info_from_dir(snapshot_dir: Path) -> SnapshotInfo | None:
+    """Build a SnapshotInfo from a snapshot directory, or None if invalid."""
+    metadata = _read_snapshot_metadata(snapshot_dir)
+    if metadata is None:
+        return None
+
+    snapshot_id = snapshot_dir.name
+    has_thumb = (snapshot_dir / "thumbnail.png").is_file()
+    thumb_url = f"/api/snapshots/{snapshot_id}/thumbnail" if has_thumb else None
+    geo_files = [f.name for f in snapshot_dir.iterdir() if f.name in GEOMETRY_FILES]
+
+    return SnapshotInfo(
+        snapshot_id=snapshot_id,
+        generator=metadata.get("generator", ""),
+        params=metadata.get("params", {}),
+        seed=metadata.get("seed", 0),
+        container=metadata.get("container", {}),
+        created_at=metadata.get("created_at", ""),
+        has_thumbnail=has_thumb,
+        thumbnail_url=thumb_url,
+        geometry_files=geo_files,
+    )
+
+
+def list_snapshots() -> list[SnapshotInfo]:
+    """Return all saved snapshots, sorted newest first."""
+    snapshots_dir = get_snapshots_dir()
+    if not snapshots_dir.is_dir():
+        return []
+
+    results: list[SnapshotInfo] = []
+    for entry in snapshots_dir.iterdir():
+        if not entry.is_dir():
+            continue
+        info = _snapshot_info_from_dir(entry)
+        if info is not None:
+            results.append(info)
+
+    results.sort(key=lambda s: s.created_at, reverse=True)
+    return results
+
+
+def get_snapshot_dir(snapshot_id: str) -> Path | None:
+    """Return the path for a snapshot, or None if it doesn't exist."""
+    snapshot_dir = get_snapshots_dir() / snapshot_id
+    if not snapshot_dir.is_dir():
+        return None
+    return snapshot_dir
+
+
+def delete_snapshot(snapshot_id: str) -> bool:
+    """Delete a snapshot directory. Returns True if deleted, False if not found."""
+    snapshot_dir = get_snapshot_dir(snapshot_id)
+    if snapshot_dir is None:
+        return False
+    shutil.rmtree(snapshot_dir)
+    logger.info("Deleted snapshot %s", snapshot_id)
+    return True
