@@ -3277,3 +3277,875 @@ the entire project.
 - `docs/pipeline.md` exists and covers all pipeline stages
 - Every doc file is valid markdown with no broken headers
 - No dead links between doc files
+
+---
+
+## Task 77: Calabi-Yau manifold generator
+
+**Objective:**
+
+Add a generator for Calabi-Yau manifold cross-sections — the iconic
+string theory shape. Uses the standard parameterization projecting a
+complex algebraic surface to 3D, producing a crystalline flower-like form.
+
+**Suggested path:**
+
+1. Create `generators/parametric/calabi_yau.py`. Use the standard
+   parameterization:
+   ```
+   x = Re(e^{2πi*k/n} * (x1 + i*x2))
+   y = Re(e^{2πi*k/n} * (y1 + i*y2))
+   z = cos(α) * Re(z_val) + sin(α) * Im(z_val)
+   ```
+   where the surface satisfies `z1^n + z2^n = 1` in C².
+
+2. Parameters: `n` (exponent, default: 5), `alpha` (projection angle,
+   default: π/4), `grid_resolution` (default: 128).
+
+3. Generate multiple patches (one per value of k in 0..n-1) and combine.
+   Use SURFACE_SHELL representation.
+
+**Tests:** `tests/test_generators/test_calabi_yau.py`
+
+- Produces a valid mesh
+- Different `n` values produce distinct geometries
+- Registers and renders successfully
+
+---
+
+## Task 78: Roman / Steiner surface generator
+
+**Objective:**
+
+Add a generator for the Roman surface (Steiner surface) — a
+self-intersecting non-orientable surface with tetrahedral symmetry.
+
+**Suggested path:**
+
+1. Create `generators/parametric/roman_surface.py`. Parameterization:
+   ```
+   x = a² * sin(2u) * cos(v)² / 2
+   y = a² * sin(u) * sin(2v) / 2
+   z = a² * cos(u) * sin(2v) / 2
+   ```
+   with u ∈ [0, π], v ∈ [0, π].
+
+2. Parameters: `scale` (default: 1.0), `grid_resolution` (default: 128).
+   Use SURFACE_SHELL representation.
+
+**Tests:** `tests/test_generators/test_roman_surface.py`
+
+- Produces a valid mesh with self-intersections
+- Registers and renders successfully
+
+---
+
+## Task 79: Seifert surface generator
+
+**Objective:**
+
+Add a generator for Seifert surfaces — the orientable surface bounded by
+a knot. Given a knot (trefoil, figure-eight, etc.), generate the minimal
+surface that fills its interior.
+
+**Suggested path:**
+
+1. Create `generators/parametric/seifert_surface.py`. For the trefoil
+   Seifert surface, use the Milnor fiber parameterization:
+   the surface satisfying `f(z1, z2) / |f(z1, z2)| = e^{iθ}` where
+   `f(z1, z2) = z1^p + z2^q` intersected with S³.
+
+2. Parameters: `knot_type` (`trefoil`, `figure_eight`, default: `trefoil`),
+   `theta` (Milnor fiber angle, default: 0), `grid_resolution`
+   (default: 128).
+
+3. Use SURFACE_SHELL representation. The boundary of the surface should
+   match the knot curve.
+
+**Tests:** `tests/test_generators/test_seifert_surface.py`
+
+- Produces a valid mesh
+- Boundary curve approximates the expected knot
+- Different knot_type values produce distinct surfaces
+- Registers and renders successfully
+
+---
+
+## Task 80: Dini's surface generator
+
+**Objective:**
+
+Add a generator for Dini's surface — a twisted pseudospherical surface
+that looks like a seashell or spiral horn.
+
+**Suggested path:**
+
+1. Create `generators/parametric/dini_surface.py`. Parameterization:
+   ```
+   x = a * cos(u) * sin(v)
+   y = a * sin(u) * sin(v)
+   z = a * (cos(v) + log(tan(v/2))) + b * u
+   ```
+   with u ∈ [0, 4π], v ∈ (0.01, π-0.01).
+
+2. Parameters: `a` (default: 1.0), `b` (twist rate, default: 0.2),
+   `turns` (number of u-wraps, default: 2), `grid_resolution`
+   (default: 128). Use SURFACE_SHELL representation.
+
+**Tests:** `tests/test_generators/test_dini_surface.py`
+
+- Produces a valid mesh
+- More turns produce a longer spiral
+- Registers and renders successfully
+
+---
+
+## Task 81: Dupin cyclide generator
+
+**Objective:**
+
+Add a generator for the Dupin cyclide — a smooth inversive geometry shape
+that generalizes a torus, cylinder, and cone.
+
+**Suggested path:**
+
+1. Create `generators/parametric/dupin_cyclide.py`. Use the standard
+   parameterization with parameters `a`, `b`, `c`, `d` controlling the
+   shape family (torus-like to horn-like). Use the inversion-of-torus
+   approach: parameterize a torus and apply a Möbius transformation.
+
+2. Parameters: `a` (default: 1.0), `b` (default: 0.8), `c` (default: 0.5),
+   `d` (offset, default: 0.6), `grid_resolution` (default: 128).
+   Use SURFACE_SHELL representation.
+
+**Tests:** `tests/test_generators/test_dupin_cyclide.py`
+
+- Produces a valid mesh
+- Different parameter ratios produce torus-like vs horn-like shapes
+- Registers and renders successfully
+
+---
+
+## Task 82: Cross-cap surface generator
+
+**Objective:**
+
+Add a generator for the cross-cap — a non-orientable surface and
+a model of the real projective plane immersed in 3D.
+
+**Suggested path:**
+
+1. Create `generators/parametric/cross_cap.py`. Parameterization:
+   ```
+   x = sin(u) * sin(2v) / 2
+   y = sin(2u) * cos(v)²
+   z = cos(2u) * cos(v)²
+   ```
+   with u ∈ [0, π], v ∈ [0, π].
+
+2. Parameters: `scale` (default: 1.0), `grid_resolution` (default: 128).
+   Use SURFACE_SHELL representation.
+
+**Tests:** `tests/test_generators/test_cross_cap.py`
+
+- Produces a valid mesh
+- Registers and renders successfully
+
+---
+
+## Task 83: Bour's minimal surface generator
+
+**Objective:**
+
+Add a generator for Bour's minimal surface — a shape that interpolates
+between a helicoid and a catenoid.
+
+**Suggested path:**
+
+1. Create `generators/parametric/bour_surface.py`. Parameterization:
+   ```
+   x = r * cos(θ) - r^n * cos(nθ) / (2n)
+   y = -r * sin(θ) - r^n * sin(nθ) / (2n)
+   z = 2 * r^(n/2) * cos(nθ/2) / n
+   ```
+   with r ∈ [0, 1], θ ∈ [0, 2π].
+
+2. Parameters: `n` (order, default: 2 for helicoid-catenoid),
+   `r_max` (default: 1.0), `grid_resolution` (default: 128).
+   Use SURFACE_SHELL representation.
+
+**Tests:** `tests/test_generators/test_bour_surface.py`
+
+- Produces a valid mesh
+- Different `n` values produce distinct surfaces
+- Registers and renders successfully
+
+---
+
+## Task 84: Menger sponge generator
+
+**Objective:**
+
+Add a generator for the Menger sponge — the iconic recursive cube
+fractal created by repeatedly removing sub-cubes.
+
+**Suggested path:**
+
+1. Create `generators/fractals/menger_sponge.py`. Recursively subdivide
+   a cube into 27 sub-cubes (3×3×3 grid) and remove the center of each
+   face and the center cube (7 removals per level), keeping 20 sub-cubes.
+   Recurse on each remaining sub-cube.
+
+2. Parameters: `level` (recursion depth, default: 3, max: 4),
+   `size` (default: 1.0).
+
+3. At level 3: 20³ = 8000 cubes. Generate a mesh by creating 6 quad
+   faces per visible cube face (skip internal faces between adjacent
+   cubes for efficiency). Use SURFACE_SHELL representation.
+
+**Tests:** `tests/test_generators/test_menger_sponge.py`
+
+- Level 0 produces a single cube (8 vertices, 12 triangles)
+- Level 1 produces 20 sub-cubes
+- Level 3 produces expected vertex count
+- Registers and renders successfully
+
+---
+
+## Task 85: Sierpinski tetrahedron generator
+
+**Objective:**
+
+Add a generator for the Sierpinski tetrahedron (tetrix) — the 3D
+analogue of the Sierpinski triangle, created by recursively removing
+octahedra from a tetrahedron.
+
+**Suggested path:**
+
+1. Create `generators/fractals/sierpinski_tetrahedron.py`. Start with
+   a regular tetrahedron. At each level, replace it with 4 half-scale
+   tetrahedra at the corners.
+
+2. Parameters: `level` (recursion depth, default: 5, max: 8),
+   `size` (default: 1.0).
+
+3. At level N: 4^N tetrahedra. Generate mesh faces for each. Use
+   SURFACE_SHELL representation.
+
+**Tests:** `tests/test_generators/test_sierpinski_tetrahedron.py`
+
+- Level 0 produces a single tetrahedron (4 faces)
+- Level 1 produces 4 tetrahedra
+- Output vertex count scales as expected with level
+- Registers and renders successfully
+
+---
+
+## Task 86: Apollonian gasket 3D generator
+
+**Objective:**
+
+Add a generator for the 3D Apollonian gasket — recursive sphere packing
+where each gap between tangent spheres is filled with the largest fitting
+sphere.
+
+**Suggested path:**
+
+1. Create `generators/fractals/apollonian_3d.py`. Start with 4 mutually
+   tangent spheres (Soddy configuration). Recursively fill each gap with
+   the unique sphere tangent to the three surrounding spheres, using
+   Descartes' circle theorem extended to 3D.
+
+2. Parameters: `max_depth` (recursion, default: 5), `min_radius`
+   (stop when sphere radius < this, default: 0.01).
+
+3. Render each sphere as a low-poly icosphere mesh. Combine all sphere
+   meshes into one MathObject. Use SURFACE_SHELL representation.
+
+4. Seed controls initial configuration perturbation.
+
+**Tests:** `tests/test_generators/test_apollonian_3d.py`
+
+- Produces a mesh containing multiple spheres
+- Deeper recursion produces more spheres
+- All spheres are non-overlapping (centers separated by sum of radii)
+- Registers and renders successfully
+
+---
+
+## Task 87: Quaternion Julia set generator
+
+**Objective:**
+
+Add a generator for quaternion Julia sets — 4D fractals sliced to 3D,
+producing smoother, more organic shapes than the Mandelbulb.
+
+**Suggested path:**
+
+1. Create `generators/fractals/quaternion_julia.py`. Iterate
+   `q → q² + c` in quaternion space (4D), where c is a quaternion
+   constant. Extract a 3D isosurface by fixing one quaternion component.
+
+2. Parameters: `c_real` (default: -0.2), `c_i` (default: 0.8),
+   `c_j` (default: 0.0), `c_k` (default: 0.0), `max_iter`
+   (default: 10), `escape_radius` (default: 2.0), `voxel_resolution`
+   (default: 128), `slice_w` (4th dimension slice, default: 0.0).
+
+3. Use marching cubes on a 3D grid to extract the isosurface. Use
+   SURFACE_SHELL representation.
+
+**Tests:** `tests/test_generators/test_quaternion_julia.py`
+
+- Produces a valid mesh
+- Different `c` values produce distinct shapes
+- Higher `voxel_resolution` produces more detailed mesh
+- Registers and renders successfully
+
+---
+
+## Task 88: Burning ship fractal heightmap generator
+
+**Objective:**
+
+Add a generator for the Burning Ship fractal — the asymmetric,
+aggressive-looking cousin of the Mandelbrot set, rendered as a 3D
+heightmap.
+
+**Suggested path:**
+
+1. Create `generators/fractals/burning_ship.py`. Iteration:
+   `z → (|Re(z)| + i|Im(z)|)² + c`. Count escape iterations on a 2D
+   grid and use as a heightmap.
+
+2. Parameters: `center_x` (default: -0.4), `center_y` (default: -0.6),
+   `zoom` (default: 3.0), `max_iter` (default: 256),
+   `pixel_resolution` (default: 512), `height_scale` (default: 0.3).
+
+3. Use HEIGHTMAP_RELIEF representation, same as `mandelbrot_heightmap`.
+
+**Tests:** `tests/test_generators/test_burning_ship.py`
+
+- Produces a valid scalar field
+- Output is distinct from Mandelbrot (asymmetric)
+- Higher pixel_resolution produces a finer grid
+- Registers and renders successfully
+
+---
+
+## Task 89: IFS fractal generator
+
+**Objective:**
+
+Add a generator for Iterated Function System (IFS) fractals — including
+Barnsley fern in 3D, Sierpinski variants, and custom affine transforms.
+
+**Suggested path:**
+
+1. Create `generators/fractals/ifs_fractal.py`. An IFS is defined by a
+   set of affine transformations with associated probabilities. Iterate
+   by randomly choosing a transform and applying it to the current point.
+
+2. Parameters: `preset` (`barnsley_fern`, `maple_leaf`, `spiral`,
+   `custom`, default: `barnsley_fern`), `num_points` (default: 500,000),
+   `dimensions` (`2d_extruded`, `3d`, default: `3d`).
+
+3. For `barnsley_fern`: use the classic 4-transform IFS extended to 3D
+   by adding z-axis rotation or thickness. For `3d` mode, use 3D affine
+   matrices.
+
+4. Output as a point cloud. Use SPARSE_SHELL representation. Seed
+   controls the random iteration sequence.
+
+**Tests:** `tests/test_generators/test_ifs_fractal.py`
+
+- Barnsley fern preset produces a point cloud with expected shape bounds
+- Different presets produce distinct point distributions
+- Output is seed-dependent
+- Registers and renders successfully
+
+---
+
+## Task 90: Koch snowflake 3D generator
+
+**Objective:**
+
+Add a generator for the 3D Koch snowflake — the classic fractal curve
+extruded or revolved into a 3D solid.
+
+**Suggested path:**
+
+1. Create `generators/fractals/koch_3d.py`. Generate the 2D Koch
+   snowflake curve at a given recursion level, then produce 3D geometry
+   by either extrusion (along z-axis) or revolution (around y-axis).
+
+2. Parameters: `level` (recursion, default: 4, max: 6), `mode`
+   (`extrude`, `revolve`, default: `extrude`), `height` (extrusion
+   height, default: 0.3). Use SURFACE_SHELL representation.
+
+**Tests:** `tests/test_generators/test_koch_3d.py`
+
+- Level 0 produces an equilateral triangle
+- Higher levels produce more vertices (4^n scaling)
+- Extrude and revolve modes produce distinct geometries
+- Registers and renders successfully
+
+---
+
+## Task 91: Electron orbital generator
+
+**Objective:**
+
+Add a generator for hydrogen atom electron orbitals — probability density
+isosurfaces for s, p, d, and f orbitals.
+
+**Suggested path:**
+
+1. Create `generators/physics/electron_orbital.py`. Compute the hydrogen
+   wavefunction `|ψ(r,θ,φ)|²` using the radial function `R_nl(r)` and
+   spherical harmonics `Y_lm(θ,φ)`.
+
+2. Parameters: `n` (principal quantum number, default: 3), `l` (angular,
+   default: 2), `m` (magnetic, default: 0), `voxel_resolution`
+   (default: 128), `iso_level` (probability cutoff, default: 0.01).
+
+3. Evaluate on a 3D grid and extract isosurface with marching cubes.
+   Use SURFACE_SHELL representation.
+
+4. Different (n,l,m) produce the iconic orbital shapes: (1,0,0)=sphere,
+   (2,1,0)=dumbbell, (3,2,0)=cloverleaf, etc.
+
+**Tests:** `tests/test_generators/test_electron_orbital.py`
+
+- (1,0,0) produces a roughly spherical isosurface
+- (2,1,0) produces a dumbbell shape (two lobes)
+- Invalid quantum numbers (l >= n) raise ValueError
+- Registers and renders successfully
+
+---
+
+## Task 92: Magnetic field lines generator
+
+**Objective:**
+
+Add a generator for 3D magnetic field line visualizations — dipole and
+quadrupole configurations rendered as tube curves.
+
+**Suggested path:**
+
+1. Create `generators/physics/magnetic_field.py`. Compute field lines by
+   numerically integrating the magnetic field vector from seed points.
+
+2. Parameters: `field_type` (`dipole`, `quadrupole`, default: `dipole`),
+   `num_lines` (default: 24), `line_points` (integration steps per line,
+   default: 500), `spread` (seed point distribution radius, default: 0.3).
+
+3. Seed points are distributed on a ring around the source. Integrate
+   using RK4 in both directions along the field. Each field line becomes
+   a Curve. Use TUBE representation.
+
+4. Seed controls the initial ring angle offset.
+
+**Tests:** `tests/test_generators/test_magnetic_field.py`
+
+- Dipole produces field lines that loop from one pole to the other
+- Quadrupole produces a more complex line pattern
+- `num_lines` controls the number of curves output
+- Registers and renders successfully
+
+---
+
+## Task 93: DNA double helix generator
+
+**Objective:**
+
+Add a generator for a DNA double helix — twin parametric helices with
+base pair rungs connecting them.
+
+**Suggested path:**
+
+1. Create `generators/parametric/dna_helix.py`. Two helices offset by
+   180° (major and minor groove), connected by rungs at regular intervals.
+
+2. Parameters: `turns` (number of helix turns, default: 3),
+   `radius` (helix radius, default: 1.0), `rise_per_turn` (default: 3.4,
+   matching real DNA ~34Å per turn), `base_pairs_per_turn` (default: 10),
+   `curve_points` (default: 512).
+
+3. Output: two helix curves + rung curves connecting them. Use TUBE
+   representation with different tube_radius for backbone vs rungs.
+
+**Tests:** `tests/test_generators/test_dna_helix.py`
+
+- Produces two helix curves plus rung curves
+- Number of rungs = turns × base_pairs_per_turn
+- More turns produce a longer structure
+- Registers and renders successfully
+
+---
+
+## Task 94: Hopf fibration generator
+
+**Objective:**
+
+Add a generator for the Hopf fibration — circles in S³ projected to R³,
+forming nested tori of linked rings. This is one of the most visually
+stunning mathematical objects.
+
+**Suggested path:**
+
+1. Create `generators/parametric/hopf_fibration.py`. The Hopf map sends
+   points on S² to great circles on S³. Project S³ → R³ via
+   stereographic projection. For each point on a chosen set of circles
+   on S², compute the corresponding fiber (a circle in S³) and project.
+
+2. Parameters: `num_fibers` (default: 32), `num_circles` (number of
+   base circles on S², default: 5), `fiber_points` (points per fiber
+   curve, default: 256), `projection_point` (stereographic projection
+   offset, default: (0,0,0,2)).
+
+3. Output: many closed curves (one per fiber). Use TUBE representation
+   with thin tube_radius. The fibers naturally form tori that nest
+   inside each other.
+
+4. Different base circle configurations produce different visual patterns.
+
+**Tests:** `tests/test_generators/test_hopf_fibration.py`
+
+- Produces `num_fibers × num_circles` closed curves
+- Each fiber is a closed loop
+- Different num_circles values produce different torus configurations
+- Registers and renders successfully
+
+---
+
+## Task 95: Gravitational lensing grid generator
+
+**Objective:**
+
+Add a generator for a gravitational lensing visualization — a warped
+coordinate grid showing spacetime curvature around a point mass.
+
+**Suggested path:**
+
+1. Create `generators/physics/gravitational_lensing.py`. Start with a
+   flat 2D grid of lines. Apply the Schwarzschild deflection formula to
+   bend each grid line around a central mass, then extrude to 3D using
+   the deflection magnitude as z-displacement.
+
+2. Parameters: `mass` (controls curvature strength, default: 1.0),
+   `grid_lines` (per axis, default: 20), `grid_extent` (default: 5.0),
+   `grid_points` (points per line, default: 200).
+
+3. Output as curves (grid lines). Use TUBE representation with thin
+   tubes or SPARSE_SHELL as point cloud.
+
+**Tests:** `tests/test_generators/test_gravitational_lensing.py`
+
+- Grid lines near center are more deflected than far ones
+- `mass=0` produces a flat grid
+- Registers and renders successfully
+
+---
+
+## Task 96: Wave interference pattern generator
+
+**Objective:**
+
+Add a generator for 3D standing wave interference patterns from multiple
+point sources.
+
+**Suggested path:**
+
+1. Create `generators/physics/wave_interference.py`. Place N point
+   sources on a plane. Compute the superposition of their spherical waves
+   `A * sin(k*r - ωt + φ) / r` at each point in a 3D grid. Extract an
+   isosurface at a threshold amplitude.
+
+2. Parameters: `num_sources` (default: 3), `wavelength` (default: 0.5),
+   `source_spacing` (default: 1.0), `voxel_resolution` (default: 128),
+   `iso_level` (default: 0.5), `time` (phase, default: 0).
+
+3. Use marching cubes for isosurface. Use SURFACE_SHELL representation.
+   Seed controls source position jitter.
+
+**Tests:** `tests/test_generators/test_wave_interference.py`
+
+- Produces a valid mesh with wave-like structure
+- More sources produce more complex patterns
+- Registers and renders successfully
+
+---
+
+## Task 97: Hilbert curve 3D generator
+
+**Objective:**
+
+Add a generator for the 3D Hilbert curve — a space-filling curve that
+visits every cell in a cubic grid exactly once.
+
+**Suggested path:**
+
+1. Create `generators/curves/hilbert_3d.py`. Implement the 3D Hilbert
+   curve using recursive coordinate transformation (Gray code mapping
+   or Butz algorithm).
+
+2. Parameters: `order` (recursion level, default: 4, max: 6),
+   `size` (default: 1.0).
+
+3. At order N: 8^N points connected in sequence. Output as a single
+   Curve. Use TUBE representation for mesh or SPARSE_SHELL for points.
+
+**Tests:** `tests/test_generators/test_hilbert_3d.py`
+
+- Order 1 produces 8 points
+- Order N produces 8^N points
+- Curve visits each grid cell exactly once
+- Registers and renders successfully
+
+---
+
+## Task 98: Penrose tiling 3D generator
+
+**Objective:**
+
+Add a generator for 3D Penrose tiling — aperiodic tilings extruded as
+a relief surface.
+
+**Suggested path:**
+
+1. Create `generators/procedural/penrose_3d.py`. Generate a 2D Penrose
+   tiling (P3 rhombus tiling via de Bruijn's method or Robinson triangle
+   subdivision). Extrude each tile to a height based on its type (thick
+   vs thin rhombus).
+
+2. Parameters: `generations` (subdivision depth, default: 5),
+   `tile_height_ratio` (height difference between tile types,
+   default: 0.3), `extent` (default: 5.0).
+
+3. Use SURFACE_SHELL representation. Output is a mesh of extruded tiles.
+
+**Tests:** `tests/test_generators/test_penrose_3d.py`
+
+- Produces a valid mesh with non-periodic structure
+- Higher generations produce more tiles
+- Registers and renders successfully
+
+---
+
+## Task 99: Weaire-Phelan foam structure generator
+
+**Objective:**
+
+Add a generator for the Weaire-Phelan structure — the most efficient
+known foam partition of space into equal-volume cells.
+
+**Suggested path:**
+
+1. Create `generators/geometry/weaire_phelan.py`. The structure has two
+   cell types: irregular dodecahedra and tetrakaidecahedra, arranged in
+   a repeating unit cell. Construct the cell geometry from known vertex
+   coordinates and tile the unit cell.
+
+2. Parameters: `cells_per_axis` (repeats of unit cell, default: 2),
+   `edge_only` (boolean — show only cell edges as wireframe, default: true).
+
+3. If `edge_only`: output cell edges as curves with TUBE representation.
+   Otherwise: output cell faces as mesh with SURFACE_SHELL.
+
+**Tests:** `tests/test_generators/test_weaire_phelan.py`
+
+- Produces geometry with the expected cell count
+- `cells_per_axis=1` produces 8 cells (2 dodecahedra + 6 tetrakaidecahedra)
+- Edge mode produces curves, face mode produces mesh
+- Registers and renders successfully
+
+---
+
+## Task 100: Geodesic sphere generator
+
+**Objective:**
+
+Add a generator for geodesic spheres — triangulated spheres at various
+frequencies, like Buckminster Fuller domes.
+
+**Suggested path:**
+
+1. Create `generators/geometry/geodesic_sphere.py`. Start with an
+   icosahedron. Subdivide each face into a frequency-N triangular grid,
+   project vertices onto the unit sphere.
+
+2. Parameters: `frequency` (subdivision level, default: 4, max: 32),
+   `radius` (default: 1.0), `dual` (boolean — if true, produce the
+   dual polyhedron with pentagonal/hexagonal faces, default: false).
+
+3. Use SURFACE_SHELL representation. The dual mode produces the
+   classic soccer-ball / Goldberg polyhedron pattern.
+
+**Tests:** `tests/test_generators/test_geodesic_sphere.py`
+
+- Frequency 1 produces an icosahedron (12 vertices, 20 faces)
+- Higher frequency produces more faces (20 * N² faces)
+- Dual mode produces pentagonal and hexagonal faces
+- All vertices are equidistant from center (on sphere)
+- Registers and renders successfully
+
+---
+
+## Task 101: Möbius trefoil generator
+
+**Objective:**
+
+Add a generator for a Möbius trefoil — a Möbius strip twisted into a
+trefoil knot shape, combining non-orientability with knot topology.
+
+**Suggested path:**
+
+1. Create `generators/parametric/mobius_trefoil.py`. Parameterize a
+   Möbius-like strip whose centerline follows a trefoil knot path.
+   The strip cross-section makes a half-twist as it traverses the knot.
+
+2. Parameters: `width` (strip width, default: 0.3), `curve_points`
+   (default: 1024), `grid_resolution` (cross-section resolution,
+   default: 32). Use SURFACE_SHELL representation.
+
+**Tests:** `tests/test_generators/test_mobius_trefoil.py`
+
+- Produces a valid mesh
+- Surface is non-orientable (single-sided)
+- Registers and renders successfully
+
+---
+
+## Task 102: Linked tori generator
+
+**Objective:**
+
+Add a generator for linked tori — two or more interlocking torus shapes,
+like links in a chain.
+
+**Suggested path:**
+
+1. Create `generators/parametric/linked_tori.py`. Generate N tori with
+   centers and orientations arranged so each passes through its neighbor.
+
+2. Parameters: `num_tori` (default: 2), `major_radius` (default: 1.0),
+   `minor_radius` (default: 0.3), `link_spacing` (default: 1.5),
+   `grid_resolution` (default: 64). Use SURFACE_SHELL representation.
+
+**Tests:** `tests/test_generators/test_linked_tori.py`
+
+- 2 linked tori produce two distinct mesh components
+- Tori geometrically interlock (bounding boxes overlap)
+- Registers and renders successfully
+
+---
+
+## Task 103: Twisted torus generator
+
+**Objective:**
+
+Add a generator for a twisted torus — a torus where the circular
+cross-section rotates N times as it goes around the loop.
+
+**Suggested path:**
+
+1. Create `generators/parametric/twisted_torus.py`. Standard torus
+   parameterization but the cross-section angle `v` gets an additional
+   `twist * u / (2π)` term.
+
+2. Parameters: `twist` (number of half-twists, default: 3),
+   `major_radius` (default: 1.0), `minor_radius` (default: 0.3),
+   `grid_resolution` (default: 128). Use SURFACE_SHELL representation.
+
+3. `twist=1` produces a Möbius-torus. Even twists produce orientable
+   surfaces.
+
+**Tests:** `tests/test_generators/test_twisted_torus.py`
+
+- twist=0 produces a standard torus
+- twist=1 produces a non-orientable surface
+- Different twist values produce distinct geometries
+- Registers and renders successfully
+
+---
+
+## Task 104: Rose surface generator
+
+**Objective:**
+
+Add a generator for the rose surface — a rhodonea (rose) curve revolved
+into 3D, producing flower-like petals.
+
+**Suggested path:**
+
+1. Create `generators/parametric/rose_surface.py`. Start with the 2D
+   rose curve `r = cos(kθ)` and revolve it around the z-axis, or use
+   a 3D extension: `r = cos(k₁θ) * cos(k₂φ)` on a sphere.
+
+2. Parameters: `k1` (petal count parameter, default: 3), `k2`
+   (secondary frequency, default: 2), `grid_resolution` (default: 128).
+   Use SURFACE_SHELL representation.
+
+**Tests:** `tests/test_generators/test_rose_surface.py`
+
+- Integer k1 values produce symmetric petal patterns
+- Different k1/k2 combinations produce distinct geometries
+- Registers and renders successfully
+
+---
+
+## Task 105: Shell spiral generator
+
+**Objective:**
+
+Add a generator for a realistic seashell spiral — a logarithmic spiral
+with expanding cross-section, producing a nautilus-like form.
+
+**Suggested path:**
+
+1. Create `generators/parametric/shell_spiral.py`. Parameterize a tube
+   whose centerline is a logarithmic spiral and whose cross-section
+   radius grows exponentially. The cross-section can be circular or
+   elliptical with a lip.
+
+2. Parameters: `growth_rate` (spiral expansion, default: 0.1),
+   `turns` (default: 3), `opening_rate` (cross-section growth,
+   default: 0.08), `ellipticity` (cross-section shape, default: 1.0),
+   `curve_points` (default: 1024), `radial_segments` (default: 32).
+   Use SURFACE_SHELL representation.
+
+**Tests:** `tests/test_generators/test_shell_spiral.py`
+
+- Produces a valid mesh with spiral structure
+- More turns produce a longer shell
+- Growth rate affects how quickly the spiral expands
+- Registers and renders successfully
+
+---
+
+## Task 106: Gear / involute curve generator
+
+**Objective:**
+
+Add a generator for mechanical gear tooth profiles — involute gear
+geometry extruded into a 3D solid.
+
+**Suggested path:**
+
+1. Create `generators/geometry/gear.py`. Generate a 2D involute gear
+   tooth profile (standard gear geometry: base circle, involute curve,
+   tip circle, root circle, fillet). Extrude along z-axis for a spur
+   gear, or along a helix for a helical gear.
+
+2. Parameters: `num_teeth` (default: 20), `module` (tooth size,
+   default: 1.0), `pressure_angle` (default: 20°), `face_width`
+   (extrusion height, default: 0.5), `helix_angle` (0 for spur gear,
+   default: 0), `curve_points` (per tooth, default: 32).
+   Use SURFACE_SHELL representation.
+
+**Tests:** `tests/test_generators/test_gear.py`
+
+- Produces a valid mesh with the expected number of teeth
+- helix_angle=0 produces a straight spur gear
+- helix_angle>0 produces twisted teeth
+- Registers and renders successfully
