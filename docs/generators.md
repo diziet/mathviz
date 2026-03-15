@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 64 generators across 12 categories. Each generator produces a
+MathViz includes 65 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -886,6 +886,20 @@ Costa minimal surface via Weierstrass-Enneper representation.
 
 ```bash
 mathviz generate costa_surface --output costa.ply
+```
+
+### cross_cap
+
+Cross-cap — non-orientable immersion of the real projective plane in R³.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `scale` | 1.0 | Overall scale factor |
+
+Aliases: `crosscap`
+
+```bash
+mathviz generate cross_cap --output crosscap.ply
 ```
 
 ### dini_surface
