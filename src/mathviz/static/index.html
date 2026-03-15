@@ -28,14 +28,17 @@ canvas{display:block}
 #controls .section-title{font-weight:600;font-size:11px;text-transform:uppercase;
   letter-spacing:0.5px;opacity:0.7;margin-top:2px}
 
-/* Generator selector */
-.generator-selector{position:relative}
-#generator-search{
-  width:100%;padding:4px 8px;border:1px solid #555;border-radius:4px;
+/* Shared input style */
+.control-input{
+  padding:4px 8px;border:1px solid #555;border-radius:4px;
   background:rgba(0,0,0,0.3);color:inherit;font-size:12px;outline:none;
 }
-#generator-search:focus{border-color:#4488cc}
-#controls.light-bg #generator-search{background:rgba(255,255,255,0.5);border-color:#aaa}
+.control-input:focus{border-color:#4488cc}
+#controls.light-bg .control-input{background:rgba(255,255,255,0.5);border-color:#aaa}
+
+/* Generator selector */
+.generator-selector{position:relative}
+#generator-search{width:100%}
 #generator-dropdown{
   position:absolute;top:100%;left:0;right:0;max-height:260px;overflow-y:auto;
   background:rgba(30,30,30,0.95);border:1px solid #555;border-radius:4px;
@@ -51,13 +54,7 @@ canvas{display:block}
 
 /* Seed control */
 .seed-row{display:flex;gap:4px;align-items:center}
-#seed-input{
-  flex:1;padding:3px 6px;border:1px solid #555;border-radius:4px;
-  background:rgba(0,0,0,0.3);color:inherit;font-size:12px;
-  width:0;min-width:0;outline:none;
-}
-#seed-input:focus{border-color:#4488cc}
-#controls.light-bg #seed-input{background:rgba(255,255,255,0.5);border-color:#aaa}
+#seed-input{flex:1;width:0;min-width:0}
 #seed-random-btn{flex-shrink:0;font-size:11px;padding:3px 8px}
 
 #info-panel{
@@ -82,13 +79,13 @@ canvas{display:block}
   <div id="controls">
     <div class="section-title">Generator</div>
     <div class="generator-selector">
-      <input type="text" id="generator-search" placeholder="Search generators..." autocomplete="off">
+      <input type="text" id="generator-search" class="control-input" placeholder="Search generators..." autocomplete="off">
       <div id="generator-dropdown"></div>
     </div>
 
     <div class="section-title">Seed</div>
     <div class="seed-row">
-      <input type="number" id="seed-input" value="42" min="0" step="1">
+      <input type="number" id="seed-input" class="control-input" value="42" min="0" step="1">
       <button id="seed-random-btn">Random</button>
     </div>
 
@@ -549,30 +546,31 @@ function renderDropdown(generators) {
   dropdown.style.display = generators.length > 0 ? 'block' : 'none';
 }
 
-function selectGenerator(name) {
-  searchInput.value = name;
-  dropdown.style.display = 'none';
-  const seed = parseInt(seedInput.value, 10) || 42;
-  updateURLParams(name, seed);
+function parseSeed() {
+  const raw = parseInt(seedInput.value, 10);
+  return Number.isNaN(raw) ? 42 : raw;
+}
+
+function applyGenerator(name, seed) {
+  const url = new URL(window.location);
+  url.searchParams.set('generator', name);
+  url.searchParams.set('seed', String(seed));
+  history.replaceState(null, '', url.toString());
   loadFromAPI(name, {}, seed);
 }
 
-function updateURLParams(generator, seed) {
-  const url = new URL(window.location);
-  url.searchParams.set('generator', generator);
-  url.searchParams.set('seed', String(seed));
-  history.replaceState(null, '', url.toString());
+function selectGenerator(name) {
+  searchInput.value = name;
+  dropdown.style.display = 'none';
+  applyGenerator(name, parseSeed());
 }
 
-searchInput.addEventListener('input', () => {
-  const matches = filterGenerators(searchInput.value);
-  renderDropdown(matches);
-});
+function showFilteredDropdown() {
+  renderDropdown(filterGenerators(searchInput.value));
+}
 
-searchInput.addEventListener('focus', () => {
-  const matches = filterGenerators(searchInput.value);
-  renderDropdown(matches);
-});
+searchInput.addEventListener('input', showFilteredDropdown);
+searchInput.addEventListener('focus', showFilteredDropdown);
 
 searchInput.addEventListener('blur', () => {
   setTimeout(() => { dropdown.style.display = 'none'; }, 150);
@@ -582,18 +580,15 @@ searchInput.addEventListener('blur', () => {
 seedInput.addEventListener('change', () => {
   const currentGen = searchInput.value;
   if (!currentGen) return;
-  const seed = parseInt(seedInput.value, 10) || 42;
-  updateURLParams(currentGen, seed);
-  loadFromAPI(currentGen, {}, seed);
+  applyGenerator(currentGen, parseSeed());
 });
 
 document.getElementById('seed-random-btn').addEventListener('click', () => {
-  const newSeed = Math.floor(Math.random() * 1000000);
-  seedInput.value = newSeed;
   const currentGen = searchInput.value;
   if (!currentGen) return;
-  updateURLParams(currentGen, newSeed);
-  loadFromAPI(currentGen, {}, newSeed);
+  const newSeed = Math.floor(Math.random() * 1000000);
+  seedInput.value = newSeed;
+  applyGenerator(currentGen, newSeed);
 });
 
 /* ── Init: load from URL params ── */
