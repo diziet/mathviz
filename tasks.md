@@ -4152,60 +4152,7 @@ geometry extruded into a 3D solid.
 
 ---
 
-## Task 107: Pipeline generation cache
-
-**Objective:**
-
-Add a caching layer so that identical generation requests (same generator,
-params, seed, container) return cached geometry instead of re-running the
-pipeline. This makes the preview UI much faster when switching view modes,
-adjusting point size, or toggling camera options — none of which require
-regeneration.
-
-**Suggested path:**
-
-1. **Cache key**: Hash of `(generator_name, params, seed, container)` as
-   a deterministic JSON string → SHA256 hex digest.
-
-2. **In-memory LRU cache**: Keep the N most recent `PipelineResult`
-   objects in memory (default N=32, configurable via
-   `MATHVIZ_CACHE_SIZE`). Use `functools.lru_cache` or a simple
-   `OrderedDict`-based LRU.
-
-3. **Disk cache** (optional tier): When a result is evicted from memory,
-   write the serialized geometry files (GLB, PLY) to
-   `~/.mathviz/cache/<hash>/`. On cache miss, check disk before
-   regenerating. Configurable via `MATHVIZ_CACHE_DIR`, disabled by
-   default.
-
-4. **Integration**: In the preview server's `/api/generate` endpoint,
-   check the cache before running the pipeline. On hit, return the
-   cached geometry URLs immediately. On miss, run the pipeline and
-   store the result.
-
-5. **Cache invalidation**: Add `POST /api/cache/clear` endpoint.
-   Add `--no-cache` flag to CLI commands. Disk cache entries older than
-   7 days are automatically pruned on startup.
-
-6. **Cache headers**: Return `X-Cache: HIT` or `X-Cache: MISS` in the
-   API response so the UI can display whether the result was cached.
-
-7. **UI indicator**: Show a small "cached" badge next to the loading
-   time when a cached result is served.
-
-**Tests:** `tests/test_preview/test_cache.py`
-
-- Same request twice returns cached result (second call is faster)
-- Different params produce a cache miss
-- Cache respects LRU eviction at max size
-- `POST /api/cache/clear` empties the cache
-- `X-Cache` header is present in API responses
-- `--no-cache` flag bypasses the cache
-- Cache key is deterministic (same inputs → same key)
-
----
-
-## Task 108: Update documentation for Tasks 77–106 generators
+## Task 107: Update documentation for Tasks 77–106 generators
 
 **Objective:**
 
