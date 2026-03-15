@@ -12,8 +12,14 @@ from typing import Any
 import numpy as np
 
 from mathviz.core.generator import GeneratorBase, register
-from mathviz.core.math_object import BoundingBox, MathObject
+from mathviz.core.math_object import MathObject
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.fractals._heightmap_common import (
+    build_complex_grid,
+    compute_heightmap_bbox,
+    escape_time_loop,
+    validate_heightmap_params,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -24,86 +30,14 @@ _DEFAULT_MAX_ITERATIONS = 256
 _DEFAULT_HEIGHT_SCALE = 1.0
 _DEFAULT_SMOOTHING = True
 _DEFAULT_PIXEL_RESOLUTION = 512
-_MIN_PIXEL_RESOLUTION = 4
-_MIN_MAX_ITERATIONS = 1
 
 # Mandelbrot set spans roughly [-2, 0.5] x [-1.25, 1.25] at zoom=1
 _BASE_EXTENT = 2.5
 
 
-def _validate_params(
-    zoom: float,
-    max_iterations: int,
-    pixel_resolution: int,
-    height_scale: float,
-) -> None:
-    """Validate Mandelbrot parameters, raising ValueError for invalid inputs."""
-    if zoom <= 0:
-        raise ValueError(f"zoom must be positive, got {zoom}")
-    if height_scale <= 0:
-        raise ValueError(f"height_scale must be positive, got {height_scale}")
-    if max_iterations < _MIN_MAX_ITERATIONS:
-        raise ValueError(
-            f"max_iterations must be >= {_MIN_MAX_ITERATIONS}, "
-            f"got {max_iterations}"
-        )
-    if pixel_resolution < _MIN_PIXEL_RESOLUTION:
-        raise ValueError(
-            f"pixel_resolution must be >= {_MIN_PIXEL_RESOLUTION}, "
-            f"got {pixel_resolution}"
-        )
-
-
-def _compute_mandelbrot_field(
-    center_real: float,
-    center_imag: float,
-    zoom: float,
-    max_iterations: int,
-    pixel_resolution: int,
-    is_smooth: bool,
-) -> np.ndarray:
-    """Compute the Mandelbrot escape-time field on a 2D grid."""
-    extent = _BASE_EXTENT / zoom
-    real_min = center_real - extent
-    real_max = center_real + extent
-    imag_min = center_imag - extent
-    imag_max = center_imag + extent
-
-    real_axis = np.linspace(real_min, real_max, pixel_resolution)
-    imag_axis = np.linspace(imag_min, imag_max, pixel_resolution)
-    real_grid, imag_grid = np.meshgrid(real_axis, imag_axis)
-    c = real_grid + 1j * imag_grid
-
-    return _escape_time(c, max_iterations, is_smooth)
-
-
-def _escape_time(
-    c: np.ndarray,
-    max_iterations: int,
-    is_smooth: bool,
-) -> np.ndarray:
-    """Vectorized escape-time iteration for the Mandelbrot set."""
-    z = np.zeros_like(c)
-    iteration_count = np.zeros(c.shape, dtype=np.float64)
-    escaped = np.zeros(c.shape, dtype=bool)
-
-    # Overflow to inf is expected for escaped points; suppress warnings.
-    with np.errstate(over="ignore", invalid="ignore"):
-        for i in range(max_iterations):
-            mask = ~escaped
-            active_z = z[mask] * z[mask] + c[mask]
-            z[mask] = active_z
-            mag_exceeded = active_z.real ** 2 + active_z.imag ** 2 > 4.0
-            newly_escaped_idx = np.where(mask)[0][mag_exceeded]
-            iteration_count.ravel()[newly_escaped_idx] = float(i + 1)
-            escaped.ravel()[newly_escaped_idx] = True
-
-    if is_smooth:
-        iteration_count = _apply_smoothing(
-            iteration_count, z, escaped, max_iterations,
-        )
-
-    return iteration_count
+def _mandelbrot_step(z: np.ndarray, c: np.ndarray) -> np.ndarray:
+    """Single Mandelbrot iteration: z² + c."""
+    return z * z + c
 
 
 def _apply_smoothing(
@@ -171,21 +105,33 @@ class MandelbrotHeightmapGenerator(GeneratorBase):
         height_scale = float(merged["height_scale"])
         is_smooth = bool(merged["smoothing"])
         pixel_resolution = int(
-            resolution_kwargs.get("pixel_resolution", _DEFAULT_PIXEL_RESOLUTION)
+            resolution_kwargs.get(
+                "pixel_resolution",
+                self._resolution_defaults["pixel_resolution"],
+            )
         )
 
-        _validate_params(zoom, max_iterations, pixel_resolution, height_scale)
+        validate_heightmap_params(
+            zoom, max_iterations, pixel_resolution, height_scale,
+            center_real, center_imag,
+        )
 
         merged["pixel_resolution"] = pixel_resolution
 
-        field = _compute_mandelbrot_field(
-            center_real, center_imag, zoom,
-            max_iterations, pixel_resolution, is_smooth,
+        c = build_complex_grid(
+            center_real, center_imag, zoom, _BASE_EXTENT, pixel_resolution,
+        )
+        iteration_count, z_final, escaped = escape_time_loop(
+            c, max_iterations, _mandelbrot_step,
         )
 
-        field = field * height_scale
+        if is_smooth:
+            iteration_count = _apply_smoothing(
+                iteration_count, z_final, escaped, max_iterations,
+            )
 
-        bbox = _compute_bounding_box(field)
+        field = iteration_count * height_scale
+        bbox = compute_heightmap_bbox(field)
 
         logger.info(
             "Generated mandelbrot_heightmap: center=(%.3f, %.3f), zoom=%.3f, "
@@ -206,13 +152,3 @@ class MandelbrotHeightmapGenerator(GeneratorBase):
     def get_default_representation(self) -> RepresentationConfig:
         """Return HEIGHTMAP_RELIEF as default representation."""
         return RepresentationConfig(type=RepresentationType.HEIGHTMAP_RELIEF)
-
-
-def _compute_bounding_box(field: np.ndarray) -> BoundingBox:
-    """Compute bounding box for the heightmap mesh that will be generated."""
-    z_min = float(np.min(field))
-    z_max = float(np.max(field))
-    return BoundingBox(
-        min_corner=(0.0, 0.0, z_min),
-        max_corner=(1.0, 1.0, z_max),
-    )
