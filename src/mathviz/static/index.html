@@ -1494,6 +1494,7 @@ async function fetchAndPopulateParams(generatorName) {
   paramError.style.display = 'none';
   cachedParamDefaults = null;
   cachedParamRanges = null;
+  cachedParamRangesGen = null;
 
   try {
     const resp = await fetch('/api/generators/' + encodeURIComponent(generatorName) + '/params');
@@ -1565,6 +1566,7 @@ document.getElementById('param-reset-btn').addEventListener('click', resetParamD
 
 /* ── Randomize parameters ── */
 let cachedParamRanges = null;
+let cachedParamRangesGen = null;
 
 async function fetchParamRanges(generatorName) {
   try {
@@ -1578,7 +1580,10 @@ async function fetchParamRanges(generatorName) {
 }
 
 function randomizeInRange(min, max, step) {
-  if (step <= 0) return min;
+  if (step <= 0) {
+    console.warn('randomizeInRange: step <= 0, returning min');
+    return min;
+  }
   const steps = Math.floor((max - min) / step);
   const chosen = min + Math.floor(Math.random() * (steps + 1)) * step;
   return Math.min(chosen, max);
@@ -1588,8 +1593,9 @@ async function randomizeParams() {
   const currentGen = searchInput.value;
   if (!currentGen) return;
 
-  if (!cachedParamRanges) {
+  if (!cachedParamRanges || cachedParamRangesGen !== currentGen) {
     cachedParamRanges = await fetchParamRanges(currentGen);
+    cachedParamRangesGen = currentGen;
   }
   const ranges = cachedParamRanges || {};
 

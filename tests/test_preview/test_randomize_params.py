@@ -149,14 +149,14 @@ class TestDerivedRanges:
 
     def test_positive_float_range(self) -> None:
         """Positive float derives to [0.25x, 2x]."""
-        rng = _derive_param_range("test", 10.0)
+        rng = _derive_param_range(10.0)
         assert rng is not None
         assert rng["min"] == pytest.approx(2.5)
         assert rng["max"] == pytest.approx(20.0)
 
     def test_positive_int_range(self) -> None:
         """Positive int derives to [0, 2x]."""
-        rng = _derive_param_range("test", 5)
+        rng = _derive_param_range(5)
         assert rng is not None
         assert rng["min"] == 0
         assert rng["max"] == 10
@@ -164,27 +164,49 @@ class TestDerivedRanges:
 
     def test_zero_float_range(self) -> None:
         """Zero float derives to [-1, 1]."""
-        rng = _derive_param_range("test", 0.0)
+        rng = _derive_param_range(0.0)
         assert rng is not None
         assert rng["min"] == -1.0
         assert rng["max"] == 1.0
 
     def test_zero_int_range(self) -> None:
         """Zero int derives to [0, 10]."""
-        rng = _derive_param_range("test", 0)
+        rng = _derive_param_range(0)
         assert rng is not None
         assert rng["min"] == 0
         assert rng["max"] == 10
 
     def test_boolean_returns_none(self) -> None:
         """Boolean params return None (no numeric range)."""
-        rng = _derive_param_range("test", True)
+        rng = _derive_param_range(True)
         assert rng is None
 
     def test_string_returns_none(self) -> None:
         """String params return None."""
-        rng = _derive_param_range("test", "hello")
+        rng = _derive_param_range("hello")
         assert rng is None
+
+    def test_negative_int_range(self) -> None:
+        """Negative int derives to [-2x, 2x] with step 1."""
+        rng = _derive_param_range(-5)
+        assert rng is not None
+        assert rng["min"] == -10
+        assert rng["max"] == 10
+        assert rng["step"] == 1
+
+    def test_negative_float_range(self) -> None:
+        """Negative float derives to [2x, 2*abs(x)]."""
+        rng = _derive_param_range(-5.0)
+        assert rng is not None
+        assert rng["min"] == pytest.approx(-10.0)
+        assert rng["max"] == pytest.approx(10.0)
+        assert rng["step"] == pytest.approx(0.5)
+
+    def test_tiny_float_step_clamped(self) -> None:
+        """Very small float doesn't produce zero step."""
+        rng = _derive_param_range(0.0000001)
+        assert rng is not None
+        assert rng["step"] >= 1e-6
 
 
 # --- Generators can define explicit exploration ranges ---
@@ -214,9 +236,12 @@ class TestExplicitRanges:
         assert len(ranges) > 0
         assert "power" in ranges
 
-    def test_base_class_returns_empty(self) -> None:
+    def test_base_class_default_is_empty(self) -> None:
         """GeneratorBase.get_param_ranges() returns empty dict by default."""
-        assert GeneratorBase.get_param_ranges(GeneratorBase) == {}
+        # Verify the base class implementation returns empty dict
+        # Use a concrete generator and call the base method explicitly
+        gen = TorusGenerator()
+        assert GeneratorBase.get_param_ranges(gen) == {}
 
     def test_explicit_ranges_override_derived(self, client: TestClient) -> None:
         """Explicit ranges from generator take precedence over derived."""
