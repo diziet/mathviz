@@ -1379,3 +1379,65 @@ in the viewer. This replaces the current workflow of manually editing the
 - Seed input field is present and changing it triggers regeneration
 - Generator list includes all registered generators (compare against registry)
 - Type-ahead filtering narrows the visible list correctly
+
+---
+
+## Task 43: Add container/bounding box editor panel to preview UI
+
+**Objective:**
+
+Add a second controls panel to the preview viewer that lets users edit the
+container (glass block) dimensions and margins, then re-render the geometry
+to fit the new bounding box. Currently the preview server hardcodes
+`Container.with_uniform_margin()` (100x100x40mm, 5mm margins). This panel
+gives users interactive control over the physical dimensions their geometry
+will be fitted into, so they can see how the object scales and fits before
+exporting.
+
+**Suggested path:**
+
+1. **New panel in `index.html`**: Add a collapsible panel on the left side
+   (opposite the existing controls on the right) or below the existing
+   controls. The panel should contain:
+   - **Dimensions section**: Three numeric inputs for Width (X), Height (Y),
+     and Depth (Z) in mm, defaulting to 100, 100, 40
+   - **Margins section**: Three numeric inputs for X, Y, Z margins in mm,
+     defaulting to 5, 5, 5. Optionally a "uniform margin" checkbox that
+     locks all three to the same value (common case)
+   - **Usable volume display**: Read-only text showing the computed usable
+     volume after margins (e.g., "Usable: 90 x 90 x 30 mm"), updated live
+     as the user types
+   - **Apply button**: Triggers re-generation with the new container
+     dimensions. Does NOT auto-regenerate on every keystroke (generation can
+     be slow for complex generators like mandelbulb)
+   - **Reset button**: Restores defaults (100x100x40, 5mm margins)
+
+2. **Server changes** (`server.py`): Extend the `GenerateRequest` model to
+   accept optional container parameters:
+   ```python
+   container: dict[str, float] | None = None  # width_mm, height_mm, depth_mm, margin_x/y/z_mm
+   ```
+   When present, construct a `Container` from these values instead of using
+   the default. Pass validation errors (e.g., margin exceeds half dimension)
+   back as 422 with a clear message.
+
+3. **Visual feedback**: When the container dimensions change, update the
+   bounding box wireframe in the 3D scene to reflect the new container size.
+   The existing `#show-bbox` checkbox already controls a bounding box helper —
+   ensure it reflects the container dimensions, not just the geometry bounds.
+
+4. **Styling**: Match the existing panel style (dark translucent, blur
+   backdrop). Input fields should be compact — use `<input type="number">`
+   with `step`, `min` constraints. Label each field clearly (e.g., "W", "H",
+   "D" or "Width (mm)").
+
+**Tests:** `tests/test_preview/test_container_editor.py`
+
+- `POST /api/generate` with custom container dimensions returns 200
+- Custom container dimensions change the transformer scale in the result
+- Invalid margins (margin >= half dimension) return 422 with error message
+- Default container values (100x100x40, margins 5) match current behavior
+- Usable volume calculation is correct (dimension - 2*margin per axis)
+- Preview HTML contains the container editor panel with dimension inputs
+- Apply button triggers a new `POST /api/generate` with container params
+- Reset button restores default values in the input fields
