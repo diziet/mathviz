@@ -3,7 +3,6 @@
 import logging
 import os
 import platform
-import sys
 import time
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
@@ -17,7 +16,7 @@ from rich.table import Table
 
 from mathviz.benchmark_report import generate_html_report
 from mathviz.core.container import Container, PlacementPolicy
-from mathviz.core.generator import GeneratorMeta, list_generators
+from mathviz.core.generator import list_generators
 from mathviz.pipeline.runner import run
 
 logger = logging.getLogger(__name__)
@@ -125,7 +124,7 @@ def _print_text_summary(suite: BenchmarkSuite, output_console: Console) -> None:
                 result.generator_name,
                 *["—"] * len(PIPELINE_STAGES),
                 "—",
-                f"[red]ERROR[/red]",
+                "[red]ERROR[/red]",
             )
             continue
 

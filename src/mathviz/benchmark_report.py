@@ -56,7 +56,7 @@ def _build_table_rows(results: list[BenchmarkResult]) -> str:
         if result.error:
             error_msg = html.escape(result.error)
             cells = "".join(
-                f'<td class="slow">—</td>' for _ in PIPELINE_STAGES
+                '<td class="slow">—</td>' for _ in PIPELINE_STAGES
             )
             rows.append(
                 f"<tr><td>{html.escape(result.generator_name)}</td>"
@@ -160,12 +160,18 @@ th:first-child, td:first-child {{ text-align: left; }}
 .slow {{ background: #ffcdd2; }}
 .bar-row {{ display: flex; align-items: center; margin: 4px 0; }}
 .bar-label {{ width: 180px; text-align: right; padding-right: 8px; font-size: 0.85rem; }}
-.bar-track {{ display: flex; flex: 1; height: 20px; background: #eee; border-radius: 3px; overflow: hidden; }}
+.bar-track {{
+  display: flex; flex: 1; height: 20px;
+  background: #eee; border-radius: 3px; overflow: hidden;
+}}
 .bar-seg {{ height: 100%; }}
 .bar-total {{ width: 80px; padding-left: 8px; font-size: 0.85rem; }}
 .legend {{ margin-bottom: 0.5rem; }}
 .legend-item {{ margin-right: 1rem; font-size: 0.85rem; }}
-.legend-swatch {{ display: inline-block; width: 12px; height: 12px; margin-right: 4px; vertical-align: middle; border-radius: 2px; }}
+.legend-swatch {{
+  display: inline-block; width: 12px; height: 12px;
+  margin-right: 4px; vertical-align: middle; border-radius: 2px;
+}}
 </style>
 </head>
 <body>

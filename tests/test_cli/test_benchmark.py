@@ -1,7 +1,5 @@
 """Tests for the mathviz benchmark CLI command."""
 
-import json
-
 from pathlib import Path
 
 from typer.testing import CliRunner
