@@ -1043,12 +1043,16 @@ const AUTO_APPLY_DEBOUNCE_MS = 300;
 
 document.getElementById('auto-apply').addEventListener('change', (e) => {
   state.autoApply = e.target.checked;
+  if (!state.autoApply && autoApplyTimer !== null) {
+    clearTimeout(autoApplyTimer);
+    autoApplyTimer = null;
+  }
 });
 
 function handleAutoApplyInput(e) {
   if (!state.autoApply) return;
   if (e.target.tagName !== 'INPUT') return;
-  if (e.target.type === 'checkbox') return;
+  if (e.target.id === 'auto-apply') return;
   if (autoApplyTimer !== null) clearTimeout(autoApplyTimer);
   autoApplyTimer = setTimeout(() => {
     autoApplyTimer = null;

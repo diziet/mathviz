@@ -129,6 +129,24 @@ def test_auto_apply_disabled_no_trigger(preview_html: str) -> None:
     ), "No early return when autoApply is disabled"
 
 
+def test_pending_timer_cleared_on_disable(preview_html: str) -> None:
+    """Unchecking auto-apply cancels any pending debounce timer."""
+    script = _extract_script(preview_html)
+    # The change handler for auto-apply clears the timer when unchecked
+    assert re.search(
+        r"!state\.autoApply\s*&&\s*autoApplyTimer\s*!==\s*null", script
+    ), "Change handler does not clear pending timer on disable"
+
+
+def test_auto_apply_skips_only_own_checkbox(preview_html: str) -> None:
+    """Auto-apply input handler skips only the auto-apply checkbox, not all."""
+    script = _extract_script(preview_html)
+    # Should check e.target.id === 'auto-apply', not e.target.type === 'checkbox'
+    assert re.search(
+        r"""e\.target\.id\s*===?\s*['"]auto-apply['"]""", script
+    ), "Handler should skip only the auto-apply checkbox by id"
+
+
 # --- Panel layout: param-panel below container-panel ---
 
 
