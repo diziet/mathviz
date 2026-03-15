@@ -85,6 +85,7 @@ GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     "sierpinski_tetrahedron": _SURFACE_CONFIG,
     "apollonian_3d": _SURFACE_CONFIG,
     "quaternion_julia": _SURFACE_CONFIG,
+    "ifs_fractal": _SPARSE_CONFIG,
     # Heightmaps (scalar field)
     "mandelbrot": _HEIGHTMAP_CONFIG,
     "mandelbrot_heightmap": _HEIGHTMAP_CONFIG,
