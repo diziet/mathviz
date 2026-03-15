@@ -1276,3 +1276,46 @@ produces short curves.
 - `planetary_positions` render produces a PNG without error
 - No curve in the output has fewer than 2 points (parameterized across planet count)
 - If the fix includes a defensive skip in tube thickening: a single-point curve is skipped with a warning, not a crash
+
+---
+
+## Task 41: Fix preview server static files not included in package distribution
+
+**Objective:**
+
+Fix the bug where `mathviz preview` returns HTTP 500 with
+`"Viewer HTML not found."` when mathviz is installed as a non-editable package
+(e.g., `pip install mathviz`). The root cause is that `pyproject.toml` only
+declares `profiles/*.toml` as package data but omits the `static/` directory
+containing `index.html`. When installed non-editable, the `static/` directory
+is not copied into `site-packages/mathviz/`, so
+`Path(__file__).resolve().parent.parent / "static"` resolves to a path that
+doesn't exist.
+
+**Suggested path:**
+
+1. **Add static files to package data** in `pyproject.toml`:
+
+   ```toml
+   [tool.setuptools.package-data]
+   mathviz = ["profiles/*.toml", "static/*.html", "static/**/*"]
+   ```
+
+   This ensures `index.html` (and any future static assets like CSS/JS) are
+   included when the package is built and installed.
+
+2. **Use `importlib.resources` for robust path resolution** (optional but
+   recommended): Instead of `Path(__file__).resolve().parent.parent / "static"`,
+   use `importlib.resources.files("mathviz") / "static"` which correctly
+   resolves package data in all install scenarios (editable, non-editable,
+   zipped eggs, etc.).
+
+3. **Verify the fix** by doing a non-editable install into a venv and
+   confirming `mathviz preview <generator>` serves the viewer HTML at `GET /`.
+
+**Tests:** `tests/test_preview/test_static_files.py`
+
+- `index.html` is accessible via `importlib.resources` from the installed package
+- Preview server `GET /` returns 200 with HTML content
+- The HTML content contains expected markers (e.g., Three.js script tag or app container div)
+- Package data glob in pyproject.toml includes `static/*.html`
