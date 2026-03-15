@@ -2877,3 +2877,62 @@ a dimension or margin input.
 - `updateUsableVolume()` is called during page initialization
 - Changing depth input updates the usable volume display
 - Usable volume calculation is correct: dimension - 2 * margin per axis
+
+---
+
+## Task 70: Strange attractors gallery — Clifford, Dequan Li, Sprott
+
+**Objective:**
+
+Add three new chaotic attractor generators that produce visually striking
+point clouds and tube meshes: Clifford attractor, Dequan Li attractor,
+and a selection of Sprott systems. These complement the existing attractor
+family (Lorenz, Rossler, Thomas, etc.) with more exotic geometries.
+
+**Suggested path:**
+
+1. **Clifford attractor** (`generators/attractors/clifford.py`):
+   A 2D iterated map extended to 3D. Equations:
+   ```
+   x_{n+1} = sin(a * y_n) + c * cos(a * x_n)
+   y_{n+1} = sin(b * x_n) + d * cos(b * y_n)
+   ```
+   Extend to 3D by using iteration count as z-coordinate (scaled) or by
+   stacking multiple attractors with varying parameters. Default params:
+   `a=-1.4, b=1.6, c=1.0, d=0.7`. This is an iterated map, not an ODE —
+   do not use `solve_ivp`. Iterate directly for N points (default 500,000).
+   Use SPARSE_SHELL representation since this naturally produces a point
+   cloud, not a curve.
+
+2. **Dequan Li attractor** (`generators/attractors/dequan_li.py`):
+   A 3D continuous chaotic system. Equations:
+   ```
+   dx/dt = a*(y - x) + d*x*z
+   dy/dt = k*x + f*y - x*z
+   dz/dt = c*z + x*y - e*x^2
+   ```
+   Default params: `a=40, c=1.833, d=0.16, e=0.65, f=20, k=55`.
+   Integrates via the existing attractor base class with `solve_ivp`.
+   Use TUBE representation.
+
+3. **Sprott systems** (`generators/attractors/sprott.py`):
+   Implement 3–5 of the most visually interesting Sprott minimal chaotic
+   systems (from Sprott's catalog of simple chaotic flows). Each is a 3D
+   ODE with minimal terms. Expose a `system` parameter to select which
+   Sprott variant (e.g., `sprott_a`, `sprott_b`, `sprott_g`, `sprott_n`,
+   `sprott_s`). Use the attractor base class. Use TUBE representation.
+
+4. All three generators should follow the existing attractor patterns:
+   seed-dependent via initial condition perturbation, resolution controlled
+   by `integration_steps` (for ODE types) or `num_points` (for Clifford).
+
+**Tests:** `tests/test_generators/test_strange_attractors.py`
+
+- Clifford attractor produces a point cloud with expected number of points
+- Clifford output varies with seed
+- Dequan Li attractor produces a curve with > 1000 points
+- Dequan Li default params produce a bounded (non-diverging) trajectory
+- Sprott generator accepts a `system` parameter to select variant
+- Each Sprott variant produces a distinct trajectory
+- All three generators register correctly and appear in `mathviz list`
+- `mathviz render-2d <name> -o test.png` succeeds for each
