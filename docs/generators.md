@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 84 generators across 12 categories. Each generator produces a
+MathViz includes 89 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -454,8 +454,15 @@ face plus the center cube at every level, keeping 20 of 27 sub-cubes.
 
 Aliases: `menger`
 
+**Recommended presets:**
+
 ```bash
-mathviz generate menger_sponge --param level=2 --output menger.ply
+# Low-detail preview
+mathviz generate menger_sponge --param level=2 --output menger_preview.ply
+# High-detail for engraving (level 3 is the sweet spot for glass)
+mathviz generate menger_sponge --param level=3 --output menger.ply
+# Maximum detail (level 4, very dense point cloud)
+mathviz generate menger_sponge --param level=4 --output menger_hd.ply
 ```
 
 ### sierpinski_tetrahedron
@@ -1150,8 +1157,13 @@ forming nested tori of linked rings.
 
 Aliases: `hopf`
 
+**Recommended presets:**
+
 ```bash
-mathviz generate hopf_fibration --param num_fibers=48 --param num_circles=7 --seed 42 --output hopf.ply
+# Dense fiber bundle — many fibers for a rich, intricate structure
+mathviz generate hopf_fibration --param num_fibers=64 --param num_circles=8 --seed 42 --output hopf_dense.ply
+# Sparse, clean torus rings
+mathviz generate hopf_fibration --param num_fibers=16 --param num_circles=3 --output hopf_sparse.ply
 ```
 
 ### seifert_surface
@@ -1194,8 +1206,15 @@ Calabi-Yau manifold cross-section — crystalline flower-like string theory shap
 | `n` | 5 | Exponent in z1^n + z2^n = 1 |
 | `alpha` | π/4 | Projection angle from C² to R³ |
 
+**Recommended presets:**
+
 ```bash
-mathviz generate calabi_yau --param n=6 --output calabi_yau.ply
+# Classic quintic (5-fold symmetry)
+mathviz generate calabi_yau --param n=5 --output calabi_yau_5.ply
+# Sextic — denser petal structure
+mathviz generate calabi_yau --param n=6 --output calabi_yau_6.ply
+# Higher-order, intricate crystalline form
+mathviz generate calabi_yau --param n=8 --param grid_resolution=192 --output calabi_yau_8.ply
 ```
 
 ### costa_surface
@@ -1372,8 +1391,15 @@ p-orbitals (dumbbells), d-orbitals (cloverleaf), and higher.
 
 Aliases: `hydrogen_orbital`
 
+**Recommended presets:**
+
 ```bash
-mathviz generate electron_orbital --param n=2 --param l=1 --param m=0 --output orbital.ply
+# Classic p-orbital dumbbell
+mathviz generate electron_orbital --param n=2 --param l=1 --param m=0 --output p_orbital.ply
+# d-orbital cloverleaf
+mathviz generate electron_orbital --param n=3 --param l=2 --param m=1 --output d_orbital.ply
+# f-orbital (complex multi-lobe)
+mathviz generate electron_orbital --param n=4 --param l=3 --param m=2 --output f_orbital.ply
 ```
 
 ### magnetic_field

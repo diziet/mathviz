@@ -98,16 +98,16 @@ mathviz generate gyroid --profile production --output gyroid.ply
 | Category | Count | Generators | Description |
 |---|---|---|---|
 | attractors | 10 | `lorenz`, `rossler`, `chen`, `aizawa`, `thomas`, `halvorsen`, `double_pendulum`, `clifford`, `dequan_li`, `sprott` | Strange attractor trajectories |
-| curves | 4 | `cardioid`, `fibonacci_spiral`, `lissajous_curve`, `logarithmic_spiral` | Mathematical curves extended to 3D |
+| curves | 5 | `cardioid`, `fibonacci_spiral`, `hilbert_3d`, `lissajous_curve`, `logarithmic_spiral` | Mathematical curves extended to 3D |
 | data_driven | 3 | `building_extrude`, `heightmap`, `soundwave` | Forms derived from external data files |
-| fractals | 7 | `apollonian_3d`, `burning_ship`, `fractal_slice`, `julia3d`, `mandelbrot_heightmap`, `mandelbulb`, `menger_sponge` | 3D fractals and fractal heightmaps |
+| fractals | 11 | `apollonian_3d`, `burning_ship`, `fractal_slice`, `ifs_fractal`, `julia3d`, `koch_3d`, `mandelbrot_heightmap`, `mandelbulb`, `menger_sponge`, `quaternion_julia`, `sierpinski_tetrahedron` | 3D fractals and fractal heightmaps |
 | geometry | 6 | `gear`, `generic_parametric`, `geodesic_sphere`, `voronoi_3d`, `voronoi_sphere`, `weaire_phelan` | User-defined parametric surfaces, Voronoi, and mechanical forms |
 | implicit | 4 | `gyroid`, `schwarz_d`, `schwarz_p`, `genus2_surface` | Triply periodic minimal surfaces via marching cubes |
 | knots | 9 | `torus_knot`, `figure_eight_knot`, `lissajous_knot`, `seven_crossing_knots`, `trefoil_on_torus`, `pretzel_knot`, `cinquefoil_knot`, `borromean_rings`, `chain_links` | Mathematical knot curves and linked structures |
 | number_theory | 4 | `digit_encoding`, `prime_gaps`, `sacks_spiral`, `ulam_spiral` | Number-theoretic visualizations |
-| parametric | 18 | `bour_surface`, `boy_surface`, `calabi_yau`, `costa_surface`, `cross_cap`, `dini_surface`, `dna_helix`, `dupin_cyclide`, `enneper_surface`, `klein_bottle`, `lissajous_surface`, `mobius_strip`, `mobius_trefoil`, `roman_surface`, `seifert_surface`, `spherical_harmonics`, `superellipsoid`, `torus` | Parametric surface meshes |
-| physics | 6 | `kepler_orbit`, `nbody`, `planetary_positions`, `electron_orbital`, `gravitational_lensing`, `wave_interference` | Physics simulations |
-| procedural | 5 | `noise_surface`, `reaction_diffusion`, `terrain`, `lsystem`, `rd_surface` | Procedurally generated surfaces and structures |
+| parametric | 23 | `bour_surface`, `boy_surface`, `calabi_yau`, `costa_surface`, `cross_cap`, `dini_surface`, `dna_helix`, `dupin_cyclide`, `enneper_surface`, `hopf_fibration`, `klein_bottle`, `linked_tori`, `lissajous_surface`, `mobius_strip`, `mobius_trefoil`, `roman_surface`, `rose_surface`, `seifert_surface`, `shell_spiral`, `spherical_harmonics`, `superellipsoid`, `torus`, `twisted_torus` | Parametric surface meshes |
+| physics | 7 | `electron_orbital`, `gravitational_lensing`, `kepler_orbit`, `magnetic_field`, `nbody`, `planetary_positions`, `wave_interference` | Physics simulations |
+| procedural | 6 | `lsystem`, `noise_surface`, `penrose_3d`, `rd_surface`, `reaction_diffusion`, `terrain` | Procedurally generated surfaces and structures |
 | surfaces | 1 | `parabolic_envelope` | Ruled surfaces and envelopes |
 
 See [docs/generators.md](docs/generators.md) for full parameter tables and examples.
