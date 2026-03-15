@@ -245,6 +245,44 @@ mathviz render-2d gyroid -o gyroid_front.png --view front
 mathviz render-2d mandelbulb -o mandelbulb_angle.png --view angle
 ```
 
+## render-all
+
+Batch render every generator across multiple views in parallel. Organizes
+outputs into a structured directory with one subdirectory per generator.
+Requires the `[render]` optional dependency (PyVista).
+
+```bash
+mathviz render-all [OPTIONS]
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `--output-dir` | path | renders/ | Base output directory |
+| `--views` | string | top,front,side,angle | Comma-separated views to render |
+| `--workers` | int | CPU count | Number of parallel workers |
+| `--generators` | string | all non-data-driven | Comma-separated list of generators |
+| `--style` | string | points | Render style: shaded, wireframe, points |
+| `--width` | int | 1920 | Image width in pixels |
+| `--height` | int | 1080 | Image height in pixels |
+| `--verbose` | flag | | Enable debug logging |
+| `--quiet` | flag | | Suppress non-error output |
+
+Examples:
+
+```bash
+# Render all generators with default views
+mathviz render-all
+
+# Render specific generators
+mathviz render-all --generators lorenz,torus,gyroid
+
+# Single view, sequential processing
+mathviz render-all --views top --workers 1
+
+# Custom output directory and style
+mathviz render-all --output-dir gallery/ --style shaded
+```
+
 ## convert
 
 Convert geometry between file formats. Supports STL, OBJ, PLY, XYZ, and PCD.
