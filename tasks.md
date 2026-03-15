@@ -2569,3 +2569,63 @@ without waiting for the timeout.
 - Preview HTML shows a cancel button during generation
 - Timeout is configurable via environment variable
 - Normal (fast) generation still works correctly with timeout in place
+
+---
+
+## Task 64: Improve shaded mesh lighting and material quality in preview UI
+
+**Objective:**
+
+The shaded mesh view looks flat and lifeless — complex surfaces like
+schwarz_d appear as featureless blobs. The root causes are: ambient light
+too strong (washes out directional contrast), no shadow mapping, only two
+directional lights, and no environment-based lighting. Fix the lighting,
+enable shadows, and improve materials so shaded mesh view reveals surface
+detail and depth.
+
+**Suggested path:**
+
+1. **Reduce ambient light**: Lower `AmbientLight` intensity from 0.5 to
+   ~0.15. Replace with a `HemisphereLight` (sky color: soft blue, ground
+   color: warm dark) at intensity ~0.3 to give subtle top-bottom gradient
+   that adds depth without washing out shadows.
+
+2. **Improve directional lights**: Use a three-point lighting setup:
+   - Key light: intensity ~1.2, positioned high and to one side
+   - Fill light: intensity ~0.4, opposite side, softer
+   - Rim/back light: intensity ~0.3, behind and above, to define edges
+
+3. **Enable shadow mapping**: Set `renderer.shadowMap.enabled = true` and
+   `renderer.shadowMap.type = THREE.PCFSoftShadowMap`. Configure the key
+   light to cast shadows (`castShadow = true`) with appropriate shadow
+   map size (1024 or 2048). Set meshes to both `castShadow` and
+   `receiveShadow`.
+
+4. **Improve material**: Consider using `MeshPhysicalMaterial` instead of
+   `MeshStandardMaterial` for richer surface response. Add subtle
+   `envMapIntensity` with a simple procedural environment (e.g.,
+   `PMREMGenerator` with a basic scene). Current metalness (0.1) and
+   roughness (0.6) are reasonable but may need tuning.
+
+5. **Add tone mapping**: Set `renderer.toneMapping = THREE.ACESFilmicToneMapping`
+   and `renderer.toneMappingExposure = 1.0` for more cinematic/realistic
+   output.
+
+6. **Normal computation**: Ensure loaded meshes have computed vertex
+   normals (`geometry.computeVertexNormals()`) so shading interpolates
+   smoothly across faces. Without normals, `MeshStandardMaterial` renders
+   flat-shaded.
+
+7. **Light background mode**: When toggling to light background, adjust
+   light intensities so the mesh is still clearly visible (dark
+   backgrounds need brighter lights, light backgrounds need less).
+
+**Tests:** `tests/test_preview/test_lighting.py`
+
+- Preview HTML configures at least 3 light sources
+- Shadow mapping is enabled on the renderer
+- At least one light has `castShadow = true`
+- Mesh materials are created with `castShadow` and `receiveShadow`
+- `computeVertexNormals()` is called on loaded geometries
+- Tone mapping is configured on the renderer
+- HemisphereLight is present in the scene
