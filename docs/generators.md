@@ -629,6 +629,25 @@ mathviz generate voronoi_sphere --output vsphere.ply
 mathviz generate voronoi_sphere --param num_cells=128 --param cell_style=both --output vsphere.ply
 ```
 
+### weaire_phelan
+
+Weaire-Phelan foam structure — the most efficient known partition of space
+into equal-volume cells. The unit cell contains 2 irregular dodecahedra and
+6 tetrakaidecahedra, derived from the Voronoi tessellation of the A15
+crystal structure.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `cells_per_axis` | 2 | Number of unit cell repeats per axis |
+| `edge_only` | `true` | Show only cell edges as wireframe |
+
+Recommended representation: TUBE
+
+```bash
+mathviz generate weaire_phelan --output foam.ply
+mathviz generate weaire_phelan --param cells_per_axis=3 --param edge_only=false --output foam_faces.ply
+```
+
 ## Implicit Surfaces
 
 Triply periodic minimal surfaces extracted via marching cubes.
