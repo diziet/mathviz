@@ -12,6 +12,16 @@ from mathviz.core.representation import RepresentationType
 from mathviz.generators.parametric.linked_tori import LinkedToriGenerator
 
 
+def _split_into_components(math_obj):
+    """Split a MathObject mesh into connected components."""
+    tm = trimesh.Trimesh(
+        vertices=math_obj.mesh.vertices,
+        faces=math_obj.mesh.faces,
+        process=False,
+    )
+    return tm.split(only_watertight=False)
+
+
 @pytest.fixture(autouse=True)
 def _clean_registry():
     """Reset registry and register the linked tori generator for each test."""
@@ -72,23 +82,13 @@ def test_vertices_within_bounding_box(default_obj) -> None:
 
 def test_two_tori_have_two_components(default_obj) -> None:
     """Two linked tori produce exactly two distinct mesh components."""
-    tm = trimesh.Trimesh(
-        vertices=default_obj.mesh.vertices,
-        faces=default_obj.mesh.faces,
-        process=False,
-    )
-    components = tm.split(only_watertight=False)
+    components = _split_into_components(default_obj)
     assert len(components) == 2
 
 
 def test_three_tori_have_three_components(three_tori_obj) -> None:
     """Three linked tori produce exactly three distinct mesh components."""
-    tm = trimesh.Trimesh(
-        vertices=three_tori_obj.mesh.vertices,
-        faces=three_tori_obj.mesh.faces,
-        process=False,
-    )
-    components = tm.split(only_watertight=False)
+    components = _split_into_components(three_tori_obj)
     assert len(components) == 3
 
 
@@ -107,12 +107,7 @@ def test_vertex_count_scales_with_num_tori() -> None:
 
 def test_component_bounding_boxes_overlap(default_obj) -> None:
     """Adjacent tori bounding boxes overlap, confirming interlocking."""
-    tm = trimesh.Trimesh(
-        vertices=default_obj.mesh.vertices,
-        faces=default_obj.mesh.faces,
-        process=False,
-    )
-    components = tm.split(only_watertight=False)
+    components = _split_into_components(default_obj)
     assert len(components) == 2
 
     bbox_a = components[0].bounds  # (2, 3) array: [min, max]
@@ -136,12 +131,7 @@ def test_tori_centers_are_spaced_along_x() -> None:
         params={"num_tori": 3, "link_spacing": spacing},
         grid_resolution=16,
     )
-    tm = trimesh.Trimesh(
-        vertices=obj.mesh.vertices,
-        faces=obj.mesh.faces,
-        process=False,
-    )
-    components = tm.split(only_watertight=False)
+    components = _split_into_components(obj)
     centers = sorted([c.centroid[0] for c in components])
 
     for i in range(len(centers) - 1):

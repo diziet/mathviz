@@ -95,14 +95,16 @@ def _build_linked_tori_mesh(
     grid_resolution: int,
 ) -> Mesh:
     """Build a combined mesh of interlocking tori."""
+    base_verts, base_faces = _generate_single_torus(
+        major_radius, minor_radius, grid_resolution,
+    )
+
     all_vertices = []
     all_faces = []
     vertex_offset = 0
 
     for i in range(num_tori):
-        verts, faces = _generate_single_torus(
-            major_radius, minor_radius, grid_resolution,
-        )
+        verts = base_verts.copy()
 
         # Rotate odd-indexed tori 90° around X to interlock
         if i % 2 == 1:
@@ -112,7 +114,7 @@ def _build_linked_tori_mesh(
         verts[:, 0] += i * link_spacing
 
         all_vertices.append(verts)
-        all_faces.append(faces + vertex_offset)
+        all_faces.append(base_faces + vertex_offset)
         vertex_offset += len(verts)
 
     combined_vertices = np.concatenate(all_vertices, axis=0)
