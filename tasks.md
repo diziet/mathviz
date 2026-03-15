@@ -2936,3 +2936,55 @@ family (Lorenz, Rossler, Thomas, etc.) with more exotic geometries.
 - Each Sprott variant produces a distinct trajectory
 - All three generators register correctly and appear in `mathviz list`
 - `mathviz render-2d <name> -o test.png` succeeds for each
+
+---
+
+## Task 71: Reaction-diffusion patterns on surfaces
+
+**Objective:**
+
+Add a generator that runs Gray-Scott reaction-diffusion on a curved
+surface (torus, sphere, or arbitrary mesh) and produces a 3D mesh with
+Turing-pattern geometry. Unlike the existing `reaction_diffusion`
+generator (which runs on a flat 2D grid), this simulates directly on a
+surface, displacing vertices along normals to create organic bumps, spots,
+and stripes.
+
+**Suggested path:**
+
+1. Create `generators/procedural/rd_surface.py` with a
+   `ReactionDiffusionSurface` generator.
+
+2. Parameters:
+   - `base_surface`: `sphere`, `torus`, `klein_bottle` (default: `torus`)
+   - `feed_rate` (f): controls pattern type (default: 0.055)
+   - `kill_rate` (k): controls pattern type (default: 0.062)
+   - `diffusion_u`, `diffusion_v`: diffusion rates (defaults: 0.16, 0.08)
+   - `iterations`: simulation steps (default: 5000)
+   - `displacement_scale`: vertex displacement along normals (default: 0.1)
+   - `grid_resolution`: base surface mesh resolution (default: 128)
+
+3. Algorithm:
+   - Generate the base surface mesh (reuse existing parametric generators)
+   - Build a vertex adjacency graph (Laplacian) from mesh topology
+   - Initialize U=1, V=0 everywhere, seed V with small random patches
+   - Run Gray-Scott iteration using the mesh Laplacian for diffusion
+   - Displace each vertex along its normal by `V * displacement_scale`
+   - Recompute normals on the displaced mesh
+
+4. Different `(f, k)` values produce different patterns: spots (0.035,
+   0.065), stripes (0.055, 0.062), maze (0.029, 0.057). Document these
+   presets as parameter suggestions.
+
+5. Seed controls the initial V perturbation placement.
+
+6. Use SURFACE_SHELL representation (output is already a mesh).
+
+**Tests:** `tests/test_generators/test_rd_surface.py`
+
+- Generator produces a valid mesh with expected vertex count
+- Different feed/kill rates produce different vertex displacements
+- Output is seed-dependent
+- Base surface parameter switches between torus, sphere, klein_bottle
+- Displacement scale of 0 produces the unmodified base surface
+- Generator registers and appears in `mathviz list`
