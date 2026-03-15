@@ -58,10 +58,10 @@ class TestDeriveParamRangePositiveInt:
         assert rng["min"] == 1
 
     def test_positive_int_max(self) -> None:
-        """_derive_param_range(2) returns max: 4 (2*default)."""
+        """_derive_param_range(2) returns max: 10 (floor of 10 for small values)."""
         rng = _derive_param_range(2)
         assert rng is not None
-        assert rng["max"] == 4
+        assert rng["max"] == 10
 
     def test_positive_int_step(self) -> None:
         """Positive integer step is always 1."""
@@ -208,4 +208,12 @@ class TestRandomizeAlwaysApplies:
 
     def test_retry_on_validation_error(self, preview_html: str) -> None:
         """Randomize retries on 400 status (constraint violation)."""
-        assert "resp.status === 400" in preview_html
+        assert "result.status === 400" in preview_html
+
+    def test_exhausted_retries_show_error(self, preview_html: str) -> None:
+        """User sees an error message when all retry attempts are exhausted."""
+        assert "Randomize failed after" in preview_html
+
+    def test_shared_generate_helper(self, preview_html: str) -> None:
+        """Generate logic is extracted into _doGenerate helper."""
+        assert "_doGenerate" in preview_html

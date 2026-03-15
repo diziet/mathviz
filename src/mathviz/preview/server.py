@@ -227,7 +227,7 @@ def _derive_param_range(value: Any) -> dict[str, float] | None:
         return None
     if isinstance(value, int):
         if value > 0:
-            return {"min": 1, "max": value * 2, "step": 1}
+            return {"min": 1, "max": max(value * 2, 10), "step": 1}
         if value == 0:
             return {"min": 0, "max": 10, "step": 1}
         return {"min": value * 2, "max": abs(value) * 2, "step": 1}
