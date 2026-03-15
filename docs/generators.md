@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 65 generators across 12 categories. Each generator produces a
+MathViz includes 66 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -830,6 +830,22 @@ Boy surface (RP² immersion) with triple self-intersection.
 
 ```bash
 mathviz generate boy_surface --output boy.ply
+```
+
+### bour_surface
+
+Bour's minimal surface — interpolates between a helicoid and a catenoid.
+Parameterized by order n, with n=2 giving the classic helicoid-catenoid interpolation.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `n` | 2 | Surface order (controls shape) |
+| `r_max` | 1.0 | Maximum radial extent |
+
+Aliases: `bour`
+
+```bash
+mathviz generate bour_surface --param n=3 --output bour.ply
 ```
 
 ### seifert_surface
