@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 59 generators across 12 categories. Each generator produces a
+MathViz includes 60 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -830,6 +830,19 @@ Boy surface (RP² immersion) with triple self-intersection.
 
 ```bash
 mathviz generate boy_surface --output boy.ply
+```
+
+### calabi_yau
+
+Calabi-Yau manifold cross-section — crystalline flower-like string theory shape.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `n` | 5 | Exponent in z1^n + z2^n = 1 |
+| `alpha` | π/4 | Projection angle from C² to R³ |
+
+```bash
+mathviz generate calabi_yau --param n=6 --output calabi_yau.ply
 ```
 
 ### costa_surface
