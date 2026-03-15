@@ -26,7 +26,7 @@ unique form rendered as a monochrome point cloud of micro-fractures.
 
 ## Features
 
-- **86 generators** across 12 categories (attractors, fractals, knots, parametric surfaces, and more)
+- **87 generators** across 12 categories (attractors, fractals, knots, parametric surfaces, and more)
 - **Linear pipeline**: Generate → Represent → Transform → Sample → Validate → Export
 - **9 representation strategies** for controlling how forms appear when engraved
 - **Deterministic output**: every form is reproducible from its seed
