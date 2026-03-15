@@ -3160,3 +3160,120 @@ striking in glass when rendered as tubes.
 - Cinquefoil knot produces a closed curve distinct from trefoil
 - All generators register and appear in `mathviz list`
 - `mathviz render-2d <name> -o test.png` succeeds for each
+
+---
+
+## Task 75: Update generator documentation for all new generators
+
+**Objective:**
+
+Update all documentation (README, docs/, CLI help) to cover every
+generator currently in the codebase, including all generators added in
+Tasks 70–74 (strange attractors, reaction-diffusion surfaces, L-systems,
+spherical Voronoi, exotic knots) and any other generators added since the
+last documentation pass (Task 37).
+
+**Suggested path:**
+
+1. **`docs/generators.md`**: Add an entry for every registered generator.
+   Each entry should include:
+   - Name and aliases
+   - Category
+   - One-line description
+   - Parameters table (name, type, default, description)
+   - Resolution parameters (if any)
+   - Whether output varies with seed
+   - Recommended representation strategy
+   - A sample render command
+
+2. **Organize by category**: Group generators under headings — Attractors,
+   Parametric Surfaces, Implicit Surfaces, Curves, Knots, Fractals,
+   Number Theory, Physics, Procedural, Geometry, Data-Driven.
+
+3. **`README.md`**: Update the generator count and list. Add a summary
+   table of all categories with generator counts.
+
+4. **Parameter presets**: For generators with interesting parameter
+   combinations (e.g., reaction-diffusion spots vs stripes vs maze,
+   Sprott system variants, L-system presets), document recommended
+   parameter sets with example commands.
+
+5. **Audit for completeness**: Run `mathviz list` and verify every
+   generator in the registry has a corresponding entry in
+   `docs/generators.md`. Flag any missing ones.
+
+6. **Sample renders**: Reference the `mathviz render-all` command
+   (Task 61) for generating a visual catalog. If a `renders/` directory
+   with sample images exists, link to them from the docs.
+
+**Tests:** `tests/test_docs/test_generator_docs.py`
+
+- Every generator in the registry has an entry in `docs/generators.md`
+- Every entry includes name, category, parameters, and description
+- No generator is listed in docs that doesn't exist in the registry
+- README generator count matches the actual registry count
+- `docs/generators.md` has a heading for each category
+
+---
+
+## Task 76: Comprehensive documentation update for all features
+
+**Objective:**
+
+Perform a full documentation audit and update covering all implemented
+features, CLI commands, preview UI capabilities, pipeline concepts, and
+configuration options. This goes beyond generator docs (Task 75) to cover
+the entire project.
+
+**Suggested path:**
+
+1. **`README.md`**: Rewrite to cover:
+   - Project overview and purpose (glass engraving pipeline)
+   - Installation (with `[render]` extras)
+   - Quick start: generate, render, preview
+   - Full CLI command reference summary
+   - Link to detailed docs
+
+2. **`docs/cli.md`**: Document every CLI command with usage, options,
+   and examples:
+   - `mathviz generate` — full pipeline with export
+   - `mathviz render` / `render-2d` — offline PNG rendering
+   - `mathviz render-all` — batch parallel rendering (Task 61)
+   - `mathviz preview` — interactive browser preview
+   - `mathviz benchmark` — performance benchmarking (Task 60)
+   - `mathviz list` / `info` / `validate` / `convert` / `sample`
+   - `mathviz transform` / `schema` / `grid`
+
+3. **`docs/preview.md`**: Document the preview UI features:
+   - Generator switcher (Task 42)
+   - Container/dimensions editor (Task 43)
+   - Parameter editor (Tasks 44/51)
+   - View modes (shaded, wireframe, point cloud)
+   - Lock Camera, Auto-Apply, Reset View
+   - Save/Load snapshots (Tasks 57/58)
+   - Comparison mode 2×2/3×3 (Task 62)
+   - Keyboard shortcuts (Enter to regenerate, R to randomize)
+
+4. **`docs/pipeline.md`**: Document the pipeline stages:
+   - Generate → Represent → Transform → Validate → Export
+   - Representation strategies (SURFACE_SHELL, TUBE, SPARSE_SHELL, etc.)
+   - Container model and placement policy
+   - Export formats (STL, OBJ, PLY, GLB)
+
+5. **`docs/configuration.md`**: Document configuration options:
+   - Config file support and sampling profiles
+   - Environment variables (MATHVIZ_SNAPSHOTS_DIR,
+     MATHVIZ_GENERATION_TIMEOUT, etc.)
+   - CLI flag precedence
+
+6. **Audit**: Cross-reference every public feature against docs. Every
+   CLI flag, every UI control, every config option should be documented.
+
+**Tests:** `tests/test_docs/test_docs_completeness.py`
+
+- README exists and contains install, run, and test sections
+- Every CLI command has an entry in `docs/cli.md`
+- `docs/preview.md` exists and covers all UI features
+- `docs/pipeline.md` exists and covers all pipeline stages
+- Every doc file is valid markdown with no broken headers
+- No dead links between doc files
