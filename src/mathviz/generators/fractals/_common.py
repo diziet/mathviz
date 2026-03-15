@@ -63,6 +63,27 @@ def validate_c_params(c_re: float, c_im: float, c_z: float) -> None:
             )
 
 
+def validate_quaternion_c_params(
+    c_real: float, c_i: float, c_j: float, c_k: float,
+) -> None:
+    """Validate quaternion Julia c parameters are within safe bounds."""
+    for name, val in [
+        ("c_real", c_real), ("c_i", c_i), ("c_j", c_j), ("c_k", c_k),
+    ]:
+        if abs(val) > MAX_C_MAGNITUDE:
+            raise ValueError(
+                f"{name} magnitude {abs(val):.1f} exceeds maximum "
+                f"{MAX_C_MAGNITUDE}; use a value in [-{MAX_C_MAGNITUDE}, "
+                f"{MAX_C_MAGNITUDE}]"
+            )
+
+
+def validate_escape_radius(escape_radius: float) -> None:
+    """Validate escape radius is positive."""
+    if escape_radius <= 0:
+        raise ValueError(f"escape_radius must be positive, got {escape_radius}")
+
+
 def build_voxel_grid(
     voxel_resolution: int,
     extent: float,

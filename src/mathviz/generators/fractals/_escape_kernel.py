@@ -91,6 +91,76 @@ def mandelbulb_escape_field(
     return field
 
 
+@numba.njit(cache=True)
+def _iterate_quaternion(
+    q0: float,
+    q1: float,
+    q2: float,
+    q3: float,
+    c0: float,
+    c1: float,
+    c2: float,
+    c3: float,
+    max_iterations: int,
+    escape_radius_sq: float,
+) -> float:
+    """Evaluate a single quaternion Julia iteration.
+
+    Iterates q → q² + c in quaternion space. Returns iteration count at
+    escape, or 0.0 if the point did not escape.
+    """
+    a, b, c, d = q0, q1, q2, q3
+    for i in range(max_iterations):
+        norm_sq = a * a + b * b + c * c + d * d
+        if norm_sq > escape_radius_sq:
+            return float(i)
+        # q² = (a²-b²-c²-d², 2ab, 2ac, 2ad)
+        new_a = a * a - b * b - c * c - d * d + c0
+        new_b = 2.0 * a * b + c1
+        new_c = 2.0 * a * c + c2
+        new_d = 2.0 * a * d + c3
+        a, b, c, d = new_a, new_b, new_c, new_d
+    return 0.0
+
+
+@numba.njit(parallel=True, cache=True)
+def quaternion_julia_escape_field(
+    xs: np.ndarray,
+    ys: np.ndarray,
+    zs: np.ndarray,
+    slice_w: float,
+    max_iterations: int,
+    escape_radius: float,
+    c_real: float,
+    c_i: float,
+    c_j: float,
+    c_k: float,
+) -> np.ndarray:
+    """Evaluate quaternion Julia escape-time on a 3D voxel grid.
+
+    Each voxel (x, y, z) maps to quaternion (x, y, z, slice_w). The 4th
+    component is fixed, giving a 3D slice of the 4D fractal.
+    """
+    nx = xs.shape[0]
+    ny = ys.shape[0]
+    nz = zs.shape[0]
+    escape_radius_sq = escape_radius * escape_radius
+    field = np.zeros((nx, ny, nz), dtype=np.float64)
+
+    for ix in numba.prange(nx):
+        q0 = xs[ix]
+        for iy in range(ny):
+            q1 = ys[iy]
+            for iz in range(nz):
+                q2 = zs[iz]
+                field[ix, iy, iz] = _iterate_quaternion(
+                    q0, q1, q2, slice_w,
+                    c_real, c_i, c_j, c_k,
+                    max_iterations, escape_radius_sq,
+                )
+    return field
+
+
 @numba.njit(parallel=True, cache=True)
 def julia3d_escape_field(
     xs: np.ndarray,
