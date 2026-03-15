@@ -79,12 +79,9 @@ class TestLockCameraCycling:
         assert "full: 'off'" in html
         assert "off: 'render'" in html
 
-    def test_click_updates_dataset_mode(self, html: str) -> None:
-        """Click handler updates btn.dataset.mode."""
+    def test_click_updates_dataset_and_state(self, html: str) -> None:
+        """Click handler updates btn.dataset.mode and state.cameraLocked."""
         assert "btn.dataset.mode = next" in html
-
-    def test_click_updates_state(self, html: str) -> None:
-        """Click handler updates state.cameraLocked."""
         assert "state.cameraLocked = next" in html
 
     def test_labels_for_all_modes(self, html: str) -> None:
@@ -93,70 +90,88 @@ class TestLockCameraCycling:
         assert "Full Lock" in html
         assert "Free" in html
 
+    def test_invalid_state_fallback(self, html: str) -> None:
+        """Invalid cameraLocked value falls back to render via nullish coalescing."""
+        assert "cycle[state.cameraLocked] ?? 'render'" in html
 
-class TestOffMode:
-    """Tests for off mode: fitCamera called, controls enabled."""
 
-    def test_fit_camera_called_when_off(self, html: str) -> None:
-        """fitCamera is called on regeneration when mode is off."""
+class TestClickHandlerBehavior:
+    """Tests for controls/cursor behavior in the click handler."""
+
+    def test_controls_enabled_gated_by_full(self, html: str) -> None:
+        """Controls disabled only in full lock mode."""
+        assert "controls.enabled = next !== 'full'" in html
+
+    def test_cursor_not_allowed_in_full_only(self, html: str) -> None:
+        """Cursor set to not-allowed only in full mode, cleared otherwise."""
+        assert "next === 'full' ? 'not-allowed' : ''" in html
+        assert "renderer.domElement.style.cursor" in html
+
+
+class TestSetupCameraForObject:
+    """Tests for the lock-aware camera setup helper."""
+
+    def test_fit_camera_guard(self, html: str) -> None:
+        """fitCamera runs when mode is off or on first render."""
         fn = _extract_fn_body(html, "function setupCameraForObject")
-        assert "state.cameraLocked === 'off'" in fn
+        assert "state.cameraLocked === 'off' || _firstRender" in fn
         assert "fitCamera(object3d)" in fn
 
-    def test_controls_enabled_when_off(self, html: str) -> None:
-        """Controls are enabled when mode is off."""
-        # The handler sets controls.enabled = (next !== 'full')
-        # When next is 'off', this is true
-        assert "controls.enabled = next !== 'full'" in html
-
-
-class TestRenderLockMode:
-    """Tests for render lock: no fitCamera, controls remain enabled."""
-
-    def test_no_fit_camera_in_render_mode(self, html: str) -> None:
-        """fitCamera is NOT called on regeneration when mode is render."""
+    def test_clipping_planes_in_else_branch(self, html: str) -> None:
+        """Clipping planes update when camera is locked (not off)."""
         fn = _extract_fn_body(html, "function setupCameraForObject")
-        # fitCamera only called when cameraLocked === 'off'
-        assert "state.cameraLocked === 'off'" in fn
+        assert "updateClippingPlanes(object3d)" in fn
 
-    def test_controls_enabled_in_render_mode(self, html: str) -> None:
-        """Controls remain enabled in render mode (not 'full')."""
-        assert "controls.enabled = next !== 'full'" in html
+    def test_bounding_box_always_first(self, html: str) -> None:
+        """addBoundingBox is called before the lock guard."""
+        fn = _extract_fn_body(html, "function setupCameraForObject")
+        bbox_pos = fn.index("addBoundingBox")
+        lock_pos = fn.index("state.cameraLocked")
+        assert bbox_pos < lock_pos
 
-    def test_camera_position_preserved(self, html: str) -> None:
-        """Camera position is saved and restored across regeneration."""
+
+class TestFirstRenderFitsCamera:
+    """Tests for the first-render override that ensures initial framing."""
+
+    def test_first_render_flag_exists(self, html: str) -> None:
+        """A _firstRender flag forces fitCamera on initial load."""
+        assert "let _firstRender = true" in html
+
+    def test_first_render_cleared_after_use(self, html: str) -> None:
+        """_firstRender is set to false after the first fitCamera call."""
+        fn = _extract_fn_body(html, "function setupCameraForObject")
+        assert "_firstRender = false" in fn
+
+
+class TestCameraPreservation:
+    """Tests for camera save/restore across regenerations."""
+
+    def test_camera_position_saved_and_restored(self, html: str) -> None:
+        """Camera position is cloned before and copied after regeneration."""
         assert "camera.position.clone()" in html
         assert "camera.position.copy(saved.position)" in html
 
-    def test_controls_target_preserved(self, html: str) -> None:
+    def test_controls_target_saved_and_restored(self, html: str) -> None:
         """OrbitControls target is saved and restored."""
         assert "controls.target.clone()" in html
         assert "controls.target.copy(saved.target)" in html
 
-
-class TestFullLockMode:
-    """Tests for full lock: no fitCamera, controls disabled, cursor locked."""
-
-    def test_no_fit_camera_in_full_mode(self, html: str) -> None:
-        """fitCamera is NOT called on regeneration when mode is full."""
-        fn = _extract_fn_body(html, "function setupCameraForObject")
+    def test_save_returns_null_when_off(self, html: str) -> None:
+        """saveCameraIfLocked returns null only when mode is off."""
+        fn = _extract_fn_body(html, "function saveCameraIfLocked()")
         assert "state.cameraLocked === 'off'" in fn
 
-    def test_controls_disabled_in_full_mode(self, html: str) -> None:
-        """Controls disabled when mode is full."""
-        assert "controls.enabled = next !== 'full'" in html
-
-    def test_cursor_not_allowed_in_full_mode(self, html: str) -> None:
-        """Cursor set to not-allowed when mode is full."""
-        assert "next === 'full' ? 'not-allowed' : ''" in html
-        assert "renderer.domElement.style.cursor" in html
+    def test_helpers_exist(self, html: str) -> None:
+        """DRY helpers saveCameraIfLocked and restoreCameraIfSaved exist."""
+        assert "function saveCameraIfLocked()" in html
+        assert "function restoreCameraIfSaved(saved)" in html
 
 
 class TestResetView:
     """Tests for Reset View behavior across all modes."""
 
-    def test_reset_view_works_in_all_modes(self, html: str) -> None:
-        """Reset View temporarily enables controls for full lock."""
+    def test_reset_view_calls_fit_camera(self, html: str) -> None:
+        """Reset View calls fitCamera regardless of lock mode."""
         fn = _extract_fn_body(html, "function resetView()")
         assert "fitCamera(active)" in fn
 
@@ -168,65 +183,20 @@ class TestResetView:
         assert "if (wasFullLock) controls.enabled = false" in fn
 
     def test_reset_view_uses_try_finally(self, html: str) -> None:
-        """resetView uses try/finally to ensure controls re-disabled on error."""
+        """resetView uses try/finally to ensure controls re-disabled."""
         fn = _extract_fn_body(html, "function resetView()")
         assert "try {" in fn
         assert "} finally {" in fn
 
 
-class TestSaveRestoreHelpers:
-    """Tests for saveCameraIfLocked / restoreCameraIfSaved."""
-
-    def test_helpers_exist(self, html: str) -> None:
-        """DRY helpers saveCameraIfLocked and restoreCameraIfSaved exist."""
-        assert "function saveCameraIfLocked()" in html
-        assert "function restoreCameraIfSaved(saved)" in html
-
-    def test_save_activates_in_render_and_full(self, html: str) -> None:
-        """saveCameraIfLocked returns null only when mode is off."""
-        fn = _extract_fn_body(html, "function saveCameraIfLocked()")
-        assert "state.cameraLocked === 'off'" in fn
-
-    def test_restore_copies_position_and_target(self, html: str) -> None:
-        """restoreCameraIfSaved restores camera position and target."""
-        fn = _extract_fn_body(html, "function restoreCameraIfSaved")
-        assert "controls.target.copy(saved.target)" in fn
-        assert "camera.position.copy(saved.position)" in fn
-
-
-class TestFullToOffTransition:
-    """Tests for transitioning from full lock to off."""
-
-    def test_controls_re_enabled_on_transition(self, html: str) -> None:
-        """Transitioning from full -> off re-enables controls."""
-        # When cycling full -> off, next !== 'full' so controls.enabled = true
-        assert "controls.enabled = next !== 'full'" in html
-
-    def test_cursor_reset_on_transition(self, html: str) -> None:
-        """Transitioning from full -> off resets cursor."""
-        # When next is 'off', cursor becomes ''
-        assert "next === 'full' ? 'not-allowed' : ''" in html
-
-
 class TestExistingBehaviorPreserved:
     """Tests for features that must still work."""
 
-    def test_setup_camera_helper_exists(self, html: str) -> None:
-        """setupCameraForObject helper encapsulates lock-aware camera logic."""
-        fn = _extract_fn_body(html, "function setupCameraForObject")
-        assert "addBoundingBox(object3d)" in fn
-        assert "fitCamera(object3d)" in fn
-        assert "updateClippingPlanes(object3d)" in fn
-
-    def test_clipping_planes_update_when_locked(self, html: str) -> None:
-        """Near/far clipping planes update even when locked."""
+    def test_clipping_planes_function_exists(self, html: str) -> None:
+        """updateClippingPlanes function exists and updates projection."""
         assert "function updateClippingPlanes(object3d)" in html
-        fn = _extract_fn_body(html, "function setupCameraForObject")
-        assert "updateClippingPlanes(object3d)" in fn
 
-    def test_concurrent_generate_calls_use_generation_id(
-        self, html: str
-    ) -> None:
+    def test_concurrent_generate_uses_generation_id(self, html: str) -> None:
         """Concurrent displayGenerateResult calls serialized via generationId."""
         assert "state.generationId += 1" in html
         assert "const myGenerationId = state.generationId" in html

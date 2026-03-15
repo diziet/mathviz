@@ -637,9 +637,11 @@ function updateClippingPlanes(object3d) {
 }
 
 /* Lock-aware camera + bounding box setup for newly loaded geometry */
+let _firstRender = true;
 function setupCameraForObject(object3d) {
   addBoundingBox(object3d);
-  if (state.cameraLocked === 'off') {
+  if (state.cameraLocked === 'off' || _firstRender) {
+    _firstRender = false;
     fitCamera(object3d);
   } else {
     updateClippingPlanes(object3d);
@@ -1185,7 +1187,7 @@ document.getElementById('lock-camera').addEventListener('click', () => {
     full: '\u{1f512} Full Lock',
     off: '\u{1f513} Free',
   };
-  const next = cycle[state.cameraLocked];
+  const next = cycle[state.cameraLocked] ?? 'render';
   state.cameraLocked = next;
   const btn = document.getElementById('lock-camera');
   btn.dataset.mode = next;
