@@ -235,6 +235,20 @@ def test_negative_face_width_rejected() -> None:
         gen.generate(params={"face_width": -1.0})
 
 
+def test_extreme_helix_angle_rejected() -> None:
+    """helix_angle near 90 degrees raises ValueError."""
+    gen = GearGenerator()
+    with pytest.raises(ValueError, match="helix_angle must be in"):
+        gen.generate(params={"helix_angle": 85})
+
+
+def test_negative_extreme_helix_angle_rejected() -> None:
+    """Negative helix_angle near -90 degrees raises ValueError."""
+    gen = GearGenerator()
+    with pytest.raises(ValueError, match="helix_angle must be in"):
+        gen.generate(params={"helix_angle": -80})
+
+
 def test_too_few_curve_points_rejected() -> None:
     """curve_points below minimum raises ValueError."""
     gen = GearGenerator()

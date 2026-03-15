@@ -615,7 +615,7 @@ gear solids.
 |---|---|---|
 | `num_teeth` | 20 | Number of teeth (6–200) |
 | `module` | 1.0 | Tooth size (standard gear module) |
-| `pressure_angle` | 20 | Pressure angle in degrees (0–45) |
+| `pressure_angle` | 20 | Pressure angle in degrees, exclusive (0, 45) |
 | `face_width` | 0.5 | Extrusion height along z-axis |
 | `helix_angle` | 0 | Helix angle in degrees (0 = spur gear) |
 | `curve_points` | 32 | Points per tooth profile |

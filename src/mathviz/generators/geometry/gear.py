@@ -28,11 +28,15 @@ _ADDENDUM_FACTOR = 1.0
 _DEDENDUM_FACTOR = 1.25
 
 
+_MAX_HELIX_ANGLE = 80.0
+
+
 def _validate_params(
     num_teeth: int,
     module: float,
     pressure_angle: float,
     face_width: float,
+    helix_angle: float,
     curve_points: int,
 ) -> None:
     """Validate gear generator parameters."""
@@ -48,6 +52,11 @@ def _validate_params(
         )
     if face_width <= 0:
         raise ValueError(f"face_width must be > 0, got {face_width}")
+    if abs(helix_angle) >= _MAX_HELIX_ANGLE:
+        raise ValueError(
+            f"helix_angle must be in (-{_MAX_HELIX_ANGLE}, {_MAX_HELIX_ANGLE}) "
+            f"degrees, got {helix_angle}"
+        )
     if curve_points < 8:
         raise ValueError(f"curve_points must be >= 8, got {curve_points}")
 
@@ -68,7 +77,14 @@ def _build_gear_profile(
     pitch_radius = module * num_teeth / 2.0
     base_radius = pitch_radius * np.cos(pressure_angle_rad)
     tip_radius = pitch_radius + _ADDENDUM_FACTOR * module
-    root_radius = max(pitch_radius - _DEDENDUM_FACTOR * module, 0.1 * module)
+    ideal_root = pitch_radius - _DEDENDUM_FACTOR * module
+    root_radius = max(ideal_root, 0.1 * module)
+    if root_radius > ideal_root:
+        logger.warning(
+            "Root radius clamped from %.4f to %.4f (num_teeth=%d may be too few "
+            "for standard dedendum)",
+            ideal_root, root_radius, num_teeth,
+        )
 
     inv_pa = float(np.tan(pressure_angle_rad) - pressure_angle_rad)
     half_tooth_angle = np.pi / (2 * num_teeth) + inv_pa
@@ -238,7 +254,9 @@ class GearGenerator(GeneratorBase):
         helix_angle = float(merged["helix_angle"])
         curve_points = int(merged["curve_points"])
 
-        _validate_params(num_teeth, module, pressure_angle, face_width, curve_points)
+        _validate_params(
+            num_teeth, module, pressure_angle, face_width, helix_angle, curve_points
+        )
 
         pressure_angle_rad = np.radians(pressure_angle)
         helix_angle_rad = np.radians(helix_angle)
