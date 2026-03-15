@@ -90,6 +90,10 @@ class TorusGenerator(GeneratorBase):
             "minor_radius": _DEFAULT_MINOR_RADIUS,
         }
 
+    def get_default_resolution(self) -> dict[str, Any]:
+        """Return default resolution parameters for the torus generator."""
+        return {"grid_resolution": _DEFAULT_GRID_RESOLUTION}
+
     def generate(
         self,
         params: dict[str, Any] | None = None,

@@ -90,9 +90,12 @@ canvas{display:block}
   letter-spacing:0.5px;opacity:0.7;margin-top:2px}
 #container-panel.light-bg .control-input{background:rgba(255,255,255,0.5);border-color:#aaa}
 
-.dim-row{display:flex;gap:4px;align-items:center}
-.dim-row label{flex:0 0 auto;font-size:11px;min-width:28px;opacity:0.8}
-.dim-row input{flex:1;width:0;min-width:0}
+/* Shared editor row layout */
+.editor-row{display:flex;gap:4px;align-items:center}
+.editor-row label{flex:0 0 auto;font-size:11px;opacity:0.8}
+.editor-row input{flex:1;width:0;min-width:0}
+.dim-row label{min-width:28px}
+.param-row label{min-width:80px}
 #usable-volume{font-size:11px;opacity:0.7;margin-top:2px}
 .container-buttons{display:flex;gap:6px}
 
@@ -114,9 +117,6 @@ canvas{display:block}
 }
 #param-panel button:hover{background:rgba(128,128,128,0.3)}
 #param-panel.light-bg .control-input{background:rgba(255,255,255,0.5);border-color:#aaa}
-.param-row{display:flex;gap:4px;align-items:center}
-.param-row label{flex:0 0 auto;font-size:11px;min-width:80px;opacity:0.8}
-.param-row input{flex:1;width:0;min-width:0}
 .param-hint{font-size:10px;opacity:0.5;margin-top:-4px}
 .param-buttons{display:flex;gap:6px}
 #param-error{font-size:11px;color:#ff6b6b;display:none;word-break:break-word}
@@ -129,15 +129,15 @@ canvas{display:block}
 
   <div id="container-panel">
     <div class="section-title">Dimensions (mm)</div>
-    <div class="dim-row"><label for="dim-w">W</label><input type="number" id="dim-w" class="control-input" value="100" min="1" step="1"></div>
-    <div class="dim-row"><label for="dim-h">H</label><input type="number" id="dim-h" class="control-input" value="100" min="1" step="1"></div>
-    <div class="dim-row"><label for="dim-d">D</label><input type="number" id="dim-d" class="control-input" value="40" min="1" step="1"></div>
+    <div class="editor-row dim-row"><label for="dim-w">W</label><input type="number" id="dim-w" class="control-input" value="100" min="1" step="1"></div>
+    <div class="editor-row dim-row"><label for="dim-h">H</label><input type="number" id="dim-h" class="control-input" value="100" min="1" step="1"></div>
+    <div class="editor-row dim-row"><label for="dim-d">D</label><input type="number" id="dim-d" class="control-input" value="40" min="1" step="1"></div>
 
     <div class="section-title">Margins (mm)</div>
     <label><input type="checkbox" id="uniform-margin" checked> Uniform</label>
-    <div class="dim-row"><label for="margin-x">X</label><input type="number" id="margin-x" class="control-input" value="5" min="0" step="0.5"></div>
-    <div class="dim-row"><label for="margin-y">Y</label><input type="number" id="margin-y" class="control-input" value="5" min="0" step="0.5"></div>
-    <div class="dim-row"><label for="margin-z">Z</label><input type="number" id="margin-z" class="control-input" value="5" min="0" step="0.5"></div>
+    <div class="editor-row dim-row"><label for="margin-x">X</label><input type="number" id="margin-x" class="control-input" value="5" min="0" step="0.5"></div>
+    <div class="editor-row dim-row"><label for="margin-y">Y</label><input type="number" id="margin-y" class="control-input" value="5" min="0" step="0.5"></div>
+    <div class="editor-row dim-row"><label for="margin-z">Z</label><input type="number" id="margin-z" class="control-input" value="5" min="0" step="0.5"></div>
 
     <div id="usable-volume">Usable: 90 x 90 x 30 mm</div>
 
@@ -423,6 +423,28 @@ function displayCloud(points, vertexCount, label) {
   updateInfo({generator: label, points: vertexCount});
 }
 
+/* ── Shared display helper ── */
+async function displayGenerateResult(data, generatorName) {
+  clearScene();
+  const hasMesh = Boolean(data.mesh_url);
+  const hasCloud = Boolean(data.cloud_url);
+
+  if (hasMesh) await displayMesh(data.mesh_url + '?lod=preview', generatorName);
+  if (hasCloud) {
+    const {points, vertexCount} = await loadCloudFromPLY(data.cloud_url + '?lod=preview');
+    displayCloud(points, vertexCount, generatorName);
+  }
+
+  if (!hasMesh && hasCloud) {
+    state.viewMode = 'points';
+    document.getElementById('view-mode').value = 'points';
+  } else if (hasMesh) {
+    state.viewMode = 'shaded';
+    document.getElementById('view-mode').value = 'shaded';
+  }
+  applyViewMode();
+}
+
 /* ── Loading workflows ── */
 async function loadFromAPI(generator, genParams, seed) {
   const loadingEl = document.getElementById('loading');
@@ -437,26 +459,7 @@ async function loadFromAPI(generator, genParams, seed) {
     });
     if (!resp.ok) throw new Error(`Generate failed: ${resp.status}`);
     const data = await resp.json();
-
-    clearScene();
-    const hasMesh = Boolean(data.mesh_url);
-    const hasCloud = Boolean(data.cloud_url);
-
-    if (hasMesh) await displayMesh(data.mesh_url + '?lod=preview', generator);
-    if (hasCloud) {
-      const {points, vertexCount} = await loadCloudFromPLY(data.cloud_url + '?lod=preview');
-      displayCloud(points, vertexCount, generator);
-    }
-
-    /* Auto-select view mode based on available geometry */
-    if (!hasMesh && hasCloud) {
-      state.viewMode = 'points';
-      document.getElementById('view-mode').value = 'points';
-    } else if (hasMesh) {
-      state.viewMode = 'shaded';
-      document.getElementById('view-mode').value = 'shaded';
-    }
-    applyViewMode();
+    await displayGenerateResult(data, generator);
   } catch (err) {
     console.error('Load error:', err);
     updateInfo({generator: generator + ' (error)'});
@@ -775,7 +778,7 @@ let cachedParamDefaults = null;
 
 function createParamInput(name, value, description) {
   const row = document.createElement('div');
-  row.className = 'param-row';
+  row.className = 'editor-row param-row';
   const label = document.createElement('label');
   label.textContent = name;
   label.setAttribute('for', 'param-' + name);
@@ -815,23 +818,44 @@ function createParamInput(name, value, description) {
   return wrapper;
 }
 
-function collectParamValues(container) {
+function collectParamValues(paramContainer) {
   const values = {};
-  for (const input of container.querySelectorAll('input[data-param-name]')) {
+  for (const input of paramContainer.querySelectorAll('input[data-param-name]')) {
     const name = input.dataset.paramName;
     const type = input.dataset.paramType;
-    if (type === 'boolean') values[name] = input.checked;
-    else if (type === 'number') values[name] = parseFloat(input.value);
-    else values[name] = input.value;
+    if (type === 'boolean') {
+      values[name] = input.checked;
+    } else if (type === 'number') {
+      const parsed = parseFloat(input.value);
+      if (Number.isNaN(parsed)) continue;
+      values[name] = Number.isInteger(parsed) ? parseInt(input.value, 10) : parsed;
+    } else {
+      values[name] = input.value;
+    }
   }
   return values;
 }
 
-async function fetchAndPopulateParams(generatorName) {
-  paramPanel.style.display = 'flex';
+function populateParamFields(data) {
   paramFields.innerHTML = '';
   paramResFields.innerHTML = '';
   paramResSection.style.display = 'none';
+
+  for (const [name, value] of Object.entries(data.params)) {
+    paramFields.appendChild(createParamInput(name, value, null));
+  }
+
+  if (data.resolution && Object.keys(data.resolution).length > 0) {
+    paramResSection.style.display = 'block';
+    for (const [name, value] of Object.entries(data.resolution)) {
+      const desc = (data.descriptions && data.descriptions[name]) || null;
+      paramResFields.appendChild(createParamInput(name, value, desc));
+    }
+  }
+}
+
+async function fetchAndPopulateParams(generatorName) {
+  paramPanel.style.display = 'flex';
   paramError.style.display = 'none';
   cachedParamDefaults = null;
 
@@ -840,18 +864,7 @@ async function fetchAndPopulateParams(generatorName) {
     if (!resp.ok) { paramPanel.style.display = 'none'; return; }
     const data = await resp.json();
     cachedParamDefaults = data;
-
-    for (const [name, value] of Object.entries(data.params)) {
-      paramFields.appendChild(createParamInput(name, value, null));
-    }
-
-    if (data.resolution && Object.keys(data.resolution).length > 0) {
-      paramResSection.style.display = 'block';
-      for (const [name, value] of Object.entries(data.resolution)) {
-        const desc = (data.descriptions && data.descriptions[name]) || null;
-        paramResFields.appendChild(createParamInput(name, value, desc));
-      }
-    }
+    populateParamFields(data);
   } catch (e) {
     console.error('Failed to fetch params:', e);
     paramPanel.style.display = 'none';
@@ -868,18 +881,7 @@ function getEditorResolution() {
 
 function resetParamDefaults() {
   if (!cachedParamDefaults) return;
-  paramFields.innerHTML = '';
-  paramResFields.innerHTML = '';
-  for (const [name, value] of Object.entries(cachedParamDefaults.params)) {
-    paramFields.appendChild(createParamInput(name, value, null));
-  }
-  if (cachedParamDefaults.resolution && Object.keys(cachedParamDefaults.resolution).length > 0) {
-    paramResSection.style.display = 'block';
-    for (const [name, value] of Object.entries(cachedParamDefaults.resolution)) {
-      const desc = (cachedParamDefaults.descriptions && cachedParamDefaults.descriptions[name]) || null;
-      paramResFields.appendChild(createParamInput(name, value, desc));
-    }
-  }
+  populateParamFields(cachedParamDefaults);
   paramError.style.display = 'none';
 }
 
@@ -910,25 +912,7 @@ async function applyParams() {
       return;
     }
     const data = await resp.json();
-
-    clearScene();
-    const hasMesh = Boolean(data.mesh_url);
-    const hasCloud = Boolean(data.cloud_url);
-
-    if (hasMesh) await displayMesh(data.mesh_url + '?lod=preview', currentGen);
-    if (hasCloud) {
-      const {points, vertexCount} = await loadCloudFromPLY(data.cloud_url + '?lod=preview');
-      displayCloud(points, vertexCount, currentGen);
-    }
-
-    if (!hasMesh && hasCloud) {
-      state.viewMode = 'points';
-      document.getElementById('view-mode').value = 'points';
-    } else if (hasMesh) {
-      state.viewMode = 'shaded';
-      document.getElementById('view-mode').value = 'shaded';
-    }
-    applyViewMode();
+    await displayGenerateResult(data, currentGen);
   } catch (err) {
     console.error('Apply error:', err);
     paramError.textContent = 'Failed to generate: ' + err.message;
