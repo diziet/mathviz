@@ -31,6 +31,7 @@ render = [
 ]
 dev = [
     "pytest>=8.3.3",
+    "pytest-xdist>=3.5.0",
     "ruff>=0.7.4",
     "httpx>=0.27.0",
 ]
@@ -51,3 +52,4 @@ select = ["E", "F", "I", "W"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+addopts = "-n auto --dist loadscope"
