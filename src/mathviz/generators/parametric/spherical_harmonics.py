@@ -169,6 +169,10 @@ class SphericalHarmonicsGenerator(GeneratorBase):
             "amplitude": _DEFAULT_AMPLITUDE,
         }
 
+    def get_default_resolution(self) -> dict[str, Any]:
+        """Return default values for resolution parameters."""
+        return {"grid_resolution": _DEFAULT_GRID_RESOLUTION}
+
     def generate(
         self,
         params: dict[str, Any] | None = None,
