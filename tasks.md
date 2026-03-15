@@ -1884,3 +1884,68 @@ Missing views:
 - `--view all` produces multiple files with correct naming
 - Default view (no flag) renders from `front-right-top` perspective
 - Invalid view name is rejected with a clear error listing available views
+
+---
+
+## Task 51: Add resolution and parameter editor UI elements to preview HTML
+
+**Objective:**
+
+Task 45 added the backend for resolution controls (`get_default_resolution()`,
+API endpoint, `POST /api/generate` resolution field) but did not add the
+frontend UI elements to `index.html`. Task 44 specified a parameter editor
+panel but it also has not been implemented in the HTML. Add the missing HTML,
+CSS, and JavaScript to make both the parameter editor and resolution controls
+visible and functional in the preview viewer.
+
+**Suggested path:**
+
+1. **Parameter editor panel**: Add a collapsible "Parameters" section to
+   `index.html` that:
+   - On page load (or generator switch), fetches
+     `GET /api/generators/{name}/params` to get parameter defaults and types
+   - Dynamically creates one labeled `<input>` per parameter:
+     float → `<input type="number" step="0.1">`,
+     int → `<input type="number" step="1">`,
+     bool → `<input type="checkbox">`
+   - Shows parameter descriptions as tooltips or helper text
+   - Pre-fills inputs with default values
+
+2. **Resolution controls section**: Add a visually separated "Resolution"
+   sub-section within or below the parameter panel:
+   - Fetches resolution defaults from the same
+     `GET /api/generators/{name}/params` endpoint (which returns both
+     `params` and `resolution` fields per Task 45)
+   - Creates numeric inputs for each resolution param (e.g.,
+     `integration_steps`, `voxel_resolution`, `grid_resolution`)
+   - Shows the description text (e.g., "Voxels per axis (N³ cost)")
+   - Warns visually for high values (e.g., voxel_resolution > 256)
+
+3. **Apply / Reset buttons**: A single "Apply" button at the bottom that
+   collects all parameter and resolution values and calls
+   `POST /api/generate` with both `params` and `resolution` fields. A
+   "Reset" button restores all fields to defaults. Show a loading indicator
+   during generation.
+
+4. **Generator switch integration**: When the generator changes (Task 42's
+   switcher), clear and repopulate both panels with the new generator's
+   params and resolution defaults.
+
+5. **Geometry info display**: After each generation completes, update the
+   info panel (`#info-vertices`, `#info-faces`, `#info-points`) with the
+   actual counts from the generated geometry so users can see the effect
+   of resolution changes.
+
+6. **Styling**: Match existing dark/light theme. Panels should be compact,
+   scrollable if too many parameters, and not obscure the 3D canvas.
+
+**Tests:** `tests/test_preview/test_param_ui.py`
+
+- Preview HTML contains a parameter editor section with input elements
+- Preview HTML contains a resolution editor section
+- Fetching `/api/generators/lorenz/params` returns params and resolution fields
+- Parameter inputs are dynamically created based on generator defaults
+- Apply button sends both params and resolution in POST body
+- Reset button restores default values
+- Switching generators clears and repopulates the parameter panel
+- Info panel updates with vertex/face/point counts after generation
