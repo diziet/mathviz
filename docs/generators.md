@@ -518,6 +518,11 @@ IFS fractal generator (Barnsley fern, maple leaf, spiral, custom affine transfor
 | `preset` | barnsley_fern | IFS preset (barnsley_fern, maple_leaf, spiral, custom) |
 | `dimensions` | 3d | Output mode (3d, 2d_extruded) |
 
+The `custom` preset requires additional parameters: `matrices` (list of 2×2 or
+3×3 affine matrices), `offsets` (list of translation vectors matching matrix
+dimension), and `probabilities` (list of non-negative floats summing to 1.0).
+Note: 3×3 custom matrices are incompatible with `dimensions=2d_extruded`.
+
 Aliases: `ifs`, `barnsley_fern`
 
 ```bash

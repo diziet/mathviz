@@ -209,3 +209,54 @@ def test_no_nan_in_output(gen: IFSFractalGenerator) -> None:
     """Output contains no NaN values."""
     obj = gen.generate(num_points=_TEST_NUM_POINTS)
     assert not np.any(np.isnan(obj.point_cloud.points))
+
+
+def test_custom_missing_params_raises(gen: IFSFractalGenerator) -> None:
+    """Custom preset without required params raises ValueError."""
+    with pytest.raises(ValueError, match="Custom preset requires"):
+        gen.generate(params={"preset": "custom"})
+
+
+def test_custom_negative_probs_raises(gen: IFSFractalGenerator) -> None:
+    """Custom preset with negative probabilities raises ValueError."""
+    with pytest.raises(ValueError, match="non-negative"):
+        gen.generate(params={
+            "preset": "custom",
+            "matrices": [np.eye(2), np.eye(2)],
+            "offsets": [np.zeros(2), np.zeros(2)],
+            "probabilities": [1.5, -0.5],
+        })
+
+
+def test_custom_invalid_matrix_shape_raises(gen: IFSFractalGenerator) -> None:
+    """Custom preset with non-square matrix raises ValueError."""
+    with pytest.raises(ValueError, match="shape"):
+        gen.generate(params={
+            "preset": "custom",
+            "matrices": [np.ones((2, 3))],
+            "offsets": [np.zeros(2)],
+            "probabilities": [1.0],
+        })
+
+
+def test_custom_mixed_matrix_dims_raises(gen: IFSFractalGenerator) -> None:
+    """Custom preset with mixed 2×2 and 3×3 matrices raises ValueError."""
+    with pytest.raises(ValueError, match="differs"):
+        gen.generate(params={
+            "preset": "custom",
+            "matrices": [np.eye(2), np.eye(3)],
+            "offsets": [np.zeros(2), np.zeros(3)],
+            "probabilities": [0.5, 0.5],
+        })
+
+
+def test_custom_3d_with_2d_extruded_raises(gen: IFSFractalGenerator) -> None:
+    """3×3 custom matrices with 2d_extruded raises ValueError."""
+    with pytest.raises(ValueError, match="incompatible"):
+        gen.generate(params={
+            "preset": "custom",
+            "dimensions": "2d_extruded",
+            "matrices": [np.eye(3), np.eye(3)],
+            "offsets": [np.zeros(3), np.ones(3)],
+            "probabilities": [0.5, 0.5],
+        })

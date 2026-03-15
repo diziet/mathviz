@@ -29,6 +29,11 @@ VALID_PRESETS = ("barnsley_fern", "maple_leaf", "spiral", "custom")
 VALID_DIMENSIONS = ("2d_extruded", "3d")
 
 
+# ---------------------------------------------------------------------------
+# Preset definitions (2D)
+# ---------------------------------------------------------------------------
+
+
 def _barnsley_fern_2d() -> tuple[list[np.ndarray], list[np.ndarray], list[float]]:
     """Return classic Barnsley fern 2D IFS (matrices, offsets, probs)."""
     matrices = [
@@ -95,35 +100,27 @@ def _get_2d_preset(
     return presets[preset]()
 
 
-def _iterate_2d(
-    matrices: list[np.ndarray],
-    offsets: list[np.ndarray],
-    probs: list[float],
-    num_points: int,
-    rng: np.random.Generator,
-) -> np.ndarray:
-    """Run the 2D chaos game and return (N, 2) points."""
-    total = num_points + _SKIP_INITIAL
-    choices = rng.choice(len(matrices), size=total, p=probs)
-    points = np.empty((total, 2), dtype=np.float64)
-    point = rng.normal(scale=0.01, size=2)
-
-    for i in range(total):
-        idx = choices[i]
-        point = matrices[idx] @ point + offsets[idx]
-        points[i] = point
-
-    return points[_SKIP_INITIAL:]
+# ---------------------------------------------------------------------------
+# 2D → 3D embedding helpers
+# ---------------------------------------------------------------------------
 
 
-def _extrude_to_3d(
-    points_2d: np.ndarray,
-    rng: np.random.Generator,
-    thickness: float = 0.05,
-) -> np.ndarray:
-    """Add z-axis noise to extrude 2D points into a thin 3D slab."""
-    z = rng.normal(scale=thickness, size=len(points_2d))
-    return np.column_stack([points_2d, z])
+def _embed_2d_to_3d(mat_2d: np.ndarray, z_scale: float) -> np.ndarray:
+    """Embed a 2×2 matrix into 3×3 with z_scale on diagonal."""
+    mat_3d = np.zeros((3, 3), dtype=np.float64)
+    mat_3d[:2, :2] = mat_2d
+    mat_3d[2, 2] = z_scale
+    return mat_3d
+
+
+def _embed_offsets_2d_to_3d(offsets_2d: list[np.ndarray]) -> list[np.ndarray]:
+    """Embed 2D offset vectors into 3D with z=0."""
+    return [np.array([o[0], o[1], 0.0]) for o in offsets_2d]
+
+
+# ---------------------------------------------------------------------------
+# Preset definitions (3D)
+# ---------------------------------------------------------------------------
 
 
 def _barnsley_fern_3d() -> tuple[list[np.ndarray], list[np.ndarray], list[float]]:
@@ -156,38 +153,25 @@ def _maple_leaf_3d() -> tuple[list[np.ndarray], list[np.ndarray], list[float]]:
     """Return maple leaf extended to 3D."""
     m2, o2, probs = _maple_leaf_2d()
     matrices = [_embed_2d_to_3d(m, 0.3) for m in m2]
-    offsets = [np.array([o[0], o[1], 0.0]) for o in o2]
+    offsets = _embed_offsets_2d_to_3d(o2)
     return matrices, offsets, probs
 
 
 def _spiral_3d() -> tuple[list[np.ndarray], list[np.ndarray], list[float]]:
-    """Return spiral extended to 3D with z-axis rotation."""
-    cos30 = np.cos(np.radians(30))
-    sin30 = np.sin(np.radians(30))
+    """Return spiral extended to 3D with z-axis rotation on second transform."""
+    m2, o2, probs = _spiral_2d()
+    matrices = [_embed_2d_to_3d(m, 0.7) for m in m2]
+    offsets = _embed_offsets_2d_to_3d(o2)
+    # Add z-axis rotation to second transform for 3D interest
     cos15 = np.cos(np.radians(15))
     sin15 = np.sin(np.radians(15))
-    matrices = [
-        np.array([[0.7 * cos30, -0.7 * sin30, 0.0],
-                  [0.7 * sin30, 0.7 * cos30, 0.0],
-                  [0.0, 0.0, 0.7]]),
-        np.array([[0.3 * cos15, 0.0, -0.3 * sin15],
-                  [0.0, 0.3, 0.0],
-                  [0.3 * sin15, 0.0, 0.3 * cos15]]),
-    ]
-    offsets = [
-        np.array([0.0, 0.0, 0.0]),
-        np.array([1.0, 0.0, 0.5]),
-    ]
-    probs = [0.8, 0.2]
+    matrices[1] = np.array([
+        [0.3 * cos15, 0.0, -0.3 * sin15],
+        [0.0, 0.3, 0.0],
+        [0.3 * sin15, 0.0, 0.3 * cos15],
+    ])
+    offsets[1] = np.array([1.0, 0.0, 0.5])
     return matrices, offsets, probs
-
-
-def _embed_2d_to_3d(mat_2d: np.ndarray, z_scale: float) -> np.ndarray:
-    """Embed a 2×2 matrix into 3×3 with z_scale on diagonal."""
-    mat_3d = np.zeros((3, 3), dtype=np.float64)
-    mat_3d[:2, :2] = mat_2d
-    mat_3d[2, 2] = z_scale
-    return mat_3d
 
 
 def _get_3d_preset(
@@ -202,28 +186,111 @@ def _get_3d_preset(
     return presets[preset]()
 
 
-def _iterate_3d(
+# ---------------------------------------------------------------------------
+# Chaos-game iteration (dimension-generic)
+# ---------------------------------------------------------------------------
+
+
+def _iterate(
     matrices: list[np.ndarray],
     offsets: list[np.ndarray],
     probs: list[float],
     num_points: int,
     rng: np.random.Generator,
 ) -> np.ndarray:
-    """Run the 3D chaos game and return (N, 3) points."""
-    total = num_points + _SKIP_INITIAL
-    choices = rng.choice(len(matrices), size=total, p=probs)
-    points = np.empty((total, 3), dtype=np.float64)
-    point = rng.normal(scale=0.01, size=3)
+    """Run the chaos game and return (N, ndim) points.
 
-    for i in range(total):
-        idx = choices[i]
-        point = matrices[idx] @ point + offsets[idx]
-        points[i] = point
+    Pre-stacks matrices/offsets into contiguous arrays and uses scalar
+    arithmetic to avoid numpy dispatch overhead on tiny vectors.
+    """
+    ndim = matrices[0].shape[0]
+    total = num_points + _SKIP_INITIAL
+
+    # Pre-stack for contiguous memory access
+    mat_stack = np.array(matrices, dtype=np.float64)  # (K, ndim, ndim)
+    off_stack = np.array(offsets, dtype=np.float64)    # (K, ndim)
+
+    choices = rng.choice(len(matrices), size=total, p=probs)
+    points = np.empty((total, ndim), dtype=np.float64)
+    point = rng.normal(scale=0.01, size=ndim)
+
+    if ndim == 2:
+        _iterate_2d_scalar(mat_stack, off_stack, choices, points, point)
+    elif ndim == 3:
+        _iterate_3d_scalar(mat_stack, off_stack, choices, points, point)
+    else:
+        # Generic fallback for arbitrary dimensions
+        for i in range(total):
+            idx = choices[i]
+            point = mat_stack[idx] @ point + off_stack[idx]
+            points[i] = point
 
     return points[_SKIP_INITIAL:]
 
 
-def _validate_custom_transforms(params: dict[str, Any]) -> None:
+def _iterate_2d_scalar(
+    mat_stack: np.ndarray,
+    off_stack: np.ndarray,
+    choices: np.ndarray,
+    points: np.ndarray,
+    point: np.ndarray,
+) -> None:
+    """Scalar-arithmetic 2D chaos game loop (avoids numpy dispatch)."""
+    x, y = float(point[0]), float(point[1])
+    for i in range(len(choices)):
+        idx = choices[i]
+        m = mat_stack[idx]
+        o = off_stack[idx]
+        x_new = m[0, 0] * x + m[0, 1] * y + o[0]
+        y_new = m[1, 0] * x + m[1, 1] * y + o[1]
+        x, y = x_new, y_new
+        points[i, 0] = x
+        points[i, 1] = y
+
+
+def _iterate_3d_scalar(
+    mat_stack: np.ndarray,
+    off_stack: np.ndarray,
+    choices: np.ndarray,
+    points: np.ndarray,
+    point: np.ndarray,
+) -> None:
+    """Scalar-arithmetic 3D chaos game loop (avoids numpy dispatch)."""
+    x, y, z = float(point[0]), float(point[1]), float(point[2])
+    for i in range(len(choices)):
+        idx = choices[i]
+        m = mat_stack[idx]
+        o = off_stack[idx]
+        x_new = m[0, 0] * x + m[0, 1] * y + m[0, 2] * z + o[0]
+        y_new = m[1, 0] * x + m[1, 1] * y + m[1, 2] * z + o[1]
+        z_new = m[2, 0] * x + m[2, 1] * y + m[2, 2] * z + o[2]
+        x, y, z = x_new, y_new, z_new
+        points[i, 0] = x
+        points[i, 1] = y
+        points[i, 2] = z
+
+
+def _extrude_to_3d(
+    points_2d: np.ndarray,
+    rng: np.random.Generator,
+    thickness: float = 0.05,
+) -> np.ndarray:
+    """Add z-axis noise to extrude 2D points into a thin 3D slab."""
+    z = rng.normal(scale=thickness, size=len(points_2d))
+    return np.column_stack([points_2d, z])
+
+
+# ---------------------------------------------------------------------------
+# Custom transform validation
+# ---------------------------------------------------------------------------
+
+_VALID_MATRIX_SHAPES = {(2, 2), (3, 3)}
+
+
+def _validate_custom_transforms(
+    params: dict[str, Any],
+    dimensions: str,
+) -> None:
     """Validate custom IFS transform parameters."""
     matrices = params.get("matrices")
     offsets = params.get("offsets")
@@ -238,11 +305,49 @@ def _validate_custom_transforms(params: dict[str, Any]) -> None:
         raise ValueError(
             "matrices, offsets, and probabilities must have equal length"
         )
+
+    # Validate probabilities
+    if any(p < 0 for p in probs):
+        raise ValueError("probabilities must be non-negative")
     prob_sum = sum(probs)
     if abs(prob_sum - 1.0) > 1e-6:
         raise ValueError(
             f"probabilities must sum to 1.0, got {prob_sum}"
         )
+
+    # Validate matrix shapes
+    for i, m in enumerate(matrices):
+        arr = np.asarray(m)
+        if arr.shape not in _VALID_MATRIX_SHAPES:
+            raise ValueError(
+                f"matrices[{i}] shape {arr.shape}, expected (2, 2) or (3, 3)"
+            )
+        if i > 0 and arr.shape != np.asarray(matrices[0]).shape:
+            raise ValueError(
+                f"matrices[{i}] shape {arr.shape} differs from "
+                f"matrices[0] shape {np.asarray(matrices[0]).shape}"
+            )
+
+    # Validate offset dimensions match matrix dimensions
+    ndim = np.asarray(matrices[0]).shape[0]
+    for i, o in enumerate(offsets):
+        arr = np.asarray(o)
+        if arr.shape != (ndim,):
+            raise ValueError(
+                f"offsets[{i}] shape {arr.shape}, expected ({ndim},)"
+            )
+
+    # Validate dimension compatibility
+    if ndim == 3 and dimensions == "2d_extruded":
+        raise ValueError(
+            "3×3 custom matrices are incompatible with dimensions='2d_extruded'; "
+            "use dimensions='3d' or provide 2×2 matrices"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Generator class
+# ---------------------------------------------------------------------------
 
 
 @register
@@ -251,7 +356,7 @@ class IFSFractalGenerator(GeneratorBase):
 
     name = "ifs_fractal"
     aliases = ("ifs", "barnsley_fern")
-    description = "IFS fractal generator (Barnsley fern, Sierpinski, custom)"
+    description = "IFS fractal generator (Barnsley fern, maple leaf, spiral, custom)"
     category = "fractals"
 
     resolution_params = {"num_points": "Number of chaos-game points to generate"}
@@ -328,14 +433,14 @@ class IFSFractalGenerator(GeneratorBase):
     ) -> np.ndarray:
         """Generate points using native 3D affine transforms."""
         matrices, offsets, probs = _get_3d_preset(preset)
-        return _iterate_3d(matrices, offsets, probs, num_points, rng)
+        return _iterate(matrices, offsets, probs, num_points, rng)
 
     def _generate_2d_extruded(
         self, preset: str, num_points: int, rng: np.random.Generator,
     ) -> np.ndarray:
         """Generate 2D IFS points and extrude to 3D."""
         matrices, offsets, probs = _get_2d_preset(preset)
-        points_2d = _iterate_2d(matrices, offsets, probs, num_points, rng)
+        points_2d = _iterate(matrices, offsets, probs, num_points, rng)
         return _extrude_to_3d(points_2d, rng)
 
     def _generate_custom(
@@ -346,7 +451,7 @@ class IFSFractalGenerator(GeneratorBase):
         rng: np.random.Generator,
     ) -> np.ndarray:
         """Generate points from user-supplied affine transforms."""
-        _validate_custom_transforms(params)
+        _validate_custom_transforms(params, dimensions)
         raw_matrices = params["matrices"]
         raw_offsets = params["offsets"]
         probs = list(params["probabilities"])
@@ -354,15 +459,15 @@ class IFSFractalGenerator(GeneratorBase):
         matrices = [np.asarray(m, dtype=np.float64) for m in raw_matrices]
         offsets = [np.asarray(o, dtype=np.float64) for o in raw_offsets]
 
-        dim = matrices[0].shape[0]
-        if dim == 2 and dimensions == "3d":
+        ndim = matrices[0].shape[0]
+        if ndim == 2 and dimensions == "3d":
             matrices = [_embed_2d_to_3d(m, 0.3) for m in matrices]
-            offsets = [np.array([o[0], o[1], 0.0]) for o in offsets]
-            return _iterate_3d(matrices, offsets, probs, num_points, rng)
-        if dim == 2:
-            pts_2d = _iterate_2d(matrices, offsets, probs, num_points, rng)
+            offsets = _embed_offsets_2d_to_3d(offsets)
+            return _iterate(matrices, offsets, probs, num_points, rng)
+        if ndim == 2:
+            pts_2d = _iterate(matrices, offsets, probs, num_points, rng)
             return _extrude_to_3d(pts_2d, rng)
-        return _iterate_3d(matrices, offsets, probs, num_points, rng)
+        return _iterate(matrices, offsets, probs, num_points, rng)
 
     def get_default_representation(self) -> RepresentationConfig:
         """Return SPARSE_SHELL as the default representation."""
