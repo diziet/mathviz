@@ -1441,3 +1441,79 @@ exporting.
 - Preview HTML contains the container editor panel with dimension inputs
 - Apply button triggers a new `POST /api/generate` with container params
 - Reset button restores default values in the input fields
+
+---
+
+## Task 44: Add generator parameter editor panel to preview UI
+
+**Objective:**
+
+Add a panel to the preview viewer that shows editable parameter fields for
+the currently selected generator. Each generator exposes different parameters
+(e.g., Lorenz has sigma, rho, beta, transient_steps; Mandelbulb has power,
+max_iterations, extent). The panel should dynamically populate with the
+correct fields whenever the generator changes, pre-filled with default values,
+and allow the user to edit them and re-render.
+
+**Suggested path:**
+
+1. **New API endpoint** `GET /api/generators/{name}/params`: Return the
+   generator's default parameters and their types. Use the existing
+   `get_default_params()` method on each generator class, which returns a dict
+   like `{"sigma": 10.0, "rho": 28.0, "beta": 2.667, "transient_steps": 1000}`.
+   Infer types from the default values (float → number input with decimal
+   step, int → number input with integer step, bool → checkbox, str → text).
+   Also include `resolution_params` from `GeneratorMeta` (e.g.,
+   `{"voxel_resolution": "Voxels per axis (N³ cost)"}`) so the UI can show
+   resolution controls too. Response format:
+   ```json
+   {
+     "params": {"sigma": 10.0, "rho": 28.0, "beta": 2.667},
+     "resolution": {"integration_steps": 100000},
+     "descriptions": {"integration_steps": "Total number of integration time steps"}
+   }
+   ```
+
+2. **Parameter panel in `index.html`**: Add a collapsible "Parameters" panel
+   (similar to the existing controls panel styling). When a generator is
+   loaded or switched (via Task 42's selector):
+   - Fetch `GET /api/generators/{name}/params`
+   - Clear the panel and dynamically create one labeled input per parameter
+   - Float params: `<input type="number" step="0.1">` with the default value
+   - Int params: `<input type="number" step="1">` with the default value
+   - Bool params: `<input type="checkbox">`
+   - Show parameter descriptions as tooltips or small helper text
+   - Separate resolution params into their own sub-section with a label
+     like "Resolution" so the user knows these affect quality/speed
+
+3. **Apply button**: A single "Apply" button at the bottom of the panel that
+   collects all current parameter values and calls `POST /api/generate` with
+   them in the `params` and `resolution` fields. Do not auto-regenerate on
+   every keystroke — some generators take seconds to run. Show a loading
+   indicator while generating.
+
+4. **Reset to defaults button**: Restores all fields to the generator's
+   default values (re-fetches from the API or uses cached defaults).
+
+5. **Integration with generator switcher (Task 42)**: When the user switches
+   generators via the dropdown, the parameter panel should clear and
+   repopulate with the new generator's params. The previous generator's
+   edited values are discarded.
+
+6. **Validation**: If the server returns a validation error (e.g., "sigma
+   must be positive"), display it near the Apply button or inline next to
+   the offending field. The existing `POST /api/generate` already propagates
+   generator `ValueError` exceptions.
+
+**Tests:** `tests/test_preview/test_param_editor.py`
+
+- `GET /api/generators/lorenz/params` returns sigma, rho, beta, transient_steps with correct defaults
+- `GET /api/generators/mandelbulb/params` returns power, max_iterations, extent with correct defaults
+- `GET /api/generators/unknown/params` returns 404
+- Resolution params are included in the response (e.g., integration_steps for lorenz)
+- `POST /api/generate` with custom params produces different geometry than defaults
+- `POST /api/generate` with invalid params returns error with descriptive message
+- Preview HTML contains the parameter editor panel
+- Parameter panel updates when generator selection changes
+- Apply button sends params in the POST body
+- Reset button restores default values
