@@ -4331,3 +4331,321 @@ and provide a button to force regeneration (bypass cache).
 - Cache respects 5GB max size limit and evicts oldest entries when full
 - Preview HTML contains a force-regenerate button
 - UI shows "Cached" badge when result is from cache
+
+---
+
+## Task 110: Remove redundant `cell_size` parameter from TPMS generators
+
+**Objective:**
+
+The TPMS generators (gyroid, schwarz_p, schwarz_d) have two parameters —
+`cell_size` and `periods` — that are mathematically redundant. The spatial
+extent is computed as `cell_size * periods * 2π`, so `(cell_size=1, periods=2)`
+produces identical output to `(cell_size=2, periods=1)`. Remove `cell_size`
+and keep only `periods` to eliminate user confusion.
+
+**Suggested path:**
+
+1. **`_tpms_base.py`**: Remove `cell_size` from `get_default_params()` and
+   from `_compute_bounds()`. Hard-code `cell_size = 1.0` internally (or
+   inline the constant). Update `_validate_params()` to drop the cell_size
+   check.
+
+2. **`gyroid.py`**: Remove `cell_size` from `get_default_params()` and
+   `generate()`. Update `_compute_bounds()` call to use a fixed cell size
+   of 1.0. Update `_validate_params()`.
+
+3. **`schwarz_p.py`** and **`schwarz_d.py`**: Same changes — remove
+   `cell_size` from params, use fixed 1.0 internally.
+
+4. **Tests**: Update any tests that pass `cell_size` as a parameter.
+   Add a test confirming that `periods=2` with no `cell_size` produces
+   the same output as the old `(cell_size=1, periods=2)`.
+
+5. **Schema/docs**: If `cell_size` appears in generated JSON schemas or
+   CLI help text, verify it's removed after the change.
+
+**Files:**
+
+- `src/mathviz/generators/implicit/_tpms_base.py`
+- `src/mathviz/generators/implicit/gyroid.py`
+- `src/mathviz/generators/implicit/schwarz_p.py`
+- `src/mathviz/generators/implicit/schwarz_d.py`
+- `tests/test_generators/test_implicit/`
+
+**Tests:** `tests/test_generators/test_implicit/`
+
+- Gyroid generates successfully with only `periods` param
+- Schwarz P generates successfully with only `periods` param
+- Schwarz D generates successfully with only `periods` param
+- Passing unknown `cell_size` param doesn't break generation (ignored gracefully)
+- `periods=3` produces larger extent than `periods=1`
+- Default params dict does not contain `cell_size`
+
+---
+
+## Task 111: Split Lock Camera into two modes — render lock and full lock
+
+**Objective:**
+
+Replace the single Lock Camera checkbox with a three-state toggle cycling
+through: **Off → Render Lock → Full Lock**.
+
+- **Render Lock** (default): Camera position is preserved across
+  regenerations (no `fitCamera`, no target reset), but the user can still
+  freely orbit, pan, and zoom with the mouse. This is the most common use
+  case — compare different parameters from the same viewpoint while still
+  being able to adjust the angle.
+- **Full Lock** (first click from default): Same as Render Lock, plus mouse
+  interaction is disabled (`controls.enabled = false`, cursor `not-allowed`).
+  Camera is completely frozen. Useful for pixel-exact comparisons.
+- **Off** (second click): Camera reframes on regeneration; mouse
+  orbit/pan/zoom works normally.
+
+Clicking the toggle cycles: **Render Lock → Full Lock → Off → Render Lock**.
+
+**Suggested path:**
+
+1. Replace the `<input type="checkbox" id="lock-camera">` with a
+   `<button id="lock-camera">` that cycles through three visual states.
+   Display the current mode as text or icon on the button:
+   - Off: "Camera: Free"
+   - Render Lock: "Camera: Locked (movable)" or a lock icon with a move
+     indicator
+   - Full Lock: "Camera: Frozen" or a solid lock icon
+
+2. Change `state.cameraLocked` from a boolean to a string enum:
+   `"off" | "render" | "full"`, initialized to `"render"`. Update all
+   existing code that checks `state.cameraLocked` (currently used as a
+   boolean) to check for the appropriate mode:
+   - `saveCameraIfLocked()` / `restoreCameraIfSaved()`: activate when
+     mode is `"render"` or `"full"`
+   - `setupCameraForObject()`: skip `fitCamera()` when mode is `"render"`
+     or `"full"`
+   - `controls.enabled`: set to `false` only when mode is `"full"`
+   - Cursor `not-allowed`: only when mode is `"full"`
+
+3. On the toggle button click, cycle: `"render"` → `"full"` → `"off"` →
+   `"render"`. Update `controls.enabled` and cursor accordingly on each
+   transition.
+
+4. Reset View button should work in all modes — temporarily override the
+   lock, reframe, then restore the lock state.
+
+5. Supersedes the controls-disabling parts of Task 66. The race condition
+   fix (generation guard / debounce) from Task 66 is still needed
+   independently.
+
+**Files:**
+
+- `src/mathviz/static/index.html`
+
+**Tests:** `tests/test_preview/test_lock_camera.py`
+
+- Lock Camera button exists and defaults to "render" state
+- Clicking cycles through off → render → full → off
+- In "off" mode: `fitCamera` is called on regeneration, controls enabled
+- In "render" mode: `fitCamera` is NOT called on regeneration, controls
+  remain enabled, camera position/target preserved across regenerations
+- In "full" mode: `fitCamera` is NOT called, controls disabled, cursor
+  is `not-allowed`
+- Reset View works in all three modes
+- `saveCameraIfLocked` / `restoreCameraIfSaved` activate in both render
+  and full modes
+- Transitioning from full → off re-enables controls and resets cursor
+
+---
+
+## Task 112: Fix randomize ranges and add editable min/max to parameter UI
+
+**Objective:**
+
+Two related issues with the dice (randomize) button:
+
+1. **Bug**: `_derive_param_range` in `server.py` returns `min: 0` for
+   positive integer defaults (e.g. torus knot `p=2` gets range `[0, 4]`).
+   Many generators require `p >= 1`, so randomizing to 0 causes a
+   validation error like "p must be >= 1, got 0". The derived min for
+   positive integers should be `1`, not `0`.
+
+2. **Bug**: `randomizeParams()` only calls `applyParams()` when
+   `state.autoApply` is true. Randomize should always trigger apply —
+   the whole point is to see a new random shape immediately.
+
+3. **Bug**: Randomizer doesn't respect inter-parameter constraints. For
+   example, trefoil-on-torus requires `torus_r < torus_R`, but independent
+   randomization can produce `torus_R=0.65, torus_r=0.78`. After
+   randomizing, if the generator rejects the params, either: (a) retry
+   with re-rolled values (up to a few attempts), or (b) clamp dependent
+   params to satisfy constraints (e.g. ensure `torus_r < torus_R`). A
+   simple retry loop (randomize → try generate → if validation error,
+   re-roll, up to 5 attempts) is the most general fix since it doesn't
+   require encoding every generator's constraints in the UI.
+
+3. **Feature**: Show editable min and max fields next to each numeric
+   parameter in the UI. Currently the randomization range is invisible
+   and not user-controllable. Interesting shapes often live outside the
+   default range (e.g. pretzel knot at `p=11, q=1` but default max is 4).
+   Users should be able to widen or narrow the range before hitting
+   randomize.
+
+**Suggested path:**
+
+1. **Fix `_derive_param_range`** in `server.py`:
+   - For positive integers: change `min: 0` to `min: 1`
+   - Review negative integer and float cases for similar off-by-one issues
+   - Generators with explicit `get_param_ranges()` are unaffected
+
+2. **Add min/max inputs to parameter editor**: For each numeric parameter
+   row in the UI, add small editable `min` and `max` fields (e.g. two
+   narrow number inputs to the right of the value input). Pre-populate
+   them from the `/api/generators/{name}/param-ranges` response.
+
+3. **Wire randomize to use UI min/max**: When the dice button is clicked,
+   read the min/max values from the UI inputs (not the cached server
+   response) so user edits take effect immediately. The `randomizeInRange`
+   function already accepts min/max/step — just feed it from the UI fields
+   instead of the cached `ranges` object.
+
+4. **Visual design**: Keep the min/max fields compact — they should not
+   dominate the parameter row. Consider placing them as small inputs
+   flanking the value, or as a collapsible "Range" row below each param.
+   Show them by default so users know they exist.
+
+5. **Persist per-session**: Store edited min/max values in `state` so they
+   survive parameter refreshes within the same session. Reset them when
+   the generator changes (new defaults from the server).
+
+**Files:**
+
+- `src/mathviz/preview/server.py` (fix `_derive_param_range`)
+- `src/mathviz/static/index.html` (UI for editable min/max)
+
+**Tests:** `tests/test_preview/test_param_ranges.py`
+
+- `_derive_param_range(2)` returns `min: 1` (not 0) for positive integers
+- `_derive_param_range(0)` returns `min: 0` (zero is a valid min for zero default)
+- `_derive_param_range(-3)` returns a range that includes the default
+- Randomize with server-derived ranges never produces values below generator minimums
+- Preview HTML contains min/max input fields for numeric parameters
+- Editing min/max in the UI affects subsequent randomize results
+- Min/max fields are pre-populated from the param-ranges endpoint
+
+---
+
+## Task 113: Collapsible Dimensions/Margins panel, collapsed by default
+
+**Objective:**
+
+The Dimensions (mm) and Margins (mm) sections in the container panel take
+up vertical space that is rarely needed. Make the entire container panel
+collapsible with a click-to-toggle header, and collapse it by default so
+it stays out of the way until the user needs it.
+
+**Suggested path:**
+
+1. Wrap the Dimensions and Margins content inside a collapsible container.
+   Add a clickable header row with the section title ("Dimensions / Margins")
+   and a chevron indicator (▸ when collapsed, ▾ when expanded).
+
+2. On click, toggle a CSS class (e.g. `.collapsed`) that hides the content
+   with `display: none` or `max-height: 0` with a smooth transition.
+
+3. Default state: collapsed. The header row is always visible so users know
+   the panel exists and can expand it.
+
+4. When collapsed, only the header row with the chevron is visible — the
+   W/H/D inputs, margin inputs, and uniform checkbox are all hidden.
+
+5. Store the collapsed/expanded state in `state` so it persists within the
+   session. Optionally save to `localStorage` so it persists across reloads.
+
+**Files:**
+
+- `src/mathviz/static/index.html`
+
+**Tests:** `tests/test_preview/test_collapsible_panel.py`
+
+- Container panel has a clickable header with collapse toggle
+- Panel is collapsed by default (dimension inputs not visible)
+- Clicking the header expands the panel (inputs become visible)
+- Clicking again collapses it
+- Dimension/margin values are preserved when collapsing and expanding
+
+---
+
+## Task 114: Fix save after load, show params in gallery, save camera state
+
+**Objective:**
+
+Three issues with the save/load snapshot system:
+
+1. **Bug — cannot save after load + tweak**: After loading a snapshot and
+   tweaking parameters, the Save button stays disabled or fails. Loading
+   a snapshot sets `state.geometryId = null` (line 1179), and save requires
+   a non-null `geometryId` (line 983). If the user tweaks params and hits
+   Apply (which calls the generate endpoint and sets a new `geometryId`),
+   save should work. Verify this flow works end-to-end. If the user tweaks
+   params but does NOT re-generate (just edits input fields), save should
+   still work — either by re-enabling save when params change, or by
+   auto-generating on param change when auto-apply is on.
+
+2. **Feature — show parameters in load gallery**: The snapshot cards in the
+   gallery already show a small `snap-params` line (line 1095-1097), but
+   it's a dense single-line summary. Make the parameters more prominent
+   and readable in the gallery card:
+   - Show each parameter on its own line or in a key=value grid
+   - Include seed, container dimensions, and view mode
+   - Make it easy to scan and compare snapshots at a glance
+
+3. **Feature — save and restore camera state**: The save payload should
+   include the camera position, target (look-at point), and zoom level.
+   When loading a snapshot, restore the camera to the exact saved viewpoint.
+   This lets users save not just *what* they were looking at but *how* they
+   were looking at it.
+
+**Suggested path:**
+
+1. **Fix save flow**: After `loadSnapshot`, if the user triggers a
+   generate (via Apply, auto-apply, or randomize), `state.geometryId`
+   gets set and save re-enables. Ensure this path works. Additionally,
+   consider enabling save immediately after load by storing the snapshot's
+   existing geometry files as the "current" state — the geometry is already
+   on the server, so re-saving with tweaked display params should be
+   possible.
+
+2. **Gallery params display**: In `buildSnapshotCard`, replace the single
+   `snap-params` line with a formatted block showing:
+   - Parameters as a two-column grid (`param: value`)
+   - Seed value
+   - Container dimensions (e.g. "100×100×100 mm, margin 5mm")
+   - Camera view info if saved
+
+3. **Camera in save payload**: When saving, capture and include:
+   ```js
+   camera: {
+     position: {x, y, z},
+     target: {x, y, z},  // controls.target
+     zoom: camera.zoom,   // for orthographic, or fov for perspective
+   }
+   ```
+   On load, after geometry is displayed, restore the camera from the
+   saved state instead of calling `fitCamera`.
+
+4. **Server changes**: The snapshot storage (server-side) needs to accept
+   and return the `camera` field. Add it to the snapshot metadata JSON
+   schema.
+
+**Files:**
+
+- `src/mathviz/static/index.html`
+- `src/mathviz/preview/server.py` (snapshot endpoint — accept camera field)
+
+**Tests:** `tests/test_preview/test_snapshots.py`
+
+- Save button is enabled after loading a snapshot and re-generating
+- Snapshot save payload includes camera position, target, and zoom
+- Snapshot load restores camera to saved position
+- Gallery card displays parameters in readable format (not single line)
+- Gallery card shows seed and container dimensions
+- Round-trip: save → load → camera matches original position
