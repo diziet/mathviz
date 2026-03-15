@@ -1,13 +1,14 @@
 """Tests for bounding box and geometry coordinate space alignment in preview."""
 
 import struct
-from typing import Generator
+from typing import Any, Generator
 
 import numpy as np
 import pytest
 import trimesh
 from fastapi.testclient import TestClient
 
+from mathviz.core.container import Container
 from mathviz.core.generator import register
 from mathviz.core.math_object import Mesh, PointCloud
 from mathviz.generators.parametric.torus import TorusGenerator
@@ -47,6 +48,12 @@ def preview_html(client: TestClient) -> str:
     return resp.text
 
 
+@pytest.fixture
+def fit_camera_code(preview_html: str) -> str:
+    """Extract the fitCamera function body from the preview HTML."""
+    return preview_html.split("function fitCamera")[1].split("function")[0]
+
+
 def _make_offset_mesh() -> Mesh:
     """Create a mesh with vertices far from the origin (simulating pipeline output)."""
     vertices = np.array([
@@ -80,48 +87,30 @@ def _make_offset_cloud() -> PointCloud:
     return PointCloud(points=points)
 
 
-# --- Geometry centering tests ---
+def _load_centered_mesh(glb_bytes: bytes) -> trimesh.Trimesh:
+    """Load GLB bytes into a trimesh and return it."""
+    return trimesh.load(trimesh.util.wrap_as_stream(glb_bytes), file_type="glb")
 
 
-class TestMeshCentering:
-    """Tests that mesh_to_glb centers geometry at the origin."""
-
-    def test_mesh_centered_at_origin(self) -> None:
-        """GLB mesh geometry should be approximately centered at the origin."""
-        mesh = _make_offset_mesh()
-        glb_bytes = mesh_to_glb(mesh)
-        tri = trimesh.load(trimesh.util.wrap_as_stream(glb_bytes), file_type="glb")
-        center = tri.bounding_box.centroid
-        np.testing.assert_allclose(center, [0.0, 0.0, 0.0], atol=0.1)
-
-    def test_mesh_dimensions_preserved(self) -> None:
-        """Centering should not change the dimensions of the mesh."""
-        mesh = _make_offset_mesh()
-        original_extents = mesh.vertices.max(axis=0) - mesh.vertices.min(axis=0)
-        glb_bytes = mesh_to_glb(mesh)
-        tri = trimesh.load(trimesh.util.wrap_as_stream(glb_bytes), file_type="glb")
-        np.testing.assert_allclose(tri.bounding_box.extents, original_extents, atol=0.1)
+def _assert_centered_at_origin(tri: trimesh.Trimesh, atol: float = 0.1) -> None:
+    """Assert that a trimesh is centered at the origin."""
+    np.testing.assert_allclose(tri.bounding_box.centroid, [0.0, 0.0, 0.0], atol=atol)
 
 
-class TestCloudCentering:
-    """Tests that cloud_to_binary_ply centers point cloud at the origin."""
+def _fetch_and_assert_centered_mesh(
+    client: TestClient, payload: dict[str, Any], atol: float = 1.0
+) -> None:
+    """POST /api/generate, fetch the mesh, and assert it's centered at origin."""
+    resp = client.post("/api/generate", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["mesh_url"] is not None
 
-    def test_cloud_centered_at_origin(self) -> None:
-        """PLY point cloud should be approximately centered at the origin."""
-        cloud = _make_offset_cloud()
-        ply_bytes = cloud_to_binary_ply(cloud)
-        positions = _parse_ply_positions(ply_bytes, len(cloud.points))
-        center = (positions.min(axis=0) + positions.max(axis=0)) / 2.0
-        np.testing.assert_allclose(center, [0.0, 0.0, 0.0], atol=0.1)
+    mesh_resp = client.get(data["mesh_url"] + "?lod=preview")
+    assert mesh_resp.status_code == 200
 
-    def test_cloud_dimensions_preserved(self) -> None:
-        """Centering should not change the spatial extent of the cloud."""
-        cloud = _make_offset_cloud()
-        original_extents = cloud.points.max(axis=0) - cloud.points.min(axis=0)
-        ply_bytes = cloud_to_binary_ply(cloud)
-        positions = _parse_ply_positions(ply_bytes, len(cloud.points))
-        actual_extents = positions.max(axis=0) - positions.min(axis=0)
-        np.testing.assert_allclose(actual_extents, original_extents, atol=0.1)
+    tri = _load_centered_mesh(mesh_resp.content)
+    _assert_centered_at_origin(tri, atol=atol)
 
 
 def _parse_ply_positions(ply_bytes: bytes, num_points: int) -> np.ndarray:
@@ -129,7 +118,6 @@ def _parse_ply_positions(ply_bytes: bytes, num_points: int) -> np.ndarray:
     header_end = ply_bytes.index(b"end_header\n") + len(b"end_header\n")
     header_str = ply_bytes[:header_end].decode("ascii")
 
-    # Calculate vertex stride from header properties
     stride_bytes = 0
     in_vertex = False
     type_sizes = {"float": 4, "float32": 4, "double": 8, "int": 4, "uint": 4}
@@ -148,6 +136,44 @@ def _parse_ply_positions(ply_bytes: bytes, num_points: int) -> np.ndarray:
         positions[i, 1] = struct.unpack_from("<f", data, offset + 4)[0]
         positions[i, 2] = struct.unpack_from("<f", data, offset + 8)[0]
     return positions
+
+
+# --- Geometry centering tests ---
+
+
+class TestMeshCentering:
+    """Tests that mesh_to_glb centers geometry at the origin."""
+
+    def test_mesh_centered_at_origin(self) -> None:
+        """GLB mesh geometry should be approximately centered at the origin."""
+        tri = _load_centered_mesh(mesh_to_glb(_make_offset_mesh()))
+        _assert_centered_at_origin(tri)
+
+    def test_mesh_dimensions_preserved(self) -> None:
+        """Centering should not change the dimensions of the mesh."""
+        mesh = _make_offset_mesh()
+        original_extents = mesh.vertices.max(axis=0) - mesh.vertices.min(axis=0)
+        tri = _load_centered_mesh(mesh_to_glb(mesh))
+        np.testing.assert_allclose(tri.bounding_box.extents, original_extents, atol=0.1)
+
+
+class TestCloudCentering:
+    """Tests that cloud_to_binary_ply centers point cloud at the origin."""
+
+    def test_cloud_centered_at_origin(self) -> None:
+        """PLY point cloud should be approximately centered at the origin."""
+        cloud = _make_offset_cloud()
+        positions = _parse_ply_positions(cloud_to_binary_ply(cloud), len(cloud.points))
+        center = (positions.min(axis=0) + positions.max(axis=0)) / 2.0
+        np.testing.assert_allclose(center, [0.0, 0.0, 0.0], atol=0.1)
+
+    def test_cloud_dimensions_preserved(self) -> None:
+        """Centering should not change the spatial extent of the cloud."""
+        cloud = _make_offset_cloud()
+        original_extents = cloud.points.max(axis=0) - cloud.points.min(axis=0)
+        positions = _parse_ply_positions(cloud_to_binary_ply(cloud), len(cloud.points))
+        actual_extents = positions.max(axis=0) - positions.min(axis=0)
+        np.testing.assert_allclose(actual_extents, original_extents, atol=0.1)
 
 
 # --- Bounding box HTML tests ---
@@ -181,27 +207,18 @@ class TestBoundingBoxHTML:
 class TestFitCameraClipping:
     """Tests for dynamic camera clipping plane adjustment."""
 
-    def test_fit_camera_adjusts_near_far(self, preview_html: str) -> None:
+    def test_fit_camera_adjusts_near_far(self, fit_camera_code: str) -> None:
         """fitCamera should dynamically set camera.near and camera.far."""
-        fit_camera_code = preview_html.split("function fitCamera")[1].split(
-            "function"
-        )[0]
         assert "camera.near" in fit_camera_code
         assert "camera.far" in fit_camera_code
         assert "camera.updateProjectionMatrix" in fit_camera_code
 
-    def test_far_plane_proportional_to_distance(self, preview_html: str) -> None:
+    def test_far_plane_proportional_to_distance(self, fit_camera_code: str) -> None:
         """camera.far should be proportional to camera distance (dist * 10)."""
-        fit_camera_code = preview_html.split("function fitCamera")[1].split(
-            "function"
-        )[0]
         assert "dist * 10" in fit_camera_code
 
-    def test_near_plane_proportional_to_distance(self, preview_html: str) -> None:
+    def test_near_plane_proportional_to_distance(self, fit_camera_code: str) -> None:
         """camera.near should be proportional to camera distance (dist * 0.01)."""
-        fit_camera_code = preview_html.split("function fitCamera")[1].split(
-            "function"
-        )[0]
         assert "dist * 0.01" in fit_camera_code
 
 
@@ -213,22 +230,7 @@ class TestGeometryBoundingBoxAlignment:
 
     def test_generated_mesh_centered_via_api(self, client: TestClient) -> None:
         """Mesh served via API should be centered at the origin."""
-        resp = client.post(
-            "/api/generate",
-            json={"generator": "torus", "seed": 42},
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["mesh_url"] is not None
-
-        mesh_resp = client.get(data["mesh_url"] + "?lod=preview")
-        assert mesh_resp.status_code == 200
-
-        tri = trimesh.load(
-            trimesh.util.wrap_as_stream(mesh_resp.content), file_type="glb"
-        )
-        center = tri.bounding_box.centroid
-        np.testing.assert_allclose(center, [0.0, 0.0, 0.0], atol=1.0)
+        _fetch_and_assert_centered_mesh(client, {"generator": "torus", "seed": 42})
 
     def test_generated_cloud_centered_via_api(self, client: TestClient) -> None:
         """Point cloud served via API should be centered at the origin."""
@@ -244,83 +246,40 @@ class TestGeometryBoundingBoxAlignment:
         cloud_resp = client.get(data["cloud_url"] + "?lod=preview")
         assert cloud_resp.status_code == 200
 
-    def test_bbox_center_matches_geometry_center(self) -> None:
-        """Bounding box center (origin) matches centered geometry center."""
-        mesh = _make_offset_mesh()
-        glb_bytes = mesh_to_glb(mesh)
-        tri = trimesh.load(trimesh.util.wrap_as_stream(glb_bytes), file_type="glb")
-        # Geometry should be centered at origin — same as bbox center
-        center = tri.bounding_box.centroid
-        np.testing.assert_allclose(center, [0.0, 0.0, 0.0], atol=0.1)
-
     def test_bbox_contains_geometry(self) -> None:
         """Container bounding box should contain the centered geometry."""
         mesh = _make_offset_mesh()
-        glb_bytes = mesh_to_glb(mesh)
-        tri = trimesh.load(trimesh.util.wrap_as_stream(glb_bytes), file_type="glb")
+        tri = _load_centered_mesh(mesh_to_glb(mesh))
+        _assert_centered_at_origin(tri)
         geo_extents = tri.bounding_box.extents
-        # Container is 100x100x40mm; geometry (90x90x26) fits inside
-        container_dims = np.array([100.0, 100.0, 40.0])
+        # Use default container dimensions from the Container model
+        default = Container.with_uniform_margin()
+        container_dims = np.array([default.width_mm, default.height_mm, default.depth_mm])
         assert np.all(geo_extents <= container_dims + 0.1)
+
+
+# --- Container scale tests ---
+
+
+_LARGE_CONTAINER = {
+    "width_mm": 100, "height_mm": 100, "depth_mm": 100,
+    "margin_x_mm": 5, "margin_y_mm": 5, "margin_z_mm": 5,
+}
+_SMALL_CONTAINER = {
+    "width_mm": 10, "height_mm": 10, "depth_mm": 10,
+    "margin_x_mm": 1, "margin_y_mm": 1, "margin_z_mm": 1,
+}
 
 
 class TestLargeAndSmallContainers:
     """Tests for rendering at different container scales."""
 
-    def test_large_container_renders(self, client: TestClient) -> None:
-        """100x100x100mm container should produce valid geometry."""
-        resp = client.post(
-            "/api/generate",
-            json={
-                "generator": "torus",
-                "seed": 42,
-                "container": {
-                    "width_mm": 100,
-                    "height_mm": 100,
-                    "depth_mm": 100,
-                    "margin_x_mm": 5,
-                    "margin_y_mm": 5,
-                    "margin_z_mm": 5,
-                },
-            },
+    @pytest.mark.parametrize("container", [_LARGE_CONTAINER, _SMALL_CONTAINER],
+                             ids=["large_100mm", "small_10mm"])
+    def test_container_produces_centered_mesh(
+        self, client: TestClient, container: dict[str, float]
+    ) -> None:
+        """Container at any scale should produce geometry centered at origin."""
+        _fetch_and_assert_centered_mesh(
+            client, {"generator": "torus", "seed": 42, "container": container}
         )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["mesh_url"] is not None
-
-        mesh_resp = client.get(data["mesh_url"] + "?lod=preview")
-        assert mesh_resp.status_code == 200
-        tri = trimesh.load(
-            trimesh.util.wrap_as_stream(mesh_resp.content), file_type="glb"
-        )
-        center = tri.bounding_box.centroid
-        np.testing.assert_allclose(center, [0.0, 0.0, 0.0], atol=1.0)
-
-    def test_small_container_renders(self, client: TestClient) -> None:
-        """10x10x10mm container should produce valid geometry."""
-        resp = client.post(
-            "/api/generate",
-            json={
-                "generator": "torus",
-                "seed": 42,
-                "container": {
-                    "width_mm": 10,
-                    "height_mm": 10,
-                    "depth_mm": 10,
-                    "margin_x_mm": 1,
-                    "margin_y_mm": 1,
-                    "margin_z_mm": 1,
-                },
-            },
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["mesh_url"] is not None
-
-        mesh_resp = client.get(data["mesh_url"] + "?lod=preview")
-        assert mesh_resp.status_code == 200
-        tri = trimesh.load(
-            trimesh.util.wrap_as_stream(mesh_resp.content), file_type="glb"
-        )
-        center = tri.bounding_box.centroid
-        np.testing.assert_allclose(center, [0.0, 0.0, 0.0], atol=1.0)
