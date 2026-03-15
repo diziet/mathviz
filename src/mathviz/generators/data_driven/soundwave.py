@@ -2,7 +2,8 @@
 
 Reads a WAV file via scipy.io.wavfile, extracts the amplitude envelope,
 and maps it to a 3D curve. The waveform is laid out along the x-axis with
-amplitude on the y-axis.
+amplitude on the y-axis. When no input file is provided, synthesizes a
+built-in demo waveform.
 """
 
 import logging
@@ -69,6 +70,26 @@ def _compute_envelope(samples: np.ndarray, num_output: int) -> np.ndarray:
     return np.array([np.max(np.abs(chunk)) for chunk in chunks])
 
 
+def _synthesize_demo_envelope(num_samples: int, seed: int) -> np.ndarray:
+    """Synthesize a demo amplitude envelope from a 440 Hz sine wave."""
+    rng = np.random.default_rng(seed)
+    sample_rate = 44100
+    duration = 2.0
+    total_samples = int(sample_rate * duration)
+    t = np.linspace(0, duration, total_samples, endpoint=False)
+
+    # 440 Hz sine with amplitude envelope (attack-sustain-release)
+    freq = 440.0
+    envelope_shape = np.clip(t / 0.1, 0, 1) * np.clip((duration - t) / 0.3, 0, 1)
+    signal = np.sin(2 * np.pi * freq * t) * envelope_shape
+
+    # Add slight randomness for visual interest
+    noise = rng.normal(0, 0.02, total_samples)
+    signal = signal + noise * envelope_shape
+
+    return _compute_envelope(signal, num_samples)
+
+
 def _build_waveform_curve(
     envelope: np.ndarray,
     length: float,
@@ -131,8 +152,6 @@ class SoundwaveGenerator(GeneratorBase):
             resolution_kwargs.get("num_samples", _DEFAULT_NUM_SAMPLES)
         )
 
-        if not input_file:
-            raise ValueError("input_file parameter is required")
         if amplitude_scale <= 0:
             raise ValueError(
                 f"amplitude_scale must be positive, got {amplitude_scale}"
@@ -148,21 +167,32 @@ class SoundwaveGenerator(GeneratorBase):
                 f"num_samples must be <= {_MAX_NUM_SAMPLES}, got {num_samples}"
             )
 
-        path = validate_input_file(input_file, _SUPPORTED_EXTENSIONS)
-        sample_rate, samples = _load_wav(path)
         merged["num_samples"] = num_samples
-        merged["sample_rate"] = sample_rate
-        merged["total_audio_samples"] = len(samples)
 
-        envelope = _compute_envelope(samples, num_samples)
+        if not input_file:
+            logger.info("No input_file provided, using built-in demo waveform")
+            envelope = _synthesize_demo_envelope(num_samples, seed)
+            merged["demo_mode"] = True
+        else:
+            path = validate_input_file(input_file, _SUPPORTED_EXTENSIONS)
+            sample_rate, samples = _load_wav(path)
+            merged["sample_rate"] = sample_rate
+            merged["total_audio_samples"] = len(samples)
+            envelope = _compute_envelope(samples, num_samples)
+
         points = _build_waveform_curve(envelope, length, amplitude_scale)
         bbox = BoundingBox.from_points(points)
 
-        logger.info(
-            "Generated soundwave: file=%s, sample_rate=%d, "
-            "audio_samples=%d, envelope_points=%d",
-            path.name, sample_rate, len(samples), num_samples,
-        )
+        if input_file:
+            logger.info(
+                "Generated soundwave: file=%s, sample_rate=%d, "
+                "audio_samples=%d, envelope_points=%d",
+                path.name, sample_rate, len(samples), num_samples,
+            )
+        else:
+            logger.info(
+                "Generated soundwave demo: envelope_points=%d", num_samples,
+            )
 
         curve = Curve(points=points, closed=False)
         return MathObject(
