@@ -155,10 +155,10 @@ class TestDerivedRanges:
         assert rng["max"] == pytest.approx(20.0)
 
     def test_positive_int_range(self) -> None:
-        """Positive int derives to [0, 2x]."""
+        """Positive int derives to [1, 2x]."""
         rng = _derive_param_range(5)
         assert rng is not None
-        assert rng["min"] == 0
+        assert rng["min"] == 1
         assert rng["max"] == 10
         assert rng["step"] == 1
 
