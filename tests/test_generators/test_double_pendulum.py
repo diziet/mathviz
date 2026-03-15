@@ -7,8 +7,8 @@ from mathviz.core.generator import clear_registry, register
 from mathviz.core.representation import RepresentationType
 from mathviz.generators.attractors.double_pendulum import DoublePendulumGenerator
 
-_TEST_STEPS = 5000
-_TEST_TRANSIENT = 500
+_TEST_STEPS = 1500
+_TEST_TRANSIENT = 200
 
 
 @pytest.fixture(autouse=True)

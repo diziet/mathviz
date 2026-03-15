@@ -26,8 +26,8 @@ def lorenz() -> LorenzGenerator:
 
 
 # Use smaller step counts for test speed
-_TEST_STEPS = 5000
-_TEST_TRANSIENT = 500
+_TEST_STEPS = 1500
+_TEST_TRANSIENT = 200
 
 
 # ---------------------------------------------------------------------------

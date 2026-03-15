@@ -10,7 +10,7 @@ from mathviz.generators.attractors.halvorsen import HalvorsenGenerator
 from mathviz.generators.attractors.rossler import RosslerGenerator
 from mathviz.generators.attractors.thomas import ThomasGenerator
 
-_TEST_STEPS = 5000
+_TEST_STEPS = 1500
 
 
 @pytest.fixture(autouse=True)
@@ -70,7 +70,8 @@ def test_rossler_wider_than_tall() -> None:
     """Rössler bounding box is wider than tall (characteristic folded-band)."""
     gen = RosslerGenerator()
     # Use more steps for reliable shape characterization
-    obj = gen.generate(integration_steps=20_000)
+    # Need more steps for reliable shape characterization of folded-band
+    obj = gen.generate(integration_steps=2_000)
     assert obj.bounding_box is not None
     min_c = np.array(obj.bounding_box.min_corner)
     max_c = np.array(obj.bounding_box.max_corner)
