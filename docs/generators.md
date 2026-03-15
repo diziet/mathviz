@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 62 generators across 12 categories. Each generator produces a
+MathViz includes 64 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -903,6 +903,24 @@ Aliases: `dini`
 
 ```bash
 mathviz generate dini_surface --param turns=3 --output dini.ply
+```
+
+### dupin_cyclide
+
+Dupin cyclide — inversive geometry shape generalizing torus, cylinder, and cone.
+Parameterized via Möbius transformation of a torus.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `a` | 1.0 | Primary shape parameter |
+| `b` | 0.8 | Tube cross-section parameter |
+| `c` | 0.5 | Inversion parameter (must be < a) |
+| `d` | 0.6 | Offset parameter |
+
+Aliases: `cyclide`
+
+```bash
+mathviz generate dupin_cyclide --param d=1.2 --output cyclide.ply
 ```
 
 ### spherical_harmonics
