@@ -20,17 +20,68 @@ PYVISTA_INSTALL_MSG = (
     "PyVista is required for rendering. Install it with: pip install mathviz[render]"
 )
 
-ProjectionView = Literal["top", "front", "side", "angle"]
 RenderStyle = Literal["shaded", "wireframe", "points"]
 VALID_RENDER_STYLES: tuple[RenderStyle, ...] = get_args(RenderStyle)
 
-# Camera positions for 2D projections: (position, viewup)
-_PROJECTION_CAMERAS: dict[ProjectionView, tuple[tuple[float, ...], tuple[float, ...]]] = {
-    "top": ((0, 0, 1), (0, 1, 0)),
+# All named views: (direction_vector, view_up_vector)
+# Direction is where the camera looks FROM (normalized to unit sphere).
+_CameraSpec = tuple[tuple[float, ...], tuple[float, ...]]
+
+_VIEW_CAMERAS: dict[str, _CameraSpec] = {
+    # 6 face-on views
     "front": ((0, -1, 0), (0, 0, 1)),
-    "side": ((1, 0, 0), (0, 0, 1)),
-    "angle": ((1, -1, 1), (0, 0, 1)),
+    "back": ((0, 1, 0), (0, 0, 1)),
+    "left": ((-1, 0, 0), (0, 0, 1)),
+    "right": ((1, 0, 0), (0, 0, 1)),
+    "top": ((0, 0, 1), (0, 1, 0)),
+    "bottom": ((0, 0, -1), (0, -1, 0)),
+    # 12 edge-on views
+    "front-right": ((1, -1, 0), (0, 0, 1)),
+    "front-left": ((-1, -1, 0), (0, 0, 1)),
+    "back-right": ((1, 1, 0), (0, 0, 1)),
+    "back-left": ((-1, 1, 0), (0, 0, 1)),
+    "front-top": ((0, -1, 1), (0, 1, 1)),
+    "front-bottom": ((0, -1, -1), (0, -1, 1)),
+    "back-top": ((0, 1, 1), (0, 1, -1)),
+    "back-bottom": ((0, 1, -1), (0, -1, -1)),
+    "top-right": ((1, 0, 1), (0, 1, 0)),
+    "top-left": ((-1, 0, 1), (0, 1, 0)),
+    "bottom-right": ((1, 0, -1), (0, -1, 0)),
+    "bottom-left": ((-1, 0, -1), (0, -1, 0)),
+    # 8 vertex/corner views
+    "front-right-top": ((1, -1, 1), (0, 0, 1)),
+    "front-left-top": ((-1, -1, 1), (0, 0, 1)),
+    "back-right-top": ((1, 1, 1), (0, 0, 1)),
+    "back-left-top": ((-1, 1, 1), (0, 0, 1)),
+    "front-right-bottom": ((1, -1, -1), (0, 0, 1)),
+    "front-left-bottom": ((-1, -1, -1), (0, 0, 1)),
+    "back-right-bottom": ((1, 1, -1), (0, 0, 1)),
+    "back-left-bottom": ((-1, 1, -1), (0, 0, 1)),
 }
+
+# Aliases for backwards compatibility
+_VIEW_ALIASES: dict[str, str] = {
+    "side": "right",
+    "angle": "front-right-top",
+}
+
+VALID_VIEW_NAMES: tuple[str, ...] = tuple(_VIEW_CAMERAS.keys()) + tuple(_VIEW_ALIASES.keys())
+
+
+def resolve_view_name(name: str) -> str:
+    """Resolve a view name, following aliases."""
+    resolved = _VIEW_ALIASES.get(name, name)
+    if resolved not in _VIEW_CAMERAS:
+        raise ValueError(
+            f"Invalid view name {name!r}. "
+            f"Valid views: {', '.join(sorted(VALID_VIEW_NAMES))}"
+        )
+    return resolved
+
+
+def get_view_camera(name: str) -> _CameraSpec:
+    """Get camera spec (position, view_up) for a named view."""
+    return _VIEW_CAMERAS[resolve_view_name(name)]
 
 
 @dataclass
@@ -157,20 +208,32 @@ def _create_plotter(
         plotter.close()
 
 
+def _apply_camera_view(plotter: "object", view: str) -> None:
+    """Position camera for a named view on a sphere around the geometry."""
+    camera_pos, view_up = get_view_camera(view)
+    plotter.camera.position = camera_pos
+    plotter.camera.focal_point = (0, 0, 0)
+    plotter.camera.up = view_up
+    plotter.reset_camera()
+
+
 def render_to_png(
     obj: MathObject,
     output_path: Path,
     config: RenderConfig | None = None,
+    view: str = "front-right-top",
 ) -> Path:
     """Render a MathObject to a high-resolution PNG file."""
     output_path = Path(output_path)
+    resolved_view = resolve_view_name(view)
     with _create_plotter(obj, output_path, config) as (plotter, resolved_config):
-        pass  # Default scene is sufficient for 3D render
+        _apply_camera_view(plotter, resolved_view)
 
     logger.info(
-        "Rendered %dx%d image to %s",
+        "Rendered %dx%d %s view to %s",
         resolved_config.width,
         resolved_config.height,
+        resolved_view,
         output_path,
     )
     return output_path
@@ -179,20 +242,34 @@ def render_to_png(
 def render_2d_projection(
     obj: MathObject,
     output_path: Path,
-    view: ProjectionView = "top",
+    view: str = "top",
     config: RenderConfig | None = None,
 ) -> Path:
     """Render a 2D projection of a MathObject to PNG."""
     output_path = Path(output_path)
+    resolved_view = resolve_view_name(view)
     with _create_plotter(obj, output_path, config) as (plotter, _):
-        # Set up parallel projection for true 2D view
         plotter.enable_parallel_projection()
+        _apply_camera_view(plotter, resolved_view)
 
-        camera_pos, view_up = _PROJECTION_CAMERAS[view]
-        plotter.camera.position = camera_pos
-        plotter.camera.focal_point = (0, 0, 0)
-        plotter.camera.up = view_up
-        plotter.reset_camera()
-
-    logger.info("Rendered 2D %s projection to %s", view, output_path)
+    logger.info("Rendered 2D %s projection to %s", resolved_view, output_path)
     return output_path
+
+
+def render_all_views(
+    obj: MathObject,
+    output_path: Path,
+    config: RenderConfig | None = None,
+    use_2d: bool = False,
+) -> list[Path]:
+    """Render all named views, saving each with view name in filename."""
+    stem = output_path.stem
+    suffix = output_path.suffix or ".png"
+    parent = output_path.parent
+    render_fn = render_2d_projection if use_2d else render_to_png
+    paths: list[Path] = []
+    for view_name in _VIEW_CAMERAS:
+        view_path = parent / f"{stem}_{view_name}{suffix}"
+        render_fn(obj, view_path, view=view_name, config=config)
+        paths.append(view_path)
+    return paths
