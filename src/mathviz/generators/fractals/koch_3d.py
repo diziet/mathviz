@@ -9,6 +9,7 @@ import logging
 from typing import Any
 
 import numpy as np
+from scipy.spatial import Delaunay
 
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject, Mesh
@@ -23,6 +24,8 @@ _DEFAULT_HEIGHT = 0.3
 _VALID_MODES = ("extrude", "revolve")
 _MIN_HEIGHT = 1e-6
 _REVOLVE_SEGMENTS = 64
+_COS60 = np.cos(np.pi / 3)
+_SIN60 = np.sin(np.pi / 3)
 
 
 def _koch_snowflake_2d(level: int) -> np.ndarray:
@@ -31,7 +34,6 @@ def _koch_snowflake_2d(level: int) -> np.ndarray:
     Returns (N, 2) array of points forming the closed snowflake curve.
     Level 0 produces an equilateral triangle.
     """
-    # Start with equilateral triangle (vertices in CCW order)
     angle_offsets = [np.pi / 2, np.pi / 2 - 2 * np.pi / 3,
                      np.pi / 2 - 4 * np.pi / 3]
     triangle = np.array([
@@ -41,7 +43,6 @@ def _koch_snowflake_2d(level: int) -> np.ndarray:
     if level == 0:
         return triangle
 
-    # Build segments from the triangle
     segments = []
     for i in range(3):
         segments.append((triangle[i], triangle[(i + 1) % 3]))
@@ -49,7 +50,6 @@ def _koch_snowflake_2d(level: int) -> np.ndarray:
     for _ in range(level):
         segments = _subdivide_segments(segments)
 
-    # Extract ordered points (first point of each segment)
     points = np.array([seg[0] for seg in segments])
     return points
 
@@ -63,12 +63,10 @@ def _subdivide_segments(
         delta = p_end - p_start
         p1 = p_start + delta / 3
         p2 = p_start + delta * 2 / 3
-        # Peak point: rotate delta/3 by -60 degrees from p1
-        cos60, sin60 = np.cos(np.pi / 3), np.sin(np.pi / 3)
         dx, dy = delta[0] / 3, delta[1] / 3
         peak = p1 + np.array([
-            dx * cos60 - dy * sin60,
-            dx * sin60 + dy * cos60,
+            dx * _COS60 - dy * _SIN60,
+            dx * _SIN60 + dy * _COS60,
         ])
         new_segments.append((p_start, p1))
         new_segments.append((p1, peak))
@@ -77,13 +75,39 @@ def _subdivide_segments(
     return new_segments
 
 
+def _triangulate_cap(curve_2d: np.ndarray) -> np.ndarray:
+    """Triangulate a 2D polygon using Delaunay triangulation.
+
+    Handles non-convex Koch snowflake curves correctly, unlike fan
+    triangulation which produces self-intersecting faces.
+    Returns (M, 3) array of triangle indices into curve_2d.
+    """
+    tri = Delaunay(curve_2d)
+    return tri.simplices.astype(np.int64)
+
+
+def _build_side_faces(
+    num_pts: int, bottom_offset: int, top_offset: int,
+) -> np.ndarray:
+    """Build triangle faces for side walls between two rings."""
+    idx = np.arange(num_pts)
+    next_idx = (idx + 1) % num_pts
+    b0 = bottom_offset + idx
+    b1 = bottom_offset + next_idx
+    t0 = top_offset + idx
+    t1 = top_offset + next_idx
+    faces = np.empty((num_pts * 2, 3), dtype=np.int64)
+    faces[0::2] = np.column_stack([b0, b1, t1])
+    faces[1::2] = np.column_stack([b0, t1, t0])
+    return faces
+
+
 def _build_extrusion_mesh(
     curve_2d: np.ndarray, height: float,
 ) -> Mesh:
     """Extrude a closed 2D curve along z to create a 3D mesh."""
     num_pts = len(curve_2d)
 
-    # Bottom ring at z=0, top ring at z=height
     bottom = np.column_stack([
         curve_2d[:, 0], curve_2d[:, 1],
         np.zeros(num_pts),
@@ -94,47 +118,15 @@ def _build_extrusion_mesh(
     ])
     vertices = np.vstack([bottom, top]).astype(np.float64)
 
-    # Side faces connecting bottom and top rings
-    faces = _build_side_faces(num_pts, bottom_offset=0, top_offset=num_pts)
+    side_faces = _build_side_faces(num_pts, bottom_offset=0, top_offset=num_pts)
 
-    # Cap faces via fan triangulation
-    bottom_cap = _fan_triangulate(list(range(num_pts)), reverse=True)
-    top_cap = _fan_triangulate(
-        list(range(num_pts, 2 * num_pts)), reverse=False,
-    )
-    all_faces = np.vstack([faces, bottom_cap, top_cap]).astype(np.int64)
+    # Delaunay triangulation for non-convex caps
+    cap_tris = _triangulate_cap(curve_2d)
+    bottom_cap = cap_tris[:, ::-1]  # Reverse winding for bottom face
+    top_cap = cap_tris + num_pts    # Offset indices for top ring
 
+    all_faces = np.vstack([side_faces, bottom_cap, top_cap]).astype(np.int64)
     return Mesh(vertices=vertices, faces=all_faces)
-
-
-def _build_side_faces(
-    num_pts: int, bottom_offset: int, top_offset: int,
-) -> np.ndarray:
-    """Build triangle faces for side walls between two rings."""
-    faces = np.empty((num_pts * 2, 3), dtype=np.int64)
-    for i in range(num_pts):
-        j = (i + 1) % num_pts
-        b0 = bottom_offset + i
-        b1 = bottom_offset + j
-        t0 = top_offset + i
-        t1 = top_offset + j
-        faces[2 * i] = [b0, b1, t1]
-        faces[2 * i + 1] = [b0, t1, t0]
-    return faces
-
-
-def _fan_triangulate(
-    indices: list[int], *, reverse: bool,
-) -> np.ndarray:
-    """Triangulate a polygon via fan from first vertex."""
-    num_tris = len(indices) - 2
-    faces = np.empty((num_tris, 3), dtype=np.int64)
-    for i in range(num_tris):
-        if reverse:
-            faces[i] = [indices[0], indices[i + 2], indices[i + 1]]
-        else:
-            faces[i] = [indices[0], indices[i + 1], indices[i + 2]]
-    return faces
 
 
 def _build_revolution_mesh(
@@ -144,30 +136,38 @@ def _build_revolution_mesh(
     num_pts = len(curve_2d)
     angles = np.linspace(0, 2 * np.pi, num_segments, endpoint=False)
 
-    # For each angle, rotate the 2D curve (x, y) around y-axis
-    # x_3d = x_2d * cos(theta), z_3d = x_2d * sin(theta), y_3d = y_2d
+    # Build vertices: rotate curve around y-axis at each angle
     vertices = np.empty((num_segments * num_pts, 3), dtype=np.float64)
-    for seg_idx, theta in enumerate(angles):
-        cos_t, sin_t = np.cos(theta), np.sin(theta)
-        offset = seg_idx * num_pts
-        vertices[offset:offset + num_pts, 0] = curve_2d[:, 0] * cos_t
-        vertices[offset:offset + num_pts, 1] = curve_2d[:, 1]
-        vertices[offset:offset + num_pts, 2] = curve_2d[:, 0] * sin_t
-
-    # Connect adjacent rings
-    faces_list = []
+    cos_angles = np.cos(angles)
+    sin_angles = np.sin(angles)
     for seg_idx in range(num_segments):
-        next_seg = (seg_idx + 1) % num_segments
-        for pt_idx in range(num_pts):
-            next_pt = (pt_idx + 1) % num_pts
-            v00 = seg_idx * num_pts + pt_idx
-            v01 = seg_idx * num_pts + next_pt
-            v10 = next_seg * num_pts + pt_idx
-            v11 = next_seg * num_pts + next_pt
-            faces_list.append([v00, v01, v11])
-            faces_list.append([v00, v11, v10])
+        offset = seg_idx * num_pts
+        vertices[offset:offset + num_pts, 0] = (
+            curve_2d[:, 0] * cos_angles[seg_idx]
+        )
+        vertices[offset:offset + num_pts, 1] = curve_2d[:, 1]
+        vertices[offset:offset + num_pts, 2] = (
+            curve_2d[:, 0] * sin_angles[seg_idx]
+        )
 
-    faces = np.array(faces_list, dtype=np.int64)
+    # Vectorized face generation
+    seg_indices = np.arange(num_segments)
+    pt_indices = np.arange(num_pts)
+    seg_grid, pt_grid = np.meshgrid(
+        seg_indices, pt_indices, indexing="ij",
+    )
+    seg_flat = seg_grid.ravel()
+    pt_flat = pt_grid.ravel()
+    next_seg = (seg_flat + 1) % num_segments
+    next_pt = (pt_flat + 1) % num_pts
+    v00 = seg_flat * num_pts + pt_flat
+    v01 = seg_flat * num_pts + next_pt
+    v10 = next_seg * num_pts + pt_flat
+    v11 = next_seg * num_pts + next_pt
+    faces = np.empty((len(v00) * 2, 3), dtype=np.int64)
+    faces[0::2] = np.column_stack([v00, v01, v11])
+    faces[1::2] = np.column_stack([v00, v11, v10])
+
     return Mesh(vertices=vertices, faces=faces)
 
 
@@ -181,7 +181,7 @@ def _validate_params(level: int, mode: str, height: float) -> None:
         raise ValueError(
             f"mode must be one of {_VALID_MODES}, got {mode!r}"
         )
-    if height < _MIN_HEIGHT:
+    if mode == "extrude" and height < _MIN_HEIGHT:
         raise ValueError(f"height must be >= {_MIN_HEIGHT}, got {height}")
 
 
@@ -215,6 +215,8 @@ class Koch3DGenerator(GeneratorBase):
         self,
         params: dict[str, Any] | None = None,
         seed: int = 42,
+        # resolution_kwargs accepted per GeneratorBase contract but unused
+        # — Koch geometry is fully determined by level, not resolution.
         **resolution_kwargs: Any,
     ) -> MathObject:
         """Generate a Koch snowflake 3D mesh.

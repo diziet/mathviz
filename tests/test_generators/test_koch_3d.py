@@ -218,10 +218,17 @@ def test_invalid_mode_raises(gen: Koch3DGenerator) -> None:
         gen.generate(params={"mode": "twist"})
 
 
-def test_tiny_height_raises(gen: Koch3DGenerator) -> None:
-    """Near-zero height raises ValueError."""
+def test_tiny_height_raises_in_extrude(gen: Koch3DGenerator) -> None:
+    """Near-zero height raises ValueError in extrude mode."""
     with pytest.raises(ValueError, match="height must be"):
-        gen.generate(params={"height": 0.0})
+        gen.generate(params={"mode": "extrude", "height": 0.0})
+
+
+def test_height_ignored_in_revolve(gen: Koch3DGenerator) -> None:
+    """Height parameter does not cause validation error in revolve mode."""
+    obj = gen.generate(params={"level": 1, "mode": "revolve", "height": 0.0})
+    obj.validate_or_raise()
+    assert obj.mesh is not None
 
 
 # ---------------------------------------------------------------------------
