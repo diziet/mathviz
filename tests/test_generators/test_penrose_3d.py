@@ -209,6 +209,13 @@ class TestValidation:
         with pytest.raises(ValueError, match="tile_height_ratio must be >="):
             gen.generate(params={"tile_height_ratio": -0.5})
 
+    def test_tile_height_ratio_above_one_raises(
+        self, gen: PenroseTiling3D,
+    ) -> None:
+        """tile_height_ratio > 1.0 raises ValueError."""
+        with pytest.raises(ValueError, match="tile_height_ratio must be <="):
+            gen.generate(params={"tile_height_ratio": 1.5})
+
     def test_zero_extent_raises(self, gen: PenroseTiling3D) -> None:
         """Extent below minimum raises ValueError."""
         with pytest.raises(ValueError, match="extent must be >="):

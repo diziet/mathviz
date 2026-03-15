@@ -47,6 +47,10 @@ def _validate_params(
         raise ValueError(
             f"tile_height_ratio must be >= 0, got {tile_height_ratio}"
         )
+    if tile_height_ratio > 1.0:
+        raise ValueError(
+            f"tile_height_ratio must be <= 1.0, got {tile_height_ratio}"
+        )
     if extent < _MIN_EXTENT:
         raise ValueError(f"extent must be >= {_MIN_EXTENT}, got {extent}")
 
@@ -198,7 +202,7 @@ class PenroseTiling3D(GeneratorBase):
         num_thin = len(triangles) - num_thick
 
         logger.info(
-            "Generated penrose_3d: generations=%d, tiles=%d "
+            "Generated penrose_3d: generations=%d, triangles=%d "
             "(thick=%d, thin=%d), extent=%.1f",
             generations, len(triangles), num_thick, num_thin, extent,
         )
