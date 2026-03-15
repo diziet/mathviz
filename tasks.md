@@ -3576,7 +3576,60 @@ octahedra from a tetrahedron.
 
 ---
 
-## Task 87: Apollonian gasket 3D generator
+## Task 87: Speed up slow tests — reduce integration steps and share benchmark runs
+
+**Objective:**
+
+Several test files use unnecessarily high iteration counts, causing
+individual tests to take 1–4 seconds. The benchmark tests are the worst
+offenders — each test re-runs the entire benchmark CLI independently.
+Reduce step counts and share expensive fixtures to cut test suite time.
+
+**Changes needed:**
+
+1. **Reduce `_TEST_STEPS` in attractor/dynamics tests**:
+   - `tests/test_generators/test_attractors.py`: 5000 → 500
+   - `tests/test_generators/test_attractors_extended.py`: 5000 → 500,
+     and the 20,000-step test on line 73 → 2000
+   - `tests/test_generators/test_double_pendulum.py`: 5000 → 500
+   - `tests/test_generators/test_strange_attractors.py`: 5000 → 500
+   - 500 steps is sufficient to verify trajectory properties (finite,
+     non-NaN, non-degenerate, deterministic, seed-varying). These are
+     unit tests, not integration tests.
+
+2. **Share benchmark fixture**: The 6 tests in `TestBenchmarkCommand`
+   each call `_run_benchmark()` independently (~4s each). Refactor to
+   use a class-scoped or session-scoped fixture that runs the benchmark
+   once and shares the `(result, output_path, html_content)` across all
+   tests that inspect the output.
+
+3. **Verify all tests still pass** after the reductions. If any test
+   relies on high step counts for numerical stability (e.g. checking
+   attractor convergence), increase that specific test's count with a
+   comment explaining why.
+
+4. **Audit for other slow tests**: Check if any other test files have
+   unnecessarily high iteration counts or redundant generation calls.
+
+**Files:**
+
+- `tests/test_generators/test_attractors.py`
+- `tests/test_generators/test_attractors_extended.py`
+- `tests/test_generators/test_double_pendulum.py`
+- `tests/test_generators/test_strange_attractors.py`
+- `tests/test_cli/test_benchmark.py`
+
+**Tests:**
+
+- Full test suite passes with reduced step counts
+- No individual test takes more than 500ms (except benchmark which should
+  be under 2s total for the shared fixture)
+- Total test suite wall-clock time is measurably faster
+
+
+---
+
+## Task 88: Apollonian gasket 3D generator
 
 **Objective:**
 
@@ -3608,7 +3661,7 @@ sphere.
 
 ---
 
-## Task 88: Quaternion Julia set generator
+## Task 89: Quaternion Julia set generator
 
 **Objective:**
 
@@ -3638,7 +3691,7 @@ producing smoother, more organic shapes than the Mandelbulb.
 
 ---
 
-## Task 89: Burning ship fractal heightmap generator
+## Task 90: Burning ship fractal heightmap generator
 
 **Objective:**
 
@@ -3667,7 +3720,7 @@ heightmap.
 
 ---
 
-## Task 90: IFS fractal generator
+## Task 91: IFS fractal generator
 
 **Objective:**
 
@@ -3700,7 +3753,7 @@ Barnsley fern in 3D, Sierpinski variants, and custom affine transforms.
 
 ---
 
-## Task 91: Koch snowflake 3D generator
+## Task 92: Koch snowflake 3D generator
 
 **Objective:**
 
@@ -3726,7 +3779,7 @@ extruded or revolved into a 3D solid.
 
 ---
 
-## Task 92: Electron orbital generator
+## Task 93: Electron orbital generator
 
 **Objective:**
 
@@ -3758,7 +3811,7 @@ isosurfaces for s, p, d, and f orbitals.
 
 ---
 
-## Task 93: Magnetic field lines generator
+## Task 94: Magnetic field lines generator
 
 **Objective:**
 
@@ -3789,7 +3842,7 @@ quadrupole configurations rendered as tube curves.
 
 ---
 
-## Task 94: DNA double helix generator
+## Task 95: DNA double helix generator
 
 **Objective:**
 
@@ -3818,7 +3871,7 @@ base pair rungs connecting them.
 
 ---
 
-## Task 95: Hopf fibration generator
+## Task 96: Hopf fibration generator
 
 **Objective:**
 
@@ -3853,7 +3906,7 @@ stunning mathematical objects.
 
 ---
 
-## Task 96: Gravitational lensing grid generator
+## Task 97: Gravitational lensing grid generator
 
 **Objective:**
 
@@ -3882,7 +3935,7 @@ coordinate grid showing spacetime curvature around a point mass.
 
 ---
 
-## Task 97: Wave interference pattern generator
+## Task 98: Wave interference pattern generator
 
 **Objective:**
 
@@ -3911,7 +3964,7 @@ point sources.
 
 ---
 
-## Task 98: Hilbert curve 3D generator
+## Task 99: Hilbert curve 3D generator
 
 **Objective:**
 
@@ -3939,7 +3992,7 @@ visits every cell in a cubic grid exactly once.
 
 ---
 
-## Task 99: Penrose tiling 3D generator
+## Task 100: Penrose tiling 3D generator
 
 **Objective:**
 
@@ -3967,7 +4020,7 @@ a relief surface.
 
 ---
 
-## Task 100: Weaire-Phelan foam structure generator
+## Task 101: Weaire-Phelan foam structure generator
 
 **Objective:**
 
@@ -3996,7 +4049,7 @@ known foam partition of space into equal-volume cells.
 
 ---
 
-## Task 101: Geodesic sphere generator
+## Task 102: Geodesic sphere generator
 
 **Objective:**
 
@@ -4026,7 +4079,7 @@ frequencies, like Buckminster Fuller domes.
 
 ---
 
-## Task 102: Möbius trefoil generator
+## Task 103: Möbius trefoil generator
 
 **Objective:**
 
@@ -4051,7 +4104,7 @@ trefoil knot shape, combining non-orientability with knot topology.
 
 ---
 
-## Task 103: Linked tori generator
+## Task 104: Linked tori generator
 
 **Objective:**
 
@@ -4075,7 +4128,7 @@ like links in a chain.
 
 ---
 
-## Task 104: Twisted torus generator
+## Task 105: Twisted torus generator
 
 **Objective:**
 
@@ -4104,7 +4157,7 @@ cross-section rotates N times as it goes around the loop.
 
 ---
 
-## Task 105: Rose surface generator
+## Task 106: Rose surface generator
 
 **Objective:**
 
@@ -4129,7 +4182,7 @@ into 3D, producing flower-like petals.
 
 ---
 
-## Task 106: Shell spiral generator
+## Task 107: Shell spiral generator
 
 **Objective:**
 
@@ -4158,7 +4211,7 @@ with expanding cross-section, producing a nautilus-like form.
 
 ---
 
-## Task 107: Gear / involute curve generator
+## Task 108: Gear / involute curve generator
 
 **Objective:**
 
@@ -4187,7 +4240,7 @@ geometry extruded into a 3D solid.
 
 ---
 
-## Task 108: Update documentation for Tasks 77–107 generators
+## Task 109: Update documentation for Tasks 77–108 generators
 
 **Objective:**
 
@@ -4234,7 +4287,7 @@ This is a follow-up to Task 75 (which covers Tasks 70–74 generators).
 
 ---
 
-## Task 110: Realistic K9 glass crystal preview mode
+## Task 111: Realistic K9 glass crystal preview mode
 
 **Objective:**
 
@@ -4310,7 +4363,7 @@ they glow and scatter light.
 
 ---
 
-## Task 109: Disk-based generation cache with UI indicator and invalidation
+## Task 110: Disk-based generation cache with UI indicator and invalidation
 
 **Objective:**
 
@@ -4369,7 +4422,7 @@ and provide a button to force regeneration (bypass cache).
 
 ---
 
-## Task 111: Remove redundant `cell_size` parameter from TPMS generators
+## Task 112: Remove redundant `cell_size` parameter from TPMS generators
 
 **Objective:**
 
@@ -4419,7 +4472,7 @@ and keep only `periods` to eliminate user confusion.
 
 ---
 
-## Task 112: Split Lock Camera into two modes — render lock and full lock
+## Task 113: Split Lock Camera into two modes — render lock and full lock
 
 **Objective:**
 
@@ -4491,7 +4544,7 @@ Clicking the toggle cycles: **Render Lock → Full Lock → Off → Render Lock*
 
 ---
 
-## Task 113: Fix randomize ranges and add editable min/max to parameter UI
+## Task 114: Fix randomize ranges and add editable min/max to parameter UI
 
 **Objective:**
 
@@ -4568,7 +4621,7 @@ Two related issues with the dice (randomize) button:
 
 ---
 
-## Task 114: Collapsible Dimensions/Margins panel, collapsed by default
+## Task 115: Collapsible Dimensions/Margins panel, collapsed by default
 
 **Objective:**
 
@@ -4609,7 +4662,7 @@ it stays out of the way until the user needs it.
 
 ---
 
-## Task 115: Fix save after load, show params in gallery, save camera state
+## Task 116: Fix save after load, show params in gallery, save camera state
 
 **Objective:**
 
@@ -4700,7 +4753,7 @@ Three issues with the save/load snapshot system:
 
 ---
 
-## Task 116: Colored axis labels on bounding box and per-axis stretch controls
+## Task 117: Colored axis labels on bounding box and per-axis stretch controls
 
 **Objective:**
 
@@ -4771,7 +4824,7 @@ Two related features for the preview UI:
 
 ---
 
-## Task 117: Generator thumbnail endpoint with persistent disk cache
+## Task 118: Generator thumbnail endpoint with persistent disk cache
 
 **Objective:**
 
@@ -4830,7 +4883,7 @@ browser (Tasks 118–119).
 
 ---
 
-## Task 118: Visual generator browser modal with category grid
+## Task 119: Visual generator browser modal with category grid
 
 **Objective:**
 
@@ -4913,7 +4966,7 @@ endpoint).
 
 ---
 
-## Task 119: Generator browser keyboard navigation and shortcuts
+## Task 120: Generator browser keyboard navigation and shortcuts
 
 **Objective:**
 
@@ -4981,7 +5034,7 @@ via keyboard. Depends on Task 118.
 
 ---
 
-## Task 120: Point cloud density slider — real-time thinning without regeneration
+## Task 121: Point cloud density slider — real-time thinning without regeneration
 
 **Objective:**
 
@@ -5029,7 +5082,7 @@ pipeline. Useful for performance tuning and visual clarity on dense clouds.
 
 ---
 
-## Task 121: Turntable animation with GIF/MP4 export
+## Task 122: Turntable animation with GIF/MP4 export
 
 **Objective:**
 
@@ -5079,7 +5132,7 @@ animation as a GIF or MP4 for sharing.
 
 ---
 
-## Task 122: Color mapping view mode — vertex coloring by curvature, height, or distance
+## Task 123: Color mapping view mode — vertex coloring by curvature, height, or distance
 
 **Objective:**
 
@@ -5142,7 +5195,7 @@ curvature or a Lorenz attractor colored by velocity would look stunning.
 
 ---
 
-## Task 123: Comprehensive generator documentation with examples and thumbnails
+## Task 124: Comprehensive generator documentation with examples and thumbnails
 
 **Objective:**
 
@@ -5192,7 +5245,7 @@ that produce interesting results.
 
 ---
 
-## Task 124: Document all preview UI features and controls
+## Task 125: Document all preview UI features and controls
 
 **Objective:**
 
@@ -5242,55 +5295,3 @@ and a quick-start guide for new users.
 - `docs/preview-ui.md` exists and covers all documented features
 - Every keyboard shortcut in the code has a corresponding docs entry
 - README links to the preview UI documentation
-
----
-
-## Task 125: Speed up slow tests — reduce integration steps and share benchmark runs
-
-**Objective:**
-
-Several test files use unnecessarily high iteration counts, causing
-individual tests to take 1–4 seconds. The benchmark tests are the worst
-offenders — each test re-runs the entire benchmark CLI independently.
-Reduce step counts and share expensive fixtures to cut test suite time.
-
-**Changes needed:**
-
-1. **Reduce `_TEST_STEPS` in attractor/dynamics tests**:
-   - `tests/test_generators/test_attractors.py`: 5000 → 500
-   - `tests/test_generators/test_attractors_extended.py`: 5000 → 500,
-     and the 20,000-step test on line 73 → 2000
-   - `tests/test_generators/test_double_pendulum.py`: 5000 → 500
-   - `tests/test_generators/test_strange_attractors.py`: 5000 → 500
-   - 500 steps is sufficient to verify trajectory properties (finite,
-     non-NaN, non-degenerate, deterministic, seed-varying). These are
-     unit tests, not integration tests.
-
-2. **Share benchmark fixture**: The 6 tests in `TestBenchmarkCommand`
-   each call `_run_benchmark()` independently (~4s each). Refactor to
-   use a class-scoped or session-scoped fixture that runs the benchmark
-   once and shares the `(result, output_path, html_content)` across all
-   tests that inspect the output.
-
-3. **Verify all tests still pass** after the reductions. If any test
-   relies on high step counts for numerical stability (e.g. checking
-   attractor convergence), increase that specific test's count with a
-   comment explaining why.
-
-4. **Audit for other slow tests**: Check if any other test files have
-   unnecessarily high iteration counts or redundant generation calls.
-
-**Files:**
-
-- `tests/test_generators/test_attractors.py`
-- `tests/test_generators/test_attractors_extended.py`
-- `tests/test_generators/test_double_pendulum.py`
-- `tests/test_generators/test_strange_attractors.py`
-- `tests/test_cli/test_benchmark.py`
-
-**Tests:**
-
-- Full test suite passes with reduced step counts
-- No individual test takes more than 500ms (except benchmark which should
-  be under 2s total for the shared fixture)
-- Total test suite wall-clock time is measurably faster
