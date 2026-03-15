@@ -2782,3 +2782,66 @@ with `NetworkError`.
 - Saving without a thumbnail field succeeds (no thumbnail.png created)
 - Server remains responsive after a save operation
 - Invalid base64 thumbnail returns 400, does not crash the server
+
+---
+
+## Task 68: Parallel generation for multi-panel comparison view
+
+**Objective:**
+
+When the preview UI is in comparison mode (2×2 or 3×3 grid from Task 62),
+each viewport's geometry should be generated in parallel using multiple
+CPU cores — one process per viewport. Currently the preview server
+generates geometry sequentially in a single process, which means a 2×2
+grid takes 4× as long and a 3×3 grid takes 9× as long as a single render.
+
+**Suggested path:**
+
+1. Add a `POST /api/generate-batch` endpoint to the preview server. The
+   request body is a list of generation configs:
+   ```json
+   {
+     "panels": [
+       {"generator": "lorenz", "params": {"sigma": 10}, "seed": 42, "container": {...}},
+       {"generator": "lorenz", "params": {"sigma": 15}, "seed": 42, "container": {...}},
+       {"generator": "lorenz", "params": {"sigma": 20}, "seed": 42, "container": {...}},
+       {"generator": "lorenz", "params": {"sigma": 25}, "seed": 42, "container": {...}}
+     ]
+   }
+   ```
+
+2. On the server, use `concurrent.futures.ProcessPoolExecutor` to run
+   each panel's pipeline in a separate process. Limit the pool size to
+   `min(len(panels), os.cpu_count())`. Each worker runs the full
+   pipeline (generate → represent → transform → validate) and returns
+   the serialized geometry (mesh GLB and/or point cloud PLY bytes).
+
+3. The response returns a list of geometry results in the same order as
+   the input panels, each with `geometry_id`, `mesh_url`, `cloud_url`
+   (or `error` if that panel failed).
+
+4. Important: do NOT use PyVista/VTK in the worker processes — only run
+   the pipeline and serialization. Rendering is done client-side by
+   Three.js. This avoids the macOS NSWindow threading crash (Task 67).
+
+5. In the preview UI, when in comparison mode, call
+   `POST /api/generate-batch` instead of making N separate
+   `POST /api/generate` calls. Load all returned geometries into their
+   respective viewport scenes.
+
+6. Apply the same 5-minute timeout (Task 63) to the entire batch, not
+   per-panel. If the batch times out, return partial results for any
+   panels that completed.
+
+7. Show a single loading indicator for the batch with progress
+   (e.g., "Generating 2/4...") as each panel completes.
+
+**Tests:** `tests/test_preview/test_batch_generate.py`
+
+- `POST /api/generate-batch` with 4 panels returns 4 geometry results
+- Panels are generated in parallel (total time < 2× single panel time)
+- Failed panels return error without crashing the batch
+- Response order matches request order
+- Batch respects the generation timeout
+- Empty panels list returns 400
+- Single-panel batch works the same as regular generate
