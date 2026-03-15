@@ -993,6 +993,23 @@ Aliases: `dna`, `double_helix`
 mathviz generate dna_helix --param turns=5 --seed 42 --output dna.ply
 ```
 
+### hopf_fibration
+
+Hopf fibration — circles in S³ projected to R³ via stereographic projection,
+forming nested tori of linked rings.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `num_fibers` | 32 | Number of fiber curves per base circle |
+| `num_circles` | 5 | Number of latitude circles on S² |
+| `projection_point` | [0, 0, 0, 2] | Stereographic projection offset in S³ |
+
+Aliases: `hopf`
+
+```bash
+mathviz generate hopf_fibration --param num_fibers=48 --param num_circles=7 --seed 42 --output hopf.ply
+```
+
 ### seifert_surface
 
 Seifert surface — orientable surface bounded by a knot. Uses the Milnor fiber
