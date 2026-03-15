@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 83 generators across 12 categories. Each generator produces a
+MathViz includes 84 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -982,6 +982,19 @@ Möbius strip with configurable radius and width.
 
 ```bash
 mathviz generate mobius_strip --output mobius.ply
+```
+
+### mobius_trefoil
+
+Möbius strip twisted into a trefoil knot shape, combining non-orientability
+with knot topology.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `width` | 0.3 | Width of the strip |
+
+```bash
+mathviz generate mobius_trefoil --param width=0.4 --output mobius_trefoil.ply
 ```
 
 ### enneper_surface

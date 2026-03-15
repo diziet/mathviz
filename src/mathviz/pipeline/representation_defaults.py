@@ -20,6 +20,7 @@ GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     "enneper_surface": _SURFACE_CONFIG,
     "lissajous_surface": _SURFACE_CONFIG,
     "mobius_strip": _SURFACE_CONFIG,
+    "mobius_trefoil": _SURFACE_CONFIG,
     "spherical_harmonics": _SURFACE_CONFIG,
     "superellipsoid": _SURFACE_CONFIG,
     "generic_parametric": _SURFACE_CONFIG,
