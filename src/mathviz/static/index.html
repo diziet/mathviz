@@ -996,6 +996,31 @@ async function applyParams() {
 document.getElementById('param-apply-btn').addEventListener('click', applyParams);
 document.getElementById('param-reset-btn').addEventListener('click', resetParamDefaults);
 
+/* ── Enter key triggers regeneration on input fields ── */
+function handleEnterKey(panel, action) {
+  panel.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    if (e.target.tagName !== 'INPUT' || e.target.type === 'checkbox') return;
+    e.preventDefault();
+    e.target.blur();
+    action();
+  });
+}
+
+handleEnterKey(document.getElementById('controls'), () => {
+  const currentGen = searchInput.value;
+  if (!currentGen) return;
+  applyGenerator(currentGen, parseSeed());
+});
+
+handleEnterKey(document.getElementById('container-panel'), () => {
+  applyParams();
+});
+
+handleEnterKey(document.getElementById('param-panel'), () => {
+  applyParams();
+});
+
 /* ── Init: load from URL params ── */
 const qp = parseQueryParams();
 seedInput.value = qp.seed;
