@@ -68,6 +68,7 @@ GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     "lissajous_curve": _TUBE_CONFIG,
     "cardioid": _TUBE_CONFIG,
     "fibonacci_spiral": _TUBE_CONFIG,
+    "hilbert_3d": _TUBE_CONFIG,
     "logarithmic_spiral": _TUBE_CONFIG,
     "voronoi_3d": _TUBE_CONFIG,
     "soundwave": _TUBE_CONFIG,
