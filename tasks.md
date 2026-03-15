@@ -4199,6 +4199,82 @@ This is a follow-up to Task 75 (which covers Tasks 70–74 generators).
 
 ---
 
+## Task 109: Realistic K9 glass crystal preview mode
+
+**Objective:**
+
+Add a "Crystal Preview" view mode to the preview UI that simulates how
+the geometry would actually look as a subsurface laser engraving inside
+a K9 glass block. Real SSLE creates thousands of tiny white micro-fracture
+dots (~0.1mm) suspended inside a clear crystal block. On a dark background
+the dots appear as bright white points floating in space; on an LED base
+they glow and scatter light.
+
+**Suggested path:**
+
+1. **New view mode**: Add `crystal` to the view mode dropdown alongside
+   shaded/wireframe/points. When selected, render the scene in crystal
+   simulation mode.
+
+2. **Glass block mesh**: Create a `MeshPhysicalMaterial` box matching
+   the container dimensions with:
+   - `transmission: 0.95` (nearly fully transparent)
+   - `ior: 1.5` (K9 glass refractive index)
+   - `thickness: 50` (simulates solid block refraction)
+   - `roughness: 0.02` (polished surface)
+   - `clearcoat: 1.0`, `clearcoatRoughness: 0.05`
+   - `color: 0xffffff`, `opacity: 1`
+   - `envMapIntensity` for subtle reflections
+   Render the box around the point cloud geometry. Requires an
+   environment map — use `PMREMGenerator` with a simple scene or load
+   a small HDRI.
+
+3. **Point cloud rendering**: Render the geometry as white points using
+   a custom `ShaderMaterial` or `PointsMaterial` with a soft radial
+   gradient sprite texture (gaussian falloff, not hard circles). Point
+   color: white with slight blue tint (`0xe8f0ff`). Points should appear
+   to be physically inside the glass block.
+
+4. **Bloom post-processing**: Add `UnrealBloomPass` from Three.js
+   post-processing (`EffectComposer` + `RenderPass` + `UnrealBloomPass`).
+   Settings: `threshold: 0.6`, `strength: 0.4`, `radius: 0.3`. This
+   creates the subtle glow that simulates light scattering from
+   micro-fractures. Only enable bloom in crystal mode to avoid
+   performance cost in other modes.
+
+5. **LED base simulation**: Add an optional colored point light or area
+   light below the glass block to simulate an LED display base. Toggle
+   with a "LED Base" checkbox. Color picker for base color (default:
+   warm white). The light should refract through the glass and
+   illuminate the points from below.
+
+6. **Dark background**: Crystal mode should force a very dark or black
+   background regardless of the light/dark toggle setting, since the
+   glass engraving effect only looks right on dark backgrounds.
+
+7. **Performance**: The `MeshPhysicalMaterial` transmission requires an
+   extra render pass per transmissive object. This is acceptable for a
+   single glass block but document the performance cost. The bloom pass
+   adds another full-screen pass.
+
+8. **Controls**: When in crystal mode, expose:
+   - Glass tint color (default: clear/white)
+   - Bloom intensity slider (0–1)
+   - LED base on/off + color
+   - Point brightness slider
+
+**Tests:** `tests/test_preview/test_crystal_mode.py`
+
+- Preview HTML contains a "Crystal" option in the view mode dropdown
+- Crystal mode creates a MeshPhysicalMaterial box with transmission > 0
+- Crystal mode uses PointsMaterial or ShaderMaterial for inner points
+- EffectComposer with UnrealBloomPass is set up in crystal mode
+- Switching away from crystal mode removes the glass block and bloom
+- LED base toggle adds/removes a light below the scene
+- Crystal mode forces dark background
+
+---
+
 ## Task 108: Disk-based generation cache with UI indicator and invalidation
 
 **Objective:**
