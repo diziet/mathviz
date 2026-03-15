@@ -3,8 +3,9 @@
 import logging
 import os
 import threading
+import time
 from concurrent.futures import Future, ProcessPoolExecutor, TimeoutError
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from mathviz.core.container import Container, PlacementPolicy
@@ -58,6 +59,23 @@ class GenerationTask:
     cancelled: bool = False
 
 
+@dataclass
+class BatchPanelResult:
+    """Result for a single panel in a batch generation."""
+
+    index: int
+    pipeline_result: PipelineResult | None = None
+    error: str | None = None
+
+
+@dataclass
+class BatchResult:
+    """Result of a batch generation across multiple panels."""
+
+    panels: list[BatchPanelResult] = field(default_factory=list)
+    timed_out: bool = False
+
+
 class GenerationExecutor:
     """Manages pipeline generation with timeout and cancel support."""
 
@@ -107,6 +125,64 @@ class GenerationExecutor:
         finally:
             with self._lock:
                 self._current_task = None
+
+        return result
+
+    def submit_batch(
+        self,
+        jobs: list[dict[str, Any]],
+    ) -> BatchResult:
+        """Run multiple pipeline jobs in parallel with a shared timeout."""
+        timeout = get_timeout_seconds()
+        worker_count = min(len(jobs), os.cpu_count() or 1)
+
+        pool = ProcessPoolExecutor(max_workers=worker_count)
+        try:
+            return self._run_batch(pool, jobs, timeout)
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
+
+    def _run_batch(
+        self,
+        pool: ProcessPoolExecutor,
+        jobs: list[dict[str, Any]],
+        timeout: float,
+    ) -> BatchResult:
+        """Execute batch jobs on pool, collecting results until timeout."""
+        futures: list[tuple[int, Future]] = []
+        for i, job in enumerate(jobs):
+            future = pool.submit(
+                _run_pipeline_in_process,
+                job["generator"],
+                job.get("params"),
+                job.get("seed", 42),
+                job.get("resolution_kwargs"),
+                job["container"],
+                job["placement"],
+            )
+            futures.append((i, future))
+
+        deadline = time.monotonic() + timeout
+        result = BatchResult()
+        result.panels = [BatchPanelResult(index=i) for i in range(len(jobs))]
+
+        for idx, future in futures:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                result.timed_out = True
+                future.cancel()
+                result.panels[idx].error = "Batch timed out"
+                continue
+            try:
+                pipeline_result = future.result(timeout=remaining)
+                result.panels[idx].pipeline_result = pipeline_result
+            except TimeoutError:
+                result.timed_out = True
+                future.cancel()
+                result.panels[idx].error = "Batch timed out"
+            except Exception as exc:
+                result.panels[idx].error = str(exc)
+                logger.error("Batch panel %d failed: %s", idx, exc)
 
         return result
 
