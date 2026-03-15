@@ -2,6 +2,22 @@
 
 import numpy as np
 
+from mathviz.core.math_object import BoundingBox
+
+_BBOX_RELATIVE_PADDING = 0.02
+_BBOX_ABSOLUTE_PADDING = 1e-6
+
+
+def compute_padded_bounding_box(vertices: np.ndarray) -> BoundingBox:
+    """Compute axis-aligned bounding box from vertices with padding."""
+    vmin = vertices.min(axis=0)
+    vmax = vertices.max(axis=0)
+    padding = (vmax - vmin) * _BBOX_RELATIVE_PADDING + _BBOX_ABSOLUTE_PADDING
+    return BoundingBox(
+        min_corner=tuple(vmin - padding),
+        max_corner=tuple(vmax + padding),
+    )
+
 
 def build_wrapped_grid_faces(n_u: int, n_v: int) -> np.ndarray:
     """Build triangle faces for a grid periodic in both u and v."""
