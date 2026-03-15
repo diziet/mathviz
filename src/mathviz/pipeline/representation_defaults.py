@@ -23,6 +23,14 @@ GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     "spherical_harmonics": _SURFACE_CONFIG,
     "superellipsoid": _SURFACE_CONFIG,
     "generic_parametric": _SURFACE_CONFIG,
+    "calabi_yau": _SURFACE_CONFIG,
+    "cross_cap": _SURFACE_CONFIG,
+    "dini_surface": _SURFACE_CONFIG,
+    "dupin_cyclide": _SURFACE_CONFIG,
+    "roman_surface": _SURFACE_CONFIG,
+    "seifert_surface": _SURFACE_CONFIG,
+    # Geometry (mesh)
+    "voronoi_sphere": _SURFACE_CONFIG,
     # Implicit surfaces (mesh)
     "genus2_surface": _SURFACE_CONFIG,
     "gyroid": _SURFACE_CONFIG,
@@ -36,14 +44,22 @@ GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     "rossler": _TUBE_CONFIG,
     "aizawa": _TUBE_CONFIG,
     "chen": _TUBE_CONFIG,
+    "clifford": _TUBE_CONFIG,
+    "dequan_li": _TUBE_CONFIG,
     "double_pendulum": _TUBE_CONFIG,
     "halvorsen": _TUBE_CONFIG,
+    "sprott": _TUBE_CONFIG,
     "thomas": _TUBE_CONFIG,
     # Knots (curves)
     "torus_knot": _KNOT_TUBE_CONFIG,
     "figure_eight_knot": _KNOT_TUBE_CONFIG,
     "lissajous_knot": _KNOT_TUBE_CONFIG,
     "seven_crossing_knots": _KNOT_TUBE_CONFIG,
+    "pretzel_knot": _KNOT_TUBE_CONFIG,
+    "cinquefoil_knot": _KNOT_TUBE_CONFIG,
+    "borromean_rings": _KNOT_TUBE_CONFIG,
+    "chain_links": _KNOT_TUBE_CONFIG,
+    "trefoil_on_torus": _KNOT_TUBE_CONFIG,
     # Curves
     "lissajous": _TUBE_CONFIG,
     "lissajous_curve": _TUBE_CONFIG,
@@ -72,4 +88,7 @@ GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     "noise_surface": _HEIGHTMAP_CONFIG,
     "reaction_diffusion": _HEIGHTMAP_CONFIG,
     "terrain": _HEIGHTMAP_CONFIG,
+    # Procedural
+    "lsystem": _TUBE_CONFIG,
+    "rd_surface": _SURFACE_CONFIG,
 }

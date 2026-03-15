@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from mathviz.core.generator import clear_registry, list_generators
+from mathviz.core.generator import list_generators
 from mathviz.core.math_object import Curve, MathObject, Mesh, PointCloud
 from mathviz.core.representation import RepresentationType
 from mathviz.pipeline.representation_defaults import GENERATOR_DEFAULTS
@@ -168,13 +168,6 @@ class TestApplySparseShellPointCloud:
 
 class TestAllRegisteredGenerators:
     """Every registered generator can get a representation without error."""
-
-    @pytest.fixture(autouse=True)
-    def _ensure_discovery(self) -> None:
-        """Reset registry with discovery enabled so auto-discovery triggers."""
-        clear_registry(suppress_discovery=False)
-        yield
-        clear_registry(suppress_discovery=False)
 
     def test_all_generators_have_representation(self) -> None:
         """All generators in the registry can resolve a representation config."""
