@@ -2683,3 +2683,34 @@ purely determined by parameters (not seed).
 - Default exploration ranges are derived from defaults when not specified
 - Generators can define explicit exploration ranges
 - Keyboard shortcut triggers randomization when no input is focused
+
+---
+
+## Task 66: Fix Lock Camera — disable OrbitControls when locked
+
+**Objective:**
+
+The Lock Camera checkbox correctly preserves the camera position during
+regeneration (Auto-Apply works), but it does not prevent the user from
+manually rotating, panning, or zooming the camera. Checking "Lock Camera"
+should freeze all camera interaction.
+
+**Suggested path:**
+
+1. In the lock-camera change event listener, set
+   `controls.enabled = !e.target.checked`. This disables all
+   OrbitControls interaction (rotate, pan, zoom) when locked.
+
+2. The Reset View button should temporarily re-enable controls, reframe
+   the camera, then re-disable if still locked.
+
+3. Visual feedback: when locked, optionally change the cursor over the
+   canvas to `not-allowed` or add a subtle border/indicator so the user
+   knows interaction is disabled.
+
+**Tests:** `tests/test_preview/test_lock_camera.py` (extend existing)
+
+- Toggling Lock Camera on sets `controls.enabled` to false
+- Toggling Lock Camera off sets `controls.enabled` to true
+- Reset View still works when camera is locked
+- Camera position does not change from user interaction when locked
