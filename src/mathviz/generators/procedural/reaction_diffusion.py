@@ -161,6 +161,10 @@ class ReactionDiffusionGenerator(GeneratorBase):
             "height_scale": _DEFAULT_HEIGHT_SCALE,
         }
 
+    def get_default_resolution(self) -> dict[str, Any]:
+        """Return default values for resolution parameters."""
+        return {"grid_size": _DEFAULT_GRID_SIZE}
+
     def generate(
         self,
         params: dict[str, Any] | None = None,

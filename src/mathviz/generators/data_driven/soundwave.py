@@ -108,6 +108,10 @@ class SoundwaveGenerator(GeneratorBase):
             "length": _DEFAULT_LENGTH,
         }
 
+    def get_default_resolution(self) -> dict[str, Any]:
+        """Return default values for resolution parameters."""
+        return {"num_samples": _DEFAULT_NUM_SAMPLES}
+
     def generate(
         self,
         params: dict[str, Any] | None = None,

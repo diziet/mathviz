@@ -17,6 +17,8 @@ from mathviz.generators.number_theory._primes import first_n_primes
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_NUM_PRIMES = 500
+
 
 def _validate_params(num_primes: int) -> None:
     """Validate prime gaps parameters."""
@@ -66,6 +68,10 @@ class PrimeGapsGenerator(GeneratorBase):
             "ribbon_width": 0.5,
         }
 
+    def get_default_resolution(self) -> dict[str, Any]:
+        """Return default values for resolution parameters."""
+        return {"num_primes": _DEFAULT_NUM_PRIMES}
+
     def generate(
         self,
         params: dict[str, Any] | None = None,
@@ -77,7 +83,7 @@ class PrimeGapsGenerator(GeneratorBase):
         if params:
             merged.update(params)
 
-        num_primes = int(resolution_kwargs.get("num_primes", 500))
+        num_primes = int(resolution_kwargs.get("num_primes", _DEFAULT_NUM_PRIMES))
         x_spacing = float(merged["x_spacing"])
         y_scale = float(merged["y_scale"])
         ribbon_width = float(merged["ribbon_width"])

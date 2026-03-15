@@ -20,6 +20,8 @@ from mathviz.generators.number_theory._primes import (
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_NUM_POINTS = 1000
+
 # Direction vectors for the rectangular spiral: right, up, left, down
 _DIRECTIONS = np.array([[1, 0], [0, 1], [-1, 0], [0, -1]], dtype=np.int64)
 
@@ -85,6 +87,10 @@ class UlamSpiralGenerator(GeneratorBase):
             "spacing": 0.1,
         }
 
+    def get_default_resolution(self) -> dict[str, Any]:
+        """Return default values for resolution parameters."""
+        return {"num_points": _DEFAULT_NUM_POINTS}
+
     def generate(
         self,
         params: dict[str, Any] | None = None,
@@ -96,7 +102,7 @@ class UlamSpiralGenerator(GeneratorBase):
         if params:
             merged.update(params)
 
-        num_points = int(resolution_kwargs.get("num_points", 1000))
+        num_points = int(resolution_kwargs.get("num_points", _DEFAULT_NUM_POINTS))
         prime_height = float(merged["prime_height"])
         spacing = float(merged["spacing"])
         validate_point_cloud_params(num_points, prime_height)

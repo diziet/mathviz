@@ -135,6 +135,10 @@ class NBodyGenerator(GeneratorBase):
             "time_span": _DEFAULT_TIME_SPAN,
         }
 
+    def get_default_resolution(self) -> dict[str, Any]:
+        """Return default values for resolution parameters."""
+        return {"integration_steps": _DEFAULT_INTEGRATION_STEPS}
+
     def generate(
         self,
         params: dict[str, Any] | None = None,
