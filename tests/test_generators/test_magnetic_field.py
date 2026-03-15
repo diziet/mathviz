@@ -62,17 +62,6 @@ class TestMagneticFieldDipole:
                 "Dipole field line should span both hemispheres"
             )
 
-    def test_dipole_no_nan(self, gen: MagneticFieldGenerator) -> None:
-        """No NaN values in dipole output."""
-        obj = gen.generate(
-            params={"field_type": "dipole", "num_lines": _TEST_NUM_LINES},
-            line_points=_TEST_LINE_POINTS,
-        )
-        obj.validate_or_raise()
-        assert obj.curves is not None
-        for curve in obj.curves:
-            assert not np.any(np.isnan(curve.points))
-
 
 class TestMagneticFieldQuadrupole:
     """Tests for quadrupole field configuration."""
@@ -113,10 +102,17 @@ class TestMagneticFieldQuadrupole:
             "Quadrupole and dipole should produce different spatial extents"
         )
 
-    def test_quadrupole_no_nan(self, gen: MagneticFieldGenerator) -> None:
-        """No NaN values in quadrupole output."""
+
+class TestMagneticFieldNoNaN:
+    """Tests for NaN-free output across field types."""
+
+    @pytest.mark.parametrize("field_type", ["dipole", "quadrupole"])
+    def test_no_nan(
+        self, gen: MagneticFieldGenerator, field_type: str
+    ) -> None:
+        """No NaN values in output for either field type."""
         obj = gen.generate(
-            params={"field_type": "quadrupole", "num_lines": _TEST_NUM_LINES},
+            params={"field_type": field_type, "num_lines": _TEST_NUM_LINES},
             line_points=_TEST_LINE_POINTS,
         )
         obj.validate_or_raise()

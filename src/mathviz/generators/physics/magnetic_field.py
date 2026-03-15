@@ -6,6 +6,7 @@ magnetic field vector from seed points distributed on a ring.
 """
 
 import logging
+import math
 from typing import Any
 
 import numpy as np
@@ -22,7 +23,6 @@ _DEFAULT_FIELD_TYPE = "dipole"
 _DEFAULT_NUM_LINES = 24
 _DEFAULT_LINE_POINTS = 500
 _DEFAULT_SPREAD = 0.3
-_DEFAULT_TUBE_RADIUS = 0.02
 
 _VALID_FIELD_TYPES = ("dipole", "quadrupole")
 _MIN_NUM_LINES = 1
@@ -59,57 +59,84 @@ def _validate_params(
         raise ValueError(f"spread must be positive, got {spread}")
 
 
-def _dipole_field(position: np.ndarray) -> np.ndarray:
+def _dipole_field(x: float, y: float, z: float) -> tuple[float, float, float]:
     """Compute magnetic dipole field at a position."""
+    r_sq = x * x + y * y + z * z
+    if r_sq < 1e-20:
+        return (0.0, 0.0, 0.0)
+    r = math.sqrt(r_sq)
+    inv_r = 1.0 / r
+    inv_r3 = inv_r * inv_r * inv_r
     # Dipole moment along z-axis: m = (0, 0, 1)
-    r = np.linalg.norm(position)
-    if r < 1e-10:
-        return np.zeros(3, dtype=np.float64)
-    r_hat = position / r
-    m = np.array([0.0, 0.0, 1.0])
-    m_dot_r = np.dot(m, r_hat)
-    field = (3.0 * m_dot_r * r_hat - m) / (r**3)
-    return field
+    # B = (3(m·r_hat)r_hat - m) / r^3
+    m_dot_rhat = z * inv_r  # only z-component of m is nonzero
+    coeff = 3.0 * m_dot_rhat * inv_r * inv_r3
+    return (coeff * x, coeff * y, coeff * z - inv_r3)
 
 
-def _quadrupole_field(position: np.ndarray) -> np.ndarray:
+def _quadrupole_field(
+    x: float, y: float, z: float,
+) -> tuple[float, float, float]:
     """Compute magnetic quadrupole field as two offset dipoles."""
-    offset = np.array([0.0, 0.0, 0.5])
-    # Two dipoles with opposite moments, offset along z
-    field_upper = _dipole_field(position - offset)
-    field_lower = -_dipole_field(position + offset)
-    return field_upper + field_lower
-
-
-def _compute_field(
-    position: np.ndarray, field_type: str
-) -> np.ndarray:
-    """Compute magnetic field at a given position."""
-    if field_type == "dipole":
-        return _dipole_field(position)
-    return _quadrupole_field(position)
-
-
-def _rk4_step(
-    position: np.ndarray, field_type: str, step: float
-) -> np.ndarray:
-    """Perform one RK4 integration step along the field direction."""
-    k1 = _field_direction(position, field_type)
-    k2 = _field_direction(position + 0.5 * step * k1, field_type)
-    k3 = _field_direction(position + 0.5 * step * k2, field_type)
-    k4 = _field_direction(position + step * k3, field_type)
-    return position + (step / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
+    # Two dipoles with opposite moments, offset along z by ±0.5
+    ux, uy, uz = _dipole_field(x, y, z - 0.5)
+    lx, ly, lz = _dipole_field(x, y, z + 0.5)
+    return (ux - lx, uy - ly, uz - lz)
 
 
 def _field_direction(
-    position: np.ndarray, field_type: str
-) -> np.ndarray:
+    x: float, y: float, z: float, field_type: str,
+) -> tuple[float, float, float]:
     """Return normalized field direction at a position."""
-    field = _compute_field(position, field_type)
-    magnitude = np.linalg.norm(field)
-    if magnitude < 1e-12:
-        return np.zeros(3, dtype=np.float64)
-    return field / magnitude
+    if field_type == "dipole":
+        fx, fy, fz = _dipole_field(x, y, z)
+    else:
+        fx, fy, fz = _quadrupole_field(x, y, z)
+    mag = math.sqrt(fx * fx + fy * fy + fz * fz)
+    if mag < 1e-12:
+        return (0.0, 0.0, 0.0)
+    inv_mag = 1.0 / mag
+    return (fx * inv_mag, fy * inv_mag, fz * inv_mag)
+
+
+def _rk4_step(
+    x: float, y: float, z: float, field_type: str, step: float,
+) -> tuple[float, float, float]:
+    """Perform one RK4 integration step along the field direction."""
+    k1x, k1y, k1z = _field_direction(x, y, z, field_type)
+    hs = 0.5 * step
+    k2x, k2y, k2z = _field_direction(
+        x + hs * k1x, y + hs * k1y, z + hs * k1z, field_type,
+    )
+    k3x, k3y, k3z = _field_direction(
+        x + hs * k2x, y + hs * k2y, z + hs * k2z, field_type,
+    )
+    k4x, k4y, k4z = _field_direction(
+        x + step * k3x, y + step * k3y, z + step * k3z, field_type,
+    )
+    s6 = step / 6.0
+    return (
+        x + s6 * (k1x + 2.0 * k2x + 2.0 * k3x + k4x),
+        y + s6 * (k1y + 2.0 * k2y + 2.0 * k3y + k4y),
+        z + s6 * (k1z + 2.0 * k2z + 2.0 * k3z + k4z),
+    )
+
+
+def _integrate_half_line(
+    x: float, y: float, z: float,
+    field_type: str,
+    num_steps: int,
+    step: float,
+) -> np.ndarray:
+    """Integrate field line in one direction from a starting point."""
+    points = np.empty((num_steps, 3), dtype=np.float64)
+    max_r_sq = _MAX_RADIUS * _MAX_RADIUS
+    for i in range(num_steps):
+        x, y, z = _rk4_step(x, y, z, field_type, step)
+        if x * x + y * y + z * z > max_r_sq:
+            return points[:i]
+        points[i] = (x, y, z)
+    return points
 
 
 def _integrate_field_line(
@@ -120,26 +147,10 @@ def _integrate_field_line(
     """Integrate a field line from a seed point in both directions."""
     step = _RK4_STEP_SIZE
     half_steps = num_steps // 2
+    sx, sy, sz = float(seed_point[0]), float(seed_point[1]), float(seed_point[2])
 
-    # Forward integration
-    forward = np.empty((half_steps, 3), dtype=np.float64)
-    pos = seed_point.copy()
-    for i in range(half_steps):
-        pos = _rk4_step(pos, field_type, step)
-        if np.linalg.norm(pos) > _MAX_RADIUS:
-            forward = forward[:i]
-            break
-        forward[i] = pos
-
-    # Backward integration
-    backward = np.empty((half_steps, 3), dtype=np.float64)
-    pos = seed_point.copy()
-    for i in range(half_steps):
-        pos = _rk4_step(pos, field_type, -step)
-        if np.linalg.norm(pos) > _MAX_RADIUS:
-            backward = backward[:i]
-            break
-        backward[i] = pos
+    forward = _integrate_half_line(sx, sy, sz, field_type, half_steps, step)
+    backward = _integrate_half_line(sx, sy, sz, field_type, half_steps, -step)
 
     # Combine: reversed backward + seed + forward
     parts = []
@@ -153,7 +164,7 @@ def _integrate_field_line(
 
 
 def _generate_seed_points(
-    num_lines: int, spread: float, rng: np.random.Generator
+    num_lines: int, spread: float, rng: np.random.Generator,
 ) -> np.ndarray:
     """Generate seed points on a ring around the source."""
     offset = rng.uniform(0.0, 2.0 * np.pi)
@@ -217,12 +228,18 @@ class MagneticFieldGenerator(GeneratorBase):
         seed_points = _generate_seed_points(num_lines, spread, rng)
 
         curves = []
-        all_points_list = []
+        all_points_list: list[np.ndarray] = []
         for sp in seed_points:
             points = _integrate_field_line(sp, field_type, line_points)
             if len(points) >= 2:
                 curves.append(Curve(points=points, closed=False))
                 all_points_list.append(points)
+
+        if not curves:
+            raise ValueError(
+                f"All {num_lines} field lines were too short to produce "
+                f"valid curves (field_type={field_type!r}, spread={spread})"
+            )
 
         all_points = np.concatenate(all_points_list, axis=0)
         bbox = BoundingBox.from_points(all_points)
@@ -243,6 +260,4 @@ class MagneticFieldGenerator(GeneratorBase):
 
     def get_default_representation(self) -> RepresentationConfig:
         """Return the recommended representation for magnetic field lines."""
-        return RepresentationConfig(
-            type=RepresentationType.TUBE, tube_radius=_DEFAULT_TUBE_RADIUS,
-        )
+        return RepresentationConfig(type=RepresentationType.TUBE)

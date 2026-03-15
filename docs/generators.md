@@ -1208,7 +1208,8 @@ distributed on a ring around the source. Each field line becomes a tube curve.
 | `field_type` | `dipole` | Field configuration (`dipole` or `quadrupole`) |
 | `num_lines` | 24 | Number of field lines |
 | `spread` | 0.3 | Seed point distribution radius |
-| `line_points` | 500 | Integration steps per field line |
+
+Resolution: `line_points` (default 500) — integration steps per field line.
 
 Aliases: `mag_field`
 
