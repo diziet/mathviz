@@ -33,6 +33,15 @@ _A15_SITES = np.array([
 
 CELLS_PER_UNIT = 8
 _DEFAULT_CELLS_PER_AXIS = 2
+_MAX_CELLS_PER_AXIS = 20
+_FALSY_STRINGS = frozenset({"false", "0", "no", "off"})
+
+
+def _parse_bool(value: Any) -> bool:
+    """Parse a boolean value, handling string representations from CLI."""
+    if isinstance(value, str):
+        return value.lower() not in _FALSY_STRINGS
+    return bool(value)
 
 
 def _validate_params(cells_per_axis: int) -> None:
@@ -40,6 +49,11 @@ def _validate_params(cells_per_axis: int) -> None:
     if cells_per_axis < 1:
         raise ValueError(
             f"cells_per_axis must be >= 1, got {cells_per_axis}"
+        )
+    if cells_per_axis > _MAX_CELLS_PER_AXIS:
+        raise ValueError(
+            f"cells_per_axis must be <= {_MAX_CELLS_PER_AXIS}, "
+            f"got {cells_per_axis}"
         )
 
 
@@ -61,11 +75,11 @@ def _build_sites(n: int) -> tuple[np.ndarray, list[int]]:
     return np.array(sites, dtype=np.float64), interior
 
 
-def _collect_edges(vor: Voronoi, indices: list[int]) -> list[Curve]:
-    """Extract unique cell edges as line-segment Curves."""
-    index_set = set(indices)
-    unique_edges: set[tuple[int, int]] = set()
-
+def _iter_interior_ridges(
+    vor: Voronoi, index_set: set[int],
+) -> list[tuple[np.ndarray, list[int]]]:
+    """Yield (ridge_points, ridge_vertices) for finite interior ridges."""
+    results: list[tuple[np.ndarray, list[int]]] = []
     for ridge_pts, ridge_verts in zip(
         vor.ridge_points, vor.ridge_vertices, strict=False,
     ):
@@ -73,6 +87,16 @@ def _collect_edges(vor: Voronoi, indices: list[int]) -> list[Curve]:
             continue
         if ridge_pts[0] not in index_set and ridge_pts[1] not in index_set:
             continue
+        results.append((ridge_pts, list(ridge_verts)))
+    return results
+
+
+def _collect_edges(vor: Voronoi, indices: list[int]) -> list[Curve]:
+    """Extract unique cell edges as line-segment Curves."""
+    index_set = set(indices)
+    unique_edges: set[tuple[int, int]] = set()
+
+    for _ridge_pts, ridge_verts in _iter_interior_ridges(vor, index_set):
         n_v = len(ridge_verts)
         for i in range(n_v):
             edge = tuple(sorted((ridge_verts[i], ridge_verts[(i + 1) % n_v])))
@@ -116,18 +140,12 @@ def _collect_faces(vor: Voronoi, indices: list[int]) -> Mesh:
     seen: set[tuple[int, ...]] = set()
     face_polys: list[list[int]] = []
 
-    for ridge_pts, ridge_verts in zip(
-        vor.ridge_points, vor.ridge_vertices, strict=False,
-    ):
-        if -1 in ridge_verts:
-            continue
-        if ridge_pts[0] not in index_set and ridge_pts[1] not in index_set:
-            continue
+    for _ridge_pts, ridge_verts in _iter_interior_ridges(vor, index_set):
         key = tuple(sorted(ridge_verts))
         if key in seen:
             continue
         seen.add(key)
-        face_polys.append(list(ridge_verts))
+        face_polys.append(ridge_verts)
 
     # Remap vertex indices to compact range
     used = sorted({v for poly in face_polys for v in poly})
@@ -182,12 +200,13 @@ class WeairePhelanGenerator(GeneratorBase):
         **resolution_kwargs: Any,
     ) -> MathObject:
         """Generate Weaire-Phelan foam structure."""
+        # seed unused: structure is purely deterministic (no RNG)
         merged = self.get_default_params()
         if params:
             merged.update(params)
 
         cells_per_axis = int(merged["cells_per_axis"])
-        edge_only = bool(merged["edge_only"])
+        edge_only = _parse_bool(merged["edge_only"])
         _validate_params(cells_per_axis)
 
         sites, interior = _build_sites(cells_per_axis)
@@ -233,6 +252,8 @@ class WeairePhelanGenerator(GeneratorBase):
     ) -> MathObject:
         """Build MathObject with triangulated face mesh."""
         mesh = _collect_faces(vor, interior)
+        if len(mesh.faces) == 0:
+            raise ValueError("No finite faces produced")
         logger.info(
             "Generated weaire_phelan: cells=%d, faces=%d",
             params["cell_count"], len(mesh.faces),

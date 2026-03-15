@@ -641,7 +641,7 @@ crystal structure.
 | `cells_per_axis` | 2 | Number of unit cell repeats per axis |
 | `edge_only` | `true` | Show only cell edges as wireframe |
 
-Recommended representation: TUBE (edge mode), SURFACE_SHELL (face mode)
+Recommended representation: TUBE
 
 ```bash
 mathviz generate weaire_phelan --output foam.ply

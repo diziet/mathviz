@@ -134,6 +134,19 @@ def test_deterministic_output() -> None:
         np.testing.assert_array_equal(c1.points, c2.points)
 
 
+def test_different_seeds_produce_identical_output() -> None:
+    """Structure is purely deterministic — seed has no effect."""
+    gen = WeairePhelanGenerator()
+    obj1 = gen.generate(params={"cells_per_axis": 1, "edge_only": True}, seed=1)
+    obj2 = gen.generate(params={"cells_per_axis": 1, "edge_only": True}, seed=99)
+
+    assert obj1.curves is not None
+    assert obj2.curves is not None
+    assert len(obj1.curves) == len(obj2.curves)
+    for c1, c2 in zip(obj1.curves, obj2.curves):
+        np.testing.assert_array_equal(c1.points, c2.points)
+
+
 # ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
@@ -171,6 +184,13 @@ def test_cells_per_axis_negative_rejected() -> None:
         gen.generate(params={"cells_per_axis": -1})
 
 
+def test_cells_per_axis_too_large_rejected() -> None:
+    """cells_per_axis above upper bound raises ValueError."""
+    gen = WeairePhelanGenerator()
+    with pytest.raises(ValueError, match="cells_per_axis must be <= 20"):
+        gen.generate(params={"cells_per_axis": 21})
+
+
 # ---------------------------------------------------------------------------
 # Default params
 # ---------------------------------------------------------------------------
@@ -182,3 +202,12 @@ def test_default_params() -> None:
     defaults = gen.get_default_params()
     assert defaults["cells_per_axis"] == 2
     assert defaults["edge_only"] is True
+
+
+def test_edge_only_string_false_produces_mesh() -> None:
+    """String 'false' from CLI is correctly parsed as False."""
+    gen = WeairePhelanGenerator()
+    obj = gen.generate(params={"cells_per_axis": 1, "edge_only": "false"})
+    obj.validate_or_raise()
+    assert obj.mesh is not None
+    assert obj.curves is None
