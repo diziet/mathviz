@@ -421,6 +421,23 @@ Aliases: `menger`
 mathviz generate menger_sponge --param level=2 --output menger.ply
 ```
 
+### sierpinski_tetrahedron
+
+Sierpinski tetrahedron (tetrix) fractal via recursive corner subdivision. The 3D
+analogue of the Sierpinski triangle — at each level, replaces each tetrahedron
+with 4 half-scale copies at the corners.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `level` | 5 | Recursion depth (0–8) |
+| `size` | 1.0 | Edge length of the initial tetrahedron |
+
+Aliases: `tetrix`, `sierpinski_tetrix`
+
+```bash
+mathviz generate sierpinski_tetrahedron --param level=4 --output tetrix.ply
+```
+
 ### mandelbrot_heightmap
 
 Mandelbrot escape-time heightmap for 3D relief engraving.
