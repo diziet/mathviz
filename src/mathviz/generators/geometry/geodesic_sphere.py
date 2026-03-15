@@ -19,13 +19,22 @@ logger = logging.getLogger(__name__)
 _PHI = (1.0 + np.sqrt(5.0)) / 2.0
 _DEFAULT_FREQUENCY = 4
 _MAX_FREQUENCY = 32
+_TRUTHY_STRINGS = frozenset({"true", "1", "yes", "on"})
 _FALSY_STRINGS = frozenset({"false", "0", "no", "off"})
 
 
 def _parse_bool(value: Any) -> bool:
     """Parse a boolean value, handling string representations from CLI."""
     if isinstance(value, str):
-        return value.lower() not in _FALSY_STRINGS
+        lower = value.lower()
+        if lower in _TRUTHY_STRINGS:
+            return True
+        if lower in _FALSY_STRINGS or lower == "":
+            return False
+        raise ValueError(
+            f"Unrecognized boolean value {value!r}, "
+            f"expected one of {sorted(_TRUTHY_STRINGS | _FALSY_STRINGS)}"
+        )
     return bool(value)
 
 
@@ -128,21 +137,27 @@ def _subdivide_face(
                 )
 
 
+def _build_vertex_face_adjacency(faces: np.ndarray) -> dict[int, list[int]]:
+    """Build a mapping from vertex index to list of adjacent face indices."""
+    vert_faces: dict[int, list[int]] = {}
+    for fi, face in enumerate(faces):
+        for vi in face:
+            vert_faces.setdefault(int(vi), []).append(fi)
+    return vert_faces
+
+
 def _build_dual(
     vertices: np.ndarray, faces: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Build the dual polyhedron (Goldberg polyhedron)."""
     # Face centroids become dual vertices
     dual_verts = vertices[faces].mean(axis=1)
-    # Normalize onto unit sphere
+    # Normalize onto unit sphere, guarding against zero-norm centroids
     norms = np.linalg.norm(dual_verts, axis=1, keepdims=True)
-    dual_verts = dual_verts / norms
+    safe = norms.ravel() > 1e-12
+    dual_verts[safe] = dual_verts[safe] / norms[safe]
 
-    # Build vertex-to-face adjacency
-    vert_faces: dict[int, list[int]] = {}
-    for fi, face in enumerate(faces):
-        for vi in face:
-            vert_faces.setdefault(int(vi), []).append(fi)
+    vert_faces = _build_vertex_face_adjacency(faces)
 
     dual_triangles: list[list[int]] = []
     for vi, adj_faces in vert_faces.items():
@@ -175,15 +190,9 @@ def _build_dual(
     return dual_verts.astype(np.float64), dual_faces
 
 
-def _count_dual_face_sides(
-    vertices: np.ndarray, faces: np.ndarray,
-) -> dict[int, int]:
+def _count_dual_face_sides(faces: np.ndarray) -> dict[int, int]:
     """Count faces by number of sides in the dual polyhedron."""
-    vert_faces: dict[int, list[int]] = {}
-    for fi, face in enumerate(faces):
-        for vi in face:
-            vert_faces.setdefault(int(vi), []).append(fi)
-
+    vert_faces = _build_vertex_face_adjacency(faces)
     counts: dict[int, int] = {}
     for adj in vert_faces.values():
         n_sides = len(adj)
@@ -215,9 +224,10 @@ class GeodesicSphereGenerator(GeneratorBase):
         self,
         params: dict[str, Any] | None = None,
         seed: int = 42,
-        **resolution_kwargs: Any,
+        **resolution_kwargs: Any,  # base-class contract; no resolution params
     ) -> MathObject:
         """Generate geodesic sphere geometry."""
+        # seed unused: geodesic generation is fully deterministic
         merged = self.get_default_params()
         if params:
             merged.update(params)

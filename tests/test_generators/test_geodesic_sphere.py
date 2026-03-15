@@ -69,9 +69,7 @@ def test_dual_mode_produces_pentagonal_and_hexagonal_faces() -> None:
     assert obj.mesh is not None
     # Count face types from the original (pre-dual) mesh
     _, faces_orig = _get_pre_dual_mesh(frequency=2)
-    side_counts = _count_dual_face_sides(
-        np.zeros((0, 3)), faces_orig,  # vertices unused in counting
-    )
+    side_counts = _count_dual_face_sides(faces_orig)
     # Icosahedron original vertices become pentagons (12),
     # subdivision vertices become hexagons
     assert 5 in side_counts, "Expected pentagonal faces in dual"
@@ -112,6 +110,16 @@ def test_all_vertices_on_unit_sphere_default_radius() -> None:
 
     distances = np.linalg.norm(obj.mesh.vertices, axis=1)
     np.testing.assert_allclose(distances, 1.0, atol=1e-10)
+
+
+def test_dual_mode_vertices_on_sphere() -> None:
+    """Dual-mode vertices are also equidistant from center."""
+    gen = GeodesicSphereGenerator()
+    obj = gen.generate(params={"frequency": 3, "radius": 2.0, "dual": True})
+    obj.validate_or_raise()
+
+    distances = np.linalg.norm(obj.mesh.vertices, axis=1)
+    np.testing.assert_allclose(distances, 2.0, atol=1e-10)
 
 
 # ---------------------------------------------------------------------------
@@ -205,3 +213,10 @@ def test_dual_string_true_activates_dual_mode() -> None:
     obj.validate_or_raise()
     # Dual mode should still produce valid mesh
     assert obj.mesh is not None
+
+
+def test_unrecognized_bool_string_rejected() -> None:
+    """Unrecognized boolean string raises ValueError."""
+    gen = GeodesicSphereGenerator()
+    with pytest.raises(ValueError, match="Unrecognized boolean value"):
+        gen.generate(params={"frequency": 2, "dual": "nope"})
