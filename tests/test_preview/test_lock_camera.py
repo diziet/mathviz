@@ -82,7 +82,28 @@ class TestLockCamera:
     def test_controls_target_preserved_when_locked(self, html: str) -> None:
         """OrbitControls target is saved and restored when camera is locked."""
         assert "controls.target.clone()" in html
-        assert "controls.target.copy(savedTarget)" in html
+        assert "controls.target.copy(saved.target)" in html
+
+    def test_camera_position_preserved_when_locked(self, html: str) -> None:
+        """Camera position is saved and restored alongside controls target."""
+        assert "camera.position.clone()" in html
+        assert "camera.position.copy(saved.position)" in html
+
+    def test_save_restore_helpers_exist(self, html: str) -> None:
+        """DRY helpers saveCameraIfLocked and restoreCameraIfSaved exist."""
+        assert "function saveCameraIfLocked()" in html
+        assert "function restoreCameraIfSaved(saved)" in html
+
+    def test_bounding_box_not_gated_by_camera_lock(self, html: str) -> None:
+        """addBoundingBox is called regardless of cameraLocked state."""
+        # In displayMesh, addBoundingBox should be outside the lock guard
+        mesh_fn_start = html.index("async function displayMesh")
+        mesh_fn_end = html.index("async function displayMesh") + 400
+        mesh_fn = html[mesh_fn_start:mesh_fn_end]
+        bbox_pos = mesh_fn.index("addBoundingBox")
+        lock_pos = mesh_fn.index("if (!state.cameraLocked)")
+        # addBoundingBox should come before the lock guard
+        assert bbox_pos < lock_pos
 
     def test_lock_camera_near_other_options(self, html: str) -> None:
         """Lock Camera checkbox is in the Options section with other toggles."""
