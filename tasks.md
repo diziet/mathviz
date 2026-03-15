@@ -1639,3 +1639,45 @@ dropdown value — the scene objects' visibility must also default correctly).
 - Preview HTML has `"points"` as the default selected view mode option
 - JavaScript state initializes viewMode to `"points"`
 - Initial scene render shows point cloud, not shaded mesh
+
+---
+
+## Task 47: Add render style option to `mathviz render` CLI
+
+**Objective:**
+
+Add a `--style` flag to `mathviz render` that controls the rendering style:
+`shaded` (current default behavior), `wireframe`, or `points` (point cloud).
+The default should be `points` to match the preview UI default (Task 46).
+This lets users generate point cloud PNGs from the command line, matching
+what they see in the web preview.
+
+Currently `renderer.py` always renders with `plotter.add_mesh()` and
+`smooth_shading=True`. There is no way to render as a point cloud or
+wireframe from the CLI.
+
+**Suggested path:**
+
+1. **Add `style` to `RenderConfig`**: Add a `style` field with type
+   `Literal["shaded", "wireframe", "points"]` defaulting to `"points"`.
+
+2. **Update `_setup_backlit_scene`** in `renderer.py` to use the style:
+   - `"shaded"`: current behavior — `plotter.add_mesh(pv_mesh, smooth_shading=True, ...)`
+   - `"wireframe"`: `plotter.add_mesh(pv_mesh, style='wireframe', ...)`
+   - `"points"`: `plotter.add_mesh(pv_mesh, style='points', point_size=..., render_points_as_spheres=True, ...)`
+
+3. **Add `--style` flag to CLI** in `cli_render.py`: Pass it through to
+   `RenderConfig`. The flag should accept `shaded`, `wireframe`, or `points`.
+
+4. **Point size**: For point cloud style, add a `--point-size` flag
+   (default 2.0 or 3.0) that controls `point_size` in PyVista. Larger
+   values make individual points more visible at high resolution.
+
+**Tests:** `tests/test_preview/test_renderer.py` (extend existing)
+
+- `mathviz render lorenz -o out.png --style points` produces a non-trivial PNG
+- `mathviz render torus -o out.png --style wireframe` produces a non-trivial PNG
+- `mathviz render torus -o out.png --style shaded` produces a non-trivial PNG (current behavior)
+- Default style (no flag) renders as points
+- `--point-size 5` with `--style points` produces visually different output than default
+- Invalid style value is rejected with a clear error
