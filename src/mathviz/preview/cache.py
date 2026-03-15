@@ -52,9 +52,8 @@ def compute_cache_key(
         "params": params,
         "seed": seed,
         "resolution": resolution_kwargs,
+        "container": container_kwargs or {},
     }
-    if container_kwargs:
-        key_dict["container"] = container_kwargs
     key_data = json.dumps(key_dict, sort_keys=True, default=_serialize_value)
     return hashlib.sha256(key_data.encode()).hexdigest()[:32]
 

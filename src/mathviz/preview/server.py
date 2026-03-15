@@ -165,7 +165,7 @@ def _build_container(container_params: ContainerParams | None) -> Container:
 def _container_cache_dict(container_params: ContainerParams | None) -> dict[str, float]:
     """Return a dict of container params for cache key computation."""
     if container_params is None:
-        return {}
+        return ContainerParams().model_dump()
     return container_params.model_dump()
 
 

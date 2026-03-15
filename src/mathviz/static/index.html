@@ -656,27 +656,27 @@ const marginZ = document.getElementById('margin-z');
 const uniformCheck = document.getElementById('uniform-margin');
 const usableVolumeEl = document.getElementById('usable-volume');
 
+function parseNum(el, fallback) {
+  const v = parseFloat(el.value);
+  return Number.isNaN(v) ? fallback : v;
+}
+
 function updateUsableVolume() {
-  const w = parseFloat(dimW.value) || 0;
-  const h = parseFloat(dimH.value) || 0;
-  const d = parseFloat(dimD.value) || 0;
-  const mx = parseFloat(marginX.value) || 0;
-  const my = parseFloat(marginY.value) || 0;
-  const mz = parseFloat(marginZ.value) || 0;
-  const ux = Math.max(0, w - 2 * mx);
-  const uy = Math.max(0, h - 2 * my);
-  const uz = Math.max(0, d - 2 * mz);
+  const cp = getContainerParams();
+  const ux = Math.max(0, cp.width_mm - 2 * cp.margin_x_mm);
+  const uy = Math.max(0, cp.height_mm - 2 * cp.margin_y_mm);
+  const uz = Math.max(0, cp.depth_mm - 2 * cp.margin_z_mm);
   usableVolumeEl.textContent = `Usable: ${ux} x ${uy} x ${uz} mm`;
 }
 
 function getContainerParams() {
   return {
-    width_mm: parseFloat(dimW.value) || 100,
-    height_mm: parseFloat(dimH.value) || 100,
-    depth_mm: parseFloat(dimD.value) || 40,
-    margin_x_mm: parseFloat(marginX.value) || 5,
-    margin_y_mm: parseFloat(marginY.value) || 5,
-    margin_z_mm: parseFloat(marginZ.value) || 5,
+    width_mm: parseNum(dimW, 100),
+    height_mm: parseNum(dimH, 100),
+    depth_mm: parseNum(dimD, 40),
+    margin_x_mm: parseNum(marginX, 5),
+    margin_y_mm: parseNum(marginY, 5),
+    margin_z_mm: parseNum(marginZ, 5),
   };
 }
 
@@ -691,8 +691,8 @@ function resetContainerDefaults() {
   updateUsableVolume();
 }
 
-/* Live update usable volume on any input */
-for (const el of [dimW, dimH, dimD, marginX, marginY, marginZ]) {
+/* Live update usable volume on dimension input (margins handled by onMarginInput) */
+for (const el of [dimW, dimH, dimD]) {
   el.addEventListener('input', updateUsableVolume);
 }
 
