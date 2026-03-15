@@ -104,10 +104,6 @@ class TestPipelineDocCompleteness:
 class TestMarkdownValidity:
     """All doc files are valid markdown with no broken headers."""
 
-    def _get_all_doc_files(self) -> list[str]:
-        """List all .md files in docs/."""
-        return sorted(p.name for p in DOCS_DIR.glob("*.md"))
-
     @pytest.mark.parametrize(
         "filename",
         sorted(p.name for p in (DOCS_DIR).glob("*.md"))
