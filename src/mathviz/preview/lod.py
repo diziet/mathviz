@@ -55,17 +55,25 @@ def subsample_cloud(cloud: PointCloud, max_points: int = PREVIEW_MAX_POINTS) -> 
     )
 
 
+def _center_offset(vertices: np.ndarray) -> np.ndarray:
+    """Compute the translation to center vertices at the origin."""
+    bbox_min = vertices.min(axis=0)
+    bbox_max = vertices.max(axis=0)
+    return (bbox_min + bbox_max) / 2.0
+
+
 def mesh_to_glb(mesh: Mesh) -> bytes:
-    """Serialize a Mesh to GLB binary format."""
-    tri = trimesh.Trimesh(vertices=mesh.vertices, faces=mesh.faces, process=False)
+    """Serialize a Mesh to GLB binary format, centered at the origin."""
+    centered = mesh.vertices - _center_offset(mesh.vertices)
+    tri = trimesh.Trimesh(vertices=centered, faces=mesh.faces, process=False)
     with io.BytesIO() as buf:
         tri.export(buf, file_type="glb")
         return buf.getvalue()
 
 
 def cloud_to_binary_ply(cloud: PointCloud) -> bytes:
-    """Serialize a PointCloud to binary PLY format, including normals if present."""
-    points = cloud.points
+    """Serialize a PointCloud to binary PLY format, centered at the origin."""
+    points = cloud.points - _center_offset(cloud.points)
     num_points = len(points)
     has_normals = cloud.normals is not None
     has_intensities = cloud.intensities is not None
