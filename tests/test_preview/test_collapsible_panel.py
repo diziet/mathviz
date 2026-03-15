@@ -43,52 +43,44 @@ def preview_html(client: TestClient) -> str:
 
 
 class TestCollapsiblePanelHTML:
-    """Tests for the collapsible container panel markup and behaviour."""
+    """Tests that the preview HTML contains collapsible panel markup and JS."""
 
-    def test_has_clickable_header_with_toggle(self, preview_html: str) -> None:
-        """Container panel has a clickable header with collapse toggle."""
+    def test_html_contains_toggle_header(self, preview_html: str) -> None:
+        """HTML contains a clickable toggle header with chevron."""
         assert 'id="container-toggle"' in preview_html
         assert "Dimensions / Margins" in preview_html
         assert "chevron" in preview_html
 
-    def test_collapsed_by_default(self, preview_html: str) -> None:
-        """Panel is collapsed by default (dimension inputs not visible)."""
-        # The panel element starts with class="collapsed"
+    def test_html_panel_has_collapsed_class_by_default(self, preview_html: str) -> None:
+        """Panel element starts with the collapsed class in markup."""
         assert 'id="container-panel" class="collapsed"' in preview_html
-        # JS also defaults to collapsed when no localStorage value exists
         assert "setContainerCollapsed(savedCollapsed" in preview_html
 
-    def test_clicking_header_expands_panel(self, preview_html: str) -> None:
-        """Clicking the header expands the panel (inputs become visible)."""
-        # The toggle click handler calls setContainerCollapsed which removes
-        # the .collapsed class, making #container-body visible
+    def test_html_contains_toggle_listener(self, preview_html: str) -> None:
+        """HTML contains JS that registers a click listener on the toggle."""
         assert "containerToggle.addEventListener" in preview_html
         assert "setContainerCollapsed(!containerPanel.classList.contains" in preview_html
 
-    def test_clicking_again_collapses(self, preview_html: str) -> None:
-        """Clicking the header again collapses the panel."""
-        # The toggle is a simple boolean flip — same handler toggles both ways
+    def test_html_contains_collapse_class_management(self, preview_html: str) -> None:
+        """HTML contains JS that adds and removes the collapsed class."""
         assert "classList.contains('collapsed')" in preview_html
         assert "classList.add('collapsed')" in preview_html
         assert "classList.remove('collapsed')" in preview_html
 
-    def test_dimension_values_preserved(self, preview_html: str) -> None:
-        """Dimension/margin values are preserved when collapsing and expanding."""
-        # Inputs live inside #container-body which uses display:none when
-        # collapsed — values are never cleared. The CSS rule hides, not removes.
+    def test_html_uses_display_none_for_collapsed_body(self, preview_html: str) -> None:
+        """Collapsed body uses display:none, preserving input values in DOM."""
         assert '#container-panel.collapsed #container-body{display:none}' in preview_html
-        # The body wraps all inputs — they remain in the DOM
         assert 'id="container-body"' in preview_html
         assert 'id="dim-w"' in preview_html
         assert 'id="margin-x"' in preview_html
 
-    def test_chevron_indicators(self, preview_html: str) -> None:
-        """Chevron switches between collapsed and expanded indicators."""
+    def test_html_contains_chevron_indicators(self, preview_html: str) -> None:
+        """HTML contains both collapsed and expanded chevron characters."""
         # &#9656; = ▸ (collapsed), &#9662; = ▾ (expanded)
         assert "&#9656;" in preview_html
         assert "&#9662;" in preview_html
 
-    def test_localstorage_persistence(self, preview_html: str) -> None:
-        """Collapsed state is saved to localStorage."""
+    def test_html_contains_localstorage_persistence(self, preview_html: str) -> None:
+        """HTML contains JS for saving/loading collapsed state via localStorage."""
         assert "localStorage.setItem('containerPanelCollapsed'" in preview_html
         assert "localStorage.getItem('containerPanelCollapsed')" in preview_html

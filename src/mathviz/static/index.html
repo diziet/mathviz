@@ -1767,11 +1767,11 @@ function setContainerCollapsed(collapsed) {
     containerPanel.classList.remove('collapsed');
     containerChevron.innerHTML = '&#9662;';
   }
-  try { localStorage.setItem('containerPanelCollapsed', collapsed ? '1' : '0'); } catch(e) {}
+  try { localStorage.setItem('containerPanelCollapsed', collapsed ? '1' : '0'); } catch(e) { console.warn('Failed to persist panel state', e); }
 }
 
 /* Restore from localStorage (default: collapsed) */
-const savedCollapsed = (() => { try { return localStorage.getItem('containerPanelCollapsed'); } catch(e) { return null; } })();
+const savedCollapsed = (() => { try { return localStorage.getItem('containerPanelCollapsed'); } catch(e) { console.warn('Failed to read panel state', e); return null; } })();
 setContainerCollapsed(savedCollapsed === '0' ? false : true);
 
 containerToggle.addEventListener('click', () => {
