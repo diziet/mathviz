@@ -52,8 +52,14 @@ def get_executor() -> GenerationExecutor:
 
 
 def reset_cache() -> None:
-    """Clear the global cache. Intended for testing only."""
+    """Clear the global memory cache. Intended for testing only."""
     _cache.clear()
+
+
+def set_disk_cache(dc: DiskCache) -> None:
+    """Replace the global disk cache. Intended for testing only."""
+    global _disk_cache  # noqa: PLW0603
+    _disk_cache = dc
 
 
 app = FastAPI(title="MathViz Preview", version="0.1.0")
