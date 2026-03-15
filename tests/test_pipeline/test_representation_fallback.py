@@ -173,6 +173,8 @@ class TestAllRegisteredGenerators:
     def _ensure_discovery(self) -> None:
         """Reset registry with discovery enabled so auto-discovery triggers."""
         clear_registry(suppress_discovery=False)
+        yield
+        clear_registry(suppress_discovery=False)
 
     def test_all_generators_have_representation(self) -> None:
         """All generators in the registry can resolve a representation config."""
