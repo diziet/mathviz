@@ -31,6 +31,14 @@ def qjulia() -> QuaternionJuliaGenerator:
 _TEST_VOXEL_RESOLUTION = 32
 
 
+def _assert_meshes_differ(mesh_a, mesh_b, reason: str) -> None:  # noqa: ANN001
+    """Assert two meshes are not identical (by vertex count or positions)."""
+    differs = len(mesh_a.vertices) != len(mesh_b.vertices)
+    if not differs:
+        differs = not np.allclose(mesh_a.vertices, mesh_b.vertices)
+    assert differs, reason
+
+
 # ---------------------------------------------------------------------------
 # Produces a valid mesh
 # ---------------------------------------------------------------------------
@@ -63,13 +71,10 @@ def test_different_c_values_produce_distinct_shapes(
         voxel_resolution=_TEST_VOXEL_RESOLUTION,
     )
     assert obj_a.mesh is not None and obj_b.mesh is not None
-    # Shapes should differ — either vertex count or positions
-    vertices_differ = len(obj_a.mesh.vertices) != len(obj_b.mesh.vertices)
-    if not vertices_differ:
-        vertices_differ = not np.allclose(
-            obj_a.mesh.vertices, obj_b.mesh.vertices,
-        )
-    assert vertices_differ, "Different c values should produce distinct shapes"
+    _assert_meshes_differ(
+        obj_a.mesh, obj_b.mesh,
+        "Different c values should produce distinct shapes",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -196,9 +201,7 @@ def test_slice_w_changes_shape(qjulia: QuaternionJuliaGenerator) -> None:
         voxel_resolution=_TEST_VOXEL_RESOLUTION,
     )
     assert obj_a.mesh is not None and obj_b.mesh is not None
-    vertices_differ = len(obj_a.mesh.vertices) != len(obj_b.mesh.vertices)
-    if not vertices_differ:
-        vertices_differ = not np.allclose(
-            obj_a.mesh.vertices, obj_b.mesh.vertices,
-        )
-    assert vertices_differ, "Different slice_w should produce distinct shapes"
+    _assert_meshes_differ(
+        obj_a.mesh, obj_b.mesh,
+        "Different slice_w should produce distinct shapes",
+    )

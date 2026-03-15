@@ -39,10 +39,6 @@ _DEFAULT_MAX_ITER = 10
 _DEFAULT_ESCAPE_RADIUS = 2.0
 _DEFAULT_SLICE_W = 0.0
 
-# Quaternion Julia doesn't use the spherical "power" parameter,
-# but validate_fractal_params requires one. Use a dummy value.
-_DUMMY_POWER = 2.0
-
 
 @register
 class QuaternionJuliaGenerator(GeneratorBase):
@@ -106,7 +102,7 @@ class QuaternionJuliaGenerator(GeneratorBase):
         )
 
         validate_fractal_params(
-            _DUMMY_POWER, max_iter, voxel_resolution, extent,
+            None, max_iter, voxel_resolution, extent,
         )
         validate_quaternion_c_params(c_real, c_i, c_j, c_k)
         validate_escape_radius(escape_radius)

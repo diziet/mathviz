@@ -106,14 +106,14 @@ def _iterate_quaternion(
 ) -> float:
     """Evaluate a single quaternion Julia iteration.
 
-    Iterates q → q² + c in quaternion space. Returns iteration count at
-    escape, or 0.0 if the point did not escape.
+    Iterates q → q² + c in quaternion space. Returns iteration count
+    (1-based) at escape, or 0.0 if the point did not escape.
     """
     a, b, c, d = q0, q1, q2, q3
     for i in range(max_iterations):
         norm_sq = a * a + b * b + c * c + d * d
         if norm_sq > escape_radius_sq:
-            return float(i)
+            return float(i + 1)
         # q² = (a²-b²-c²-d², 2ab, 2ac, 2ad)
         new_a = a * a - b * b - c * c - d * d + c0
         new_b = 2.0 * a * b + c1
