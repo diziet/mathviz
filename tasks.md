@@ -2090,3 +2090,44 @@ cumbersome.
 - Pressing Enter in a container dimension input triggers regeneration
 - Event delegation covers dynamically-added parameter inputs
 - Non-Enter keys do not trigger regeneration
+
+---
+
+## Task 55: Lock Camera toggle in preview UI
+
+**Objective:**
+
+Add a "Lock Camera" checkbox to the preview controls panel. When enabled,
+regenerating geometry (changing parameters, seed, generator, etc.) does not
+call `fitCamera()` or reset the OrbitControls. The camera stays at the
+user's current position, rotation, and zoom so they can compare the effect
+of different settings from the exact same viewpoint.
+
+**Suggested path:**
+
+1. Add a `<label><input type="checkbox" id="lock-camera"> Lock Camera</label>`
+   to the Options section of the controls panel, near the existing
+   bounding box and background toggles.
+
+2. Add `cameraLocked: false` to the `state` object.
+
+3. Wire the checkbox to toggle `state.cameraLocked`.
+
+4. In `displayMesh()` and `displayCloud()`, gate the `fitCamera()` and
+   `addBoundingBox()` calls behind `!state.cameraLocked`. When locked,
+   skip camera repositioning — just replace the geometry in place.
+
+5. When locked, also preserve the OrbitControls target (the look-at point).
+   Store `controls.target.clone()` before clearing the scene and restore
+   it after adding new geometry.
+
+6. The Reset View button (Task 49) should still work even when camera is
+   locked — it explicitly overrides the lock to reframe.
+
+**Tests:** `tests/test_preview/test_lock_camera.py`
+
+- Preview HTML contains a "Lock Camera" checkbox with id `lock-camera`
+- JS state object includes `cameraLocked` initialized to `false`
+- `fitCamera` is not called during regeneration when `cameraLocked` is true
+- Reset View button works regardless of lock state
+- Toggling the checkbox updates `state.cameraLocked`
