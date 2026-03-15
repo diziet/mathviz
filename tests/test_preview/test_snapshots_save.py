@@ -1,7 +1,10 @@
 """Tests for the snapshot save feature (POST /api/snapshots)."""
 
+import base64
 import json
 import os
+import struct
+import zlib
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -20,6 +23,20 @@ from mathviz.preview.snapshots import (
     SNAPSHOTS_DIR_ENV_VAR,
     get_snapshots_dir,
 )
+
+
+def _make_tiny_png() -> bytes:
+    """Create a minimal valid 1x1 red PNG."""
+
+    def _chunk(chunk_type: bytes, data: bytes) -> bytes:
+        crc = zlib.crc32(chunk_type + data) & 0xFFFFFFFF
+        return struct.pack(">I", len(data)) + chunk_type + data + struct.pack(">I", crc)
+
+    sig = b"\x89PNG\r\n\x1a\n"
+    ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+    raw_row = b"\x00\xff\x00\x00"
+    idat = zlib.compress(raw_row)
+    return sig + _chunk(b"IHDR", ihdr) + _chunk(b"IDAT", idat) + _chunk(b"IEND", b"")
 
 
 def _ensure_torus_registered() -> None:
@@ -246,3 +263,97 @@ class TestSnapshotPointCloud:
         snapshot_dir = tmp_path / resp.json()["snapshot_id"]
         assert (snapshot_dir / "mesh.glb").is_file()
         assert (snapshot_dir / "cloud.ply").is_file()
+
+
+class TestSnapshotNoPyvista:
+    """Tests that snapshot save does not import or call PyVista."""
+
+    def test_save_does_not_import_pyvista(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        """POST /api/snapshots does not import or call PyVista."""
+        import sys
+
+        gid = _generate_torus(client)
+        # Remove pyvista from sys.modules so we can detect a fresh import
+        pyvista_modules = [k for k in sys.modules if k.startswith("pyvista")]
+        saved = {k: sys.modules.pop(k) for k in pyvista_modules}
+        try:
+            # Patch __import__ to detect pyvista imports
+            original_import = __builtins__.__import__
+            pyvista_imported = []
+
+            def _tracking_import(name: str, *args: Any, **kwargs: Any) -> Any:
+                if name.startswith("pyvista"):
+                    pyvista_imported.append(name)
+                return original_import(name, *args, **kwargs)
+
+            __builtins__.__import__ = _tracking_import
+            try:
+                req = _make_snapshot_request(gid)
+                with patch.dict(os.environ, {SNAPSHOTS_DIR_ENV_VAR: str(tmp_path)}):
+                    resp = client.post("/api/snapshots", json=req)
+                assert resp.status_code == 200
+                assert pyvista_imported == [], (
+                    f"PyVista was imported during save: {pyvista_imported}"
+                )
+            finally:
+                __builtins__.__import__ = original_import
+        finally:
+            sys.modules.update(saved)
+
+
+class TestSnapshotThumbnailBase64:
+    """Tests for base64 thumbnail support in snapshot save."""
+
+    def test_base64_thumbnail_creates_file(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        """Saving with a base64 thumbnail field creates thumbnail.png on disk."""
+        gid = _generate_torus(client)
+        png_bytes = _make_tiny_png()
+        b64 = base64.b64encode(png_bytes).decode()
+        req = _make_snapshot_request(gid)
+        req["thumbnail"] = b64
+        with patch.dict(os.environ, {SNAPSHOTS_DIR_ENV_VAR: str(tmp_path)}):
+            resp = client.post("/api/snapshots", json=req)
+        assert resp.status_code == 200
+        snapshot_dir = tmp_path / resp.json()["snapshot_id"]
+        thumb_path = snapshot_dir / "thumbnail.png"
+        assert thumb_path.is_file()
+        assert thumb_path.read_bytes() == png_bytes
+
+    def test_no_thumbnail_field_succeeds(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        """Saving without a thumbnail field succeeds (no thumbnail.png created)."""
+        gid = _generate_torus(client)
+        req = _make_snapshot_request(gid)
+        assert "thumbnail" not in req
+        with patch.dict(os.environ, {SNAPSHOTS_DIR_ENV_VAR: str(tmp_path)}):
+            resp = client.post("/api/snapshots", json=req)
+        assert resp.status_code == 200
+        snapshot_dir = tmp_path / resp.json()["snapshot_id"]
+        assert not (snapshot_dir / "thumbnail.png").exists()
+
+    def test_invalid_base64_returns_400(self, client: TestClient) -> None:
+        """Invalid base64 thumbnail returns 400, does not crash the server."""
+        gid = _generate_torus(client)
+        req = _make_snapshot_request(gid)
+        req["thumbnail"] = "!!!not-valid-base64!!!"
+        resp = client.post("/api/snapshots", json=req)
+        assert resp.status_code == 400
+        assert "thumbnail" in resp.json()["detail"].lower()
+
+    def test_server_responsive_after_save(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        """Server remains responsive after a save operation."""
+        gid = _generate_torus(client)
+        req = _make_snapshot_request(gid)
+        with patch.dict(os.environ, {SNAPSHOTS_DIR_ENV_VAR: str(tmp_path)}):
+            resp = client.post("/api/snapshots", json=req)
+        assert resp.status_code == 200
+        # Verify server still responds to other requests
+        health = client.get("/api/generators")
+        assert health.status_code == 200
