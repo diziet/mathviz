@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 _DEFAULT_LEVEL = 3
 _MAX_LEVEL = 4
 _DEFAULT_SIZE = 1.0
-_MIN_SIZE = 1e-6
+_MIN_SIZE = 1e-6  # Prevents degenerate meshes at float64 precision
 
 # Sub-cube offsets removed at each recursion step (center of each face + center)
 _REMOVED_OFFSETS: frozenset[tuple[int, int, int]] = frozenset([
@@ -30,40 +30,19 @@ _REMOVED_OFFSETS: frozenset[tuple[int, int, int]] = frozenset([
     (1, 1, 1),              # cube center
 ])
 
+# Six face directions: (axis, sign)
+_FACE_DIRECTIONS = [
+    (0, -1), (0, 1),   # -x, +x
+    (1, -1), (1, 1),   # -y, +y
+    (2, -1), (2, 1),   # -z, +z
+]
+
 # The 20 kept offsets (precomputed)
 _KEPT_OFFSETS: list[tuple[int, int, int]] = [
     (x, y, z)
     for x in range(3) for y in range(3) for z in range(3)
     if (x, y, z) not in _REMOVED_OFFSETS
 ]
-
-
-def _compute_cube_centers(level: int, size: float) -> np.ndarray:
-    """Compute centers of all sub-cubes at the given recursion level."""
-    if level == 0:
-        return np.array([[0.0, 0.0, 0.0]])
-
-    half = size / 2.0
-    sub_size = size / 3.0
-    offset_base = -half + sub_size / 2.0
-
-    # Start with level-0 center
-    centers = np.array([[0.0, 0.0, 0.0]])
-
-    for _ in range(level):
-        new_centers = []
-        for cx, cy, cz in centers:
-            for ox, oy, oz in _KEPT_OFFSETS:
-                nx = cx + offset_base + ox * sub_size
-                ny = cy + offset_base + oy * sub_size
-                nz = cz + offset_base + oz * sub_size
-                new_centers.append((nx, ny, nz))
-        centers = np.array(new_centers)
-        # Next level operates on smaller cubes
-        sub_size /= 3.0
-        offset_base = -sub_size * 3.0 / 2.0 + sub_size / 2.0
-
-    return centers
 
 
 def _build_cube_set(level: int, size: float) -> set[tuple[int, int, int]]:
@@ -85,56 +64,55 @@ def _build_cube_set(level: int, size: float) -> set[tuple[int, int, int]]:
     return occupied
 
 
+def _count_exposed_faces(
+    occupied: set[tuple[int, int, int]],
+) -> int:
+    """Count exposed (non-internal) faces across all occupied cubes."""
+    count = 0
+    for gx, gy, gz in occupied:
+        for axis, sign in _FACE_DIRECTIONS:
+            neighbor = [gx, gy, gz]
+            neighbor[axis] += sign
+            if tuple(neighbor) not in occupied:
+                count += 1
+    return count
+
+
 def _build_menger_mesh(level: int, size: float) -> Mesh:
     """Build triangle mesh for a Menger sponge at the given level."""
     occupied = _build_cube_set(level, size)
     grid_side = 3 ** level
     cube_size = size / grid_side
-
-    # Six face directions: (axis, sign) -> normal direction
-    # For each cube face, check if the neighbor in that direction exists
-    face_normals = [
-        (0, -1), (0, 1),   # -x, +x
-        (1, -1), (1, 1),   # -y, +y
-        (2, -1), (2, 1),   # -z, +z
-    ]
-
-    all_vertices: list[np.ndarray] = []
-    all_faces: list[np.ndarray] = []
-    vertex_offset = 0
-
     half_size = size / 2.0
 
+    # Pre-allocate arrays based on exposed face count
+    exposed_count = _count_exposed_faces(occupied)
+    vertices = np.empty((exposed_count * 4, 3), dtype=np.float64)
+    faces = np.empty((exposed_count * 2, 3), dtype=np.int64)
+
+    face_idx = 0
     for gx, gy, gz in occupied:
-        for axis, sign in face_normals:
-            # Check neighbor
+        cx = -half_size + (gx + 0.5) * cube_size
+        cy = -half_size + (gy + 0.5) * cube_size
+        cz = -half_size + (gz + 0.5) * cube_size
+
+        for axis, sign in _FACE_DIRECTIONS:
             neighbor = [gx, gy, gz]
             neighbor[axis] += sign
-            nx, ny, nz = neighbor
-
-            # If neighbor is occupied, skip this face (internal)
-            if (nx, ny, nz) in occupied:
+            if tuple(neighbor) in occupied:
                 continue
 
-            # Build a quad face (2 triangles) for this exposed face
-            center = np.array([
-                -half_size + (gx + 0.5) * cube_size,
-                -half_size + (gy + 0.5) * cube_size,
-                -half_size + (gz + 0.5) * cube_size,
-            ])
+            center = np.array([cx, cy, cz])
+            v_start = face_idx * 4
+            vertices[v_start:v_start + 4] = _make_face_quad(
+                center, cube_size, axis, sign,
+            )
 
-            quad_verts = _make_face_quad(center, cube_size, axis, sign)
-            all_vertices.append(quad_verts)
+            f_start = face_idx * 2
+            faces[f_start] = [v_start, v_start + 1, v_start + 2]
+            faces[f_start + 1] = [v_start, v_start + 2, v_start + 3]
+            face_idx += 1
 
-            base = vertex_offset
-            all_faces.append(np.array([
-                [base, base + 1, base + 2],
-                [base, base + 2, base + 3],
-            ], dtype=np.int64))
-            vertex_offset += 4
-
-    vertices = np.concatenate(all_vertices, axis=0).astype(np.float64)
-    faces = np.concatenate(all_faces, axis=0).astype(np.int64)
     return Mesh(vertices=vertices, faces=faces)
 
 
@@ -162,8 +140,8 @@ def _validate_params(level: int, size: float) -> None:
         raise ValueError(f"level must be >= 0, got {level}")
     if level > _MAX_LEVEL:
         raise ValueError(f"level must be <= {_MAX_LEVEL}, got {level}")
-    if size <= 0:
-        raise ValueError(f"size must be positive, got {size}")
+    if size < _MIN_SIZE:
+        raise ValueError(f"size must be >= {_MIN_SIZE}, got {size}")
 
 
 @register

@@ -185,11 +185,11 @@ def test_level_exceeds_max_raises() -> None:
 
 
 def test_nonpositive_size_raises() -> None:
-    """Non-positive size raises ValueError."""
+    """Non-positive or too-small size raises ValueError."""
     gen = MengerSpongeGenerator()
-    with pytest.raises(ValueError, match="size must be positive"):
+    with pytest.raises(ValueError, match="size must be"):
         gen.generate(params={"size": 0.0})
-    with pytest.raises(ValueError, match="size must be positive"):
+    with pytest.raises(ValueError, match="size must be"):
         gen.generate(params={"size": -1.0})
 
 
