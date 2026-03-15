@@ -326,9 +326,9 @@ function clearScene() {
 
 function addBoundingBox(object3d) {
   const cp = getContainerParams();
-  const hw = (cp.width_mm / 2) * 0.01;
-  const hh = (cp.height_mm / 2) * 0.01;
-  const hd = (cp.depth_mm / 2) * 0.01;
+  const hw = cp.width_mm / 2;
+  const hh = cp.height_mm / 2;
+  const hd = cp.depth_mm / 2;
   const box = new THREE.Box3(
     new THREE.Vector3(-hw, -hh, -hd),
     new THREE.Vector3(hw, hh, hd),
@@ -346,6 +346,9 @@ function fitCamera(object3d) {
   const maxDim = Math.max(size.x, size.y, size.z);
   const dist = maxDim * 1.8;
   camera.position.set(center.x + dist * 0.6, center.y + dist * 0.4, center.z + dist * 0.7);
+  camera.near = dist * 0.01;
+  camera.far = dist * 10;
+  camera.updateProjectionMatrix();
   controls.target.copy(center);
   controls.update();
 }
