@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 68 generators across 12 categories. Each generator produces a
+MathViz includes 69 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -385,6 +385,27 @@ Aliases: `julia_3d`
 
 ```bash
 mathviz generate julia3d --param c_re=-0.4 --param c_im=0.8 --output julia.ply
+```
+
+### quaternion_julia
+
+Quaternion Julia set — 4D fractal sliced to 3D via marching cubes.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `c_real` | -0.2 | Real part of the quaternion constant |
+| `c_i` | 0.8 | i-component of the quaternion constant |
+| `c_j` | 0.0 | j-component of the quaternion constant |
+| `c_k` | 0.0 | k-component of the quaternion constant |
+| `max_iter` | 10 | Maximum escape-time iterations |
+| `escape_radius` | 2.0 | Escape radius for divergence test |
+| `extent` | 1.5 | Spatial extent of the sampling volume |
+| `slice_w` | 0.0 | Fixed w-component for the 4D→3D slice |
+
+Aliases: `qjulia`
+
+```bash
+mathviz generate quaternion_julia --param c_real=-0.2 --param c_i=0.8 --seed 42 --output qjulia.ply
 ```
 
 ### fractal_slice
