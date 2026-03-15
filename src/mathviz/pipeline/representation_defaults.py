@@ -107,4 +107,5 @@ GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     "lsystem": _TUBE_CONFIG,
     "rd_surface": _SURFACE_CONFIG,
     "penrose_3d": _SURFACE_CONFIG,
+    "weaire_phelan": _TUBE_CONFIG,
 }
