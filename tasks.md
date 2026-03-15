@@ -2187,3 +2187,102 @@ Two changes to the preview UI controls:
 - When auto-apply is disabled, changing inputs does not trigger regeneration
 - Parameter section appears below container dimensions in DOM order
 - Controls panel is scrollable when content overflows
+
+---
+
+## Task 57: Save configuration and geometry snapshot from preview UI
+
+**Objective:**
+
+Add a "Save" button in the bottom-right of the preview UI that persists
+the current session state — generator name, all parameters, container
+dimensions, seed, and the generated geometry file — to a local directory.
+This lets users bookmark interesting configurations for later comparison
+or re-use.
+
+**Suggested path:**
+
+1. Add a `POST /api/snapshots` endpoint to the preview server. The request
+   body includes: `generator`, `params`, `seed`, `container`, and the
+   current `geometry_id`. The server saves:
+   - A JSON metadata file: `{generator, params, seed, container, created_at, geometry_id}`
+   - A copy of the generated geometry (mesh and/or point cloud files)
+
+2. Snapshots are stored under `~/.mathviz/snapshots/<snapshot_id>/` where
+   `snapshot_id` is a short timestamp-based ID (e.g., `20260315-143022`).
+   Each directory contains `metadata.json` plus the geometry files
+   (`mesh.glb`, `cloud.ply`, or both).
+
+3. Also render a thumbnail PNG (small resolution, e.g., 256x256) using the
+   existing PyVista renderer and save it as `thumbnail.png` in the snapshot
+   directory. If PyVista is not available, skip the thumbnail gracefully.
+
+4. Add a floating "Save" button in the bottom-right corner of the preview
+   UI. On click, POST to `/api/snapshots` with the current state. Show a
+   brief confirmation toast (e.g., "Saved!" for 2 seconds). Disable the
+   button during save to prevent double-clicks.
+
+5. The snapshot directory path should be configurable via
+   `MATHVIZ_SNAPSHOTS_DIR` env var, defaulting to `~/.mathviz/snapshots`.
+
+**Tests:** `tests/test_preview/test_snapshots_save.py`
+
+- `POST /api/snapshots` creates a snapshot directory with metadata.json
+- metadata.json contains generator, params, seed, container, created_at
+- Geometry files (mesh.glb and/or cloud.ply) are copied to snapshot dir
+- Snapshot ID is timestamp-based and unique
+- Preview HTML contains a Save button
+- Saving without a generated geometry returns 400
+- Snapshot directory is configurable via env var
+
+---
+
+## Task 58: Load and browse saved snapshots in preview UI
+
+**Objective:**
+
+Add a "Load" panel to the preview UI that displays previously saved
+snapshots (from Task 57) as a browsable gallery. Users can see what they
+explored before and restore any snapshot to the current session.
+
+**Suggested path:**
+
+1. Add `GET /api/snapshots` endpoint that returns a list of all saved
+   snapshots, sorted by date (newest first). Each entry includes:
+   `snapshot_id`, `generator`, `params`, `seed`, `container`, `created_at`,
+   `has_thumbnail`, and `thumbnail_url` (if available).
+
+2. Add `GET /api/snapshots/<snapshot_id>/thumbnail` to serve the thumbnail
+   PNG. Return 404 if no thumbnail exists.
+
+3. Add `GET /api/snapshots/<snapshot_id>/geometry/<filename>` to serve
+   saved geometry files for restoring.
+
+4. Add `DELETE /api/snapshots/<snapshot_id>` to delete a snapshot.
+
+5. In the preview UI, add a "Load" button (next to Save) that opens a
+   modal/slide-out panel showing the snapshot gallery. Each card shows:
+   - Thumbnail image (or a placeholder icon if none)
+   - Generator name
+   - Date/time saved
+   - Key parameters (compact summary, e.g., "sigma=10, rho=28")
+   - "Load" button to restore the snapshot
+   - "Delete" button (with confirmation) to remove it
+
+6. Loading a snapshot: set the generator selector, populate parameter
+   fields, set seed/container values, then load the saved geometry files
+   directly (no regeneration needed — serve from the snapshot directory).
+
+7. The gallery should be paginated or scrollable if there are many
+   snapshots.
+
+**Tests:** `tests/test_preview/test_snapshots_browse.py`
+
+- `GET /api/snapshots` returns a list of saved snapshots sorted by date
+- Each snapshot entry contains generator, params, created_at, has_thumbnail
+- `GET /api/snapshots/<id>/thumbnail` serves the thumbnail PNG
+- `GET /api/snapshots/<id>/thumbnail` returns 404 when no thumbnail exists
+- `DELETE /api/snapshots/<id>` removes the snapshot directory
+- Loading a snapshot restores generator, params, seed, and container values
+- Loading a snapshot displays the saved geometry without regeneration
+- Preview HTML contains a Load button that opens the snapshot gallery
