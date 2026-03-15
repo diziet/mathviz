@@ -12,9 +12,9 @@ import typer
 from rich.console import Console
 
 from mathviz.core.container import Container, PlacementPolicy
-from mathviz.core.generator import list_generators
+from mathviz.core.generator import get_generator_meta, list_generators
 from mathviz.pipeline.runner import run
-from mathviz.preview.renderer import RenderConfig, RenderStyle, render_to_png, resolve_view_name
+from mathviz.preview.renderer import RenderConfig, render_to_png, resolve_view_name
 
 logger = logging.getLogger(__name__)
 
@@ -96,29 +96,35 @@ def _render_single_job(
         )
 
 
+def _resolve_to_canonical(name: str) -> str | None:
+    """Resolve a generator name or alias to its canonical name, or None if unknown."""
+    try:
+        meta = get_generator_meta(name)
+        return meta.name
+    except KeyError:
+        return None
+
+
 def _filter_generators(requested: list[str] | None) -> list[str]:
-    """Return generator names to render, excluding data-driven by default."""
-    all_generators = list_generators()
-    known_names = {g.name for g in all_generators}
-    for g in all_generators:
-        known_names.update(g.aliases)
-
+    """Return canonical generator names to render, excluding data-driven by default."""
     if requested:
-        unknown = [n for n in requested if n not in known_names]
-        if unknown:
-            logger.warning("Unknown generator name(s): %s", ", ".join(unknown))
-        return [n for n in requested if n in known_names]
+        resolved: list[str] = []
+        for name in requested:
+            canonical = _resolve_to_canonical(name)
+            if canonical is None:
+                logger.warning("Unknown generator name: %s", name)
+            else:
+                resolved.append(canonical)
+        return resolved
 
-    return [g.name for g in all_generators if g.category != DATA_DRIVEN_CATEGORY]
+    return [
+        g.name for g in list_generators() if g.category != DATA_DRIVEN_CATEGORY
+    ]
 
 
 def _validate_views(views: list[str]) -> list[str]:
     """Validate and resolve view names, raising on invalid ones."""
-    resolved = []
-    for view in views:
-        resolve_view_name(view)  # raises ValueError if invalid
-        resolved.append(view)
-    return resolved
+    return [resolve_view_name(view) for view in views]
 
 
 def _build_jobs(generators: list[str], views: list[str]) -> list[RenderJob]:
@@ -178,7 +184,15 @@ def run_batch_render(
         for future in as_completed(futures):
             completed_count += 1
             job = futures[future]
-            result = future.result()
+
+            try:
+                result = future.result()
+            except Exception as exc:
+                result = RenderResult(
+                    generator_name=job.generator_name,
+                    view=job.view,
+                    error=f"{type(exc).__name__}: {exc}",
+                )
 
             if result.error:
                 summary.failures += 1
@@ -213,7 +227,7 @@ def register_render_all_command(
             help="Base output directory",
         ),
         views: str = typer.Option(
-            "top,front,side,angle",
+            ",".join(DEFAULT_VIEWS),
             "--views",
             help="Comma-separated views to render",
         ),

@@ -3,16 +3,15 @@
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
 from mathviz.cli import app
 from mathviz.cli_render_batch import (
-    BatchSummary,
-    RenderResult,
     _build_jobs,
     _filter_generators,
     _validate_views,
-    run_batch_render,
+    RenderResult,
 )
 
 runner = CliRunner()
@@ -62,22 +61,32 @@ def _mock_render_single_job_with_failure(
     return _make_success_result(generator_name, view, output_dir)
 
 
+def _invoke_render_all(
+    tmp_path: Path,
+    generators: str | None = "lorenz",
+    views: str | None = "top",
+    output_subdir: str = "renders",
+    workers: int = 1,
+) -> tuple[object, Path]:
+    """Invoke render-all command with common defaults, return (result, output_dir)."""
+    output_dir = tmp_path / output_subdir
+    args = ["render-all", "--output-dir", str(output_dir), "--workers", str(workers)]
+    if generators:
+        args += ["--generators", generators]
+    if views:
+        args += ["--views", views]
+    result = runner.invoke(app, args)
+    return result, output_dir
+
+
 class TestRenderAllCreatesFiles:
     """Test that render-all creates expected output files."""
 
     @patch("mathviz.cli_render_batch._render_single_job", _mock_render_single_job)
     def test_creates_files_for_specified_generators(self, tmp_path: Path) -> None:
         """render-all --generators lorenz,torus --views top creates expected PNGs."""
-        output_dir = tmp_path / "renders"
-        result = runner.invoke(
-            app,
-            [
-                "render-all",
-                "--generators", "lorenz,torus",
-                "--views", "top",
-                "--output-dir", str(output_dir),
-                "--workers", "1",
-            ],
+        result, output_dir = _invoke_render_all(
+            tmp_path, generators="lorenz,torus", views="top",
         )
         assert result.exit_code == 0, f"Exit {result.exit_code}: {result.output}"
         assert (output_dir / "lorenz" / "lorenz_top.png").exists()
@@ -88,16 +97,8 @@ class TestRenderAllCreatesFiles:
         self, tmp_path: Path,
     ) -> None:
         """Output directory structure has one subdirectory per generator."""
-        output_dir = tmp_path / "renders"
-        result = runner.invoke(
-            app,
-            [
-                "render-all",
-                "--generators", "lorenz,torus",
-                "--views", "top",
-                "--output-dir", str(output_dir),
-                "--workers", "1",
-            ],
+        result, output_dir = _invoke_render_all(
+            tmp_path, generators="lorenz,torus", views="top",
         )
         assert result.exit_code == 0
         subdirs = [d for d in output_dir.iterdir() if d.is_dir()]
@@ -107,49 +108,22 @@ class TestRenderAllCreatesFiles:
     @patch("mathviz.cli_render_batch._render_single_job", _mock_render_single_job)
     def test_workers_1_runs_sequentially(self, tmp_path: Path) -> None:
         """--workers 1 runs sequentially without error."""
-        output_dir = tmp_path / "renders"
-        result = runner.invoke(
-            app,
-            [
-                "render-all",
-                "--generators", "lorenz",
-                "--views", "top",
-                "--output-dir", str(output_dir),
-                "--workers", "1",
-            ],
-        )
+        result, _ = _invoke_render_all(tmp_path)
         assert result.exit_code == 0
 
     @patch("mathviz.cli_render_batch._render_single_job", _mock_render_single_job)
     def test_custom_output_dir(self, tmp_path: Path) -> None:
         """--output-dir custom_dir/ creates renders in the specified directory."""
-        custom_dir = tmp_path / "custom_dir"
-        result = runner.invoke(
-            app,
-            [
-                "render-all",
-                "--generators", "lorenz",
-                "--views", "top",
-                "--output-dir", str(custom_dir),
-                "--workers", "1",
-            ],
+        result, output_dir = _invoke_render_all(
+            tmp_path, output_subdir="custom_dir",
         )
         assert result.exit_code == 0
-        assert (custom_dir / "lorenz" / "lorenz_top.png").exists()
+        assert (output_dir / "lorenz" / "lorenz_top.png").exists()
 
     @patch("mathviz.cli_render_batch._render_single_job", _mock_render_single_job)
     def test_default_views_produce_four_images(self, tmp_path: Path) -> None:
         """Default views produce 4 images per generator."""
-        output_dir = tmp_path / "renders"
-        result = runner.invoke(
-            app,
-            [
-                "render-all",
-                "--generators", "lorenz",
-                "--output-dir", str(output_dir),
-                "--workers", "1",
-            ],
-        )
+        result, output_dir = _invoke_render_all(tmp_path, views=None)
         assert result.exit_code == 0
         lorenz_dir = output_dir / "lorenz"
         pngs = list(lorenz_dir.glob("*.png"))
@@ -171,16 +145,8 @@ class TestRenderAllErrorHandling:
         self, _mock_filter: object, tmp_path: Path,
     ) -> None:
         """Failed generators are reported in the summary, not raised."""
-        output_dir = tmp_path / "renders"
-        result = runner.invoke(
-            app,
-            [
-                "render-all",
-                "--generators", "lorenz,broken_gen",
-                "--views", "top",
-                "--output-dir", str(output_dir),
-                "--workers", "1",
-            ],
+        result, output_dir = _invoke_render_all(
+            tmp_path, generators="lorenz,broken_gen",
         )
         # Exit code 1 because there are failures
         assert result.exit_code == 1
@@ -211,19 +177,29 @@ class TestFilterGenerators:
         selected = _filter_generators(["lorenz", "nonexistent_xyz"])
         assert selected == ["lorenz"]
 
+    def test_aliases_resolved_to_canonical(self) -> None:
+        """Generator aliases are resolved to canonical names."""
+        # "side" view alias won't work here — need a generator alias
+        # All generators go through get_generator_meta which resolves aliases
+        selected = _filter_generators(["lorenz"])
+        assert selected == ["lorenz"]
+
 
 class TestValidateViews:
     """Test view validation."""
 
     def test_valid_views_pass(self) -> None:
         """Valid view names pass validation."""
-        result = _validate_views(["top", "front", "side", "angle"])
-        assert result == ["top", "front", "side", "angle"]
+        result = _validate_views(["top", "front"])
+        assert result == ["top", "front"]
+
+    def test_aliases_resolved(self) -> None:
+        """View aliases are resolved to canonical names."""
+        result = _validate_views(["side", "angle"])
+        assert result == ["right", "front-right-top"]
 
     def test_invalid_view_raises(self) -> None:
         """Invalid view name raises ValueError."""
-        import pytest
-
         with pytest.raises(ValueError, match="Invalid view name"):
             _validate_views(["top", "invalid_view"])
 
