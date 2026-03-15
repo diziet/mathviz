@@ -1,9 +1,10 @@
-"""Mandelbrot set heightmap generator.
+"""Burning Ship fractal heightmap generator.
 
-Computes the Mandelbrot escape-time iteration count on a 2D grid and stores
-it as a scalar field. The HEIGHTMAP_RELIEF representation extrudes this into
-a 3D relief surface. Vectorized NumPy — no numba needed for pixel_resolution
-up to ~512.
+Computes the Burning Ship escape-time iteration count on a 2D grid and stores
+it as a scalar field. The iteration rule takes absolute values of the real and
+imaginary parts of z before squaring: z_next = (|Re(z)| + i·|Im(z)|)² + c.
+This produces an asymmetric, aggressive-looking fractal distinct from the
+Mandelbrot set. Uses HEIGHTMAP_RELIEF representation.
 """
 
 import logging
@@ -23,68 +24,49 @@ from mathviz.generators.fractals._heightmap_common import (
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_CENTER_REAL = -0.5
-_DEFAULT_CENTER_IMAG = 0.0
-_DEFAULT_ZOOM = 1.0
+_DEFAULT_CENTER_X = -0.4
+_DEFAULT_CENTER_Y = -0.6
+_DEFAULT_ZOOM = 3.0
 _DEFAULT_MAX_ITERATIONS = 256
-_DEFAULT_HEIGHT_SCALE = 1.0
-_DEFAULT_SMOOTHING = True
+_DEFAULT_HEIGHT_SCALE = 0.3
 _DEFAULT_PIXEL_RESOLUTION = 512
 
-# Mandelbrot set spans roughly [-2, 0.5] x [-1.25, 1.25] at zoom=1
-_BASE_EXTENT = 2.5
+# Burning Ship spans roughly [-2.5, 1.5] x [-2, 1] — zoom=1 covers ~4 units
+_BASE_EXTENT = 2.0
 
 
-def _mandelbrot_step(z: np.ndarray, c: np.ndarray) -> np.ndarray:
-    """Single Mandelbrot iteration: z² + c."""
-    return z * z + c
-
-
-def _apply_smoothing(
-    iteration_count: np.ndarray,
-    z: np.ndarray,
-    escaped: np.ndarray,
-    max_iterations: int,
-) -> np.ndarray:
-    """Apply smooth iteration count to escaped points."""
-    smooth = iteration_count.copy()
-    esc = escaped & (iteration_count > 0)
-    abs_z = np.abs(z[esc])
-    # Continuous (smooth) iteration count: subtract fractional escape
-    log2_abs = np.log2(np.maximum(abs_z, 1e-300))
-    smooth[esc] = iteration_count[esc] - np.log2(np.maximum(log2_abs, 1e-300))
-    # Clamp to non-negative: smoothing can undershoot for points escaping
-    # on iteration 1 with large |z| (e.g. at low zoom levels).
-    return np.maximum(smooth, 0.0)
+def _burning_ship_step(z: np.ndarray, c: np.ndarray) -> np.ndarray:
+    """Single Burning Ship iteration: (|Re(z)| + i·|Im(z)|)² + c."""
+    z_abs = np.abs(z.real) + 1j * np.abs(z.imag)
+    return z_abs * z_abs + c
 
 
 @register
-class MandelbrotHeightmapGenerator(GeneratorBase):
-    """Mandelbrot set as a heightmap relief surface.
+class BurningShipGenerator(GeneratorBase):
+    """Burning Ship fractal as a heightmap relief surface.
 
     Escape-time iteration count on a pixel_resolution² grid becomes the
     z-height of a relief surface via HEIGHTMAP_RELIEF representation.
-    Seed has no effect — the Mandelbrot set is fully deterministic.
+    Seed has no effect — the fractal is fully deterministic.
     """
 
-    name = "mandelbrot_heightmap"
+    name = "burning_ship"
     category = "fractals"
     aliases = ()
-    description = "Mandelbrot escape-time heightmap for 3D relief engraving"
+    description = "Burning Ship escape-time heightmap for 3D relief engraving"
     resolution_params = {
         "pixel_resolution": "Grid points per axis (N² cost)",
     }
     _resolution_defaults = {"pixel_resolution": _DEFAULT_PIXEL_RESOLUTION}
 
     def get_default_params(self) -> dict[str, Any]:
-        """Return default parameters for the Mandelbrot heightmap."""
+        """Return default parameters for the Burning Ship heightmap."""
         return {
-            "center_real": _DEFAULT_CENTER_REAL,
-            "center_imag": _DEFAULT_CENTER_IMAG,
+            "center_x": _DEFAULT_CENTER_X,
+            "center_y": _DEFAULT_CENTER_Y,
             "zoom": _DEFAULT_ZOOM,
             "max_iterations": _DEFAULT_MAX_ITERATIONS,
             "height_scale": _DEFAULT_HEIGHT_SCALE,
-            "smoothing": _DEFAULT_SMOOTHING,
         }
 
     def generate(
@@ -93,17 +75,16 @@ class MandelbrotHeightmapGenerator(GeneratorBase):
         seed: int = 42,
         **resolution_kwargs: Any,
     ) -> MathObject:
-        """Generate a Mandelbrot escape-time scalar field."""
+        """Generate a Burning Ship escape-time scalar field."""
         merged = self.get_default_params()
         if params:
             merged.update(params)
 
-        center_real = float(merged["center_real"])
-        center_imag = float(merged["center_imag"])
+        center_x = float(merged["center_x"])
+        center_y = float(merged["center_y"])
         zoom = float(merged["zoom"])
         max_iterations = int(merged["max_iterations"])
         height_scale = float(merged["height_scale"])
-        is_smooth = bool(merged["smoothing"])
         pixel_resolution = int(
             resolution_kwargs.get(
                 "pixel_resolution",
@@ -113,30 +94,25 @@ class MandelbrotHeightmapGenerator(GeneratorBase):
 
         validate_heightmap_params(
             zoom, max_iterations, pixel_resolution, height_scale,
-            center_real, center_imag,
+            center_x, center_y,
         )
 
         merged["pixel_resolution"] = pixel_resolution
 
         c = build_complex_grid(
-            center_real, center_imag, zoom, _BASE_EXTENT, pixel_resolution,
+            center_x, center_y, zoom, _BASE_EXTENT, pixel_resolution,
         )
-        iteration_count, z_final, escaped = escape_time_loop(
-            c, max_iterations, _mandelbrot_step,
+        iteration_count, _z, _escaped = escape_time_loop(
+            c, max_iterations, _burning_ship_step,
         )
-
-        if is_smooth:
-            iteration_count = _apply_smoothing(
-                iteration_count, z_final, escaped, max_iterations,
-            )
 
         field = iteration_count * height_scale
         bbox = compute_heightmap_bbox(field)
 
         logger.info(
-            "Generated mandelbrot_heightmap: center=(%.3f, %.3f), zoom=%.3f, "
+            "Generated burning_ship: center=(%.3f, %.3f), zoom=%.3f, "
             "max_iter=%d, pixel_res=%d, field_range=[%.2f, %.2f]",
-            center_real, center_imag, zoom, max_iterations, pixel_resolution,
+            center_x, center_y, zoom, max_iterations, pixel_resolution,
             float(np.min(field)), float(np.max(field)),
         )
 
