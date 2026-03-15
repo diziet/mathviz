@@ -2051,3 +2051,42 @@ Point Cloud.
 - Dropdown `<select>` value matches `state.viewMode` after generation
 - User-selected view mode (e.g., switching to wireframe) is preserved across regeneration if compatible
 - Switching generators (e.g., from schwarz_d to lorenz) preserves the current view mode if compatible
+
+---
+
+## Task 54: Enter key triggers regeneration in preview UI input fields
+
+**Objective:**
+
+When editing numeric input fields in the preview UI (container dimensions,
+seed, point size, generator parameters, resolution settings), pressing
+Enter should trigger the same action as clicking the Apply/Generate button.
+Currently the user must click the button after typing values, which is
+cumbersome.
+
+**Suggested path:**
+
+1. Add a `keydown` event listener to all numeric `<input>` fields in the
+   controls panel (seed, container dimensions, point size, and any future
+   parameter/resolution inputs from Tasks 43/51). On `Enter` keypress,
+   call the same generation function that the Apply/Generate button uses.
+
+2. Use event delegation on the controls container rather than attaching
+   individual listeners to each input — this automatically covers
+   dynamically-added inputs from Tasks 43, 44, and 51.
+
+3. For the seed input specifically, Enter should regenerate with the new
+   seed value (same as clicking Generate).
+
+4. Do not trigger on other keys — only Enter (keyCode 13 / key === 'Enter').
+
+5. Blur the input after triggering so the user sees the result immediately
+   without the cursor staying in the field.
+
+**Tests:** `tests/test_preview/test_enter_key.py`
+
+- Preview HTML includes keydown event handling on input fields
+- Pressing Enter in seed input triggers generation (same as clicking Generate)
+- Pressing Enter in a container dimension input triggers regeneration
+- Event delegation covers dynamically-added parameter inputs
+- Non-Enter keys do not trigger regeneration
