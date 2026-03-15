@@ -32,7 +32,7 @@ from mathviz.preview.snapshots import save_snapshot
 logger = logging.getLogger(__name__)
 
 _cache = GeometryCache()
-_disk_cache = DiskCache()
+_disk_cache: DiskCache | None = None
 _executor = GenerationExecutor()
 
 
@@ -42,7 +42,10 @@ def get_cache() -> GeometryCache:
 
 
 def get_disk_cache() -> DiskCache:
-    """Return the global disk cache."""
+    """Return the global disk cache, creating it on first access."""
+    global _disk_cache  # noqa: PLW0603
+    if _disk_cache is None:
+        _disk_cache = DiskCache()
     return _disk_cache
 
 
@@ -304,25 +307,16 @@ def generate_geometry(req: GenerateRequest) -> Response:
     )
     cache = get_cache()
     disk_cache = get_disk_cache()
-    cache_status = "MISS"
+    container_dict = _container_cache_dict(req.container)
 
-    entry = None if req.force else cache.get(cache_key)
-
-    # Check disk cache if not in memory and not forced
-    if entry is None and not req.force:
-        disk_entry = disk_cache.get(cache_key)
-        if disk_entry is not None:
-            entry = load_from_disk(cache_key, disk_entry, disk_cache, cache)
-            if entry is not None:
-                cache_status = "HIT"
-
-    if entry is not None and not req.force:
-        cache_status = "HIT"
-        logger.info("Serving geometry %s from cache", cache_key)
-    else:
+    entry, cache_status = _resolve_cached_entry(
+        cache_key, req.force, cache, disk_cache,
+    )
+    if entry is None:
         entry = _run_generation(req, params, resolution, container)
         cache.put(cache_key, entry)
-        store_to_disk(cache_key, entry, disk_cache)
+        store_to_disk(cache_key, entry, disk_cache, container_kwargs=container_dict)
+        cache_status = "MISS"
         logger.info("Generated and cached geometry %s", cache_key)
 
     from mathviz.preview.batch_routes import build_geometry_urls
@@ -336,6 +330,31 @@ def generate_geometry(req: GenerateRequest) -> Response:
         media_type="application/json",
         headers={"X-Cache": cache_status},
     )
+
+
+def _resolve_cached_entry(
+    cache_key: str,
+    force: bool,
+    cache: GeometryCache,
+    disk_cache: DiskCache,
+) -> tuple[CacheEntry | None, str]:
+    """Check memory then disk cache. Returns (entry, cache_status)."""
+    if force:
+        return None, "MISS"
+
+    entry = cache.get(cache_key)
+    if entry is not None:
+        logger.info("Serving geometry %s from memory cache", cache_key)
+        return entry, "HIT"
+
+    disk_entry = disk_cache.get(cache_key)
+    if disk_entry is not None:
+        entry = load_from_disk(cache_key, disk_entry, disk_cache, cache)
+        if entry is not None:
+            logger.info("Serving geometry %s from disk cache", cache_key)
+            return entry, "HIT"
+
+    return None, "MISS"
 
 
 def _run_generation(

@@ -49,6 +49,7 @@ def store_to_disk(
     cache_key: str,
     entry: CacheEntry,
     disk_cache: DiskCache,
+    container_kwargs: dict[str, Any] | None = None,
 ) -> None:
     """Store a generation result to disk cache."""
     mesh_data = None
@@ -63,7 +64,7 @@ def store_to_disk(
         params=entry.params,
         seed=entry.seed,
         resolution_kwargs=entry.resolution_kwargs,
-        container_kwargs={},
+        container_kwargs=container_kwargs or {},
         mesh_data=mesh_data,
         cloud_data=cloud_data,
     )
@@ -87,7 +88,7 @@ def _load_mesh_from_path(mesh_path: Any) -> Mesh | None:
             vertices=np.asarray(raw_mesh.vertices, dtype=np.float64),
             faces=np.asarray(raw_mesh.faces, dtype=np.int64),
         )
-    except Exception as exc:
+    except (OSError, ValueError, RuntimeError) as exc:
         logger.warning("Failed to load mesh from disk cache: %s", exc)
         return None
 
@@ -102,6 +103,6 @@ def _load_cloud_from_path(cloud_path: Any) -> PointCloud | None:
         points = loaded.vertices if hasattr(loaded, 'vertices') else None
         if points is not None:
             return PointCloud(points=points)
-    except Exception as exc:
+    except (OSError, ValueError, RuntimeError) as exc:
         logger.warning("Failed to load cloud from disk cache: %s", exc)
     return None

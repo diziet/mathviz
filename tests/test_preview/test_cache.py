@@ -64,6 +64,29 @@ def _torus_payload(**overrides: Any) -> dict[str, Any]:
     return payload
 
 
+def _put_entry(
+    dc: DiskCache,
+    key: str,
+    *,
+    generator_name: str = "torus",
+    seed: int = 42,
+    params: dict[str, Any] | None = None,
+    mesh_data: bytes | None = None,
+    cloud_data: bytes | None = None,
+) -> None:
+    """Store a cache entry with sensible defaults."""
+    dc.put(
+        key,
+        generator_name=generator_name,
+        params=params or {},
+        seed=seed,
+        resolution_kwargs={},
+        container_kwargs={},
+        mesh_data=mesh_data,
+        cloud_data=cloud_data,
+    )
+
+
 # --- Same request twice: second call serves from cache ---
 
 
@@ -173,15 +196,7 @@ class TestDiskCacheAutoCreate:
         cache_dir = tmp_path / "new_cache"
         assert not cache_dir.exists()
         dc = DiskCache(cache_dir=cache_dir)
-        dc.put(
-            "testkey",
-            generator_name="torus",
-            params={},
-            seed=42,
-            resolution_kwargs={},
-            container_kwargs={},
-            mesh_data=b"fake-mesh-data",
-        )
+        _put_entry(dc, "testkey", mesh_data=b"fake-mesh-data")
         assert cache_dir.is_dir()
         assert (cache_dir / "testkey" / "metadata.json").is_file()
 
@@ -194,47 +209,16 @@ class TestCacheSizeLimit:
 
     def test_evicts_oldest_when_full(self, tmp_cache_dir: Path) -> None:
         """Oldest entry is evicted when cache exceeds size limit."""
-        # Create cache with tiny 500-byte limit
         dc = DiskCache(cache_dir=tmp_cache_dir, max_size_bytes=500)
 
-        # Store first entry (~200 bytes)
-        dc.put(
-            "key1",
-            generator_name="gen1",
-            params={},
-            seed=1,
-            resolution_kwargs={},
-            container_kwargs={},
-            mesh_data=b"x" * 100,
-        )
+        _put_entry(dc, "key1", generator_name="gen1", seed=1, mesh_data=b"x" * 100)
         assert dc.get("key1") is not None
 
-        # Give key1 an older timestamp
         time.sleep(0.05)
-
-        # Store second entry (~200 bytes)
-        dc.put(
-            "key2",
-            generator_name="gen2",
-            params={},
-            seed=2,
-            resolution_kwargs={},
-            container_kwargs={},
-            mesh_data=b"y" * 100,
-        )
+        _put_entry(dc, "key2", generator_name="gen2", seed=2, mesh_data=b"y" * 100)
 
         time.sleep(0.05)
-
-        # Store third large entry that exceeds limit
-        dc.put(
-            "key3",
-            generator_name="gen3",
-            params={},
-            seed=3,
-            resolution_kwargs={},
-            container_kwargs={},
-            mesh_data=b"z" * 300,
-        )
+        _put_entry(dc, "key3", generator_name="gen3", seed=3, mesh_data=b"z" * 300)
 
         # key1 (oldest) should have been evicted
         assert dc.get("key1") is None
@@ -280,15 +264,9 @@ class TestDiskCacheUnit:
 
     def test_put_and_get(self, disk_cache: DiskCache) -> None:
         """Stored entry can be retrieved."""
-        disk_cache.put(
-            "abc123",
-            generator_name="torus",
-            params={"r": 1.0},
-            seed=42,
-            resolution_kwargs={},
-            container_kwargs={},
-            mesh_data=b"mesh-data",
-            cloud_data=b"cloud-data",
+        _put_entry(
+            disk_cache, "abc123",
+            params={"r": 1.0}, mesh_data=b"mesh-data", cloud_data=b"cloud-data",
         )
         entry = disk_cache.get("abc123")
         assert entry is not None
@@ -299,15 +277,9 @@ class TestDiskCacheUnit:
 
     def test_mesh_and_cloud_paths(self, disk_cache: DiskCache) -> None:
         """Mesh and cloud file paths are correct."""
-        disk_cache.put(
-            "pathtest",
-            generator_name="torus",
-            params={},
-            seed=1,
-            resolution_kwargs={},
-            container_kwargs={},
-            mesh_data=b"glb-content",
-            cloud_data=b"ply-content",
+        _put_entry(
+            disk_cache, "pathtest",
+            seed=1, mesh_data=b"glb-content", cloud_data=b"ply-content",
         )
         mesh_path = disk_cache.get_mesh_path("pathtest")
         cloud_path = disk_cache.get_cloud_path("pathtest")
@@ -319,14 +291,7 @@ class TestDiskCacheUnit:
     def test_clear_removes_all(self, disk_cache: DiskCache) -> None:
         """Clear removes all cached entries."""
         for i in range(3):
-            disk_cache.put(
-                f"key{i}",
-                generator_name=f"gen{i}",
-                params={},
-                seed=i,
-                resolution_kwargs={},
-                container_kwargs={},
-            )
+            _put_entry(disk_cache, f"key{i}", generator_name=f"gen{i}", seed=i)
         count = disk_cache.clear()
         assert count == 3
         assert disk_cache.get("key0") is None
@@ -334,13 +299,5 @@ class TestDiskCacheUnit:
     def test_total_size_bytes(self, disk_cache: DiskCache) -> None:
         """Total size reflects stored data."""
         assert disk_cache.total_size_bytes() == 0
-        disk_cache.put(
-            "sizetest",
-            generator_name="t",
-            params={},
-            seed=1,
-            resolution_kwargs={},
-            container_kwargs={},
-            mesh_data=b"x" * 1000,
-        )
+        _put_entry(disk_cache, "sizetest", generator_name="t", seed=1, mesh_data=b"x" * 1000)
         assert disk_cache.total_size_bytes() > 1000

@@ -819,6 +819,9 @@ function showCacheBadge(isHit) {
     cacheBadge.classList.remove('visible');
   }
 }
+function updateCacheStatus(resp) {
+  showCacheBadge(resp.headers.get('X-Cache') === 'HIT');
+}
 
 /* ── Loading workflows ── */
 async function loadFromAPI(generator, genParams, seed, force) {
@@ -838,8 +841,7 @@ async function loadFromAPI(generator, genParams, seed, force) {
       const errData = await resp.json().catch(() => null);
       throw new Error(extractErrorMessage(errData, resp.status));
     }
-    const cacheHeader = resp.headers.get('X-Cache');
-    showCacheBadge(cacheHeader === 'HIT');
+    updateCacheStatus(resp);
     const data = await resp.json();
     state.geometryId = data.geometry_id;
     state.generatedWith = {generator, params: genParams, seed, container: body.container};
@@ -1896,8 +1898,7 @@ async function applyParams() {
       paramError.style.display = 'block';
       return;
     }
-    const cacheHeader = resp.headers.get('X-Cache');
-    showCacheBadge(cacheHeader === 'HIT');
+    updateCacheStatus(resp);
     const data = await resp.json();
     await displayGenerateResult(data, currentGen);
   } catch (err) {

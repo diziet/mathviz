@@ -61,8 +61,10 @@ class DiskCache:
         max_size_bytes: int | None = None,
     ) -> None:
         """Initialize the disk cache."""
-        self._cache_dir = cache_dir or _get_cache_dir()
-        self._max_size_bytes = max_size_bytes or _get_max_size_bytes()
+        self._cache_dir = cache_dir if cache_dir is not None else _get_cache_dir()
+        self._max_size_bytes = (
+            max_size_bytes if max_size_bytes is not None else _get_max_size_bytes()
+        )
         self._lock = threading.Lock()
 
     @property
@@ -80,38 +82,42 @@ class DiskCache:
 
     def get(self, cache_key: str) -> DiskCacheEntry | None:
         """Look up a cache entry by key. Returns metadata if found."""
-        entry_dir = self._entry_dir(cache_key)
-        meta_path = entry_dir / METADATA_FILENAME
-        if not meta_path.is_file():
-            return None
-        try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
-            # Touch to update access time for LRU eviction
-            meta_path.touch()
-            return DiskCacheEntry(
-                cache_key=cache_key,
-                generator_name=meta["generator_name"],
-                params=meta.get("params", {}),
-                seed=meta["seed"],
-                resolution_kwargs=meta.get("resolution_kwargs", {}),
-                container_kwargs=meta.get("container_kwargs", {}),
-                timestamp=meta["timestamp"],
-                has_mesh=meta.get("has_mesh", False),
-                has_cloud=meta.get("has_cloud", False),
-            )
-        except (json.JSONDecodeError, KeyError, OSError) as exc:
-            logger.warning("Corrupt cache entry %s: %s", cache_key, exc)
-            return None
+        with self._lock:
+            entry_dir = self._entry_dir(cache_key)
+            meta_path = entry_dir / METADATA_FILENAME
+            if not meta_path.is_file():
+                return None
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                # Touch to update access time for LRU eviction
+                meta_path.touch()
+                return DiskCacheEntry(
+                    cache_key=cache_key,
+                    generator_name=meta["generator_name"],
+                    params=meta.get("params", {}),
+                    seed=meta["seed"],
+                    resolution_kwargs=meta.get("resolution_kwargs", {}),
+                    container_kwargs=meta.get("container_kwargs", {}),
+                    timestamp=meta["timestamp"],
+                    has_mesh=meta.get("has_mesh", False),
+                    has_cloud=meta.get("has_cloud", False),
+                )
+            except (json.JSONDecodeError, KeyError, OSError) as exc:
+                logger.warning("Corrupt or evicted cache entry %s: %s", cache_key, exc)
+                return None
+
+    def _get_file_path(self, cache_key: str, filename: str) -> Path | None:
+        """Return the path to a cached file if it exists, or None."""
+        path = self._entry_dir(cache_key) / filename
+        return path if path.is_file() else None
 
     def get_mesh_path(self, cache_key: str) -> Path | None:
         """Return the path to the cached mesh file, or None."""
-        path = self._entry_dir(cache_key) / "mesh.glb"
-        return path if path.is_file() else None
+        return self._get_file_path(cache_key, "mesh.glb")
 
     def get_cloud_path(self, cache_key: str) -> Path | None:
         """Return the path to the cached cloud file, or None."""
-        path = self._entry_dir(cache_key) / "cloud.ply"
-        return path if path.is_file() else None
+        return self._get_file_path(cache_key, "cloud.ply")
 
     def put(
         self,
