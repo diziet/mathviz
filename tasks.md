@@ -2629,3 +2629,57 @@ detail and depth.
 - `computeVertexNormals()` is called on loaded geometries
 - Tone mapping is configured on the renderer
 - HemisphereLight is present in the scene
+
+---
+
+## Task 65: Randomize parameters button in preview UI
+
+**Objective:**
+
+Add a "Randomize" button next to the parameter editor that shuffles all
+generator parameters to random values within reasonable ranges. This lets
+users quickly explore the parameter space and discover interesting
+configurations, especially for the ~76% of generators whose output is
+purely determined by parameters (not seed).
+
+**Suggested path:**
+
+1. Add a "Randomize" (or dice icon) button in the parameter editor
+   section, next to Apply/Reset.
+
+2. Add `GET /api/generators/<name>/param-ranges` endpoint (or extend the
+   existing params endpoint) that returns min/max/step for each parameter.
+   Each generator should define reasonable exploration ranges — not just
+   validation bounds. For example, Lorenz sigma might validate at `> 0`
+   but the exploration range should be `[5, 20]` to stay in the chaotic
+   regime.
+
+3. If a generator does not define explicit exploration ranges, derive them
+   from the defaults: `[default * 0.25, default * 2.0]` for positive
+   floats, `[0, default * 2]` for non-negative ints. For parameters with
+   known physical meaning (angles, frequencies), clamp to meaningful
+   ranges.
+
+4. On click, for each parameter: pick a random value uniformly within
+   its exploration range, respecting the step size. Populate the input
+   fields with the new values.
+
+5. If Auto-Apply (Task 56) is enabled, trigger regeneration immediately
+   after randomizing. Otherwise, just populate the fields and wait for
+   the user to click Apply.
+
+6. Also randomize the seed (random integer 0–999999) since for
+   seed-dependent generators this adds further variation.
+
+7. Add a keyboard shortcut (e.g., `R` key when no input is focused) to
+   trigger randomize for rapid exploration.
+
+**Tests:** `tests/test_preview/test_randomize_params.py`
+
+- Preview HTML contains a Randomize button
+- Clicking Randomize changes parameter input values
+- Randomized values fall within the generator's exploration ranges
+- Seed is also randomized
+- Default exploration ranges are derived from defaults when not specified
+- Generators can define explicit exploration ranges
+- Keyboard shortcut triggers randomization when no input is focused
