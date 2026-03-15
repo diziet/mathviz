@@ -997,6 +997,22 @@ with knot topology.
 mathviz generate mobius_trefoil --param width=0.4 --output mobius_trefoil.ply
 ```
 
+### linked_tori
+
+Chain of interlocking tori, like links in a chain. Odd-indexed tori are
+rotated 90° so each passes through its neighbor.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `num_tori` | 2 | Number of tori in the chain |
+| `major_radius` | 1.0 | Major radius of each torus |
+| `minor_radius` | 0.3 | Minor (tube) radius of each torus |
+| `link_spacing` | 1.5 | Distance between torus centers along the chain |
+
+```bash
+mathviz generate linked_tori --param num_tori=3 --output linked_tori.ply
+```
+
 ### enneper_surface
 
 Enneper minimal surface with configurable range and order.
