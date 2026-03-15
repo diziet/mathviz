@@ -6,16 +6,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from mathviz.core.container import Container, PlacementPolicy
+from mathviz.core.container import PlacementPolicy
 from mathviz.preview.cache import CacheEntry, compute_cache_key
-from mathviz.preview.server import (
-    ContainerParams,
-    _build_container,
-    _container_cache_dict,
-    _normalize_params,
-    get_cache,
-    get_executor,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +21,7 @@ class BatchPanelRequest(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict)
     seed: int = 42
     resolution: dict[str, Any] = Field(default_factory=dict)
-    container: ContainerParams | None = None
+    container: Any | None = None
 
 
 class BatchRequest(BaseModel):
@@ -54,16 +46,24 @@ class BatchResponse(BaseModel):
     timed_out: bool = False
 
 
-def _panel_response_from_cache(cache_key: str) -> BatchPanelResponse:
-    """Build a panel response from a cache entry."""
-    entry = get_cache().get(cache_key)
-    if entry is None:
-        return BatchPanelResponse(error="Cache entry missing after generation")
-
-    obj = entry.math_object
-    mesh_url = f"/api/geometry/{cache_key}/mesh" if obj.mesh is not None else None
-    cloud_url = f"/api/geometry/{cache_key}/cloud" if obj.point_cloud is not None else None
-    return BatchPanelResponse(geometry_id=cache_key, mesh_url=mesh_url, cloud_url=cloud_url)
+def _get_server_helpers() -> tuple:
+    """Import server helpers lazily to avoid circular imports."""
+    from mathviz.preview.server import (
+        ContainerParams,
+        _build_container,
+        _container_cache_dict,
+        _normalize_params,
+        get_cache,
+        get_executor,
+    )
+    return (
+        ContainerParams,
+        _build_container,
+        _container_cache_dict,
+        _normalize_params,
+        get_cache,
+        get_executor,
+    )
 
 
 @router.post("/api/generate-batch", response_model=BatchResponse)
@@ -71,6 +71,15 @@ def generate_batch(req: BatchRequest) -> BatchResponse:
     """Run multiple panel generations in parallel."""
     if not req.panels:
         raise HTTPException(status_code=400, detail="Panels list must not be empty.")
+
+    (
+        ContainerParams,
+        _build_container,
+        _container_cache_dict,
+        _normalize_params,
+        get_cache,
+        get_executor,
+    ) = _get_server_helpers()
 
     cache = get_cache()
     executor = get_executor()
@@ -83,19 +92,24 @@ def generate_batch(req: BatchRequest) -> BatchResponse:
     for i, panel in enumerate(req.panels):
         params = _normalize_params(panel.params)
         resolution = _normalize_params(panel.resolution)
+
+        container_params = None
+        if panel.container is not None:
+            container_params = ContainerParams(**panel.container)
+
         cache_key = compute_cache_key(
             panel.generator,
             params or {},
             panel.seed,
             resolution or {},
-            container_kwargs=_container_cache_dict(panel.container),
+            container_kwargs=_container_cache_dict(container_params),
         )
         panel_cache_keys.append(cache_key)
 
         if cache.get(cache_key) is not None:
             continue  # Already cached
 
-        container = _build_container(panel.container)
+        container = _build_container(container_params)
         jobs.append({
             "generator": panel.generator,
             "params": params,
@@ -108,6 +122,7 @@ def generate_batch(req: BatchRequest) -> BatchResponse:
         job_panel_indices.append(i)
 
     # Run uncached panels in parallel
+    batch_result = None
     panel_errors: dict[int, str] = {}
     if jobs:
         batch_result = executor.submit_batch(jobs)
@@ -138,7 +153,30 @@ def generate_batch(req: BatchRequest) -> BatchResponse:
         if i in panel_errors:
             response_panels.append(BatchPanelResponse(error=panel_errors[i]))
         else:
-            response_panels.append(_panel_response_from_cache(panel_cache_keys[i]))
+            entry = cache.get(panel_cache_keys[i])
+            if entry is None:
+                response_panels.append(
+                    BatchPanelResponse(error="Generation produced no result")
+                )
+                continue
+            obj = entry.math_object
+            mesh_url = (
+                f"/api/geometry/{panel_cache_keys[i]}/mesh"
+                if obj.mesh is not None
+                else None
+            )
+            cloud_url = (
+                f"/api/geometry/{panel_cache_keys[i]}/cloud"
+                if obj.point_cloud is not None
+                else None
+            )
+            response_panels.append(
+                BatchPanelResponse(
+                    geometry_id=panel_cache_keys[i],
+                    mesh_url=mesh_url,
+                    cloud_url=cloud_url,
+                )
+            )
 
-    timed_out = bool(jobs) and batch_result.timed_out
+    timed_out = batch_result is not None and batch_result.timed_out
     return BatchResponse(panels=response_panels, timed_out=timed_out)
