@@ -2326,3 +2326,63 @@ reference the old default dimensions.
 - `Container().usable_volume()` returns (90, 90, 90) with default 5mm margins
 - No references to the old 40mm depth default remain in docs or comments
 - CLI `mathviz info` or help text shows 100×100×100 as default
+
+---
+
+## Task 60: Pipeline benchmark suite with per-stage timing
+
+**Objective:**
+
+Create a `mathviz benchmark` CLI command that runs every generator through
+the full pipeline, measures wall-clock time for each stage (generate,
+represent, transform, validate, serialize), and outputs results as an HTML
+report with sortable tables. The benchmark runs generators in parallel for
+speed and produces a clear picture of where time is spent.
+
+**Suggested path:**
+
+1. Add a `mathviz benchmark` CLI command in a new `cli_benchmark.py` module.
+   Options:
+   - `--generators` (optional): comma-separated list, defaults to all
+     non-data-driven generators
+   - `--workers N`: number of parallel workers (default: `os.cpu_count()`)
+   - `--output PATH`: output HTML file path (default: `benchmark_report.html`)
+   - `--runs N`: number of runs per generator for averaging (default: 3)
+
+2. The pipeline runner (`runner.py`) already has a `timer` context manager
+   with `timer.stage()` calls. Expose the per-stage durations from the
+   `PipelineResult` (or `PipelineTimer`). If not already returned, add
+   a `stage_timings: dict[str, float]` field to the result.
+
+3. Use `concurrent.futures.ProcessPoolExecutor` to run generators in
+   parallel. Each worker runs a single generator through the full pipeline
+   N times and returns the timing data. Collect results from all workers.
+
+4. Generate an HTML report containing:
+   - **Summary table**: one row per generator, columns for each pipeline
+     stage (generate, represent, transform, validate, serialize, total).
+     Show mean time across runs. Sortable by clicking column headers
+     (use inline JS).
+   - **Color coding**: cells green (<100ms), yellow (100ms–1s), red (>1s)
+   - **Bar chart**: horizontal bars showing relative time per stage for
+     each generator (pure CSS, no external dependencies)
+   - **System info header**: CPU, Python version, date, number of workers
+   - **Fastest/slowest generators** highlighted
+
+5. Also print a compact text summary table to stdout (using `rich` or
+   plain formatting) so results are visible without opening the HTML file.
+
+6. Skip data-driven generators that require `input_file` (unless they
+   have demo mode from Task 52). Handle generator errors gracefully —
+   record the error in the report rather than crashing the whole suite.
+
+**Tests:** `tests/test_cli/test_benchmark.py`
+
+- `mathviz benchmark` runs without error on at least 3 generators
+- Output HTML file is created and contains a `<table>` element
+- Each generator row has timing columns for all pipeline stages
+- `--generators lorenz,torus` limits the benchmark to specified generators
+- `--runs 1` produces results with a single run per generator
+- Failed generators appear in the report with error messages, not crashes
+- Per-stage timings sum approximately to total time (within 10% tolerance)
+- Text summary is printed to stdout
