@@ -8,7 +8,7 @@ unique form rendered as a monochrome point cloud of micro-fractures.
 
 ## Features
 
-- **48 generators** across 12 categories (attractors, fractals, knots, parametric surfaces, and more)
+- **59 generators** across 12 categories (attractors, fractals, knots, parametric surfaces, and more)
 - **Linear pipeline**: Generate → Represent → Transform → Sample → Validate → Export
 - **9 representation strategies** for controlling how forms appear when engraved
 - **Deterministic output**: every form is reproducible from its seed
@@ -77,20 +77,20 @@ mathviz generate gyroid --profile production --output gyroid.ply
 
 ## Generators
 
-| Category | Generators | Description |
-|---|---|---|
-| attractors | `lorenz`, `rossler`, `chen`, `aizawa`, `thomas`, `halvorsen`, `double_pendulum` | Strange attractor trajectories |
-| curves | `cardioid`, `fibonacci_spiral`, `lissajous_curve`, `logarithmic_spiral` | Mathematical curves extended to 3D |
-| data_driven | `building_extrude`, `heightmap`, `soundwave` | Forms derived from external data files |
-| fractals | `fractal_slice`, `julia3d`, `mandelbrot_heightmap`, `mandelbulb` | 3D fractals and fractal heightmaps |
-| geometry | `generic_parametric`, `voronoi_3d` | User-defined parametric surfaces and Voronoi |
-| implicit | `gyroid`, `schwarz_d`, `schwarz_p`, `genus2_surface` | Triply periodic minimal surfaces via marching cubes |
-| knots | `figure_eight_knot`, `lissajous_knot`, `seven_crossing_knots`, `torus_knot` | Mathematical knot curves |
-| number_theory | `digit_encoding`, `prime_gaps`, `sacks_spiral`, `ulam_spiral` | Number-theoretic visualizations |
-| parametric | `boy_surface`, `costa_surface`, `enneper_surface`, `klein_bottle`, `lissajous_surface`, `mobius_strip`, `spherical_harmonics`, `superellipsoid`, `torus` | Parametric surface meshes |
-| physics | `kepler_orbit`, `nbody`, `planetary_positions` | Physics simulations |
-| procedural | `noise_surface`, `reaction_diffusion`, `terrain` | Procedurally generated surfaces |
-| surfaces | `parabolic_envelope` | Ruled surfaces and envelopes |
+| Category | Count | Generators | Description |
+|---|---|---|---|
+| attractors | 10 | `lorenz`, `rossler`, `chen`, `aizawa`, `thomas`, `halvorsen`, `double_pendulum`, `clifford`, `dequan_li`, `sprott` | Strange attractor trajectories |
+| curves | 4 | `cardioid`, `fibonacci_spiral`, `lissajous_curve`, `logarithmic_spiral` | Mathematical curves extended to 3D |
+| data_driven | 3 | `building_extrude`, `heightmap`, `soundwave` | Forms derived from external data files |
+| fractals | 4 | `fractal_slice`, `julia3d`, `mandelbrot_heightmap`, `mandelbulb` | 3D fractals and fractal heightmaps |
+| geometry | 3 | `generic_parametric`, `voronoi_3d`, `voronoi_sphere` | User-defined parametric surfaces and Voronoi |
+| implicit | 4 | `gyroid`, `schwarz_d`, `schwarz_p`, `genus2_surface` | Triply periodic minimal surfaces via marching cubes |
+| knots | 9 | `torus_knot`, `figure_eight_knot`, `lissajous_knot`, `seven_crossing_knots`, `trefoil_on_torus`, `pretzel_knot`, `cinquefoil_knot`, `borromean_rings`, `chain_links` | Mathematical knot curves and linked structures |
+| number_theory | 4 | `digit_encoding`, `prime_gaps`, `sacks_spiral`, `ulam_spiral` | Number-theoretic visualizations |
+| parametric | 9 | `boy_surface`, `costa_surface`, `enneper_surface`, `klein_bottle`, `lissajous_surface`, `mobius_strip`, `spherical_harmonics`, `superellipsoid`, `torus` | Parametric surface meshes |
+| physics | 3 | `kepler_orbit`, `nbody`, `planetary_positions` | Physics simulations |
+| procedural | 5 | `noise_surface`, `reaction_diffusion`, `terrain`, `lsystem`, `rd_surface` | Procedurally generated surfaces and structures |
+| surfaces | 1 | `parabolic_envelope` | Ruled surfaces and envelopes |
 
 See [docs/generators.md](docs/generators.md) for full parameter tables and examples.
 

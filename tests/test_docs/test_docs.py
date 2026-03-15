@@ -1,13 +1,10 @@
 """Tests for documentation completeness and validity."""
 
 import re
-from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).parent.parent
-README_PATH = ROOT / "README.md"
-DOCS_DIR = ROOT / "docs"
+from tests.test_docs.conftest import DOCS_DIR, README_PATH, read_text
 
 # Expected doc files
 EXPECTED_DOC_FILES = [
@@ -22,11 +19,6 @@ EXPECTED_DOC_FILES = [
 ]
 
 
-def _read_text(path: Path) -> str:
-    """Read file contents as UTF-8 text."""
-    return path.read_text(encoding="utf-8")
-
-
 class TestReadme:
     """Tests for README.md content."""
 
@@ -36,27 +28,27 @@ class TestReadme:
 
     def test_readme_not_empty(self) -> None:
         """README.md is not empty."""
-        content = _read_text(README_PATH)
+        content = read_text(README_PATH)
         assert len(content.strip()) > 0, "README.md is empty"
 
     def test_readme_has_install_section(self) -> None:
         """README.md contains an install section."""
-        content = _read_text(README_PATH).lower()
+        content = read_text(README_PATH).lower()
         assert "install" in content, "README.md missing install section"
 
     def test_readme_has_quickstart_section(self) -> None:
         """README.md contains a quickstart section."""
-        content = _read_text(README_PATH).lower()
+        content = read_text(README_PATH).lower()
         assert "quickstart" in content, "README.md missing quickstart section"
 
     def test_readme_has_generators_section(self) -> None:
         """README.md contains a generators section."""
-        content = _read_text(README_PATH).lower()
+        content = read_text(README_PATH).lower()
         assert "generator" in content, "README.md missing generators section"
 
     def test_readme_has_cli_section(self) -> None:
         """README.md contains a CLI section."""
-        content = _read_text(README_PATH).lower()
+        content = read_text(README_PATH).lower()
         assert "cli" in content, "README.md missing CLI section"
 
 
@@ -77,14 +69,14 @@ class TestDocsStructure:
     def test_doc_file_not_empty(self, filename: str) -> None:
         """Each doc file has non-empty content."""
         path = DOCS_DIR / filename
-        content = _read_text(path)
+        content = read_text(path)
         assert len(content.strip()) > 100, f"docs/{filename} appears empty or too short"
 
     @pytest.mark.parametrize("filename", EXPECTED_DOC_FILES)
     def test_doc_file_valid_markdown(self, filename: str) -> None:
         """Each doc file has valid markdown (starts with heading, no broken headers)."""
         path = DOCS_DIR / filename
-        content = _read_text(path)
+        content = read_text(path)
         lines = content.strip().split("\n")
         assert lines[0].startswith("# "), (
             f"docs/{filename} does not start with a level-1 heading"
@@ -100,7 +92,7 @@ class TestDocsIndex:
 
     def test_readme_links_to_all_docs(self) -> None:
         """README.md contains links to every file in docs/."""
-        readme_content = _read_text(README_PATH)
+        readme_content = read_text(README_PATH)
         existing_docs = sorted(p.name for p in DOCS_DIR.glob("*.md"))
         for doc_name in existing_docs:
             link_target = f"docs/{doc_name}"
@@ -131,7 +123,7 @@ class TestCliCompleteness:
 
     def test_all_cli_commands_documented(self) -> None:
         """Every CLI command in the codebase appears in docs/cli.md."""
-        cli_doc = _read_text(DOCS_DIR / "cli.md")
+        cli_doc = read_text(DOCS_DIR / "cli.md")
         for command in self._get_registered_commands():
             assert command in cli_doc, (
                 f"CLI command '{command}' not found in docs/cli.md"
@@ -145,7 +137,7 @@ class TestGeneratorCompleteness:
         """Every generator in the registry appears in docs/generators.md."""
         from mathviz.core.generator import list_generators
 
-        gen_doc = _read_text(DOCS_DIR / "generators.md")
+        gen_doc = read_text(DOCS_DIR / "generators.md")
         for meta in list_generators():
             assert meta.name in gen_doc, (
                 f"Generator '{meta.name}' not found in docs/generators.md"
@@ -159,7 +151,7 @@ class TestRepresentationCompleteness:
         """Every RepresentationType enum value appears in docs/representation.md."""
         from mathviz.core.representation import RepresentationType
 
-        rep_doc = _read_text(DOCS_DIR / "representation.md")
+        rep_doc = read_text(DOCS_DIR / "representation.md")
         for strategy in RepresentationType:
             assert strategy.value in rep_doc, (
                 f"Representation strategy '{strategy.value}' not found "
