@@ -16,6 +16,8 @@ from pydantic import BaseModel, Field, ValidationError
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import GeneratorMeta, get_generator_meta, list_generators
 from mathviz.preview.cache import CacheEntry, GeometryCache, compute_cache_key
+from mathviz.preview.cache_integration import load_from_disk, store_to_disk
+from mathviz.preview.disk_cache import DiskCache
 from mathviz.preview.executor import GenerationExecutor, get_timeout_seconds
 from mathviz.preview.lod import (
     cloud_to_binary_ply,
@@ -30,6 +32,7 @@ from mathviz.preview.snapshots import save_snapshot
 logger = logging.getLogger(__name__)
 
 _cache = GeometryCache()
+_disk_cache: DiskCache | None = None
 _executor = GenerationExecutor()
 
 
@@ -38,14 +41,28 @@ def get_cache() -> GeometryCache:
     return _cache
 
 
+def get_disk_cache() -> DiskCache:
+    """Return the global disk cache, creating it on first access."""
+    global _disk_cache  # noqa: PLW0603
+    if _disk_cache is None:
+        _disk_cache = DiskCache()
+    return _disk_cache
+
+
 def get_executor() -> GenerationExecutor:
     """Return the global generation executor."""
     return _executor
 
 
 def reset_cache() -> None:
-    """Clear the global cache. Intended for testing only."""
+    """Clear the global memory cache. Intended for testing only."""
     _cache.clear()
+
+
+def set_disk_cache(dc: DiskCache) -> None:
+    """Replace the global disk cache. Intended for testing only."""
+    global _disk_cache  # noqa: PLW0603
+    _disk_cache = dc
 
 
 app = FastAPI(title="MathViz Preview", version="0.1.0")
@@ -100,6 +117,7 @@ class GenerateRequest(BaseModel):
     seed: int = 42
     resolution: dict[str, Any] = Field(default_factory=dict)
     container: ContainerParams | None = None
+    force: bool = False
 
 
 class GenerateResponse(BaseModel):
@@ -272,8 +290,8 @@ def _container_cache_dict(container_params: ContainerParams | None) -> dict[str,
     return container_params.model_dump()
 
 
-@app.post("/api/generate", response_model=GenerateResponse)
-def generate_geometry(req: GenerateRequest) -> GenerateResponse:
+@app.post("/api/generate")
+def generate_geometry(req: GenerateRequest) -> Response:
     """Run the pipeline and cache the result."""
     container = _build_container(req.container)
 
@@ -288,51 +306,101 @@ def generate_geometry(req: GenerateRequest) -> GenerateResponse:
         container_kwargs=_container_cache_dict(req.container),
     )
     cache = get_cache()
-    entry = cache.get(cache_key)
+    disk_cache = get_disk_cache()
+    container_dict = _container_cache_dict(req.container)
 
+    entry, cache_status = _resolve_cached_entry(
+        cache_key, req.force, cache, disk_cache,
+    )
     if entry is None:
-        try:
-            result = _executor.submit(
-                req.generator,
-                params=params,
-                seed=req.seed,
-                resolution_kwargs=resolution,
-                container=container,
-                placement=PlacementPolicy(),
-            )
-        except KeyError:
-            raise _generator_not_found(req.generator)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        except TimeoutError:
-            timeout = get_timeout_seconds()
-            logger.error("Generation timed out after %d seconds", timeout)
-            raise HTTPException(
-                status_code=504,
-                detail=f"Generation timed out after {timeout} seconds",
-            )
-        except CancelledError:
-            raise HTTPException(
-                status_code=499,
-                detail="Generation cancelled",
-            )
-
-        entry = CacheEntry(
-            math_object=result.math_object,
-            generator_name=req.generator,
-            params=req.params,
-            seed=req.seed,
-            resolution_kwargs=req.resolution,
-        )
+        entry = _run_generation(req, params, resolution, container)
         cache.put(cache_key, entry)
+        store_to_disk(cache_key, entry, disk_cache, container_kwargs=container_dict)
+        cache_status = "MISS"
         logger.info("Generated and cached geometry %s", cache_key)
-    else:
-        logger.info("Serving geometry %s from cache", cache_key)
 
     from mathviz.preview.batch_routes import build_geometry_urls
 
     mesh_url, cloud_url = build_geometry_urls(cache_key, entry.math_object)
-    return GenerateResponse(geometry_id=cache_key, mesh_url=mesh_url, cloud_url=cloud_url)
+    body = GenerateResponse(
+        geometry_id=cache_key, mesh_url=mesh_url, cloud_url=cloud_url,
+    )
+    return Response(
+        content=body.model_dump_json(),
+        media_type="application/json",
+        headers={"X-Cache": cache_status},
+    )
+
+
+def _resolve_cached_entry(
+    cache_key: str,
+    force: bool,
+    cache: GeometryCache,
+    disk_cache: DiskCache,
+) -> tuple[CacheEntry | None, str]:
+    """Check memory then disk cache. Returns (entry, cache_status)."""
+    if force:
+        return None, "MISS"
+
+    entry = cache.get(cache_key)
+    if entry is not None:
+        logger.info("Serving geometry %s from memory cache", cache_key)
+        return entry, "HIT"
+
+    disk_entry = disk_cache.get(cache_key)
+    if disk_entry is not None:
+        entry = load_from_disk(cache_key, disk_entry, disk_cache, cache)
+        if entry is not None:
+            logger.info("Serving geometry %s from disk cache", cache_key)
+            return entry, "HIT"
+
+    return None, "MISS"
+
+
+def _run_generation(
+    req: GenerateRequest,
+    params: dict[str, Any] | None,
+    resolution: dict[str, Any] | None,
+    container: Container,
+) -> CacheEntry:
+    """Execute the pipeline and return a CacheEntry."""
+    try:
+        result = _executor.submit(
+            req.generator,
+            params=params,
+            seed=req.seed,
+            resolution_kwargs=resolution,
+            container=container,
+            placement=PlacementPolicy(),
+        )
+    except KeyError:
+        raise _generator_not_found(req.generator)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except TimeoutError:
+        timeout = get_timeout_seconds()
+        logger.error("Generation timed out after %d seconds", timeout)
+        raise HTTPException(
+            status_code=504,
+            detail=f"Generation timed out after {timeout} seconds",
+        )
+    except CancelledError:
+        raise HTTPException(status_code=499, detail="Generation cancelled")
+    return CacheEntry(
+        math_object=result.math_object,
+        generator_name=req.generator,
+        params=req.params,
+        seed=req.seed,
+        resolution_kwargs=req.resolution,
+    )
+
+
+@app.post("/api/cache/clear")
+def clear_cache() -> dict[str, Any]:
+    """Clear all cached entries (memory and disk)."""
+    get_cache().clear()
+    count = get_disk_cache().clear()
+    return {"status": "ok", "entries_removed": count}
 
 
 @app.post("/api/generate/cancel")

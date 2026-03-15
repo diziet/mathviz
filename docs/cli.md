@@ -126,6 +126,27 @@ mathviz benchmark --runs 1 --output results.html
 mathviz benchmark --workers 2
 ```
 
+## cache clear
+
+Remove all cached generation results from the disk cache. The cache
+stores serialized geometry files (GLB, PLY) to avoid re-running the
+pipeline for identical requests.
+
+```bash
+mathviz cache clear [OPTIONS]
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `--verbose` | flag | | Enable debug logging |
+| `--quiet` | flag | | Suppress non-error output |
+
+Example:
+
+```bash
+mathviz cache clear
+```
+
 ## validate
 
 Generate and validate without exporting. Runs the pipeline through the

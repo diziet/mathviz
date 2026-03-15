@@ -259,6 +259,22 @@ canvas{display:block}
   position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   color:#aaa;font-size:12px;display:none;z-index:10;pointer-events:none;
 }
+
+/* Cache badge */
+#cache-badge{
+  display:inline-block;padding:2px 8px;border-radius:4px;
+  background:rgba(34,139,34,0.8);color:#fff;font-size:11px;
+  font-weight:600;margin-left:8px;opacity:0;transition:opacity 0.3s;
+  vertical-align:middle;
+}
+#cache-badge.visible{opacity:1}
+
+/* Regenerate button */
+#regenerate-btn{
+  padding:4px 10px;border:1px solid #666;border-radius:4px;
+  background:transparent;color:inherit;cursor:pointer;font-size:12px;
+}
+#regenerate-btn:hover{background:rgba(128,128,128,0.3)}
 </style>
 </head>
 <body>
@@ -355,12 +371,13 @@ canvas{display:block}
       </select>
     </div>
 
+    <button id="regenerate-btn" title="Force regenerate (bypass cache)">Regenerate</button>
     <button id="reset-view-btn" disabled>Reset View</button>
     <button id="screenshot-btn">Screenshot</button>
   </div>
 
   <div id="info-panel">
-    <div id="info-generator">Generator: —</div>
+    <div id="info-generator">Generator: —<span id="cache-badge">Cached</span></div>
     <div id="info-vertices">Vertices: —</div>
     <div id="info-faces">Faces: —</div>
     <div id="info-points">Points: —</div>
@@ -793,13 +810,27 @@ document.getElementById('cancel-btn').addEventListener('click', async () => {
   updateInfo({generator: 'Generation cancelled'});
 });
 
+/* ── Cache badge ── */
+const cacheBadge = document.getElementById('cache-badge');
+function showCacheBadge(isHit) {
+  if (isHit) {
+    cacheBadge.classList.add('visible');
+  } else {
+    cacheBadge.classList.remove('visible');
+  }
+}
+function updateCacheStatus(resp) {
+  showCacheBadge(resp.headers.get('X-Cache') === 'HIT');
+}
+
 /* ── Loading workflows ── */
-async function loadFromAPI(generator, genParams, seed) {
-  showLoading('Generating...');
+async function loadFromAPI(generator, genParams, seed, force) {
+  showLoading(force ? 'Regenerating...' : 'Generating...');
   _cancelController = new AbortController();
 
   try {
     const body = {generator, params: genParams, seed, container: getContainerParams()};
+    if (force) body.force = true;
     const resp = await fetch('/api/generate', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -810,6 +841,7 @@ async function loadFromAPI(generator, genParams, seed) {
       const errData = await resp.json().catch(() => null);
       throw new Error(extractErrorMessage(errData, resp.status));
     }
+    updateCacheStatus(resp);
     const data = await resp.json();
     state.geometryId = data.geometry_id;
     state.generatedWith = {generator, params: genParams, seed, container: body.container};
@@ -1213,6 +1245,13 @@ document.addEventListener('keydown', (e) => {
       || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
   e.preventDefault();
   resetView();
+});
+
+document.getElementById('regenerate-btn').addEventListener('click', () => {
+  const gen = document.getElementById('generator-search').value;
+  if (!gen) return;
+  const seed = parseSeed();
+  loadFromAPI(gen, getEditorParams ? getEditorParams() : {}, seed, true);
 });
 
 document.getElementById('screenshot-btn').addEventListener('click', () => {
@@ -1859,6 +1898,7 @@ async function applyParams() {
       paramError.style.display = 'block';
       return;
     }
+    updateCacheStatus(resp);
     const data = await resp.json();
     await displayGenerateResult(data, currentGen);
   } catch (err) {
