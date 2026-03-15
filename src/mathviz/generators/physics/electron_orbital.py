@@ -3,7 +3,7 @@
 Computes probability density isosurfaces |ψ(r,θ,φ)|² for hydrogen atom
 wavefunctions using the radial function R_nl(r) and spherical harmonics
 Y_lm(θ,φ). Different (n,l,m) quantum numbers produce iconic orbital shapes:
-(1,0,0) = sphere, (2,1,0) = dumbbell, (3,2,0) = cloverleaf.
+(1,0,0) = sphere, (2,1,0) = dumbbell, (3,2,0) = dz² (dumbbell with torus).
 """
 
 import logging
@@ -95,7 +95,11 @@ def _compute_probability_density(
 
 @register
 class ElectronOrbitalGenerator(GeneratorBase):
-    """Hydrogen atom electron orbital probability density isosurface."""
+    """Hydrogen atom electron orbital probability density isosurface.
+
+    Fully deterministic — seed is accepted for interface conformance
+    but does not affect output.
+    """
 
     name = "electron_orbital"
     category = "physics"
@@ -118,7 +122,12 @@ class ElectronOrbitalGenerator(GeneratorBase):
         }
 
     def get_param_ranges(self) -> dict[str, dict[str, float]]:
-        """Return exploration ranges for orbital parameters."""
+        """Return exploration ranges for orbital parameters.
+
+        Quantum numbers are interdependent: l must be < n and |m| must
+        be <= l. Callers should use ``get_valid_param_combinations()``
+        to enumerate only valid (n, l, m) tuples.
+        """
         return {
             "n": {"min": 1, "max": 4, "step": 1},
             "l": {"min": 0, "max": 3, "step": 1},
@@ -126,13 +135,29 @@ class ElectronOrbitalGenerator(GeneratorBase):
             "iso_level": {"min": 0.001, "max": 0.1, "step": 0.001},
         }
 
+    @staticmethod
+    def get_valid_param_combinations(
+        max_n: int = 4,
+    ) -> list[tuple[int, int, int]]:
+        """Return all valid (n, l, m) tuples up to principal number max_n."""
+        combos: list[tuple[int, int, int]] = []
+        for n in range(1, max_n + 1):
+            for l in range(n):
+                for m in range(-l, l + 1):
+                    combos.append((n, l, m))
+        return combos
+
     def generate(
         self,
         params: dict[str, Any] | None = None,
         seed: int = 42,
         **resolution_kwargs: Any,
     ) -> MathObject:
-        """Generate an electron orbital isosurface mesh."""
+        """Generate an electron orbital isosurface mesh.
+
+        Note: seed is accepted for interface conformance but does not affect
+        output — the orbital is fully determined by the quantum numbers.
+        """
         merged = self.get_default_params()
         if params:
             merged.update(params)

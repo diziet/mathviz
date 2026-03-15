@@ -199,11 +199,11 @@ class TestDeterminism:
         np.testing.assert_array_equal(obj1.mesh.faces, obj2.mesh.faces)
 
 
-class TestCloverleafOrbital:
-    """(3,2,0) d-orbital produces a cloverleaf shape."""
+class TestDzSquaredOrbital:
+    """(3,2,0) d_z² orbital produces a dumbbell-with-torus shape."""
 
     def test_d_orbital_has_mesh(self, gen: ElectronOrbitalGenerator) -> None:
-        """The 3d0 orbital generates a valid mesh."""
+        """The 3d0 (dz²) orbital generates a valid mesh."""
         obj = gen.generate(
             params={"n": 3, "l": 2, "m": 0},
             voxel_resolution=_TEST_VOXEL_RES,
@@ -212,3 +212,23 @@ class TestCloverleafOrbital:
         assert obj.mesh is not None
         assert len(obj.mesh.vertices) > 100
         assert len(obj.mesh.faces) > 100
+
+
+class TestValidParamCombinations:
+    """get_valid_param_combinations enumerates only valid quantum numbers."""
+
+    def test_all_combos_are_valid(
+        self, gen: ElectronOrbitalGenerator
+    ) -> None:
+        """Every returned (n,l,m) tuple satisfies quantum number rules."""
+        combos = gen.get_valid_param_combinations(max_n=4)
+        for n, l, m in combos:
+            assert 1 <= n <= 4
+            assert 0 <= l < n
+            assert abs(m) <= l
+
+    def test_combo_count(self, gen: ElectronOrbitalGenerator) -> None:
+        """n=1..4 should yield exactly 30 valid combinations."""
+        combos = gen.get_valid_param_combinations(max_n=4)
+        # n=1: 1, n=2: 4, n=3: 9, n=4: 16 → total 30
+        assert len(combos) == 30
