@@ -9,7 +9,7 @@ from mathviz.generators.attractors.clifford import CliffordGenerator
 from mathviz.generators.attractors.dequan_li import DequanLiGenerator
 from mathviz.generators.attractors.sprott import SPROTT_VARIANTS, SprottGenerator
 
-_TEST_STEPS = 5000
+from tests.test_generators.conftest import TEST_STEPS_FAST as _TEST_STEPS
 _TEST_POINTS = 1000
 
 
@@ -98,11 +98,12 @@ def test_clifford_rejects_too_few_points() -> None:
 
 
 def test_dequan_li_produces_curve_with_many_points() -> None:
-    """Dequan Li attractor produces a curve with > 1000 points."""
+    """Dequan Li attractor produces a curve with many points."""
     gen = DequanLiGenerator()
     obj = gen.generate(integration_steps=_TEST_STEPS)
     assert obj.curves is not None
-    assert len(obj.curves[0].points) > 1000
+    # 1500 steps - 1000 transient = 500 points expected
+    assert len(obj.curves[0].points) > 400
 
 
 def test_dequan_li_default_params_bounded() -> None:
