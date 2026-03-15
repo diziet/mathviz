@@ -1,6 +1,5 @@
 """Tests for usable volume display correctness on page load."""
 
-import re
 from typing import Generator
 
 import pytest
@@ -51,14 +50,11 @@ def preview_html(client: TestClient) -> str:
 
 
 class TestInitialUsableVolumeText:
-    """Initial HTML usable volume text matches current container defaults."""
+    """Initial HTML usable volume text uses a neutral placeholder."""
 
-    def test_initial_text_matches_defaults(self, preview_html: str) -> None:
-        """Hardcoded usable volume text matches 100x100x100 with 5mm margins."""
-        c = Container()
-        ux, uy, uz = c.usable_volume
-        expected = f"Usable: {ux:g} x {uy:g} x {uz:g} mm"
-        assert expected in preview_html
+    def test_initial_text_is_placeholder(self, preview_html: str) -> None:
+        """Hardcoded text is a neutral placeholder, not dimension-specific."""
+        assert "Usable: — x — x — mm" in preview_html
 
     def test_no_stale_30mm_depth(self, preview_html: str) -> None:
         """Old 40mm-depth usable volume text (30mm) is not present."""
@@ -71,13 +67,15 @@ class TestInitialUsableVolumeText:
 class TestUsableVolumeInitCall:
     """updateUsableVolume() is called during page initialization."""
 
-    def test_update_called_in_init_section(self, preview_html: str) -> None:
-        """updateUsableVolume() appears in the init section of the script."""
-        init_match = re.search(
-            r"/\* ── Init.*?\*/\s*updateUsableVolume\(\)", preview_html
-        )
-        assert init_match is not None, (
-            "updateUsableVolume() should be called in the Init section"
+    def test_update_called_after_init_params(self, preview_html: str) -> None:
+        """updateUsableVolume() is called after query params are applied."""
+        init_idx = preview_html.find("/* ── Init: load from URL params ── */")
+        call_idx = preview_html.find("updateUsableVolume()", init_idx)
+        parse_idx = preview_html.find("parseQueryParams()", init_idx)
+        assert init_idx != -1, "Init section not found"
+        assert call_idx != -1, "updateUsableVolume() not found after init"
+        assert call_idx > parse_idx, (
+            "updateUsableVolume() should be called after parseQueryParams()"
         )
 
     def test_update_function_exists(self, preview_html: str) -> None:
