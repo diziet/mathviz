@@ -4768,3 +4768,213 @@ Two related features for the preview UI:
   bounding box
 - Scale values persist across regeneration
 - Bounding box is not affected by stretch values
+
+---
+
+## Task 117: Generator thumbnail endpoint with persistent disk cache
+
+**Objective:**
+
+Add a server endpoint that generates and caches preview thumbnails for
+each generator. This is the backend prerequisite for the visual generator
+browser (Tasks 118–119).
+
+**Suggested path:**
+
+1. **Endpoint**: `GET /api/generators/{name}/thumbnail?view_mode=points`
+   returns a 256×256 PNG thumbnail of the generator rendered with default
+   parameters. The `view_mode` query param selects the rendering style
+   (points, shaded, wireframe). Defaults to points if omitted.
+
+2. **Generation flow**: On a cache miss, the endpoint runs the generator
+   with default params at a low resolution (e.g. half the default
+   `voxel_resolution` or `curve_points`), converts to geometry, renders
+   a small preview image, and returns it as `image/png`.
+
+3. **Rendering**: Use Three.js on the client side or PyVista server-side.
+   Client-side is preferred for consistency with the main view — the
+   endpoint can return geometry and let the client render thumbnails via
+   an offscreen canvas. Alternatively, server-side rendering via PyVista
+   produces a PNG directly. Choose whichever is simpler; the key
+   requirement is that thumbnails use the same lighting/materials as the
+   main view and look polished.
+
+4. **Persistent disk cache**: Store rendered thumbnails at
+   `~/.mathviz/thumbnails/<view_mode>/<generator_name>.png`. Keyed by
+   generator name + view mode. Cache survives server restarts.
+
+5. **Cache invalidation**: Changing view mode requests a different cache
+   key, so each mode has its own set of thumbnails. Add a
+   `DELETE /api/thumbnails` endpoint to clear all cached thumbnails.
+
+6. **Batch endpoint**: `GET /api/generators/thumbnails?view_mode=points`
+   returns a JSON map of `{generator_name: thumbnail_url}` for all
+   generators, triggering background generation for any missing
+   thumbnails. This lets the browser modal pre-fetch all thumbnails
+   efficiently.
+
+**Files:**
+
+- `src/mathviz/preview/server.py` (thumbnail endpoint)
+- `src/mathviz/preview/thumbnails.py` (thumbnail generation + caching logic)
+
+**Tests:** `tests/test_preview/test_thumbnails.py`
+
+- Thumbnail endpoint returns a valid PNG for known generators
+- Thumbnail endpoint returns 404 for unknown generators
+- Same request twice serves from disk cache (second call is fast)
+- Different `view_mode` values produce different cached files
+- `DELETE /api/thumbnails` clears all cached thumbnails
+- Batch endpoint returns URLs for all registered generators
+- Thumbnails are stored at the expected disk path
+
+---
+
+## Task 118: Visual generator browser modal with category grid
+
+**Objective:**
+
+Add a near-fullscreen visual browser modal that replaces the type-ahead
+generator dropdown. Users can visually browse generators organized by
+category, each with a thumbnail preview. Depends on Task 117 (thumbnail
+endpoint).
+
+**Layout:**
+
+- **Opening**: Clicking the generator selector input or pressing `Cmd+K`
+  opens the browser modal, covering ~95% of the viewport. Dark backdrop
+  with blur, large rounded panel.
+
+- **Top bar**: Search input (auto-focused on open) + close button (X).
+  The search input replaces the old type-ahead — typing filters results
+  in real-time.
+
+- **Category grid** (default view): A responsive grid (roughly 4×3 for
+  12 categories) showing all categories. Each category card shows:
+  - Category name and generator count (e.g. "Parametric (15)")
+  - Thumbnails of up to 3 representative generators as a preview strip
+  - Shortcut number (1–12) displayed in the corner
+
+- **Category detail view**: Clicking a category (or pressing its shortcut
+  number) transitions to a grid of all generators in that category (e.g.
+  3×5 for parametric's 15 items). Each generator card shows:
+  - Generator name
+  - Single thumbnail rendered with current view mode
+  - Shortcut number within the category
+
+- **Selecting a generator**: Clicking a generator card closes the modal
+  and loads that generator into the main preview view with default params.
+
+- **Back navigation**: Backspace or clicking a "Back to categories" link
+  returns from category detail to the category grid. Escape from the
+  category grid closes the modal entirely.
+
+- **Search mode**: When typing in the search bar, the category grid is
+  replaced by a flat filtered list of matching generators across all
+  categories, each with its thumbnail. Clicking a result loads it.
+
+**Suggested path:**
+
+1. Replace `#generator-search` input click behavior to open the browser
+   modal instead of showing the old dropdown. Keep the input visible as
+   a display of the currently selected generator.
+
+2. Build the modal as `<div id="generator-browser">` overlay, structured
+   like `#snapshot-gallery` but larger (95% viewport).
+
+3. Populate dynamically from `GET /api/generators` grouped by category.
+   Sort categories alphabetically, generators alphabetically within each.
+
+4. Lazy-load thumbnail `<img>` tags from the Task 117 thumbnail endpoint.
+   Show a CSS placeholder (gray box with spinner) until loaded.
+
+5. Implement a two-level navigation state machine in JS:
+   `browsing_categories` → `browsing_generators_in_category`.
+
+6. Search filtering: on input, fetch all generators (cached client-side),
+   filter by name/category substring match, display flat grid.
+
+**Files:**
+
+- `src/mathviz/static/index.html`
+
+**Tests:** `tests/test_preview/test_generator_browser.py`
+
+- Cmd+K opens the browser modal
+- Browser shows all categories in a grid
+- Each category card shows name, count, and thumbnail previews
+- Clicking a category shows its generators in a sub-grid
+- Clicking a generator loads it and closes the modal
+- Search input filters generators across all categories
+- Escape closes the modal from category grid view
+- Back navigation returns from category detail to category grid
+- Currently selected generator is highlighted if visible
+- Modal populates dynamically from the generators API
+
+---
+
+## Task 119: Generator browser keyboard navigation and shortcuts
+
+**Objective:**
+
+Add full keyboard navigation to the generator browser modal (Task 118).
+Users should be able to open, browse, select, and load generators entirely
+via keyboard. Depends on Task 118.
+
+**Keyboard shortcuts:**
+
+- `Cmd+K`: Open browser (global shortcut, works when modal is closed)
+- `Escape`: Close modal (from category grid) or go back (from category
+  detail to category grid)
+- `1`–`9`, `0` (for 10th item): Select category or generator by position
+  number. When browsing categories, pressing `3` opens the 3rd category.
+  When browsing generators within a category, pressing `5` selects the
+  5th generator.
+- Items beyond 10: type two digits quickly (e.g. `1` then `2` within
+  500ms selects the 12th item). If only one digit is typed and 500ms
+  elapses, select that single-digit item.
+- `Arrow keys`: Move focus/highlight through the grid (left, right, up,
+  down wrap at grid edges)
+- `Enter`: Open the focused category or load the focused generator
+- `Backspace`: Go back from category detail to category grid
+
+**Suggested path:**
+
+1. Track focus state: `focusedIndex` (which card is highlighted) and
+   `browserLevel` (categories vs generators).
+
+2. Add a visible focus indicator (border highlight or glow) on the
+   currently focused card. Update on arrow key navigation.
+
+3. Implement number key handler with a 500ms timeout for two-digit
+   input. First digit starts a timer; if a second digit arrives within
+   500ms, combine them (e.g. `1` + `2` = 12). Otherwise, use the
+   single digit.
+
+4. `Enter` on a focused category card transitions to that category's
+   generator grid. `Enter` on a focused generator card loads it.
+
+5. Arrow key grid navigation: calculate row/column from `focusedIndex`
+   and grid width, move accordingly, wrap at edges.
+
+6. Ensure keyboard navigation works alongside mouse — clicking a card
+   also updates `focusedIndex`. Search input typing should not trigger
+   number shortcuts (only activate shortcuts when search input is not
+   focused, or use a modifier).
+
+**Files:**
+
+- `src/mathviz/static/index.html`
+
+**Tests:** `tests/test_preview/test_browser_keyboard.py`
+
+- Cmd+K opens the browser modal
+- Number keys select categories by position
+- Number keys select generators within a category
+- Two-digit input (e.g. `1` `2` within 500ms) selects item 12
+- Arrow keys move focus through the grid
+- Enter opens focused category or loads focused generator
+- Escape goes back from category detail, closes from category grid
+- Backspace goes back from category detail to category grid
+- Keyboard navigation does not trigger while search input is focused
+- Focus indicator is visible on the currently highlighted card
