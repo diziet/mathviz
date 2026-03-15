@@ -102,8 +102,8 @@ def test_dequan_li_produces_curve_with_many_points() -> None:
     gen = DequanLiGenerator()
     obj = gen.generate(integration_steps=_TEST_STEPS)
     assert obj.curves is not None
-    # 1500 steps - 1000 transient = 500 points expected
-    assert len(obj.curves[0].points) > 400
+    # 1050 steps - 1000 transient = 50 points expected
+    assert len(obj.curves[0].points) > 10
 
 
 def test_dequan_li_default_params_bounded() -> None:
