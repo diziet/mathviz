@@ -231,3 +231,12 @@ class TestValidation:
         """num_sources above maximum raises ValueError."""
         with pytest.raises(ValueError, match="num_sources must be <="):
             gen.generate(params={"num_sources": 100})
+
+    def test_iso_level_ge_one_raises(
+        self, gen: WaveInterferenceGenerator
+    ) -> None:
+        """iso_level >= 1.0 raises ValueError (field normalized to [-1,1])."""
+        with pytest.raises(ValueError, match="iso_level must be < 1.0"):
+            gen.generate(params={"iso_level": 1.0})
+        with pytest.raises(ValueError, match="iso_level must be < 1.0"):
+            gen.generate(params={"iso_level": 2.0})

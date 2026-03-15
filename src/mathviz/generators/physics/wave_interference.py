@@ -1,8 +1,8 @@
 """Wave interference pattern generator.
 
 Generates 3D standing wave interference patterns from multiple point sources.
-Computes the superposition of spherical waves A * sin(k*r - ωt + φ) / r at
-each point in a 3D voxel grid, then extracts an isosurface at a threshold
+Computes the superposition of spherical waves sin(k*r - ωt) / r at each
+point in a 3D voxel grid, then extracts an isosurface at a threshold
 amplitude via marching cubes.
 """
 
@@ -64,6 +64,11 @@ def _validate_params(
         )
     if iso_level <= 0:
         raise ValueError(f"iso_level must be > 0, got {iso_level}")
+    if iso_level >= 1.0:
+        raise ValueError(
+            f"iso_level must be < 1.0 (field is normalized to [-1, 1]), "
+            f"got {iso_level}"
+        )
 
 
 def _place_sources(
@@ -108,12 +113,23 @@ def _compute_wave_field(
     x, y, z = np.meshgrid(coords, coords, coords, indexing="ij")
 
     field = np.zeros_like(x)
+    r = np.empty_like(x)
+    tmp = np.empty_like(x)
     for source in sources:
-        dx = x - source[0]
-        dy = y - source[1]
-        dz = z - source[2]
-        r = np.sqrt(dx**2 + dy**2 + dz**2 + _SOFTENING)
-        field += np.sin(k * r - omega * time) / r
+        np.subtract(x, source[0], out=r)
+        np.multiply(r, r, out=r)
+        np.subtract(y, source[1], out=tmp)
+        r += tmp * tmp
+        np.subtract(z, source[2], out=tmp)
+        r += tmp * tmp
+        r += _SOFTENING
+        np.sqrt(r, out=r)
+        # sin(k*r - omega*time) / r
+        np.multiply(r, k, out=tmp)
+        tmp -= omega * time
+        np.sin(tmp, out=tmp)
+        tmp /= r
+        field += tmp
 
     bounds = SpatialBounds(
         min_corner=(-grid_extent, -grid_extent, -grid_extent),
@@ -165,7 +181,10 @@ class WaveInterferenceGenerator(GeneratorBase):
         iso_level = float(merged["iso_level"])
         time = float(merged["time"])
         voxel_resolution = int(
-            resolution_kwargs.get("voxel_resolution", _DEFAULT_VOXEL_RESOLUTION)
+            resolution_kwargs.get(
+                "voxel_resolution",
+                self._resolution_defaults["voxel_resolution"],
+            )
         )
 
         _validate_params(
@@ -186,9 +205,9 @@ class WaveInterferenceGenerator(GeneratorBase):
         )
 
         # Normalize field for consistent iso_level interpretation
-        max_abs = np.max(np.abs(field))
+        max_abs = max(float(field.max()), float(-field.min()))
         if max_abs > 0:
-            field = field / max_abs
+            field /= max_abs
 
         mesh = extract_mesh(field, bounds, isolevel=iso_level)
         bbox = BoundingBox(
