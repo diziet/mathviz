@@ -698,7 +698,6 @@ Triply periodic gyroid minimal surface.
 
 | Parameter | Default | Description |
 |---|---|---|
-| `cell_size` | 1.0 | Unit cell size |
 | `periods` | 2 | Number of repeating periods |
 
 ```bash
@@ -711,7 +710,6 @@ Triply periodic Schwarz D (Diamond) minimal surface.
 
 | Parameter | Default | Description |
 |---|---|---|
-| `cell_size` | 1.0 | Unit cell size |
 | `periods` | 2 | Number of repeating periods |
 
 ```bash
@@ -724,7 +722,6 @@ Triply periodic Schwarz P (Primitive) minimal surface.
 
 | Parameter | Default | Description |
 |---|---|---|
-| `cell_size` | 1.0 | Unit cell size |
 | `periods` | 2 | Number of repeating periods |
 
 ```bash

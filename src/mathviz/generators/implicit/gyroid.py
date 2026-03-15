@@ -20,7 +20,6 @@ from mathviz.shared.marching_cubes import SpatialBounds, extract_mesh
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_CELL_SIZE = 1.0
 _DEFAULT_PERIODS = 2
 _DEFAULT_VOXEL_RESOLUTION = 128
 _MIN_VOXEL_RESOLUTION = 4
@@ -50,9 +49,9 @@ def _evaluate_gyroid_field(
     return field
 
 
-def _compute_bounds(cell_size: float, periods: int) -> SpatialBounds:
+def _compute_bounds(periods: int) -> SpatialBounds:
     """Compute spatial bounds for the given number of periods."""
-    extent = cell_size * periods * 2 * np.pi
+    extent = periods * 2 * np.pi
     half = extent / 2.0
     return SpatialBounds(
         min_corner=(-half, -half, -half),
@@ -68,12 +67,8 @@ def _compute_bounding_box(bounds: SpatialBounds) -> BoundingBox:
     )
 
 
-def _validate_params(
-    cell_size: float, periods: int, voxel_resolution: int,
-) -> None:
+def _validate_params(periods: int, voxel_resolution: int) -> None:
     """Validate gyroid parameters, raising ValueError for invalid inputs."""
-    if cell_size <= 0:
-        raise ValueError(f"cell_size must be positive, got {cell_size}")
     if periods < _MIN_PERIODS:
         raise ValueError(
             f"periods must be >= {_MIN_PERIODS}, got {periods}"
@@ -94,7 +89,7 @@ class GyroidGenerator(GeneratorBase):
     marching cubes. Cost is O(N³) in voxel_resolution.
 
     Seed has no effect on output; the gyroid is fully deterministic
-    for given cell_size, periods, and voxel_resolution.
+    for given periods and voxel_resolution.
     """
 
     name = "gyroid"
@@ -109,7 +104,6 @@ class GyroidGenerator(GeneratorBase):
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for the gyroid generator."""
         return {
-            "cell_size": _DEFAULT_CELL_SIZE,
             "periods": _DEFAULT_PERIODS,
         }
 
@@ -124,26 +118,28 @@ class GyroidGenerator(GeneratorBase):
         if params:
             merged.update(params)
 
-        cell_size = float(merged["cell_size"])
+        # Silently ignore cell_size if passed (removed parameter)
+        merged.pop("cell_size", None)
+
         periods = int(merged["periods"])
         voxel_resolution = int(
             resolution_kwargs.get("voxel_resolution", _DEFAULT_VOXEL_RESOLUTION)
         )
 
-        _validate_params(cell_size, periods, voxel_resolution)
+        _validate_params(periods, voxel_resolution)
 
         # Record voxel_resolution so output is self-describing
         merged["voxel_resolution"] = voxel_resolution
 
-        bounds = _compute_bounds(cell_size, periods)
+        bounds = _compute_bounds(periods)
         field = _evaluate_gyroid_field(voxel_resolution, bounds)
         mesh = extract_mesh(field, bounds, isolevel=0.0)
         bbox = _compute_bounding_box(bounds)
 
         logger.info(
-            "Generated gyroid: cell_size=%.3f, periods=%d, "
-            "voxel_resolution=%d, vertices=%d, faces=%d",
-            cell_size, periods, voxel_resolution,
+            "Generated gyroid: periods=%d, voxel_resolution=%d, "
+            "vertices=%d, faces=%d",
+            periods, voxel_resolution,
             len(mesh.vertices), len(mesh.faces),
         )
 

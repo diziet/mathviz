@@ -23,7 +23,7 @@ class SchwarzPGenerator(TPMSGeneratorBase):
     voxel grid and extracts the isosurface via marching cubes.
 
     Seed has no effect on output; the surface is fully deterministic
-    for given cell_size, periods, and voxel_resolution.
+    for given periods and voxel_resolution.
     """
 
     name = "schwarz_p"

@@ -78,20 +78,20 @@ def test_more_periods_increases_face_count(gyroid: GyroidGenerator) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Bounding box extent is proportional to periods × cell_size
+# Bounding box extent is proportional to periods
 # ---------------------------------------------------------------------------
 
 
-def test_bounding_box_proportional_to_periods_and_cell_size(
+def test_bounding_box_proportional_to_periods(
     gyroid: GyroidGenerator,
 ) -> None:
-    """Bounding box extent scales with periods * cell_size."""
+    """Bounding box extent scales with periods."""
     obj_small = gyroid.generate(
-        params={"periods": 1, "cell_size": 1.0},
+        params={"periods": 1},
         voxel_resolution=_TEST_VOXEL_RESOLUTION,
     )
     obj_large = gyroid.generate(
-        params={"periods": 2, "cell_size": 1.0},
+        params={"periods": 2},
         voxel_resolution=_TEST_VOXEL_RESOLUTION,
     )
 
@@ -104,24 +104,6 @@ def test_bounding_box_proportional_to_periods_and_cell_size(
     # periods=2 should be exactly 2x the extent of periods=1
     ratio = large_extent / small_extent
     np.testing.assert_allclose(ratio, 2.0, rtol=1e-10)
-
-
-def test_bounding_box_scales_with_cell_size(
-    gyroid: GyroidGenerator,
-) -> None:
-    """Bounding box extent scales with cell_size."""
-    obj_1 = gyroid.generate(
-        params={"cell_size": 0.5, "periods": 1},
-        voxel_resolution=_TEST_VOXEL_RESOLUTION,
-    )
-    obj_2 = gyroid.generate(
-        params={"cell_size": 1.5, "periods": 1},
-        voxel_resolution=_TEST_VOXEL_RESOLUTION,
-    )
-
-    assert obj_1.bounding_box is not None and obj_2.bounding_box is not None
-    ratio = np.array(obj_2.bounding_box.size) / np.array(obj_1.bounding_box.size)
-    np.testing.assert_allclose(ratio, 3.0, rtol=1e-10)
 
 
 # ---------------------------------------------------------------------------
@@ -183,7 +165,7 @@ def test_metadata_recorded(gyroid: GyroidGenerator) -> None:
     obj = gyroid.generate(voxel_resolution=_TEST_VOXEL_RESOLUTION)
     assert obj.generator_name == "gyroid"
     assert obj.category == "implicit"
-    assert obj.parameters["cell_size"] == 1.0
+    assert "cell_size" not in obj.parameters
     assert obj.parameters["periods"] == 2
     assert obj.parameters["voxel_resolution"] == _TEST_VOXEL_RESOLUTION
 
@@ -233,16 +215,23 @@ def test_determinism_with_seed(gyroid: GyroidGenerator) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_negative_cell_size_raises(gyroid: GyroidGenerator) -> None:
-    """Negative cell_size raises ValueError."""
-    with pytest.raises(ValueError, match="cell_size must be positive"):
-        gyroid.generate(params={"cell_size": -1.0})
+def test_cell_size_param_ignored_gracefully(gyroid: GyroidGenerator) -> None:
+    """Passing cell_size as a parameter is silently ignored."""
+    obj = gyroid.generate(
+        params={"cell_size": 2.0, "periods": 1},
+        voxel_resolution=_TEST_VOXEL_RESOLUTION,
+    )
+    obj.validate_or_raise()
+    assert obj.mesh is not None
+    assert len(obj.mesh.vertices) > 0
+    assert "cell_size" not in obj.parameters
 
 
-def test_zero_cell_size_raises(gyroid: GyroidGenerator) -> None:
-    """Zero cell_size raises ValueError."""
-    with pytest.raises(ValueError, match="cell_size must be positive"):
-        gyroid.generate(params={"cell_size": 0.0})
+def test_default_params_no_cell_size(gyroid: GyroidGenerator) -> None:
+    """Default params dict does not contain cell_size."""
+    defaults = gyroid.get_default_params()
+    assert "cell_size" not in defaults
+    assert "periods" in defaults
 
 
 def test_zero_periods_raises(gyroid: GyroidGenerator) -> None:

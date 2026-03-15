@@ -1,7 +1,7 @@
 """Shared base class for triply periodic minimal surface (TPMS) generators.
 
-All TPMS generators share the same parameters (cell_size, periods,
-voxel_resolution), bounds computation, validation, and generate() orchestration.
+All TPMS generators share the same parameters (periods, voxel_resolution),
+bounds computation, validation, and generate() orchestration.
 Each subclass only needs to supply its unique scalar field evaluation function.
 """
 
@@ -18,16 +18,15 @@ from mathviz.shared.marching_cubes import SpatialBounds, bounds_to_bbox, extract
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CELL_SIZE = 1.0
 DEFAULT_PERIODS = 2
 DEFAULT_VOXEL_RESOLUTION = 128
 MIN_VOXEL_RESOLUTION = 4
 MIN_PERIODS = 1
 
 
-def compute_tpms_bounds(cell_size: float, periods: int) -> SpatialBounds:
+def compute_tpms_bounds(periods: int) -> SpatialBounds:
     """Compute cubic spatial bounds for the given number of TPMS periods."""
-    extent = cell_size * periods * 2 * np.pi
+    extent = periods * 2 * np.pi
     half = extent / 2.0
     return SpatialBounds(
         min_corner=(-half, -half, -half),
@@ -35,12 +34,8 @@ def compute_tpms_bounds(cell_size: float, periods: int) -> SpatialBounds:
     )
 
 
-def validate_tpms_params(
-    cell_size: float, periods: int, voxel_resolution: int,
-) -> None:
+def validate_tpms_params(periods: int, voxel_resolution: int) -> None:
     """Validate TPMS parameters, raising ValueError for invalid inputs."""
-    if cell_size <= 0:
-        raise ValueError(f"cell_size must be positive, got {cell_size}")
     if periods < MIN_PERIODS:
         raise ValueError(
             f"periods must be >= {MIN_PERIODS}, got {periods}"
@@ -53,7 +48,7 @@ def validate_tpms_params(
 
 
 class TPMSGeneratorBase(GeneratorBase):
-    """Base class for TPMS generators sharing cell_size/periods/voxel_resolution.
+    """Base class for TPMS generators sharing periods/voxel_resolution.
 
     Subclasses must implement ``evaluate_field`` to provide the scalar field
     for their specific TPMS equation. All other logic (parameter handling,
@@ -76,7 +71,6 @@ class TPMSGeneratorBase(GeneratorBase):
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for this TPMS generator."""
         return {
-            "cell_size": DEFAULT_CELL_SIZE,
             "periods": DEFAULT_PERIODS,
         }
 
@@ -91,24 +85,26 @@ class TPMSGeneratorBase(GeneratorBase):
         if params:
             merged.update(params)
 
-        cell_size = float(merged["cell_size"])
+        # Silently ignore cell_size if passed (removed parameter)
+        merged.pop("cell_size", None)
+
         periods = int(merged["periods"])
         voxel_resolution = int(
             resolution_kwargs.get("voxel_resolution", DEFAULT_VOXEL_RESOLUTION)
         )
 
-        validate_tpms_params(cell_size, periods, voxel_resolution)
+        validate_tpms_params(periods, voxel_resolution)
         merged["voxel_resolution"] = voxel_resolution
 
-        bounds = compute_tpms_bounds(cell_size, periods)
+        bounds = compute_tpms_bounds(periods)
         field = self.evaluate_field(voxel_resolution, bounds)
         mesh = extract_mesh(field, bounds, isolevel=0.0)
         bbox = bounds_to_bbox(bounds)
 
         logger.info(
-            "Generated %s: cell_size=%.3f, periods=%d, "
-            "voxel_resolution=%d, vertices=%d, faces=%d",
-            self.name, cell_size, periods, voxel_resolution,
+            "Generated %s: periods=%d, voxel_resolution=%d, "
+            "vertices=%d, faces=%d",
+            self.name, periods, voxel_resolution,
             len(mesh.vertices), len(mesh.faces),
         )
 

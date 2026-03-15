@@ -67,6 +67,49 @@ def test_tpms_periods_scale_face_count(gen_cls: type[GeneratorBase]) -> None:
     assert len(obj_3.mesh.faces) > len(obj_1.mesh.faces)
 
 
+@pytest.mark.parametrize("gen_cls", _TPMS_GENERATORS, ids=_TPMS_IDS)
+def test_tpms_default_params_no_cell_size(
+    gen_cls: type[GeneratorBase],
+) -> None:
+    """Default params dict does not contain cell_size."""
+    gen = gen_cls()
+    defaults = gen.get_default_params()
+    assert "cell_size" not in defaults
+    assert "periods" in defaults
+
+
+@pytest.mark.parametrize("gen_cls", _TPMS_GENERATORS, ids=_TPMS_IDS)
+def test_tpms_cell_size_param_ignored(gen_cls: type[GeneratorBase]) -> None:
+    """Passing cell_size as a parameter is silently ignored."""
+    gen = gen_cls()
+    obj = gen.generate(
+        params={"cell_size": 2.0, "periods": 1},
+        voxel_resolution=_TEST_VOXEL_RESOLUTION,
+    )
+    obj.validate_or_raise()
+    assert obj.mesh is not None
+    assert len(obj.mesh.vertices) > 0
+    assert "cell_size" not in obj.parameters
+
+
+@pytest.mark.parametrize("gen_cls", _TPMS_GENERATORS, ids=_TPMS_IDS)
+def test_tpms_periods3_larger_extent_than_periods1(
+    gen_cls: type[GeneratorBase],
+) -> None:
+    """periods=3 produces larger spatial extent than periods=1."""
+    gen = gen_cls()
+    obj_1 = gen.generate(
+        params={"periods": 1}, voxel_resolution=_TEST_VOXEL_RESOLUTION,
+    )
+    obj_3 = gen.generate(
+        params={"periods": 3}, voxel_resolution=_TEST_VOXEL_RESOLUTION,
+    )
+    assert obj_1.bounding_box is not None and obj_3.bounding_box is not None
+    extent_1 = np.array(obj_1.bounding_box.size)
+    extent_3 = np.array(obj_3.bounding_box.size)
+    assert np.all(extent_3 > extent_1)
+
+
 # ===========================================================================
 # Costa surface
 # ===========================================================================
