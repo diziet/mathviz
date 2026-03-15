@@ -393,6 +393,8 @@ const state = {
   pointSize: 2,
   darkBg: true,
   cameraLocked: false,
+  isGenerating: false,
+  generationId: 0,
   autoApply: false,
   geometryId: null,
   generatedWith: null,
@@ -586,6 +588,17 @@ function fitCamera(object3d) {
   controls.update();
 }
 
+/* Update only near/far clipping planes without moving the camera */
+function updateClippingPlanes(object3d) {
+  const box = new THREE.Box3().setFromObject(object3d);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const dist = maxDim * 1.8;
+  camera.near = dist * 0.01;
+  camera.far = dist * 10;
+  camera.updateProjectionMatrix();
+}
+
 /* Save camera state before clearScene when lock is active */
 function saveCameraIfLocked() {
   if (!state.cameraLocked) return null;
@@ -663,9 +676,11 @@ async function displayMesh(url, label) {
   const {group, totalVertices, totalFaces} = await loadMeshFromGLB(url);
   state.meshGroup = group;
   scene.add(group);
-  addBoundingBox(group);
   if (!state.cameraLocked) {
+    addBoundingBox(group);
     fitCamera(group);
+  } else {
+    updateClippingPlanes(group);
   }
   enableResetView();
   updateInfo({generator: label, vertices: totalVertices, faces: totalFaces});
@@ -675,9 +690,11 @@ function displayCloud(points, vertexCount, label) {
   state.cloudPoints = points;
   scene.add(points);
   if (!state.meshGroup) {
-    addBoundingBox(points);
     if (!state.cameraLocked) {
+      addBoundingBox(points);
       fitCamera(points);
+    } else {
+      updateClippingPlanes(points);
     }
     document.getElementById('view-mode').value = 'points';
     state.viewMode = 'points';
@@ -688,18 +705,27 @@ function displayCloud(points, vertexCount, label) {
 
 /* ── Shared display helper ── */
 async function displayGenerateResult(data, generatorName) {
+  state.generationId += 1;
+  const myGenerationId = state.generationId;
+  state.isGenerating = true;
+
   const savedCamera = saveCameraIfLocked();
   clearScene();
   const hasMesh = Boolean(data.mesh_url);
   const hasCloud = Boolean(data.cloud_url);
 
-  if (hasMesh) await displayMesh(data.mesh_url + '?lod=preview', generatorName);
+  if (hasMesh) {
+    await displayMesh(data.mesh_url + '?lod=preview', generatorName);
+    if (myGenerationId !== state.generationId) return;
+  }
   if (hasCloud) {
     const {points, vertexCount} = await loadCloudFromPLY(data.cloud_url + '?lod=preview');
+    if (myGenerationId !== state.generationId) return;
     displayCloud(points, vertexCount, generatorName);
   }
 
   if (!hasMesh && !hasCloud) {
+    state.isGenerating = false;
     applyViewMode();
     return;
   }
@@ -709,6 +735,7 @@ async function displayGenerateResult(data, generatorName) {
   }
   document.getElementById('view-mode').value = state.viewMode;
   restoreCameraIfSaved(savedCamera);
+  state.isGenerating = false;
   applyViewMode();
 }
 
@@ -901,13 +928,18 @@ document.getElementById('toggle-bg').addEventListener('change', (e) => {
 
 document.getElementById('lock-camera').addEventListener('change', (e) => {
   state.cameraLocked = e.target.checked;
+  controls.enabled = !e.target.checked;
+  renderer.domElement.style.cursor = e.target.checked ? 'not-allowed' : '';
 });
 
 /* ── Reset View ── */
 function resetView() {
   const active = state.meshGroup || state.cloudPoints;
   if (!active) return;
+  const wasLocked = state.cameraLocked;
+  if (wasLocked) controls.enabled = true;
   fitCamera(active);
+  if (wasLocked) controls.enabled = false;
 }
 
 resetViewBtn.addEventListener('click', resetView);
