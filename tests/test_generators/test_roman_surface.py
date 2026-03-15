@@ -156,7 +156,10 @@ def test_implicit_equation() -> None:
     equation is numerically stable.
     """
     gen = RomanSurfaceGenerator()
-    obj = gen.generate(grid_resolution=64)
+    obj = gen.generate(
+        params={"separation_epsilon": 0.0},
+        grid_resolution=64,
+    )
     assert obj.mesh is not None
 
     verts = obj.mesh.vertices

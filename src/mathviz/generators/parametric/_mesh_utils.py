@@ -38,6 +38,9 @@ def _compute_vertex_normals(
     return vertex_normals / lengths
 
 
+_COINCIDENCE_THRESHOLD = 1e-8
+
+
 def separate_coincident_vertices(
     vertices: np.ndarray,
     faces: np.ndarray,
@@ -45,16 +48,15 @@ def separate_coincident_vertices(
 ) -> np.ndarray:
     """Offset one vertex in each coincident pair along its face normal.
 
-    Finds vertex pairs closer than ``epsilon * 0.1`` and displaces the
-    higher-indexed vertex by ``epsilon`` along its averaged face normal.
-    Returns a copy of *vertices* with offsets applied; *faces* is unchanged.
+    Finds truly coincident vertex pairs (distance < 1e-8) and displaces
+    the higher-indexed vertex by ``epsilon`` along its averaged face
+    normal. Returns a copy of *vertices*; *faces* is unchanged.
     """
     if epsilon <= 0:
         return vertices.copy()
 
-    threshold = epsilon * 0.1
     tree = cKDTree(vertices)
-    pairs = tree.query_pairs(threshold, output_type="ndarray")
+    pairs = tree.query_pairs(_COINCIDENCE_THRESHOLD, output_type="ndarray")
     if len(pairs) == 0:
         return vertices.copy()
 
@@ -67,7 +69,10 @@ def separate_coincident_vertices(
         if target in displaced:
             continue
         displaced.add(target)
-        result[target] += epsilon * normals[target]
+        normal = normals[target]
+        if np.linalg.norm(normal) < 1e-10:
+            normal = np.array([0.0, 0.0, 1.0])
+        result[target] += epsilon * normal
 
     return result
 

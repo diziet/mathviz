@@ -84,12 +84,15 @@ def _generate_boy_mesh(
     return Mesh(vertices=vertices, faces=faces)
 
 
-def _compute_bounding_box(scale: float) -> BoundingBox:
+def _compute_bounding_box(
+    scale: float, separation_epsilon: float,
+) -> BoundingBox:
     """Compute conservative bounding box for Boy's surface."""
     extent = scale * 4.0
+    pad = separation_epsilon
     return BoundingBox(
-        min_corner=(-extent, -extent, 0.0),
-        max_corner=(extent, extent, extent * 2.0),
+        min_corner=(-extent - pad, -extent - pad, -pad),
+        max_corner=(extent + pad, extent + pad, extent * 2.0 + pad),
     )
 
 
@@ -131,7 +134,7 @@ class BoySurfaceGenerator(GeneratorBase):
         _validate_params(scale, grid_resolution)
 
         mesh = _generate_boy_mesh(scale, grid_resolution, separation_epsilon)
-        bbox = _compute_bounding_box(scale)
+        bbox = _compute_bounding_box(scale, separation_epsilon)
 
         merged["grid_resolution"] = grid_resolution
 
