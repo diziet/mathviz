@@ -5,6 +5,7 @@ for later comparison or re-use. Supports listing, loading, and deleting
 saved snapshots.
 """
 
+import base64
 import json
 import logging
 import os
@@ -76,21 +77,14 @@ def _save_geometry_files(snapshot_dir: Path, math_object: MathObject) -> None:
         logger.info("Saved point cloud to %s", cloud_path)
 
 
-def _save_thumbnail(snapshot_dir: Path, math_object: MathObject) -> None:
-    """Render and save a thumbnail PNG. Skips gracefully if PyVista unavailable."""
-    try:
-        from mathviz.preview.renderer import RenderConfig, render_to_png
-    except ImportError:
-        logger.debug("PyVista not available, skipping thumbnail")
-        return
-
-    try:
-        config = RenderConfig(width=THUMBNAIL_SIZE, height=THUMBNAIL_SIZE)
-        thumbnail_path = snapshot_dir / "thumbnail.png"
-        render_to_png(math_object, thumbnail_path, config=config)
-        logger.info("Saved thumbnail to %s", thumbnail_path)
-    except (ImportError, ValueError, OSError, RuntimeError) as exc:
-        logger.warning("Could not render thumbnail: %s", exc)
+def _save_thumbnail_from_base64(snapshot_dir: Path, thumbnail_b64: str) -> None:
+    """Decode a base64 PNG and save it as thumbnail.png."""
+    png_data = base64.b64decode(thumbnail_b64)
+    if not png_data[:8].startswith(b"\x89PNG"):
+        raise ValueError("Decoded thumbnail is not a valid PNG")
+    thumbnail_path = snapshot_dir / "thumbnail.png"
+    thumbnail_path.write_bytes(png_data)
+    logger.info("Saved thumbnail to %s", thumbnail_path)
 
 
 def save_snapshot(
@@ -100,6 +94,7 @@ def save_snapshot(
     seed: int,
     container: dict[str, Any],
     geometry_id: str,
+    thumbnail_b64: str | None = None,
 ) -> tuple[str, Path]:
     """Save a snapshot and return (snapshot_id, snapshot_dir)."""
     now = datetime.now(timezone.utc)
@@ -122,7 +117,8 @@ def save_snapshot(
             snapshot_dir, generator, params, seed, container, geometry_id, now
         )
         _save_geometry_files(snapshot_dir, math_object)
-        _save_thumbnail(snapshot_dir, math_object)
+        if thumbnail_b64 is not None:
+            _save_thumbnail_from_base64(snapshot_dir, thumbnail_b64)
     except Exception:
         shutil.rmtree(snapshot_dir, ignore_errors=True)
         raise

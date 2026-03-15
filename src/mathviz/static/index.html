@@ -965,6 +965,17 @@ document.getElementById('screenshot-btn').addEventListener('click', () => {
 const saveBtn = document.getElementById('save-btn');
 const saveToast = document.getElementById('save-toast');
 
+function captureCanvasThumbnail(size) {
+  const src = renderer.domElement;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(src, 0, 0, src.width, src.height, 0, 0, size, size);
+  const dataUrl = canvas.toDataURL('image/png');
+  return dataUrl.replace(/^data:image\/png;base64,/, '');
+}
+
 saveBtn.addEventListener('click', async () => {
   if (!state.geometryId || !state.generatedWith) return;
   saveBtn.disabled = true;
@@ -977,6 +988,7 @@ saveBtn.addEventListener('click', async () => {
       seed: gw.seed,
       container: gw.container,
       geometry_id: state.geometryId,
+      thumbnail: captureCanvasThumbnail(256),
     };
     const resp = await fetch('/api/snapshots', {
       method: 'POST',

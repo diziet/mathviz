@@ -122,6 +122,7 @@ class SnapshotRequest(BaseModel):
     seed: int = 42
     container: ContainerParams | None = None
     geometry_id: str
+    thumbnail: str | None = None
 
 
 class SnapshotResponse(BaseModel):
@@ -424,18 +425,36 @@ def create_snapshot(req: SnapshotRequest) -> SnapshotResponse:
             detail="No generated geometry found for the given geometry_id.",
         )
 
+    if req.thumbnail is not None:
+        try:
+            import base64
+
+            base64.b64decode(req.thumbnail)
+        except (ValueError, base64.binascii.Error):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid base64 thumbnail data.",
+            )
+
     container_dict = (
         req.container.model_dump() if req.container else ContainerParams().model_dump()
     )
 
-    snapshot_id, snapshot_path = save_snapshot(
-        math_object=entry.math_object,
-        generator=req.generator,
-        params=req.params,
-        seed=req.seed,
-        container=container_dict,
-        geometry_id=req.geometry_id,
-    )
+    try:
+        snapshot_id, _snapshot_path = save_snapshot(
+            math_object=entry.math_object,
+            generator=req.generator,
+            params=req.params,
+            seed=req.seed,
+            container=container_dict,
+            geometry_id=req.geometry_id,
+            thumbnail_b64=req.thumbnail,
+        )
+    except (OSError, ValueError) as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save snapshot: {exc}",
+        )
 
     return SnapshotResponse(snapshot_id=snapshot_id)
 
