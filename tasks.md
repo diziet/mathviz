@@ -3457,88 +3457,34 @@ a model of the real projective plane immersed in 3D.
 
 **Objective:**
 
-Tests currently run sequentially even though  is installed.
+Tests currently run sequentially even though `pytest-xdist` is installed.
 Enable parallel test execution by default so the full test suite runs
 faster, especially on multi-core machines.
 
 **Suggested path:**
 
-1. Add  under  in
-   . This uses all available CPU cores.
+1. Add `addopts = "-n auto"` under `[tool.pytest.ini_options]` in
+   `pyproject.toml`. This uses all available CPU cores.
 
 2. Ensure no tests share mutable global state, temp directories, or
    fixed port numbers that would cause conflicts under parallel execution.
-   Use  fixtures instead of hardcoded paths.
+   Use `tmp_path` fixtures instead of hardcoded paths.
 
 3. If any tests require serial execution (e.g. they bind to a fixed port
-   for the preview server), mark them with  or
+   for the preview server), mark them with `@pytest.mark.serial` or
    isolate them in a separate test group.
 
-4. Verify the full suite passes with . Fix any flaky or
+4. Verify the full suite passes with `-n auto`. Fix any flaky or
    order-dependent tests that surface.
 
 **Files:**
 
-- 
+- `pyproject.toml`
 - Any test files that need isolation fixes
 
 **Tests:**
 
-- ============================= test session starts ==============================
-platform darwin -- Python 3.14.3, pytest-8.4.2, pluggy-1.6.0
-rootdir: /Users/alex/projects/mathviz/mathviz
-configfile: pyproject.toml
-testpaths: tests
-plugins: anyio-4.12.1, cov-5.0.0, asyncio-1.3.0, xdist-3.5.0, testmon-2.1.1
-asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-created: 10/10 workers
-10 workers [1607 items]
-
-........................................................................ [  4%]
-........................................................................ [  8%]
-........................................................................ [ 13%]
-........................................................................ [ 17%]
-........................................................................ [ 22%]
-........................................................................ [ 26%]
-........................................................................ [ 31%]
-........................................................................ [ 35%]
-........................................................................ [ 40%]
-........................................................................ [ 44%]
-.............................................................s.......... [ 49%]
-........................................................................ [ 53%]
-........................................................................ [ 58%]
-........................................................................ [ 62%]
-........................................................................ [ 67%]
-........................................................................ [ 71%]
-........................................................................ [ 76%]
-........................................................................ [ 80%]
-........................................................................ [ 85%]
-....................s................................................... [ 89%]
-........................................................................ [ 94%]
-........................................................................ [ 98%]
-.......................                                                  [100%]
-=============================== warnings summary ===============================
-tests/test_generators/test_curves.py::test_cardioid_tube_watertight
-  /Users/alex/projects/mathviz/mathviz/src/mathviz/shared/tube_thickening.py:46: UserWarning: Tube radius 0.0500 exceeds minimum segment length 0.0148; self-intersection likely
-    _warn_self_intersection(points, radius)
-
-tests/test_generators/test_curves.py::test_lissajous_curve_tube_watertight
-  /Users/alex/projects/mathviz/mathviz/src/mathviz/shared/tube_thickening.py:46: UserWarning: Tube radius 0.0500 exceeds minimum segment length 0.0430; self-intersection likely
-    _warn_self_intersection(points, radius)
-
-tests/test_generators/test_knots.py::test_trefoil_defaults_p2_q3
-tests/test_generators/test_knots.py::test_full_pipeline_tube_produces_watertight_mesh
-tests/test_generators/test_knots.py::test_alias_provenance_recorded_in_generator_name
-  /Users/alex/projects/mathviz/mathviz/src/mathviz/shared/tube_thickening.py:46: UserWarning: Tube radius 0.1000 exceeds minimum segment length 0.0833; self-intersection likely
-    _warn_self_intersection(points, radius)
-
-tests/test_shared/test_tube_thickening.py::TestClosedCircleTorus::test_torus_mesh_has_no_seam_gap
-tests/test_shared/test_tube_thickening.py::TestClosedCircleTorus::test_torus_vertex_positions_are_smooth
-  /Users/alex/projects/mathviz/mathviz/src/mathviz/shared/tube_thickening.py:46: UserWarning: Tube radius 0.1000 exceeds minimum segment length 0.0981; self-intersection likely
-    _warn_self_intersection(points, radius)
-
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-================= 1605 passed, 2 skipped, 7 warnings in 28.92s ================= runs the full suite without failures
+- `pytest -n auto` runs the full suite without failures
 - Test suite wall-clock time is measurably faster than sequential
 - No tests fail intermittently due to resource conflicts
 
