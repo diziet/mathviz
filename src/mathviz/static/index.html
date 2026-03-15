@@ -95,6 +95,32 @@ canvas{display:block}
 .dim-row input{flex:1;width:0;min-width:0}
 #usable-volume{font-size:11px;opacity:0.7;margin-top:2px}
 .container-buttons{display:flex;gap:6px}
+
+/* Parameter editor panel */
+#param-panel{
+  position:absolute;top:12px;left:220px;
+  background:rgba(30,30,30,0.85);color:#eee;
+  padding:12px 14px;border-radius:8px;font-size:13px;
+  display:none;flex-direction:column;gap:8px;min-width:200px;max-width:260px;
+  max-height:calc(100vh - 24px);overflow-y:auto;
+  backdrop-filter:blur(6px);
+}
+#param-panel.light-bg{background:rgba(240,240,240,0.9);color:#222}
+#param-panel .section-title{font-weight:600;font-size:11px;text-transform:uppercase;
+  letter-spacing:0.5px;opacity:0.7;margin-top:2px}
+#param-panel button{
+  padding:4px 10px;border:1px solid #666;border-radius:4px;
+  background:transparent;color:inherit;cursor:pointer;font-size:12px;
+}
+#param-panel button:hover{background:rgba(128,128,128,0.3)}
+#param-panel.light-bg .control-input{background:rgba(255,255,255,0.5);border-color:#aaa}
+.param-row{display:flex;gap:4px;align-items:center}
+.param-row label{flex:0 0 auto;font-size:11px;min-width:80px;opacity:0.8}
+.param-row input{flex:1;width:0;min-width:0}
+.param-hint{font-size:10px;opacity:0.5;margin-top:-4px}
+.param-buttons{display:flex;gap:6px}
+#param-error{font-size:11px;color:#ff6b6b;display:none;word-break:break-word}
+#param-loading{font-size:11px;opacity:0.6;display:none}
 </style>
 </head>
 <body>
@@ -118,6 +144,21 @@ canvas{display:block}
     <div class="container-buttons">
       <button id="container-apply-btn">Apply</button>
       <button id="container-reset-btn">Reset</button>
+    </div>
+  </div>
+
+  <div id="param-panel">
+    <div class="section-title">Parameters</div>
+    <div id="param-fields"></div>
+    <div id="param-resolution-section" style="display:none">
+      <div class="section-title">Resolution</div>
+      <div id="param-resolution-fields"></div>
+    </div>
+    <div id="param-error"></div>
+    <div id="param-loading">Generating...</div>
+    <div class="param-buttons">
+      <button id="param-apply-btn">Apply</button>
+      <button id="param-reset-btn">Reset</button>
     </div>
   </div>
 
@@ -521,6 +562,7 @@ document.getElementById('toggle-bg').addEventListener('change', (e) => {
   document.getElementById('controls').classList.toggle('light-bg', isLight);
   document.getElementById('info-panel').classList.toggle('light-bg', isLight);
   document.getElementById('container-panel').classList.toggle('light-bg', isLight);
+  document.getElementById('param-panel').classList.toggle('light-bg', isLight);
 });
 
 document.getElementById('screenshot-btn').addEventListener('click', () => {
@@ -615,6 +657,7 @@ function applyGenerator(name, seed) {
 function selectGenerator(name) {
   searchInput.value = name;
   dropdown.style.display = 'none';
+  fetchAndPopulateParams(name);
   applyGenerator(name, parseSeed());
 }
 
@@ -720,6 +763,185 @@ document.getElementById('container-apply-btn').addEventListener('click', () => {
 /* Reset button */
 document.getElementById('container-reset-btn').addEventListener('click', resetContainerDefaults);
 
+/* ── Parameter editor ── */
+const paramPanel = document.getElementById('param-panel');
+const paramFields = document.getElementById('param-fields');
+const paramResSection = document.getElementById('param-resolution-section');
+const paramResFields = document.getElementById('param-resolution-fields');
+const paramError = document.getElementById('param-error');
+const paramLoadingEl = document.getElementById('param-loading');
+
+let cachedParamDefaults = null;
+
+function createParamInput(name, value, description) {
+  const row = document.createElement('div');
+  row.className = 'param-row';
+  const label = document.createElement('label');
+  label.textContent = name;
+  label.setAttribute('for', 'param-' + name);
+  if (description) label.title = description;
+  row.appendChild(label);
+
+  let input;
+  if (typeof value === 'boolean') {
+    input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = value;
+  } else if (typeof value === 'number') {
+    input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'control-input';
+    input.value = value;
+    input.step = Number.isInteger(value) ? '1' : '0.1';
+  } else {
+    input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'control-input';
+    input.value = String(value);
+  }
+  input.id = 'param-' + name;
+  input.dataset.paramName = name;
+  input.dataset.paramType = typeof value;
+  row.appendChild(input);
+
+  const wrapper = document.createElement('div');
+  wrapper.appendChild(row);
+  if (description) {
+    const hint = document.createElement('div');
+    hint.className = 'param-hint';
+    hint.textContent = description;
+    wrapper.appendChild(hint);
+  }
+  return wrapper;
+}
+
+function collectParamValues(container) {
+  const values = {};
+  for (const input of container.querySelectorAll('input[data-param-name]')) {
+    const name = input.dataset.paramName;
+    const type = input.dataset.paramType;
+    if (type === 'boolean') values[name] = input.checked;
+    else if (type === 'number') values[name] = parseFloat(input.value);
+    else values[name] = input.value;
+  }
+  return values;
+}
+
+async function fetchAndPopulateParams(generatorName) {
+  paramPanel.style.display = 'flex';
+  paramFields.innerHTML = '';
+  paramResFields.innerHTML = '';
+  paramResSection.style.display = 'none';
+  paramError.style.display = 'none';
+  cachedParamDefaults = null;
+
+  try {
+    const resp = await fetch('/api/generators/' + encodeURIComponent(generatorName) + '/params');
+    if (!resp.ok) { paramPanel.style.display = 'none'; return; }
+    const data = await resp.json();
+    cachedParamDefaults = data;
+
+    for (const [name, value] of Object.entries(data.params)) {
+      paramFields.appendChild(createParamInput(name, value, null));
+    }
+
+    if (data.resolution && Object.keys(data.resolution).length > 0) {
+      paramResSection.style.display = 'block';
+      for (const [name, value] of Object.entries(data.resolution)) {
+        const desc = (data.descriptions && data.descriptions[name]) || null;
+        paramResFields.appendChild(createParamInput(name, value, desc));
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch params:', e);
+    paramPanel.style.display = 'none';
+  }
+}
+
+function getEditorParams() {
+  return collectParamValues(paramFields);
+}
+
+function getEditorResolution() {
+  return collectParamValues(paramResFields);
+}
+
+function resetParamDefaults() {
+  if (!cachedParamDefaults) return;
+  paramFields.innerHTML = '';
+  paramResFields.innerHTML = '';
+  for (const [name, value] of Object.entries(cachedParamDefaults.params)) {
+    paramFields.appendChild(createParamInput(name, value, null));
+  }
+  if (cachedParamDefaults.resolution && Object.keys(cachedParamDefaults.resolution).length > 0) {
+    paramResSection.style.display = 'block';
+    for (const [name, value] of Object.entries(cachedParamDefaults.resolution)) {
+      const desc = (cachedParamDefaults.descriptions && cachedParamDefaults.descriptions[name]) || null;
+      paramResFields.appendChild(createParamInput(name, value, desc));
+    }
+  }
+  paramError.style.display = 'none';
+}
+
+async function applyParams() {
+  const currentGen = searchInput.value;
+  if (!currentGen) return;
+  const genParams = getEditorParams();
+  const resolution = getEditorResolution();
+  const seed = parseSeed();
+
+  paramError.style.display = 'none';
+  paramLoadingEl.style.display = 'block';
+  const loadingEl = document.getElementById('loading');
+  loadingEl.style.display = 'block';
+
+  try {
+    const body = {generator: currentGen, params: genParams, seed, resolution, container: getContainerParams()};
+    const resp = await fetch('/api/generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => null);
+      const msg = errData && errData.detail ? errData.detail : `Generate failed: ${resp.status}`;
+      paramError.textContent = msg;
+      paramError.style.display = 'block';
+      return;
+    }
+    const data = await resp.json();
+
+    clearScene();
+    const hasMesh = Boolean(data.mesh_url);
+    const hasCloud = Boolean(data.cloud_url);
+
+    if (hasMesh) await displayMesh(data.mesh_url + '?lod=preview', currentGen);
+    if (hasCloud) {
+      const {points, vertexCount} = await loadCloudFromPLY(data.cloud_url + '?lod=preview');
+      displayCloud(points, vertexCount, currentGen);
+    }
+
+    if (!hasMesh && hasCloud) {
+      state.viewMode = 'points';
+      document.getElementById('view-mode').value = 'points';
+    } else if (hasMesh) {
+      state.viewMode = 'shaded';
+      document.getElementById('view-mode').value = 'shaded';
+    }
+    applyViewMode();
+  } catch (err) {
+    console.error('Apply error:', err);
+    paramError.textContent = 'Failed to generate: ' + err.message;
+    paramError.style.display = 'block';
+  } finally {
+    paramLoadingEl.style.display = 'none';
+    loadingEl.style.display = 'none';
+  }
+}
+
+document.getElementById('param-apply-btn').addEventListener('click', applyParams);
+document.getElementById('param-reset-btn').addEventListener('click', resetParamDefaults);
+
 /* ── Init: load from URL params ── */
 const qp = parseQueryParams();
 seedInput.value = qp.seed;
@@ -727,6 +949,7 @@ seedInput.value = qp.seed;
 fetchGenerators().then(() => {
   if (qp.generator) {
     searchInput.value = qp.generator;
+    fetchAndPopulateParams(qp.generator);
   }
 });
 
