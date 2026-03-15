@@ -8,7 +8,7 @@ unique form rendered as a monochrome point cloud of micro-fractures.
 
 ## Features
 
-- **66 generators** across 12 categories (attractors, fractals, knots, parametric surfaces, and more)
+- **67 generators** across 12 categories (attractors, fractals, knots, parametric surfaces, and more)
 - **Linear pipeline**: Generate → Represent → Transform → Sample → Validate → Export
 - **9 representation strategies** for controlling how forms appear when engraved
 - **Deterministic output**: every form is reproducible from its seed
@@ -82,7 +82,7 @@ mathviz generate gyroid --profile production --output gyroid.ply
 | attractors | 10 | `lorenz`, `rossler`, `chen`, `aizawa`, `thomas`, `halvorsen`, `double_pendulum`, `clifford`, `dequan_li`, `sprott` | Strange attractor trajectories |
 | curves | 4 | `cardioid`, `fibonacci_spiral`, `lissajous_curve`, `logarithmic_spiral` | Mathematical curves extended to 3D |
 | data_driven | 3 | `building_extrude`, `heightmap`, `soundwave` | Forms derived from external data files |
-| fractals | 4 | `fractal_slice`, `julia3d`, `mandelbrot_heightmap`, `mandelbulb` | 3D fractals and fractal heightmaps |
+| fractals | 5 | `fractal_slice`, `julia3d`, `mandelbrot_heightmap`, `mandelbulb`, `menger_sponge` | 3D fractals and fractal heightmaps |
 | geometry | 3 | `generic_parametric`, `voronoi_3d`, `voronoi_sphere` | User-defined parametric surfaces and Voronoi |
 | implicit | 4 | `gyroid`, `schwarz_d`, `schwarz_p`, `genus2_surface` | Triply periodic minimal surfaces via marching cubes |
 | knots | 9 | `torus_knot`, `figure_eight_knot`, `lissajous_knot`, `seven_crossing_knots`, `trefoil_on_torus`, `pretzel_knot`, `cinquefoil_knot`, `borromean_rings`, `chain_links` | Mathematical knot curves and linked structures |

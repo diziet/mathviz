@@ -81,6 +81,7 @@ GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     # Fractals (sparse shell from mesh)
     "mandelbulb": _SPARSE_CONFIG,
     "julia3d": _SPARSE_CONFIG,
+    "menger_sponge": _SURFACE_CONFIG,
     # Heightmaps (scalar field)
     "mandelbrot": _HEIGHTMAP_CONFIG,
     "mandelbrot_heightmap": _HEIGHTMAP_CONFIG,
