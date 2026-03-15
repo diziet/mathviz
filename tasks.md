@@ -1761,3 +1761,49 @@ be scaled to match.
 - Large container (100x100x100mm) renders correctly without clipping
 - Small container (10x10x10mm) renders correctly without near-plane clipping
 - Camera far plane is sufficient to contain the geometry at any container size
+
+---
+
+## Task 49: Add "Reset View" button to preview UI
+
+**Objective:**
+
+Add a button to the preview controls panel that resets the camera to the
+default view — centered on the geometry, zoomed to fit the entire object in
+frame, with the default viewing angle. After orbiting, zooming, or panning,
+the user should be able to click this button to snap back to the initial
+overview position.
+
+**Suggested path:**
+
+1. **Add a "Reset View" button** in the `#controls` div in `index.html`,
+   next to the existing "Screenshot" button. Label it "Reset View" or use a
+   home/reset icon.
+
+2. **On click, call `fitCamera`** on the current geometry (whichever of
+   `state.meshGroup` or `state.cloudPoints` is active). `fitCamera` already
+   computes the correct camera position from the geometry's bounding box and
+   sets the orbit controls target. Also reset the OrbitControls:
+   ```js
+   controls.reset();  // resets zoom/pan to initial state
+   fitCamera(activeObject);  // reposition based on geometry bounds
+   ```
+
+3. **Also reset the orbit controls' internal state**: `OrbitControls.reset()`
+   resets to the controls' saved state, but since `fitCamera` modifies
+   `controls.target` and `camera.position` after construction, the saved
+   state may be stale. Either call `controls.saveState()` after each
+   `fitCamera` so `reset()` returns to the right place, or just call
+   `fitCamera` directly without `controls.reset()`.
+
+4. **Keyboard shortcut**: Optionally bind the `Home` key or `0` key to
+   trigger the same reset for quick access.
+
+**Tests:** `tests/test_preview/test_reset_view.py`
+
+- Preview HTML contains a "Reset View" button
+- Clicking the button calls fitCamera on the active geometry
+- After orbiting/zooming, reset returns camera to the default overview position
+- Button works when viewing mesh geometry
+- Button works when viewing point cloud geometry
+- Button is disabled or hidden when no geometry is loaded
