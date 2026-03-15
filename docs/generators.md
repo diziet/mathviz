@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 67 generators across 12 categories. Each generator produces a
+MathViz includes 68 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -436,6 +436,23 @@ Aliases: `tetrix`, `sierpinski_tetrix`
 
 ```bash
 mathviz generate sierpinski_tetrahedron --param level=4 --output tetrix.ply
+```
+
+### apollonian_3d
+
+3D Apollonian gasket — recursive sphere packing where each gap between tangent
+spheres is filled with the largest fitting sphere.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `max_depth` | 5 | Recursion depth (0–8) |
+| `min_radius` | 0.01 | Minimum sphere radius before pruning |
+| `icosphere_subdivisions` | 1 | Subdivision level for each sphere mesh |
+
+Aliases: `apollonian_gasket_3d`
+
+```bash
+mathviz generate apollonian_3d --param max_depth=4 --seed 42 --output apollonian.ply
 ```
 
 ### mandelbrot_heightmap
