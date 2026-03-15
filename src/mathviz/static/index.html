@@ -326,6 +326,7 @@ canvas{display:block}
       <option value="shaded">Shaded Mesh</option>
       <option value="wireframe">Wireframe</option>
       <option value="points" selected>Point Cloud</option>
+      <option value="crystal">Crystal Preview</option>
     </select>
 
     <div class="section-title">Point Size</div>
@@ -335,6 +336,15 @@ canvas{display:block}
     <label><input type="checkbox" id="show-bbox" checked> Bounding Box</label>
     <label><input type="checkbox" id="toggle-bg"> Light Background</label>
     <label><input type="checkbox" id="lock-camera"> Lock Camera</label>
+
+    <div id="crystal-controls" style="display:none">
+      <div class="section-title">Crystal Settings</div>
+      <label>Glass Tint <input type="color" id="crystal-glass-tint" value="#ffffff"></label>
+      <label>Bloom <input type="range" id="crystal-bloom" min="0" max="1" step="0.05" value="0.4"></label>
+      <label>Point Brightness <input type="range" id="crystal-brightness" min="0" max="1" step="0.05" value="0.8"></label>
+      <label><input type="checkbox" id="crystal-led-base"> LED Base</label>
+      <label>LED Color <input type="color" id="crystal-led-color" value="#fff0e0"></label>
+    </div>
 
     <div class="section-title">Compare</div>
     <div class="compare-section">
@@ -386,6 +396,9 @@ canvas{display:block}
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 /* ── State ── */
 const state = {
@@ -402,6 +415,11 @@ const state = {
   generatedWith: null,
   compareMode: null,
   comparePanels: [],
+  crystalGlassBlock: null,
+  crystalComposer: null,
+  crystalLedLight: null,
+  crystalActive: false,
+  crystalSavedBg: null,
 };
 
 const DARK_COLOR = 0x1a1a2e;
@@ -837,6 +855,184 @@ async function loadFromFile(filePath) {
   }
 }
 
+/* ── Crystal mode ── */
+function createGlassBlock() {
+  const cp = getContainerParams();
+  const w = cp.width_mm, h = cp.height_mm, d = cp.depth_mm;
+  const geom = new THREE.BoxGeometry(w, h, d);
+
+  /* Generate a simple env map using PMREMGenerator */
+  const pmremScene = new THREE.Scene();
+  pmremScene.background = new THREE.Color(0x111122);
+  const pmremLight = new THREE.AmbientLight(0x444466, 1);
+  pmremScene.add(pmremLight);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileCubemapShader();
+  const envRT = pmrem.fromScene(pmremScene, 0.04);
+  pmrem.dispose();
+
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(document.getElementById('crystal-glass-tint').value),
+    transmission: 0.95,
+    ior: 1.5,
+    thickness: 50,
+    roughness: 0.02,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.05,
+    opacity: 1,
+    transparent: false,
+    envMap: envRT.texture,
+    envMapIntensity: 0.5,
+    side: THREE.FrontSide,
+  });
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.name = 'crystal-glass-block';
+  mesh.renderOrder = 1;
+  return mesh;
+}
+
+function createCrystalPointsMaterial() {
+  /* Create soft radial gradient sprite texture */
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gradient.addColorStop(0, 'rgba(255,255,255,1)');
+  gradient.addColorStop(0.3, 'rgba(232,240,255,0.6)');
+  gradient.addColorStop(1, 'rgba(232,240,255,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  const texture = new THREE.CanvasTexture(canvas);
+
+  const brightness = parseFloat(document.getElementById('crystal-brightness').value);
+  return new THREE.PointsMaterial({
+    color: 0xe8f0ff,
+    size: state.pointSize * 0.012,
+    map: texture,
+    transparent: true,
+    opacity: brightness,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    sizeAttenuation: true,
+  });
+}
+
+function setupCrystalComposer() {
+  const composer = new EffectComposer(renderer);
+  const renderPass = new RenderPass(scene, camera);
+  composer.addPass(renderPass);
+
+  const bloomStrength = parseFloat(document.getElementById('crystal-bloom').value);
+  const bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(container.clientWidth, container.clientHeight),
+    bloomStrength, 0.3, 0.6
+  );
+  bloomPass.name = 'crystal-bloom';
+  composer.addPass(bloomPass);
+  return composer;
+}
+
+function enterCrystalMode() {
+  state.crystalActive = true;
+  state.crystalSavedBg = scene.background.clone();
+
+  /* Force dark background */
+  scene.background = new THREE.Color(0x000000);
+
+  /* Add glass block */
+  const glassBlock = createGlassBlock();
+  scene.add(glassBlock);
+  state.crystalGlassBlock = glassBlock;
+
+  /* Replace point materials with crystal-style soft glow */
+  const crystalMat = createCrystalPointsMaterial();
+  scene.traverse((child) => {
+    if (child.isPoints && child.material) {
+      child.userData.originalMaterial = child.material;
+      child.material = crystalMat.clone();
+      child.visible = true;
+    }
+  });
+
+  /* Hide shaded/wireframe meshes */
+  if (state.meshGroup) {
+    state.meshGroup.traverse((child) => {
+      if (child.name === 'shaded' || child.name === 'wireframe') child.visible = false;
+      if (child.name === 'points') child.visible = true;
+    });
+  }
+  if (state.cloudPoints) state.cloudPoints.visible = true;
+
+  /* Setup bloom post-processing */
+  state.crystalComposer = setupCrystalComposer();
+
+  /* Show crystal controls */
+  document.getElementById('crystal-controls').style.display = 'block';
+
+  /* Handle LED base */
+  if (document.getElementById('crystal-led-base').checked) {
+    addCrystalLedLight();
+  }
+}
+
+function exitCrystalMode() {
+  state.crystalActive = false;
+
+  /* Restore background */
+  if (state.crystalSavedBg) {
+    scene.background = state.crystalSavedBg;
+    state.crystalSavedBg = null;
+  }
+
+  /* Remove glass block */
+  if (state.crystalGlassBlock) {
+    scene.remove(state.crystalGlassBlock);
+    state.crystalGlassBlock.geometry.dispose();
+    state.crystalGlassBlock.material.dispose();
+    state.crystalGlassBlock = null;
+  }
+
+  /* Restore original point materials */
+  scene.traverse((child) => {
+    if (child.isPoints && child.userData.originalMaterial) {
+      child.material.dispose();
+      child.material = child.userData.originalMaterial;
+      delete child.userData.originalMaterial;
+    }
+  });
+
+  /* Remove LED light */
+  removeCrystalLedLight();
+
+  /* Remove composer */
+  if (state.crystalComposer) {
+    state.crystalComposer.dispose();
+    state.crystalComposer = null;
+  }
+
+  /* Hide crystal controls */
+  document.getElementById('crystal-controls').style.display = 'none';
+}
+
+function addCrystalLedLight() {
+  if (state.crystalLedLight) return;
+  const cp = getContainerParams();
+  const color = new THREE.Color(document.getElementById('crystal-led-color').value);
+  const light = new THREE.PointLight(color, 2, cp.height_mm * 3);
+  light.position.set(0, -cp.height_mm / 2 - 5, 0);
+  light.name = 'crystal-led-base';
+  scene.add(light);
+  state.crystalLedLight = light;
+}
+
+function removeCrystalLedLight() {
+  if (!state.crystalLedLight) return;
+  scene.remove(state.crystalLedLight);
+  state.crystalLedLight = null;
+}
+
 /* ── View mode ── */
 function viewModeNeedsMesh() {
   return state.viewMode === 'shaded' || state.viewMode === 'wireframe';
@@ -844,6 +1040,7 @@ function viewModeNeedsMesh() {
 
 function applyViewModeTo(meshGroup, cloudPoints) {
   const mode = state.viewMode;
+  if (mode === 'crystal') return; /* crystal mode handles its own visibility */
   if (meshGroup) {
     meshGroup.traverse((child) => {
       if (child.name === 'shaded') child.visible = (mode === 'shaded');
@@ -857,6 +1054,12 @@ function applyViewModeTo(meshGroup, cloudPoints) {
 }
 
 function applyViewMode() {
+  /* Handle crystal mode transitions */
+  if (state.viewMode === 'crystal' && !state.crystalActive) {
+    enterCrystalMode();
+  } else if (state.viewMode !== 'crystal' && state.crystalActive) {
+    exitCrystalMode();
+  }
   applyViewModeTo(state.meshGroup, state.cloudPoints);
 }
 
@@ -916,7 +1119,12 @@ document.getElementById('show-bbox').addEventListener('change', (e) => {
 document.getElementById('toggle-bg').addEventListener('change', (e) => {
   const isLight = e.target.checked;
   state.darkBg = !isLight;
-  scene.background = new THREE.Color(isLight ? LIGHT_COLOR : DARK_COLOR);
+  /* Crystal mode forces dark background */
+  if (state.crystalActive) {
+    scene.background = new THREE.Color(0x000000);
+  } else {
+    scene.background = new THREE.Color(isLight ? LIGHT_COLOR : DARK_COLOR);
+  }
   applyLightIntensities(mainLights, !isLight);
   document.getElementById('controls').classList.toggle('light-bg', isLight);
   document.getElementById('info-panel').classList.toggle('light-bg', isLight);
@@ -929,6 +1137,44 @@ document.getElementById('lock-camera').addEventListener('change', (e) => {
   state.cameraLocked = e.target.checked;
   controls.enabled = !e.target.checked;
   renderer.domElement.style.cursor = e.target.checked ? 'not-allowed' : '';
+});
+
+/* ── Crystal control wiring ── */
+document.getElementById('crystal-glass-tint').addEventListener('input', (e) => {
+  if (state.crystalGlassBlock) {
+    state.crystalGlassBlock.material.color.set(e.target.value);
+  }
+});
+
+document.getElementById('crystal-bloom').addEventListener('input', (e) => {
+  if (state.crystalComposer) {
+    const bloomPass = state.crystalComposer.passes.find(p => p.name === 'crystal-bloom');
+    if (bloomPass) bloomPass.strength = parseFloat(e.target.value);
+  }
+});
+
+document.getElementById('crystal-brightness').addEventListener('input', (e) => {
+  const brightness = parseFloat(e.target.value);
+  scene.traverse((child) => {
+    if (child.isPoints && child.material && child.material.blending === THREE.AdditiveBlending) {
+      child.material.opacity = brightness;
+    }
+  });
+});
+
+document.getElementById('crystal-led-base').addEventListener('change', (e) => {
+  if (!state.crystalActive) return;
+  if (e.target.checked) {
+    addCrystalLedLight();
+  } else {
+    removeCrystalLedLight();
+  }
+});
+
+document.getElementById('crystal-led-color').addEventListener('input', (e) => {
+  if (state.crystalLedLight) {
+    state.crystalLedLight.color.set(e.target.value);
+  }
 });
 
 /* ── Reset View ── */
@@ -1210,6 +1456,7 @@ window.addEventListener('resize', () => {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
+  if (state.crystalComposer) state.crystalComposer.setSize(w, h);
   if (state.compareMode) refreshPanelOverlays();
 });
 
@@ -1248,6 +1495,8 @@ function animate() {
   controls.update();
   if (state.compareMode && state.comparePanels.length > 0) {
     renderCompareMode();
+  } else if (state.crystalActive && state.crystalComposer) {
+    state.crystalComposer.render();
   } else {
     renderer.render(scene, camera);
   }
