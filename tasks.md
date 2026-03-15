@@ -3629,7 +3629,33 @@ Reduce step counts and share expensive fixtures to cut test suite time.
 
 ---
 
-## Task 88: Apollonian gasket 3D generator
+## Task 88: Fix voronoi_sphere representation default — SURFACE_SHELL → TUBE
+
+**Objective:**
+
+`voronoi_sphere` generates curves (ridge edges), not a mesh, but
+`representation_defaults.py` maps it to `SURFACE_SHELL` which requires
+a mesh. This causes a `ValueError: SURFACE_SHELL requires a mesh input`
+when rendering voronoi_sphere through the pipeline.
+
+**Suggested path:**
+
+1. In `src/mathviz/pipeline/representation_defaults.py`, change
+   `"voronoi_sphere": _SURFACE_CONFIG` to `"voronoi_sphere": _TUBE_CONFIG`.
+
+2. Verify `mathviz render-2d voronoi_sphere -o test.png --view angle`
+   completes without error.
+
+**Files:**
+
+- `src/mathviz/pipeline/representation_defaults.py`
+
+**Tests:** `tests/test_pipeline/test_representation_fallback.py`
+
+- voronoi_sphere renders through the full pipeline without error
+- voronoi_sphere default representation is TUBE, not SURFACE_SHELL
+
+## Task 89: Apollonian gasket 3D generator
 
 **Objective:**
 
@@ -3661,7 +3687,7 @@ sphere.
 
 ---
 
-## Task 89: Quaternion Julia set generator
+## Task 90: Quaternion Julia set generator
 
 **Objective:**
 
@@ -3691,7 +3717,7 @@ producing smoother, more organic shapes than the Mandelbulb.
 
 ---
 
-## Task 90: Burning ship fractal heightmap generator
+## Task 91: Burning ship fractal heightmap generator
 
 **Objective:**
 
@@ -3720,7 +3746,7 @@ heightmap.
 
 ---
 
-## Task 91: IFS fractal generator
+## Task 92: IFS fractal generator
 
 **Objective:**
 
@@ -3753,7 +3779,7 @@ Barnsley fern in 3D, Sierpinski variants, and custom affine transforms.
 
 ---
 
-## Task 92: Koch snowflake 3D generator
+## Task 93: Koch snowflake 3D generator
 
 **Objective:**
 
@@ -3779,7 +3805,7 @@ extruded or revolved into a 3D solid.
 
 ---
 
-## Task 93: Electron orbital generator
+## Task 94: Electron orbital generator
 
 **Objective:**
 
@@ -3811,7 +3837,7 @@ isosurfaces for s, p, d, and f orbitals.
 
 ---
 
-## Task 94: Magnetic field lines generator
+## Task 95: Magnetic field lines generator
 
 **Objective:**
 
@@ -3842,7 +3868,7 @@ quadrupole configurations rendered as tube curves.
 
 ---
 
-## Task 95: DNA double helix generator
+## Task 96: DNA double helix generator
 
 **Objective:**
 
@@ -3871,7 +3897,7 @@ base pair rungs connecting them.
 
 ---
 
-## Task 96: Hopf fibration generator
+## Task 97: Hopf fibration generator
 
 **Objective:**
 
@@ -3906,7 +3932,7 @@ stunning mathematical objects.
 
 ---
 
-## Task 97: Gravitational lensing grid generator
+## Task 98: Gravitational lensing grid generator
 
 **Objective:**
 
@@ -3935,7 +3961,7 @@ coordinate grid showing spacetime curvature around a point mass.
 
 ---
 
-## Task 98: Wave interference pattern generator
+## Task 99: Wave interference pattern generator
 
 **Objective:**
 
@@ -3964,7 +3990,7 @@ point sources.
 
 ---
 
-## Task 99: Hilbert curve 3D generator
+## Task 100: Hilbert curve 3D generator
 
 **Objective:**
 
@@ -3992,7 +4018,7 @@ visits every cell in a cubic grid exactly once.
 
 ---
 
-## Task 100: Penrose tiling 3D generator
+## Task 101: Penrose tiling 3D generator
 
 **Objective:**
 
@@ -4020,7 +4046,7 @@ a relief surface.
 
 ---
 
-## Task 101: Weaire-Phelan foam structure generator
+## Task 102: Weaire-Phelan foam structure generator
 
 **Objective:**
 
@@ -4049,7 +4075,7 @@ known foam partition of space into equal-volume cells.
 
 ---
 
-## Task 102: Geodesic sphere generator
+## Task 103: Geodesic sphere generator
 
 **Objective:**
 
@@ -4079,7 +4105,7 @@ frequencies, like Buckminster Fuller domes.
 
 ---
 
-## Task 103: Möbius trefoil generator
+## Task 104: Möbius trefoil generator
 
 **Objective:**
 
@@ -4104,7 +4130,7 @@ trefoil knot shape, combining non-orientability with knot topology.
 
 ---
 
-## Task 104: Linked tori generator
+## Task 105: Linked tori generator
 
 **Objective:**
 
@@ -4128,7 +4154,7 @@ like links in a chain.
 
 ---
 
-## Task 105: Twisted torus generator
+## Task 106: Twisted torus generator
 
 **Objective:**
 
@@ -4157,7 +4183,7 @@ cross-section rotates N times as it goes around the loop.
 
 ---
 
-## Task 106: Rose surface generator
+## Task 107: Rose surface generator
 
 **Objective:**
 
@@ -4182,7 +4208,7 @@ into 3D, producing flower-like petals.
 
 ---
 
-## Task 107: Shell spiral generator
+## Task 108: Shell spiral generator
 
 **Objective:**
 
@@ -4211,7 +4237,7 @@ with expanding cross-section, producing a nautilus-like form.
 
 ---
 
-## Task 108: Gear / involute curve generator
+## Task 109: Gear / involute curve generator
 
 **Objective:**
 
@@ -4240,7 +4266,7 @@ geometry extruded into a 3D solid.
 
 ---
 
-## Task 109: Update documentation for Tasks 77–108 generators
+## Task 110: Update documentation for Tasks 77–109 generators
 
 **Objective:**
 
@@ -4287,7 +4313,7 @@ This is a follow-up to Task 75 (which covers Tasks 70–74 generators).
 
 ---
 
-## Task 111: Realistic K9 glass crystal preview mode
+## Task 112: Realistic K9 glass crystal preview mode
 
 **Objective:**
 
@@ -4363,7 +4389,7 @@ they glow and scatter light.
 
 ---
 
-## Task 110: Disk-based generation cache with UI indicator and invalidation
+## Task 111: Disk-based generation cache with UI indicator and invalidation
 
 **Objective:**
 
@@ -4422,7 +4448,7 @@ and provide a button to force regeneration (bypass cache).
 
 ---
 
-## Task 112: Remove redundant `cell_size` parameter from TPMS generators
+## Task 113: Remove redundant `cell_size` parameter from TPMS generators
 
 **Objective:**
 
@@ -4472,7 +4498,7 @@ and keep only `periods` to eliminate user confusion.
 
 ---
 
-## Task 113: Split Lock Camera into two modes — render lock and full lock
+## Task 114: Split Lock Camera into two modes — render lock and full lock
 
 **Objective:**
 
@@ -4544,7 +4570,7 @@ Clicking the toggle cycles: **Render Lock → Full Lock → Off → Render Lock*
 
 ---
 
-## Task 114: Fix randomize ranges and add editable min/max to parameter UI
+## Task 115: Fix randomize ranges and add editable min/max to parameter UI
 
 **Objective:**
 
@@ -4621,7 +4647,7 @@ Two related issues with the dice (randomize) button:
 
 ---
 
-## Task 115: Collapsible Dimensions/Margins panel, collapsed by default
+## Task 116: Collapsible Dimensions/Margins panel, collapsed by default
 
 **Objective:**
 
@@ -4662,7 +4688,7 @@ it stays out of the way until the user needs it.
 
 ---
 
-## Task 116: Fix save after load, show params in gallery, save camera state
+## Task 117: Fix save after load, show params in gallery, save camera state
 
 **Objective:**
 
@@ -4753,7 +4779,7 @@ Three issues with the save/load snapshot system:
 
 ---
 
-## Task 117: Colored axis labels on bounding box and per-axis stretch controls
+## Task 118: Colored axis labels on bounding box and per-axis stretch controls
 
 **Objective:**
 
@@ -4824,7 +4850,7 @@ Two related features for the preview UI:
 
 ---
 
-## Task 118: Generator thumbnail endpoint with persistent disk cache
+## Task 119: Generator thumbnail endpoint with persistent disk cache
 
 **Objective:**
 
@@ -4883,7 +4909,7 @@ browser (Tasks 118–119).
 
 ---
 
-## Task 119: Visual generator browser modal with category grid
+## Task 120: Visual generator browser modal with category grid
 
 **Objective:**
 
@@ -4966,7 +4992,7 @@ endpoint).
 
 ---
 
-## Task 120: Generator browser keyboard navigation and shortcuts
+## Task 121: Generator browser keyboard navigation and shortcuts
 
 **Objective:**
 
@@ -5034,7 +5060,7 @@ via keyboard. Depends on Task 118.
 
 ---
 
-## Task 121: Point cloud density slider — real-time thinning without regeneration
+## Task 122: Point cloud density slider — real-time thinning without regeneration
 
 **Objective:**
 
@@ -5082,7 +5108,7 @@ pipeline. Useful for performance tuning and visual clarity on dense clouds.
 
 ---
 
-## Task 122: Turntable animation with GIF/MP4 export
+## Task 123: Turntable animation with GIF/MP4 export
 
 **Objective:**
 
@@ -5132,7 +5158,7 @@ animation as a GIF or MP4 for sharing.
 
 ---
 
-## Task 123: Color mapping view mode — vertex coloring by curvature, height, or distance
+## Task 124: Color mapping view mode — vertex coloring by curvature, height, or distance
 
 **Objective:**
 
@@ -5195,7 +5221,7 @@ curvature or a Lorenz attractor colored by velocity would look stunning.
 
 ---
 
-## Task 124: Comprehensive generator documentation with examples and thumbnails
+## Task 125: Comprehensive generator documentation with examples and thumbnails
 
 **Objective:**
 
@@ -5245,7 +5271,7 @@ that produce interesting results.
 
 ---
 
-## Task 125: Document all preview UI features and controls
+## Task 126: Document all preview UI features and controls
 
 **Objective:**
 
