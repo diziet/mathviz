@@ -1955,6 +1955,33 @@ function randomizeInRange(min, max, step) {
   return Math.min(chosen, max);
 }
 
+function _fillRandomValues(ranges) {
+  for (const input of paramFields.querySelectorAll('input[data-param-name]')) {
+    const name = input.dataset.paramName;
+    const type = input.dataset.paramType;
+    if (type === 'boolean') {
+      input.checked = Math.random() > 0.5;
+      continue;
+    }
+    if (type === 'number') {
+      const minInput = document.getElementById('param-range-min-' + name);
+      const maxInput = document.getElementById('param-range-max-' + name);
+      const range = ranges[name];
+      if (!range) continue;
+      const mn = minInput ? parseFloat(minInput.value) : range.min;
+      const mx = maxInput ? parseFloat(maxInput.value) : range.max;
+      const step = range.step;
+      if (Number.isNaN(mn) || Number.isNaN(mx)) continue;
+      const val = randomizeInRange(mn, mx, step);
+      input.value = Number.isInteger(step) && step >= 1 ? Math.round(val) : parseFloat(val.toFixed(6));
+    }
+  }
+  const seedEl = document.getElementById('seed-input');
+  seedEl.value = Math.floor(Math.random() * 1000000);
+}
+
+const MAX_RANDOMIZE_ATTEMPTS = 5;
+
 async function randomizeParams() {
   const currentGen = searchInput.value;
   if (!currentGen) return;
@@ -1965,26 +1992,49 @@ async function randomizeParams() {
   }
   const ranges = cachedParamRanges || {};
 
-  for (const input of paramFields.querySelectorAll('input[data-param-name]')) {
-    const name = input.dataset.paramName;
-    const type = input.dataset.paramType;
-    if (type === 'boolean') {
-      input.checked = Math.random() > 0.5;
-      continue;
-    }
-    const range = ranges[name];
-    if (range && type === 'number') {
-      const val = randomizeInRange(range.min, range.max, range.step);
-      input.value = Number.isInteger(range.step) && range.step >= 1 ? Math.round(val) : parseFloat(val.toFixed(6));
-    }
-  }
+  for (let attempt = 0; attempt < MAX_RANDOMIZE_ATTEMPTS; attempt++) {
+    _fillRandomValues(ranges);
 
-  // Randomize seed (0–999999)
-  const seedInput = document.getElementById('seed-input');
-  seedInput.value = Math.floor(Math.random() * 1000000);
+    const genParams = getEditorParams();
+    const resolution = getEditorResolution();
+    const seed = parseSeed();
 
-  if (state.autoApply) {
-    applyParams();
+    paramError.style.display = 'none';
+    paramLoadingEl.style.display = 'block';
+    showLoading('Generating...');
+    _cancelController = new AbortController();
+
+    try {
+      const body = {generator: currentGen, params: genParams, seed, resolution, container: getContainerParams()};
+      const resp = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body),
+        signal: _cancelController.signal,
+      });
+      if (!resp.ok) {
+        if (resp.status === 400 && attempt < MAX_RANDOMIZE_ATTEMPTS - 1) {
+          continue;
+        }
+        const errData = await resp.json().catch(() => null);
+        paramError.textContent = extractErrorMessage(errData, resp.status);
+        paramError.style.display = 'block';
+        return;
+      }
+      updateCacheStatus(resp);
+      const data = await resp.json();
+      await displayGenerateResult(data, currentGen);
+      return;
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      console.error('Randomize apply error:', err);
+      paramError.textContent = 'Failed to generate: ' + err.message;
+      paramError.style.display = 'block';
+      return;
+    } finally {
+      paramLoadingEl.style.display = 'none';
+      hideLoading();
+    }
   }
 }
 
