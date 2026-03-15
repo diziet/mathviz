@@ -191,6 +191,7 @@ canvas{display:block}
     <div class="section-title">Options</div>
     <label><input type="checkbox" id="show-bbox" checked> Bounding Box</label>
     <label><input type="checkbox" id="toggle-bg"> Light Background</label>
+    <label><input type="checkbox" id="lock-camera"> Lock Camera</label>
 
     <button id="reset-view-btn" disabled>Reset View</button>
     <button id="screenshot-btn">Screenshot</button>
@@ -226,6 +227,7 @@ const state = {
   viewMode: 'points',
   pointSize: 2,
   darkBg: true,
+  cameraLocked: false,
 };
 
 const DARK_COLOR = 0x1a1a2e;
@@ -421,8 +423,10 @@ async function displayMesh(url, label) {
   const {group, totalVertices, totalFaces} = await loadMeshFromGLB(url);
   state.meshGroup = group;
   scene.add(group);
-  addBoundingBox(group);
-  fitCamera(group);
+  if (!state.cameraLocked) {
+    addBoundingBox(group);
+    fitCamera(group);
+  }
   enableResetView();
   updateInfo({generator: label, vertices: totalVertices, faces: totalFaces});
 }
@@ -430,7 +434,7 @@ async function displayMesh(url, label) {
 function displayCloud(points, vertexCount, label) {
   state.cloudPoints = points;
   scene.add(points);
-  if (!state.meshGroup) {
+  if (!state.meshGroup && !state.cameraLocked) {
     addBoundingBox(points);
     fitCamera(points);
     document.getElementById('view-mode').value = 'points';
@@ -442,6 +446,7 @@ function displayCloud(points, vertexCount, label) {
 
 /* ── Shared display helper ── */
 async function displayGenerateResult(data, generatorName) {
+  const savedTarget = state.cameraLocked ? controls.target.clone() : null;
   clearScene();
   const hasMesh = Boolean(data.mesh_url);
   const hasCloud = Boolean(data.cloud_url);
@@ -461,6 +466,10 @@ async function displayGenerateResult(data, generatorName) {
     state.viewMode = 'points';
   }
   document.getElementById('view-mode').value = state.viewMode;
+  if (savedTarget) {
+    controls.target.copy(savedTarget);
+    controls.update();
+  }
   applyViewMode();
 }
 
@@ -492,6 +501,7 @@ async function loadFromFile(filePath) {
   loadingEl.style.display = 'block';
 
   try {
+    const savedTarget = state.cameraLocked ? controls.target.clone() : null;
     clearScene();
     const ext = filePath.split('.').pop().toLowerCase();
     const url = '/api/file';
@@ -508,6 +518,10 @@ async function loadFromFile(filePath) {
       }
     }
     document.getElementById('view-mode').value = state.viewMode;
+    if (savedTarget) {
+      controls.target.copy(savedTarget);
+      controls.update();
+    }
     applyViewMode();
   } catch (err) {
     console.error('File load error:', err);
@@ -595,6 +609,10 @@ document.getElementById('toggle-bg').addEventListener('change', (e) => {
   document.getElementById('info-panel').classList.toggle('light-bg', isLight);
   document.getElementById('container-panel').classList.toggle('light-bg', isLight);
   document.getElementById('param-panel').classList.toggle('light-bg', isLight);
+});
+
+document.getElementById('lock-camera').addEventListener('change', (e) => {
+  state.cameraLocked = e.target.checked;
 });
 
 /* ── Reset View ── */
