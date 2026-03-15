@@ -1,7 +1,6 @@
 {
   "generator_name": "gyroid",
   "params": {
-    "cell_size": 1.0,
     "periods": 2,
     "voxel_resolution": 16
   },

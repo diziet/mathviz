@@ -27,7 +27,6 @@
     "category": "implicit",
     "seed": 42,
     "parameters": {
-      "cell_size": 1.0,
       "periods": 2,
       "voxel_resolution": 16
     },

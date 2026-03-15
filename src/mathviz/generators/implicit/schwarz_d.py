@@ -28,7 +28,7 @@ class SchwarzDGenerator(TPMSGeneratorBase):
     + cos(x)sin(y)cos(z) + cos(x)cos(y)sin(z) = 0.
 
     Seed has no effect on output; the surface is fully deterministic
-    for given cell_size, periods, and voxel_resolution.
+    for given periods and voxel_resolution.
     """
 
     name = "schwarz_d"
