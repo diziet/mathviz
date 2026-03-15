@@ -84,6 +84,13 @@ class TorusGenerator(GeneratorBase):
     resolution_params = {"grid_resolution": "Number of grid divisions per axis"}
     _resolution_defaults = {"grid_resolution": _DEFAULT_GRID_RESOLUTION}
 
+    def get_param_ranges(self) -> dict[str, dict[str, float]]:
+        """Return exploration ranges for the torus parameters."""
+        return {
+            "major_radius": {"min": 0.3, "max": 3.0, "step": 0.1},
+            "minor_radius": {"min": 0.05, "max": 1.0, "step": 0.05},
+        }
+
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for the torus generator."""
         return {

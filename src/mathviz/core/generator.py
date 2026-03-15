@@ -77,6 +77,14 @@ class GeneratorBase(ABC):
         """Return default values for resolution parameters."""
         return dict(self._resolution_defaults)
 
+    def get_param_ranges(self) -> dict[str, dict[str, float]]:
+        """Return exploration ranges for parameters as {name: {min, max, step}}.
+
+        Override in subclasses to provide explicit ranges. When not overridden,
+        the server derives ranges from defaults automatically.
+        """
+        return {}
+
     def get_param_schema(self) -> dict[str, Any]:
         """Return JSON-schema-like description of all parameters for CLI/UI."""
         return {}

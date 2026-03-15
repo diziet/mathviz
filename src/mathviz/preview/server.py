@@ -196,6 +196,51 @@ def get_generator_params(name: str) -> dict[str, Any]:
     }
 
 
+def _derive_param_range(value: Any) -> dict[str, float] | None:
+    """Derive an exploration range from a parameter's default value."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        if value > 0:
+            return {"min": 0, "max": value * 2, "step": 1}
+        if value == 0:
+            return {"min": 0, "max": 10, "step": 1}
+        return {"min": value * 2, "max": abs(value) * 2, "step": 1}
+    if isinstance(value, float):
+        if value > 0:
+            step = max(round(value * 0.1, 6), 1e-6)
+            return {"min": round(value * 0.25, 6), "max": round(value * 2.0, 6), "step": step}
+        if value == 0.0:
+            return {"min": -1.0, "max": 1.0, "step": 0.1}
+        step = max(round(abs(value) * 0.1, 6), 1e-6)
+        return {"min": round(value * 2.0, 6), "max": round(abs(value) * 2.0, 6), "step": step}
+    return None
+
+
+@app.get("/api/generators/{name}/param-ranges")
+def get_generator_param_ranges(name: str) -> dict[str, dict[str, float]]:
+    """Return exploration ranges for each parameter of a generator."""
+    try:
+        meta = get_generator_meta(name)
+    except KeyError:
+        raise _generator_not_found(name)
+
+    instance = meta.generator_class.create(resolved_name=name)
+    explicit_ranges = instance.get_param_ranges()
+    defaults = instance.get_default_params()
+
+    ranges: dict[str, dict[str, float]] = {}
+    for param_name, default_value in defaults.items():
+        if param_name in explicit_ranges:
+            ranges[param_name] = explicit_ranges[param_name]
+        else:
+            derived = _derive_param_range(default_value)
+            if derived is not None:
+                ranges[param_name] = derived
+
+    return ranges
+
+
 def _build_container(container_params: ContainerParams | None) -> Container:
     """Build a Container from request params, or return the default."""
     if container_params is None:
