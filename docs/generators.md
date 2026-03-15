@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 74 generators across 12 categories. Each generator produces a
+MathViz includes 75 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -1195,6 +1195,26 @@ Aliases: `hydrogen_orbital`
 
 ```bash
 mathviz generate electron_orbital --param n=2 --param l=1 --param m=0 --output orbital.ply
+```
+
+### magnetic_field
+
+3D magnetic field lines for dipole and quadrupole configurations. Field lines
+are computed by RK4 integration of the magnetic field vector from seed points
+distributed on a ring around the source. Each field line becomes a tube curve.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `field_type` | `dipole` | Field configuration (`dipole` or `quadrupole`) |
+| `num_lines` | 24 | Number of field lines |
+| `spread` | 0.3 | Seed point distribution radius |
+
+Resolution: `line_points` (default 500) — integration steps per field line.
+
+Aliases: `mag_field`
+
+```bash
+mathviz generate magnetic_field --param field_type=quadrupole --param num_lines=32 --output field.ply
 ```
 
 ## Procedural
