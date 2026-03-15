@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 60 generators across 12 categories. Each generator produces a
+MathViz includes 61 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -830,6 +830,20 @@ Boy surface (RP² immersion) with triple self-intersection.
 
 ```bash
 mathviz generate boy_surface --output boy.ply
+```
+
+### roman_surface
+
+Roman (Steiner) surface — self-intersecting non-orientable surface with tetrahedral symmetry.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `scale` | 1.0 | Overall scale factor |
+
+Aliases: `steiner_surface`
+
+```bash
+mathviz generate roman_surface --output roman.ply
 ```
 
 ### calabi_yau
