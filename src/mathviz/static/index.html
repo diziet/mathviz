@@ -495,17 +495,20 @@ function enableResetView() {
   resetViewBtn.disabled = false;
 }
 
-function addBoundingBox(object3d) {
+function createBBoxHelper() {
   const cp = getContainerParams();
-  const hw = cp.width_mm / 2;
-  const hh = cp.height_mm / 2;
-  const hd = cp.depth_mm / 2;
+  const hw = cp.width_mm / 2, hh = cp.height_mm / 2, hd = cp.depth_mm / 2;
   const box = new THREE.Box3(
     new THREE.Vector3(-hw, -hh, -hd),
     new THREE.Vector3(hw, hh, hd),
   );
   const helper = new THREE.Box3Helper(box, 0x44aaff);
   helper.visible = document.getElementById('show-bbox').checked;
+  return helper;
+}
+
+function addBoundingBox(object3d) {
+  const helper = createBBoxHelper();
   scene.add(helper);
   state.bboxHelper = helper;
 }
@@ -710,20 +713,22 @@ function viewModeNeedsMesh() {
   return state.viewMode === 'shaded' || state.viewMode === 'wireframe';
 }
 
-function applyViewMode() {
+function applyViewModeTo(meshGroup, cloudPoints) {
   const mode = state.viewMode;
-
-  if (state.meshGroup) {
-    state.meshGroup.traverse((child) => {
+  if (meshGroup) {
+    meshGroup.traverse((child) => {
       if (child.name === 'shaded') child.visible = (mode === 'shaded');
       if (child.name === 'wireframe') child.visible = (mode === 'wireframe');
       if (child.name === 'points') child.visible = (mode === 'points');
     });
   }
-
-  if (state.cloudPoints) {
-    state.cloudPoints.visible = (mode === 'points') || !state.meshGroup;
+  if (cloudPoints) {
+    cloudPoints.visible = (mode === 'points') || !meshGroup;
   }
+}
+
+function applyViewMode() {
+  applyViewModeTo(state.meshGroup, state.cloudPoints);
 }
 
 function updatePointSize(size) {
@@ -1064,6 +1069,9 @@ function renderCompareMode() {
   const pw = Math.floor(w / dim);
   const ph = Math.floor(h / dim);
 
+  camera.aspect = pw / ph;
+  camera.updateProjectionMatrix();
+
   renderer.setScissorTest(true);
   renderer.autoClear = false;
   renderer.clear();
@@ -1076,8 +1084,6 @@ function renderCompareMode() {
 
     renderer.setViewport(x, y, pw, ph);
     renderer.setScissor(x, y, pw, ph);
-    camera.aspect = pw / ph;
-    camera.updateProjectionMatrix();
     renderer.render(panel.scene, camera);
   }
 
@@ -1539,10 +1545,10 @@ function getGridDimension() {
   return 1;
 }
 
-function createPanelOverlayDOM(panel, panelCount) {
+function createPanelOverlayDOM(panel) {
   const cw = container.clientWidth;
   const ch = container.clientHeight;
-  const dim = Math.sqrt(panelCount);
+  const dim = getGridDimension();
   const pw = cw / dim;
   const ph = ch / dim;
   const col = panel.index % dim;
@@ -1643,9 +1649,8 @@ function removeAllPanelDOM() {
 function refreshPanelOverlays() {
   removeAllPanelDOM();
   if (!state.compareMode) return;
-  const count = state.comparePanels.length;
   for (const p of state.comparePanels) {
-    createPanelOverlayDOM(p, count);
+    createPanelOverlayDOM(p);
   }
 }
 
@@ -1666,7 +1671,17 @@ function updatePanelOverlaySummary(panelIndex) {
 
 function setPanelSpinner(panelIndex, visible) {
   const el = container.querySelector(`.panel-spinner[data-panel-index="${panelIndex}"]`);
-  if (el) el.style.display = visible ? 'block' : 'none';
+  if (!el) return;
+  el.style.display = visible ? 'block' : 'none';
+  if (visible) { el.textContent = 'Loading...'; el.style.color = '#aaa'; }
+}
+
+function setPanelSpinnerError(panelIndex, msg) {
+  const el = container.querySelector(`.panel-spinner[data-panel-index="${panelIndex}"]`);
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = '#ff6b6b';
+  el.style.display = 'block';
 }
 
 async function applyPanelOverlay(panelIndex, overlay) {
@@ -1708,7 +1723,10 @@ async function regeneratePanel(panelIndex) {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body),
     });
-    if (!resp.ok) return;
+    if (!resp.ok) {
+      setPanelSpinnerError(panelIndex, `Error: ${resp.status}`);
+      return;
+    }
     const data = await resp.json();
 
     /* Clear panel scene geometry */
@@ -1739,30 +1757,13 @@ async function regeneratePanel(panelIndex) {
 }
 
 function addBoundingBoxToScene(panel) {
-  const cp = getContainerParams();
-  const hw = cp.width_mm / 2, hh = cp.height_mm / 2, hd = cp.depth_mm / 2;
-  const box = new THREE.Box3(
-    new THREE.Vector3(-hw, -hh, -hd),
-    new THREE.Vector3(hw, hh, hd),
-  );
-  const helper = new THREE.Box3Helper(box, 0x44aaff);
-  helper.visible = document.getElementById('show-bbox').checked;
+  const helper = createBBoxHelper();
   panel.scene.add(helper);
   panel.bboxHelper = helper;
 }
 
 function applyViewModeToPanel(panel) {
-  const mode = state.viewMode;
-  if (panel.meshGroup) {
-    panel.meshGroup.traverse((child) => {
-      if (child.name === 'shaded') child.visible = (mode === 'shaded');
-      if (child.name === 'wireframe') child.visible = (mode === 'wireframe');
-      if (child.name === 'points') child.visible = (mode === 'points');
-    });
-  }
-  if (panel.cloudPoints) {
-    panel.cloudPoints.visible = (mode === 'points') || !panel.meshGroup;
-  }
+  applyViewModeTo(panel.meshGroup, panel.cloudPoints);
 }
 
 function applyViewModeToAllPanels() {
@@ -1794,7 +1795,33 @@ function updatePanelBBoxVisibility(visible) {
   }
 }
 
+function disposeSceneResources(s) {
+  s.traverse((obj) => {
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      if (Array.isArray(obj.material)) {
+        obj.material.forEach(m => m.dispose());
+      } else {
+        obj.material.dispose();
+      }
+    }
+  });
+}
+
+function disposeAllPanels() {
+  for (const p of state.comparePanels) {
+    disposeSceneResources(p.scene);
+  }
+  state.comparePanels = [];
+}
+
 async function enterCompareMode(mode) {
+  /* Clean up existing panels when switching modes directly */
+  if (state.comparePanels.length > 0) {
+    disposeAllPanels();
+    removeAllPanelDOM();
+  }
+
   state.compareMode = mode;
   const dim = getGridDimension();
   const count = dim * dim;
@@ -1861,10 +1888,15 @@ function exitCompareMode() {
     applyViewMode();
   }
 
-  /* Cleanup */
+  /* Dispose GPU resources and clean up */
+  disposeAllPanels();
   state.compareMode = null;
-  state.comparePanels = [];
   removeAllPanelDOM();
+
+  /* Restore renderer viewport and camera aspect to full canvas */
+  renderer.setViewport(0, 0, container.clientWidth, container.clientHeight);
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
 }
 
 /* Compare mode toggle */
@@ -1878,19 +1910,16 @@ document.getElementById('compare-mode').addEventListener('change', (e) => {
 });
 
 /* Close overlay on outside click or Escape */
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.panel-overlay')) {
-    for (const el of container.querySelectorAll('.panel-overlay.expanded')) {
-      el.classList.remove('expanded');
-    }
+function collapseAllOverlays() {
+  for (const el of container.querySelectorAll('.panel-overlay.expanded')) {
+    el.classList.remove('expanded');
   }
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.panel-overlay')) collapseAllOverlays();
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    for (const el of container.querySelectorAll('.panel-overlay.expanded')) {
-      el.classList.remove('expanded');
-    }
-  }
+  if (e.key === 'Escape') collapseAllOverlays();
 });
 
 /* ── Init: load from URL params ── */
