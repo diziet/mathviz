@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+from click.testing import Result
 from typer.testing import CliRunner
 
 from mathviz.cli import app
@@ -18,7 +19,7 @@ FAST_GENERATORS = "lorenz,torus,mobius_strip"
 class BenchmarkResult:
     """Holds shared benchmark run output."""
 
-    result: object
+    result: Result
     output_path: Path
     html_content: str
 
@@ -28,7 +29,7 @@ def _run_benchmark(
     generators: str = FAST_GENERATORS,
     runs: str = "1",
     workers: str = "1",
-) -> tuple[object, Path]:
+) -> tuple[Result, Path]:
     """Run benchmark command and return (result, output_path)."""
     output = tmp_path / "report.html"
     result = runner.invoke(
@@ -44,22 +45,30 @@ def _run_benchmark(
     return result, output
 
 
+def _build_benchmark(
+    tmp_path_factory: pytest.TempPathFactory,
+    name: str,
+    **kwargs: str,
+) -> BenchmarkResult:
+    """Run benchmark once and wrap in BenchmarkResult."""
+    tmp_path = tmp_path_factory.mktemp(name)
+    result, output = _run_benchmark(tmp_path, **kwargs)
+    html_content = output.read_text(encoding="utf-8") if output.exists() else ""
+    return BenchmarkResult(result=result, output_path=output, html_content=html_content)
+
+
 @pytest.fixture(scope="class")
 def shared_benchmark(tmp_path_factory: pytest.TempPathFactory) -> BenchmarkResult:
     """Run the default benchmark once and share across TestBenchmarkCommand."""
-    tmp_path = tmp_path_factory.mktemp("benchmark")
-    result, output = _run_benchmark(tmp_path)
-    html_content = output.read_text(encoding="utf-8") if output.exists() else ""
-    return BenchmarkResult(result=result, output_path=output, html_content=html_content)
+    return _build_benchmark(tmp_path_factory, "benchmark")
 
 
 @pytest.fixture(scope="class")
 def torus_benchmark(tmp_path_factory: pytest.TempPathFactory) -> BenchmarkResult:
     """Run a torus-only benchmark once and share across tests."""
-    tmp_path = tmp_path_factory.mktemp("benchmark_torus")
-    result, output = _run_benchmark(tmp_path, generators="torus")
-    html_content = output.read_text(encoding="utf-8") if output.exists() else ""
-    return BenchmarkResult(result=result, output_path=output, html_content=html_content)
+    return _build_benchmark(
+        tmp_path_factory, "benchmark_torus", generators="torus", runs="1",
+    )
 
 
 class TestBenchmarkCommand:

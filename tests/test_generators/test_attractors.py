@@ -26,8 +26,8 @@ def lorenz() -> LorenzGenerator:
 
 
 # Use smaller step counts for test speed
-_TEST_STEPS = 1500
-_TEST_TRANSIENT = 200
+from tests.test_generators.conftest import TEST_STEPS_FAST as _TEST_STEPS
+from tests.test_generators.conftest import TEST_TRANSIENT_FAST as _TEST_TRANSIENT
 
 
 # ---------------------------------------------------------------------------
