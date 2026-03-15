@@ -4,24 +4,28 @@ import logging
 import os
 import platform
 import time
-from concurrent.futures import ProcessPoolExecutor
+from collections.abc import Callable
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
-from mathviz.benchmark_report import generate_html_report
+from mathviz.benchmark_report import (
+    PIPELINE_STAGES,
+    classify_timing,
+    generate_html_report,
+)
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import list_generators
 from mathviz.pipeline.runner import run
 
 logger = logging.getLogger(__name__)
 
-PIPELINE_STAGES = ["generate", "represent", "transform", "validate"]
+_RICH_COLORS = {"fast": "green", "medium": "yellow", "slow": "red"}
 
 
 @dataclass
@@ -51,7 +55,7 @@ def _run_single_generator(generator_name: str, num_runs: int) -> BenchmarkResult
     accumulated: dict[str, list[float]] = {}
     total_times: list[float] = []
 
-    for _ in range(num_runs):
+    for run_idx in range(num_runs):
         try:
             start = time.monotonic()
             result = run(
@@ -67,12 +71,21 @@ def _run_single_generator(generator_name: str, num_runs: int) -> BenchmarkResult
                 accumulated.setdefault(stage, []).append(duration)
             total_times.append(elapsed_total)
         except Exception as exc:
+            if total_times:
+                logger.warning(
+                    "Generator %r failed on run %d/%d after %d "
+                    "successful run(s): %s",
+                    generator_name, run_idx + 1, num_runs,
+                    len(total_times), exc,
+                )
             return BenchmarkResult(
                 generator_name=generator_name,
                 error=f"{type(exc).__name__}: {exc}",
             )
 
-    mean_timings = {stage: sum(vals) / len(vals) for stage, vals in accumulated.items()}
+    mean_timings = {
+        stage: sum(vals) / len(vals) for stage, vals in accumulated.items()
+    }
     mean_total = sum(total_times) / len(total_times)
 
     return BenchmarkResult(
@@ -82,13 +95,19 @@ def _run_single_generator(generator_name: str, num_runs: int) -> BenchmarkResult
     )
 
 
-def _filter_generators(
-    requested: list[str] | None,
-) -> list[str]:
-    """Return generator names to benchmark, filtering out data-driven ones by default."""
+def _filter_generators(requested: list[str] | None) -> list[str]:
+    """Return generator names to benchmark, validating requested names."""
     all_generators = list_generators()
+    known_names = {g.name for g in all_generators}
+    for g in all_generators:
+        known_names.update(g.aliases)
 
     if requested:
+        unknown = [n for n in requested if n not in known_names]
+        if unknown:
+            logger.warning(
+                "Unknown generator name(s): %s", ", ".join(unknown)
+            )
         return list(requested)
 
     return [
@@ -109,7 +128,16 @@ def _collect_system_info(worker_count: int, runs: int) -> BenchmarkSuite:
     )
 
 
-def _print_text_summary(suite: BenchmarkSuite, output_console: Console) -> None:
+def _format_time_rich(seconds: float) -> str:
+    """Format a time value with color coding for rich output."""
+    color = _RICH_COLORS[classify_timing(seconds)]
+    formatted = f"{seconds:.3f}s"
+    return f"[{color}]{formatted}[/{color}]"
+
+
+def _print_text_summary(
+    suite: BenchmarkSuite, output_console: Console,
+) -> None:
     """Print a compact text summary table to stdout."""
     table = Table(title="Benchmark Results")
     table.add_column("Generator")
@@ -143,20 +171,9 @@ def _print_text_summary(suite: BenchmarkSuite, output_console: Console) -> None:
     )
 
 
-def _format_time_rich(seconds: float) -> str:
-    """Format a time value with color coding for rich output."""
-    ms = seconds * 1000
-    formatted = f"{seconds:.3f}s"
-    if ms < 100:
-        return f"[green]{formatted}[/green]"
-    if ms < 1000:
-        return f"[yellow]{formatted}[/yellow]"
-    return f"[red]{formatted}[/red]"
-
-
 def register_benchmark_command(
     app: typer.Typer,
-    configure_logging_fn: Any,
+    configure_logging_fn: Callable[[bool, bool], None],
     console: Console | None = None,
 ) -> None:
     """Register the benchmark command on the given Typer app."""
@@ -172,6 +189,7 @@ def register_benchmark_command(
         workers: int = typer.Option(
             os.cpu_count() or 4,
             "--workers",
+            min=1,
             help="Number of parallel workers",
         ),
         output: Path = typer.Option(
@@ -182,19 +200,26 @@ def register_benchmark_command(
         runs: int = typer.Option(
             3,
             "--runs",
+            min=1,
             help="Number of runs per generator for averaging",
         ),
-        verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
-        quiet: bool = typer.Option(False, "--quiet", help="Suppress non-error output"),
+        verbose: bool = typer.Option(
+            False, "--verbose", help="Enable debug logging",
+        ),
+        quiet: bool = typer.Option(
+            False, "--quiet", help="Suppress non-error output",
+        ),
     ) -> None:
-        """Run pipeline benchmarks across generators and produce an HTML report."""
+        """Run pipeline benchmarks and produce an HTML report."""
         configure_logging_fn(verbose, quiet)
 
         gen_names = generators.split(",") if generators else None
         selected = _filter_generators(gen_names)
 
         if not selected:
-            output_console.print("[red]No generators selected for benchmarking.[/red]")
+            output_console.print(
+                "[red]No generators selected for benchmarking.[/red]"
+            )
             raise typer.Exit(code=2)
 
         if not quiet:
@@ -210,14 +235,13 @@ def register_benchmark_command(
                 executor.submit(_run_single_generator, name, runs): name
                 for name in selected
             }
-            for future in futures:
+            for future in as_completed(futures):
                 bench_result = future.result()
                 suite.results.append(bench_result)
 
-        # Generate HTML report
-        html = generate_html_report(suite)
+        report_html = generate_html_report(suite)
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(html, encoding="utf-8")
+        output.write_text(report_html, encoding="utf-8")
 
         if not quiet:
             _print_text_summary(suite, output_console)

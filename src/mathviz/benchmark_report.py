@@ -3,12 +3,25 @@
 from __future__ import annotations
 
 import html
-from typing import TYPE_CHECKING
+import logging
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from mathviz.cli_benchmark import BenchmarkResult, BenchmarkSuite
 
+logger = logging.getLogger(__name__)
+
 PIPELINE_STAGES = ["generate", "represent", "transform", "validate"]
+
+
+def classify_timing(seconds: float) -> Literal["fast", "medium", "slow"]:
+    """Classify a timing value by threshold: <100ms fast, <1s medium, else slow."""
+    ms = seconds * 1000
+    if ms < 100:
+        return "fast"
+    if ms < 1000:
+        return "medium"
+    return "slow"
 
 
 def generate_html_report(suite: BenchmarkSuite) -> str:
@@ -32,14 +45,15 @@ def generate_html_report(suite: BenchmarkSuite) -> str:
     )
 
 
-def _color_class(seconds: float) -> str:
-    """Return CSS class name based on timing threshold."""
-    ms = seconds * 1000
-    if ms < 100:
-        return "fast"
-    if ms < 1000:
-        return "medium"
-    return "slow"
+def _warn_missing_stages(result: BenchmarkResult) -> None:
+    """Log a warning if a successful result is missing expected stage timings."""
+    missing = set(PIPELINE_STAGES) - set(result.stage_timings.keys())
+    if missing:
+        logger.warning(
+            "Generator %r missing stage timings: %s",
+            result.generator_name,
+            ", ".join(sorted(missing)),
+        )
 
 
 def _format_ms(seconds: float) -> str:
@@ -65,14 +79,18 @@ def _build_table_rows(results: list[BenchmarkResult]) -> str:
             )
             continue
 
+        _warn_missing_stages(result)
+
         cells: list[str] = []
         for stage in PIPELINE_STAGES:
             val = result.stage_timings.get(stage, 0.0)
-            css = _color_class(val)
+            css = classify_timing(val)
             cells.append(f'<td class="{css}">{_format_ms(val)}</td>')
 
-        total_css = _color_class(result.total_time)
-        cells.append(f'<td class="{total_css}">{_format_ms(result.total_time)}</td>')
+        total_css = classify_timing(result.total_time)
+        cells.append(
+            f'<td class="{total_css}">{_format_ms(result.total_time)}</td>'
+        )
         cells.append("<td>OK</td>")
 
         name = html.escape(result.generator_name)
@@ -87,7 +105,8 @@ def _build_bar_chart(results: list[BenchmarkResult]) -> str:
     if not successful:
         return "<p>No successful benchmarks to chart.</p>"
 
-    max_total = max(r.total_time for r in successful) or 1.0
+    raw_max = max(r.total_time for r in successful)
+    max_total = raw_max if raw_max > 0 else 1.0
     bars: list[str] = []
 
     stage_colors = {
@@ -106,7 +125,8 @@ def _build_bar_chart(results: list[BenchmarkResult]) -> str:
             if pct > 0.5:
                 segments.append(
                     f'<div class="bar-seg" style="width:{pct:.1f}%;'
-                    f'background:{color}" title="{stage}: {_format_ms(val)}">'
+                    f'background:{color}"'
+                    f' title="{stage}: {_format_ms(val)}">'
                     f"</div>"
                 )
 
@@ -115,14 +135,15 @@ def _build_bar_chart(results: list[BenchmarkResult]) -> str:
             f'<div class="bar-row">'
             f'<span class="bar-label">{name}</span>'
             f'<div class="bar-track">{"".join(segments)}</div>'
-            f'<span class="bar-total">{_format_ms(result.total_time)}</span>'
+            f'<span class="bar-total">'
+            f"{_format_ms(result.total_time)}</span>"
             f"</div>"
         )
 
     legend_items = "".join(
         f'<span class="legend-item">'
-        f'<span class="legend-swatch" style="background:{color}"></span>'
-        f"{stage}</span>"
+        f'<span class="legend-swatch" style="background:{color}">'
+        f"</span>{stage}</span>"
         for stage, color in stage_colors.items()
     )
 
@@ -148,7 +169,10 @@ _HTML_TEMPLATE = """\
 <style>
 body {{ font-family: system-ui, sans-serif; margin: 2rem; background: #fafafa; }}
 h1 {{ color: #333; }}
-.info {{ background: #e3f2fd; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; }}
+.info {{
+  background: #e3f2fd; padding: 1rem;
+  border-radius: 6px; margin-bottom: 1.5rem;
+}}
 .info span {{ margin-right: 2rem; }}
 .highlight {{ font-weight: bold; }}
 table {{ border-collapse: collapse; width: 100%; margin-bottom: 2rem; }}
@@ -159,7 +183,10 @@ th:first-child, td:first-child {{ text-align: left; }}
 .medium {{ background: #fff9c4; }}
 .slow {{ background: #ffcdd2; }}
 .bar-row {{ display: flex; align-items: center; margin: 4px 0; }}
-.bar-label {{ width: 180px; text-align: right; padding-right: 8px; font-size: 0.85rem; }}
+.bar-label {{
+  width: 180px; text-align: right;
+  padding-right: 8px; font-size: 0.85rem;
+}}
 .bar-track {{
   display: flex; flex: 1; height: 20px;
   background: #eee; border-radius: 3px; overflow: hidden;

@@ -12,37 +12,40 @@ runner = CliRunner()
 FAST_GENERATORS = "lorenz,torus,mobius_strip"
 
 
+def _run_benchmark(
+    tmp_path: Path,
+    generators: str = FAST_GENERATORS,
+    runs: str = "1",
+    workers: str = "1",
+) -> tuple[object, Path]:
+    """Run benchmark command and return (result, output_path)."""
+    output = tmp_path / "report.html"
+    result = runner.invoke(
+        app,
+        [
+            "benchmark",
+            "--generators", generators,
+            "--runs", runs,
+            "--workers", workers,
+            "--output", str(output),
+        ],
+    )
+    return result, output
+
+
 class TestBenchmarkCommand:
     """Test that benchmark command runs and produces correct output."""
 
     def test_benchmark_runs_without_error(self, tmp_path: Path) -> None:
         """mathviz benchmark runs without error on at least 3 generators."""
-        output = tmp_path / "report.html"
-        result = runner.invoke(
-            app,
-            [
-                "benchmark",
-                "--generators", FAST_GENERATORS,
-                "--runs", "1",
-                "--workers", "1",
-                "--output", str(output),
-            ],
+        result, _ = _run_benchmark(tmp_path)
+        assert result.exit_code == 0, (
+            f"Exit code {result.exit_code}: {result.output}"
         )
-        assert result.exit_code == 0, f"Exit code {result.exit_code}: {result.output}"
 
     def test_html_file_created_with_table(self, tmp_path: Path) -> None:
         """Output HTML file is created and contains a <table> element."""
-        output = tmp_path / "report.html"
-        result = runner.invoke(
-            app,
-            [
-                "benchmark",
-                "--generators", FAST_GENERATORS,
-                "--runs", "1",
-                "--workers", "1",
-                "--output", str(output),
-            ],
-        )
+        result, output = _run_benchmark(tmp_path)
         assert result.exit_code == 0
         assert output.exists()
         html_content = output.read_text(encoding="utf-8")
@@ -50,59 +53,26 @@ class TestBenchmarkCommand:
 
     def test_generator_rows_have_timing_columns(self, tmp_path: Path) -> None:
         """Each generator row has timing columns for all pipeline stages."""
-        output = tmp_path / "report.html"
-        result = runner.invoke(
-            app,
-            [
-                "benchmark",
-                "--generators", FAST_GENERATORS,
-                "--runs", "1",
-                "--workers", "1",
-                "--output", str(output),
-            ],
-        )
+        result, output = _run_benchmark(tmp_path)
         assert result.exit_code == 0
         html_content = output.read_text(encoding="utf-8")
-        # Check that each generator appears in the report
         for name in FAST_GENERATORS.split(","):
             assert name in html_content
-        # Check stage column headers exist
         for stage in ["Generate", "Represent", "Transform", "Validate", "Total"]:
             assert stage in html_content
 
     def test_generators_flag_limits_selection(self, tmp_path: Path) -> None:
-        """--generators lorenz,torus limits the benchmark to specified generators."""
-        output = tmp_path / "report.html"
-        result = runner.invoke(
-            app,
-            [
-                "benchmark",
-                "--generators", "lorenz,torus",
-                "--runs", "1",
-                "--workers", "1",
-                "--output", str(output),
-            ],
-        )
+        """--generators lorenz,torus limits the benchmark to those generators."""
+        result, output = _run_benchmark(tmp_path, generators="lorenz,torus")
         assert result.exit_code == 0
         html_content = output.read_text(encoding="utf-8")
         assert "lorenz" in html_content
         assert "torus" in html_content
-        # Should only have 2 generator rows (+ header)
         assert html_content.count("<tr>") >= 3  # header + 2 data rows
 
     def test_single_run_produces_results(self, tmp_path: Path) -> None:
         """--runs 1 produces results with a single run per generator."""
-        output = tmp_path / "report.html"
-        result = runner.invoke(
-            app,
-            [
-                "benchmark",
-                "--generators", "torus",
-                "--runs", "1",
-                "--workers", "1",
-                "--output", str(output),
-            ],
-        )
+        result, output = _run_benchmark(tmp_path, generators="torus")
         assert result.exit_code == 0
         html_content = output.read_text(encoding="utf-8")
         assert "torus" in html_content
@@ -110,19 +80,8 @@ class TestBenchmarkCommand:
 
     def test_text_summary_printed_to_stdout(self, tmp_path: Path) -> None:
         """Text summary is printed to stdout."""
-        output = tmp_path / "report.html"
-        result = runner.invoke(
-            app,
-            [
-                "benchmark",
-                "--generators", "torus",
-                "--runs", "1",
-                "--workers", "1",
-                "--output", str(output),
-            ],
-        )
+        result, _ = _run_benchmark(tmp_path, generators="torus")
         assert result.exit_code == 0
-        # Rich table output should contain "Benchmark Results" and generator name
         assert "Benchmark" in result.output
         assert "torus" in result.output
 
@@ -130,43 +89,35 @@ class TestBenchmarkCommand:
 class TestBenchmarkErrorHandling:
     """Test error handling in benchmark command."""
 
-    def test_failed_generator_in_report_not_crash(self, tmp_path: Path) -> None:
-        """Failed generators appear in the report with error messages, not crashes."""
-        output = tmp_path / "report.html"
-        result = runner.invoke(
-            app,
-            [
-                "benchmark",
-                "--generators", "torus,nonexistent_generator_xyz",
-                "--runs", "1",
-                "--workers", "1",
-                "--output", str(output),
-            ],
+    def test_failed_generator_in_report_not_crash(
+        self, tmp_path: Path,
+    ) -> None:
+        """Failed generators appear in the report with error messages."""
+        result, output = _run_benchmark(
+            tmp_path, generators="torus,nonexistent_generator_xyz",
         )
         assert result.exit_code == 0
         html_content = output.read_text(encoding="utf-8")
-        # The nonexistent generator should have an error recorded
         assert "nonexistent_generator_xyz" in html_content
-        # torus should still succeed
         assert "torus" in html_content
 
 
 class TestBenchmarkTimings:
     """Test timing accuracy in benchmark results."""
 
-    def test_stage_timings_sum_to_total(self, tmp_path: Path) -> None:
-        """Per-stage timings sum approximately to total time (within 10% tolerance)."""
+    def test_stage_timings_sum_to_total(self) -> None:
+        """Per-stage timings sum approximately to total time."""
         from mathviz.cli_benchmark import _run_single_generator
 
         result = _run_single_generator("torus", 1)
         assert result.error is None
 
         stage_sum = sum(result.stage_timings.values())
-        # Stage sum should be within 10% of total or less (overhead is expected)
         assert stage_sum <= result.total_time * 1.1, (
-            f"Stage sum {stage_sum:.4f} exceeds total {result.total_time:.4f} by >10%"
+            f"Stage sum {stage_sum:.4f} exceeds "
+            f"total {result.total_time:.4f} by >10%"
         )
-        # Stages should account for most of the total time
         assert stage_sum >= result.total_time * 0.5, (
-            f"Stage sum {stage_sum:.4f} is less than 50% of total {result.total_time:.4f}"
+            f"Stage sum {stage_sum:.4f} is less than "
+            f"50% of total {result.total_time:.4f}"
         )
