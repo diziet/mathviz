@@ -1,11 +1,15 @@
 """Shared mesh face-building utilities for parametric surface generators."""
 
 import numpy as np
+from scipy.spatial import cKDTree
 
 from mathviz.core.math_object import BoundingBox
 
 _BBOX_RELATIVE_PADDING = 0.02
 _BBOX_ABSOLUTE_PADDING = 1e-6
+DEFAULT_SEPARATION_EPSILON = 0.005
+COINCIDENCE_THRESHOLD = 1e-8
+_MAX_SEPARATION_EPSILON = 1.0
 
 
 def compute_padded_bounding_box(vertices: np.ndarray) -> BoundingBox:
@@ -17,6 +21,71 @@ def compute_padded_bounding_box(vertices: np.ndarray) -> BoundingBox:
         min_corner=tuple(vmin - padding),
         max_corner=tuple(vmax + padding),
     )
+
+
+def _compute_vertex_normals(
+    vertices: np.ndarray, faces: np.ndarray,
+) -> np.ndarray:
+    """Compute per-vertex normals by averaging adjacent face normals."""
+    v0 = vertices[faces[:, 0]]
+    v1 = vertices[faces[:, 1]]
+    v2 = vertices[faces[:, 2]]
+    face_normals = np.cross(v1 - v0, v2 - v0)
+
+    vertex_normals = np.zeros_like(vertices)
+    for col in range(3):
+        np.add.at(vertex_normals, faces[:, col], face_normals)
+
+    lengths = np.linalg.norm(vertex_normals, axis=1, keepdims=True)
+    lengths = np.where(lengths < 1e-12, 1.0, lengths)
+    return vertex_normals / lengths
+
+
+def validate_separation_epsilon(epsilon: float) -> None:
+    """Validate separation_epsilon parameter."""
+    if epsilon < 0:
+        raise ValueError(f"separation_epsilon must be >= 0, got {epsilon}")
+    if epsilon > _MAX_SEPARATION_EPSILON:
+        raise ValueError(
+            f"separation_epsilon must be <= {_MAX_SEPARATION_EPSILON}, "
+            f"got {epsilon}"
+        )
+
+
+def separate_coincident_vertices(
+    vertices: np.ndarray,
+    faces: np.ndarray,
+    epsilon: float = DEFAULT_SEPARATION_EPSILON,
+) -> np.ndarray:
+    """Offset one vertex in each coincident pair along its face normal.
+
+    Finds truly coincident vertex pairs (distance < COINCIDENCE_THRESHOLD)
+    and displaces the higher-indexed vertex by ``epsilon`` along its
+    averaged face normal. Returns a copy of *vertices*; *faces* is unchanged.
+    """
+    if epsilon == 0:
+        return vertices.copy()
+
+    tree = cKDTree(vertices)
+    pairs = tree.query_pairs(COINCIDENCE_THRESHOLD, output_type="ndarray")
+    if len(pairs) == 0:
+        return vertices.copy()
+
+    normals = _compute_vertex_normals(vertices, faces)
+    result = vertices.copy()
+
+    displaced: set[int] = set()
+    for idx_a, idx_b in pairs:
+        target = max(idx_a, idx_b)
+        if target in displaced:
+            continue
+        displaced.add(target)
+        normal = normals[target]
+        if np.linalg.norm(normal) < 1e-10:
+            normal = np.array([0.0, 0.0, 1.0])
+        result[target] += epsilon * normal
+
+    return result
 
 
 def build_wrapped_grid_faces(n_u: int, n_v: int) -> np.ndarray:

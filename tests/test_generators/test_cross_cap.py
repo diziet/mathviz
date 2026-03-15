@@ -169,7 +169,10 @@ def test_parametric_equations() -> None:
     oracle rather than importing _evaluate_cross_cap from the module.
     """
     gen = CrossCapGenerator()
-    obj = gen.generate(grid_resolution=32)
+    obj = gen.generate(
+        params={"separation_epsilon": 0.0},
+        grid_resolution=32,
+    )
     assert obj.mesh is not None
 
     n = 32
