@@ -5242,3 +5242,55 @@ and a quick-start guide for new users.
 - `docs/preview-ui.md` exists and covers all documented features
 - Every keyboard shortcut in the code has a corresponding docs entry
 - README links to the preview UI documentation
+
+---
+
+## Task 125: Speed up slow tests — reduce integration steps and share benchmark runs
+
+**Objective:**
+
+Several test files use unnecessarily high iteration counts, causing
+individual tests to take 1–4 seconds. The benchmark tests are the worst
+offenders — each test re-runs the entire benchmark CLI independently.
+Reduce step counts and share expensive fixtures to cut test suite time.
+
+**Changes needed:**
+
+1. **Reduce `_TEST_STEPS` in attractor/dynamics tests**:
+   - `tests/test_generators/test_attractors.py`: 5000 → 500
+   - `tests/test_generators/test_attractors_extended.py`: 5000 → 500,
+     and the 20,000-step test on line 73 → 2000
+   - `tests/test_generators/test_double_pendulum.py`: 5000 → 500
+   - `tests/test_generators/test_strange_attractors.py`: 5000 → 500
+   - 500 steps is sufficient to verify trajectory properties (finite,
+     non-NaN, non-degenerate, deterministic, seed-varying). These are
+     unit tests, not integration tests.
+
+2. **Share benchmark fixture**: The 6 tests in `TestBenchmarkCommand`
+   each call `_run_benchmark()` independently (~4s each). Refactor to
+   use a class-scoped or session-scoped fixture that runs the benchmark
+   once and shares the `(result, output_path, html_content)` across all
+   tests that inspect the output.
+
+3. **Verify all tests still pass** after the reductions. If any test
+   relies on high step counts for numerical stability (e.g. checking
+   attractor convergence), increase that specific test's count with a
+   comment explaining why.
+
+4. **Audit for other slow tests**: Check if any other test files have
+   unnecessarily high iteration counts or redundant generation calls.
+
+**Files:**
+
+- `tests/test_generators/test_attractors.py`
+- `tests/test_generators/test_attractors_extended.py`
+- `tests/test_generators/test_double_pendulum.py`
+- `tests/test_generators/test_strange_attractors.py`
+- `tests/test_cli/test_benchmark.py`
+
+**Tests:**
+
+- Full test suite passes with reduced step counts
+- No individual test takes more than 500ms (except benchmark which should
+  be under 2s total for the shared fixture)
+- Total test suite wall-clock time is measurably faster
