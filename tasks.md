@@ -3044,3 +3044,58 @@ look striking as both tube meshes and point clouds when laser-engraved.
 - Hilbert 3D preset produces a space-filling curve
 - Generator registers and appears in `mathviz list`
 - `mathviz render-2d lsystem -o test.png` succeeds
+
+---
+
+## Task 73: Spherical Voronoi generator
+
+**Objective:**
+
+Add a generator that creates Voronoi tessellation on a sphere surface,
+producing geodesic cell structures that look organic and architectural.
+The existing `voronoi_3d` generator fills a 3D volume; this one
+tessellates the surface of a sphere into polygonal cells with raised
+edges, producing a structure that resembles a soccer ball, biological
+cells, or a geodesic dome.
+
+**Suggested path:**
+
+1. Create `generators/geometry/voronoi_sphere.py` with a
+   `VoronoiSphereGenerator`.
+
+2. Parameters:
+   - `num_cells`: number of Voronoi seed points on the sphere
+     (default: 64)
+   - `radius`: sphere radius (default: 1.0)
+   - `edge_width`: width of the ridge along cell boundaries
+     (default: 0.05)
+   - `edge_height`: how far ridges protrude above the sphere surface
+     (default: 0.1)
+   - `cell_style`: `ridges_only`, `cells_only`, `both` (default:
+     `ridges_only`) — ridges show just the edges, cells show filled
+     polygonal faces, both shows the full structure
+
+3. Algorithm:
+   - Distribute `num_cells` points on the unit sphere (use Fibonacci
+     spiral for even spacing, perturbed by seed for variation)
+   - Compute the spherical Voronoi diagram using
+     `scipy.spatial.SphericalVoronoi`
+   - For `ridges_only`: extract cell boundary arcs as curves on the
+     sphere, thicken them into tube meshes along the surface
+   - For `cells_only`: triangulate each Voronoi cell face
+   - For `both`: combine ridges and cell faces
+
+4. Seed controls the perturbation of the initial Fibonacci spiral points.
+
+5. Use SURFACE_SHELL representation for cell faces, TUBE for ridges.
+
+**Tests:** `tests/test_generators/test_voronoi_sphere.py`
+
+- Generator produces a mesh with the expected cell structure
+- `num_cells=6` produces roughly an icosahedron-like structure
+- `num_cells=64` produces a denser tessellation
+- Output is seed-dependent
+- `cell_style` parameter changes the output geometry
+- `edge_height=0` produces a flat sphere with visible cell boundaries
+- Generator registers and appears in `mathviz list`
+- `mathviz render-2d voronoi_sphere -o test.png` succeeds
