@@ -1,21 +1,16 @@
 """Tests for disk-based generation cache with UI indicator and invalidation."""
 
-import shutil
 import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
 
-import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
 from mathviz.core.generator import register
-from mathviz.core.math_object import MathObject, Mesh
 from mathviz.generators.parametric.torus import TorusGenerator
-from mathviz.preview.cache import compute_cache_key
 from mathviz.preview.disk_cache import DiskCache
-from mathviz.preview.server import app, get_cache, get_disk_cache, reset_cache
+from mathviz.preview.server import app, get_cache, reset_cache
 
 
 def _ensure_torus_registered() -> None:
