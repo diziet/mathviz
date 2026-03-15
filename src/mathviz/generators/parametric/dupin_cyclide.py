@@ -168,11 +168,15 @@ class DupinCyclideGenerator(GeneratorBase):
         )
 
     def get_param_ranges(self) -> dict[str, dict[str, float]]:
-        """Return exploration ranges for cyclide parameters."""
+        """Return exploration ranges for cyclide parameters.
+
+        Note: c must be strictly less than a. The range for c is capped
+        below a's minimum to avoid invalid combinations in parameter sweeps.
+        """
         return {
             "a": {"min": 0.5, "max": 3.0, "step": 0.1},
             "b": {"min": 0.1, "max": 2.0, "step": 0.1},
-            "c": {"min": 0.1, "max": 2.0, "step": 0.1},
+            "c": {"min": 0.1, "max": 0.4, "step": 0.1},
             "d": {"min": 0.1, "max": 2.0, "step": 0.1},
         }
 
