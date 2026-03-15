@@ -1002,7 +1002,8 @@ forming nested tori of linked rings.
 |---|---|---|
 | `num_fibers` | 32 | Number of fiber curves per base circle |
 | `num_circles` | 5 | Number of latitude circles on S² |
-| `projection_point` | [0, 0, 0, 2] | Stereographic projection offset in S³ |
+| `projection_point` | [0.0, 0.0, 0.0, 2.0] | Stereographic projection offset in S³ |
+| `fiber_points` | 256 | Points per fiber curve (resolution) |
 
 Aliases: `hopf`
 

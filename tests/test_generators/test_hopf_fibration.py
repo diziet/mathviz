@@ -195,3 +195,28 @@ class TestHopfFibrationValidation:
         """fiber_points < 4 raises ValueError."""
         with pytest.raises(ValueError, match="fiber_points must be"):
             gen.generate(fiber_points=2)
+
+    def test_invalid_projection_point_length_raises(
+        self, gen: HopfFibrationGenerator,
+    ) -> None:
+        """projection_point with wrong length raises ValueError."""
+        with pytest.raises(ValueError, match="projection_point must have exactly 4"):
+            gen.generate(params={"projection_point": [0, 0, 0]})
+
+    def test_projection_near_pole_clamps_extreme_points(
+        self, gen: HopfFibrationGenerator,
+    ) -> None:
+        """Points near the projection pole are clamped, not infinite."""
+        # Use projection_point with pz=0, which puts the pole inside S³
+        obj = gen.generate(
+            params={
+                "num_fibers": 4,
+                "num_circles": 2,
+                "projection_point": [0.0, 0.0, 0.0, 0.0],
+            },
+            fiber_points=_TEST_FIBER_POINTS,
+        )
+        assert obj.curves is not None
+        for curve in obj.curves:
+            assert np.all(np.isfinite(curve.points))
+            assert np.all(np.abs(curve.points) <= 1e6)

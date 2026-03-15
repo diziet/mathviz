@@ -26,10 +26,14 @@ _MIN_NUM_CIRCLES = 1
 _MIN_FIBER_POINTS = 4
 
 
+_PROJECTION_CLAMP = 1e6
+
+
 def _validate_params(
     num_fibers: int,
     num_circles: int,
     fiber_points: int,
+    projection_point: tuple[float, ...],
 ) -> None:
     """Validate Hopf fibration parameters."""
     if num_fibers < _MIN_NUM_FIBERS:
@@ -43,6 +47,11 @@ def _validate_params(
     if fiber_points < _MIN_FIBER_POINTS:
         raise ValueError(
             f"fiber_points must be >= {_MIN_FIBER_POINTS}, got {fiber_points}"
+        )
+    if len(projection_point) != 4:
+        raise ValueError(
+            f"projection_point must have exactly 4 elements, "
+            f"got {len(projection_point)}"
         )
 
 
@@ -99,14 +108,19 @@ def _hopf_fiber(
     # Stereographic projection from S³ to R³
     pw, px, py, pz = projection_point
     denom = pz - z
-    # Avoid division by zero at the projection pole
-    safe_denom = np.where(np.abs(denom) < 1e-12, 1e-12, denom)
+    # Avoid division by zero near the projection pole (preserve sign)
+    safe_denom = np.where(
+        np.abs(denom) < 1e-12, np.copysign(1e-12, denom), denom,
+    )
 
     proj_x = (w - pw) / safe_denom
     proj_y = (x - px) / safe_denom
     proj_z = (y - py) / safe_denom
 
-    return np.column_stack([proj_x, proj_y, proj_z]).astype(np.float64)
+    result = np.column_stack([proj_x, proj_y, proj_z]).astype(np.float64)
+    # Clamp extreme points near the projection pole
+    np.clip(result, -_PROJECTION_CLAMP, _PROJECTION_CLAMP, out=result)
+    return result
 
 
 @register
@@ -160,7 +174,7 @@ class HopfFibrationGenerator(GeneratorBase):
             )
         )
 
-        _validate_params(num_fibers, num_circles, fiber_points)
+        _validate_params(num_fibers, num_circles, fiber_points, projection_point)
         merged["fiber_points"] = fiber_points
 
         base_points = _base_circle_points(num_circles, num_fibers)
