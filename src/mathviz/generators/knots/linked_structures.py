@@ -12,35 +12,13 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, Curve, MathObject
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.knots._knot_utils import (
+    DEFAULT_TUBE_RADIUS,
+    extract_curve_points,
+    validate_curve_points,
+)
 
 logger = logging.getLogger(__name__)
-
-_DEFAULT_TUBE_RADIUS = 0.1
-_MIN_CURVE_POINTS = 16
-
-
-def _validate_curve_points(curve_points: int) -> None:
-    """Validate curve_points is above minimum."""
-    if curve_points < _MIN_CURVE_POINTS:
-        raise ValueError(
-            f"curve_points must be >= {_MIN_CURVE_POINTS}, got {curve_points}"
-        )
-
-
-def _extract_curve_points(
-    merged: dict[str, Any],
-    resolution_kwargs: dict[str, Any],
-    default: int,
-) -> tuple[dict[str, Any], int]:
-    """Extract curve_points from params/kwargs, warn if in params."""
-    if "curve_points" in merged:
-        logger.warning(
-            "curve_points should be passed as a resolution kwarg, "
-            "not inside params; ignoring params value"
-        )
-        merged.pop("curve_points")
-    curve_points = int(resolution_kwargs.get("curve_points", default))
-    return merged, curve_points
 
 
 def _compute_borromean_ring(
@@ -130,10 +108,10 @@ class BorromeanRingsGenerator(GeneratorBase):
         if params:
             merged.update(params)
 
-        merged, curve_points = _extract_curve_points(
+        merged, curve_points = extract_curve_points(
             merged, resolution_kwargs, 512,
         )
-        _validate_curve_points(curve_points)
+        validate_curve_points(curve_points)
 
         ring_radius = float(merged["ring_radius"])
         if ring_radius <= 0:
@@ -168,7 +146,8 @@ class BorromeanRingsGenerator(GeneratorBase):
     def get_default_representation(self) -> RepresentationConfig:
         """Return the recommended representation for Borromean rings."""
         return RepresentationConfig(
-            type=RepresentationType.TUBE, tube_radius=0.08,
+            type=RepresentationType.TUBE,
+            tube_radius=self.get_default_params()["ring_thickness"],
         )
 
 
@@ -204,10 +183,10 @@ class ChainLinksGenerator(GeneratorBase):
         if params:
             merged.update(params)
 
-        merged, curve_points = _extract_curve_points(
+        merged, curve_points = extract_curve_points(
             merged, resolution_kwargs, 256,
         )
-        _validate_curve_points(curve_points)
+        validate_curve_points(curve_points)
 
         num_links = int(merged["num_links"])
         link_radius = float(merged["link_radius"])
@@ -248,5 +227,6 @@ class ChainLinksGenerator(GeneratorBase):
     def get_default_representation(self) -> RepresentationConfig:
         """Return the recommended representation for chain links."""
         return RepresentationConfig(
-            type=RepresentationType.TUBE, tube_radius=_DEFAULT_TUBE_RADIUS,
+            type=RepresentationType.TUBE,
+            tube_radius=self.get_default_params()["link_thickness"],
         )

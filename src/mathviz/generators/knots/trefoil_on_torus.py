@@ -12,6 +12,10 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, Curve, MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.knots._knot_utils import (
+    extract_curve_points,
+    validate_curve_points,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +24,7 @@ _DEFAULT_TORUS_R_SMALL = 0.4
 _DEFAULT_CURVE_POINTS = 1024
 _DEFAULT_TORUS_RESOLUTION = 32
 _DEFAULT_TUBE_RADIUS = 0.08
-_MIN_CURVE_POINTS = 16
+_MIN_TORUS_RESOLUTION = 8
 
 
 def _compute_trefoil_on_torus(
@@ -59,7 +63,7 @@ def _build_torus_mesh(
 
 
 def _build_wrapped_grid_faces(n: int) -> np.ndarray:
-    """Build triangle faces for a periodic n×n grid wrapping in both axes."""
+    """Build triangle faces for a periodic n*n grid wrapping in both axes."""
     row = np.arange(n)
     col = np.arange(n)
     rr, cc = np.meshgrid(row, col, indexing="ij")
@@ -90,8 +94,12 @@ class TrefoilOnTorusGenerator(GeneratorBase):
     )
     resolution_params = {
         "curve_points": "Number of sample points along the knot curve",
+        "torus_resolution": "Grid divisions per axis for the torus mesh",
     }
-    _resolution_defaults = {"curve_points": _DEFAULT_CURVE_POINTS}
+    _resolution_defaults = {
+        "curve_points": _DEFAULT_CURVE_POINTS,
+        "torus_resolution": _DEFAULT_TORUS_RESOLUTION,
+    }
 
     def get_default_params(self) -> dict[str, Any]:
         """Return default parameters for trefoil on torus."""
@@ -111,17 +119,14 @@ class TrefoilOnTorusGenerator(GeneratorBase):
         if params:
             merged.update(params)
 
-        if "curve_points" in merged:
-            logger.warning(
-                "curve_points should be passed as a resolution kwarg, "
-                "not inside params; ignoring params value"
-            )
-            merged.pop("curve_points")
+        merged, curve_points = extract_curve_points(
+            merged, resolution_kwargs, _DEFAULT_CURVE_POINTS,
+        )
 
         torus_r = float(merged["torus_R"])
         torus_r_small = float(merged["torus_r"])
-        curve_points = int(
-            resolution_kwargs.get("curve_points", _DEFAULT_CURVE_POINTS)
+        torus_resolution = int(
+            resolution_kwargs.get("torus_resolution", _DEFAULT_TORUS_RESOLUTION)
         )
 
         if torus_r <= 0:
@@ -133,13 +138,15 @@ class TrefoilOnTorusGenerator(GeneratorBase):
                 f"torus_r must be less than torus_R, "
                 f"got torus_R={torus_r}, torus_r={torus_r_small}"
             )
-        if curve_points < _MIN_CURVE_POINTS:
+        validate_curve_points(curve_points)
+        if torus_resolution < _MIN_TORUS_RESOLUTION:
             raise ValueError(
-                f"curve_points must be >= {_MIN_CURVE_POINTS}, "
-                f"got {curve_points}"
+                f"torus_resolution must be >= {_MIN_TORUS_RESOLUTION}, "
+                f"got {torus_resolution}"
             )
 
         merged["curve_points"] = curve_points
+        merged["torus_resolution"] = torus_resolution
 
         knot_points = _compute_trefoil_on_torus(
             torus_r, torus_r_small, curve_points,
@@ -147,7 +154,7 @@ class TrefoilOnTorusGenerator(GeneratorBase):
         knot_curve = Curve(points=knot_points, closed=True)
 
         torus_mesh = _build_torus_mesh(
-            torus_r, torus_r_small, _DEFAULT_TORUS_RESOLUTION,
+            torus_r, torus_r_small, torus_resolution,
         )
 
         xy_extent = torus_r + torus_r_small
