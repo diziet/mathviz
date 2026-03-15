@@ -407,6 +407,10 @@ const container = document.getElementById('canvas-container');
 const renderer = new THREE.WebGLRenderer({antialias: true, preserveDrawingBuffer: true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -420,14 +424,28 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 
 /* ── Lighting ── */
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+const hemiLight = new THREE.HemisphereLight(0x8899cc, 0x443322, 0.3);
+scene.add(hemiLight);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.15);
 scene.add(ambientLight);
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-dirLight.position.set(3, 5, 4);
-scene.add(dirLight);
-const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
-fillLight.position.set(-2, -1, -3);
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
+keyLight.position.set(3, 5, 4);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.width = 2048;
+keyLight.shadow.mapSize.height = 2048;
+keyLight.shadow.camera.near = 0.1;
+keyLight.shadow.camera.far = 50;
+keyLight.shadow.camera.left = -5;
+keyLight.shadow.camera.right = 5;
+keyLight.shadow.camera.top = 5;
+keyLight.shadow.camera.bottom = -5;
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+fillLight.position.set(-3, 2, -2);
 scene.add(fillLight);
+const rimLight = new THREE.DirectionalLight(0xffffff, 0.3);
+rimLight.position.set(0, 3, -5);
+scene.add(rimLight);
 
 /* ── URL params ── */
 function parseQueryParams() {
@@ -564,12 +582,13 @@ function loadMeshFromGLB(url) {
       gltf.scene.traverse((child) => {
         if (!child.isMesh) return;
         const geom = child.geometry;
+        geom.computeVertexNormals();
         totalVertices += geom.attributes.position.count;
         totalFaces += geom.index ? geom.index.count / 3 : geom.attributes.position.count / 3;
 
-        const shadedMat = new THREE.MeshStandardMaterial({
+        const shadedMat = new THREE.MeshPhysicalMaterial({
           color: 0x4488cc, metalness: 0.1, roughness: 0.6,
-          side: THREE.DoubleSide,
+          side: THREE.DoubleSide, envMapIntensity: 0.4,
         });
         const wireMat = new THREE.MeshBasicMaterial({
           color: 0x44aaff, wireframe: true,
@@ -577,6 +596,8 @@ function loadMeshFromGLB(url) {
         const shadedMesh = new THREE.Mesh(geom, shadedMat);
         shadedMesh.name = 'shaded';
         shadedMesh.visible = (state.viewMode === 'shaded');
+        shadedMesh.castShadow = true;
+        shadedMesh.receiveShadow = true;
         const wireMesh = new THREE.Mesh(geom, wireMat);
         wireMesh.name = 'wireframe';
         wireMesh.visible = (state.viewMode === 'wireframe');
@@ -840,6 +861,12 @@ document.getElementById('toggle-bg').addEventListener('change', (e) => {
   const isLight = e.target.checked;
   state.darkBg = !isLight;
   scene.background = new THREE.Color(isLight ? LIGHT_COLOR : DARK_COLOR);
+  /* Adjust lighting for background mode */
+  keyLight.intensity = isLight ? 0.8 : 1.2;
+  fillLight.intensity = isLight ? 0.3 : 0.4;
+  rimLight.intensity = isLight ? 0.2 : 0.3;
+  hemiLight.intensity = isLight ? 0.2 : 0.3;
+  ambientLight.intensity = isLight ? 0.1 : 0.15;
   document.getElementById('controls').classList.toggle('light-bg', isLight);
   document.getElementById('info-panel').classList.toggle('light-bg', isLight);
   document.getElementById('container-panel').classList.toggle('light-bg', isLight);
@@ -1566,14 +1593,22 @@ const PANEL_LABELS = ['A','B','C','D','E','F','G','H','I'];
 function createPanelScene() {
   const s = new THREE.Scene();
   s.background = new THREE.Color(state.darkBg ? DARK_COLOR : LIGHT_COLOR);
-  const al = new THREE.AmbientLight(0xffffff, 0.5);
+  const hl = new THREE.HemisphereLight(0x8899cc, 0x443322, 0.3);
+  s.add(hl);
+  const al = new THREE.AmbientLight(0xffffff, 0.15);
   s.add(al);
-  const dl = new THREE.DirectionalLight(0xffffff, 0.8);
-  dl.position.set(3, 5, 4);
-  s.add(dl);
-  const fl = new THREE.DirectionalLight(0xffffff, 0.3);
-  fl.position.set(-2, -1, -3);
+  const kl = new THREE.DirectionalLight(0xffffff, 1.2);
+  kl.position.set(3, 5, 4);
+  kl.castShadow = true;
+  kl.shadow.mapSize.width = 1024;
+  kl.shadow.mapSize.height = 1024;
+  s.add(kl);
+  const fl = new THREE.DirectionalLight(0xffffff, 0.4);
+  fl.position.set(-3, 2, -2);
   s.add(fl);
+  const rl = new THREE.DirectionalLight(0xffffff, 0.3);
+  rl.position.set(0, 3, -5);
+  s.add(rl);
   return s;
 }
 
@@ -1833,8 +1868,16 @@ function updatePointSizeInPanels(size) {
 
 function updatePanelBackgrounds() {
   const color = new THREE.Color(state.darkBg ? DARK_COLOR : LIGHT_COLOR);
+  const isLight = !state.darkBg;
   for (const p of state.comparePanels) {
     p.scene.background = color.clone();
+    p.scene.traverse((obj) => {
+      if (!obj.isLight) return;
+      if (obj.isHemisphereLight) obj.intensity = isLight ? 0.2 : 0.3;
+      else if (obj.isAmbientLight) obj.intensity = isLight ? 0.1 : 0.15;
+      else if (obj.isDirectionalLight && obj.castShadow) obj.intensity = isLight ? 0.8 : 1.2;
+      else if (obj.isDirectionalLight) obj.intensity = isLight ? 0.25 : obj.intensity;
+    });
   }
   for (const el of container.querySelectorAll('.panel-overlay')) {
     el.classList.toggle('light-bg', !state.darkBg);
