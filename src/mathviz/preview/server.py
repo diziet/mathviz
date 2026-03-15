@@ -10,6 +10,7 @@ from typing import Any
 import trimesh
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, ValidationError
 
 from mathviz.core.container import Container, PlacementPolicy
@@ -52,6 +53,9 @@ app.include_router(batch_router)
 app.include_router(snapshot_router)
 
 _STATIC_DIR = importlib.resources.files("mathviz").joinpath("static")
+_STATIC_PATH = Path(str(_STATIC_DIR))
+if _STATIC_PATH.is_dir():
+    app.mount("/static", StaticFiles(directory=str(_STATIC_PATH)), name="static")
 _ALLOWED_FILE_EXTENSIONS = {".stl", ".ply", ".glb", ".gltf", ".obj"}
 
 # File path configured by the preview CLI for serving local files
