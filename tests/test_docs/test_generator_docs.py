@@ -9,7 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from mathviz.core.generator import list_generators
+from mathviz.core.generator import GeneratorBase
+
+# Trigger initial import of all generator modules so subclasses exist
+import mathviz.core.generator as _gen_module
+_gen_module._ensure_discovered()
 
 ROOT = Path(__file__).parent.parent.parent
 GENERATORS_DOC = ROOT / "docs" / "generators.md"
@@ -21,14 +25,35 @@ def _read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _get_concrete_generators() -> list[type[GeneratorBase]]:
+    """Return all concrete GeneratorBase subclasses from the generators package."""
+    result: list[type[GeneratorBase]] = []
+    stack = list(GeneratorBase.__subclasses__())
+    while stack:
+        cls = stack.pop()
+        sub = cls.__subclasses__()
+        if sub:
+            stack.extend(sub)
+        # Only include generators from the mathviz.generators package
+        module = getattr(cls, "__module__", "") or ""
+        if cls.name and module.startswith("mathviz.generators"):
+            result.append(cls)
+    return result
+
+
 def _get_all_generator_names() -> list[str]:
     """Return sorted list of all registered generator names."""
-    return sorted(meta.name for meta in list_generators())
+    return sorted({cls.name for cls in _get_concrete_generators()})
 
 
 def _get_all_categories() -> set[str]:
     """Return set of all registered generator categories."""
-    return {meta.category for meta in list_generators()}
+    return {cls.category for cls in _get_concrete_generators()}
+
+
+def _get_generator_count() -> int:
+    """Return the total number of generators."""
+    return len(_get_all_generator_names())
 
 
 def _extract_doc_headings(content: str) -> set[str]:
@@ -140,7 +165,7 @@ class TestReadmeGeneratorCount:
             "README.md does not contain a '**N generators**' count"
         )
         readme_count = int(match.group(1))
-        actual_count = len(list_generators())
+        actual_count = _get_generator_count()
         assert readme_count == actual_count, (
             f"README says {readme_count} generators but registry has {actual_count}"
         )
