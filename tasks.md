@@ -4684,3 +4684,74 @@ Three issues with the save/load snapshot system:
 - Gallery card displays parameters in readable format (not single line)
 - Gallery card shows seed and container dimensions
 - Round-trip: save → load → camera matches original position
+
+---
+
+## Task 116: Colored axis labels on bounding box and per-axis stretch controls
+
+**Objective:**
+
+Two related features for the preview UI:
+
+1. **Axis labels with colors**: Draw labeled X, Y, Z axes on the bounding
+   box, each in a distinct color (e.g. X=red, Y=green, Z=blue — the
+   standard RGB/XYZ convention). This should be a toggle in the Options
+   panel so the user can show/hide them. Labels should be visible text
+   ("X", "Y", "Z") at the ends of the axes.
+
+2. **Per-axis stretch (scale) controls**: Add three scale factor inputs
+   (X, Y, Z) that non-uniformly stretch the geometry along each axis.
+   Default is 1.0 for all three. For example, Dini's surface fills one
+   axis but uses only 5–10% of another — the user should be able to
+   stretch it to fill the volume more evenly. This is a visual/display
+   transform only; it does not change the underlying geometry data, just
+   the Three.js scene scale.
+
+**Suggested path:**
+
+1. **Axis labels**: Use Three.js `AxesHelper` for the colored axis lines,
+   and `CSS2DRenderer` or `Sprite` with `CanvasTexture` for the "X", "Y",
+   "Z" text labels at the axis endpoints. Color convention: X=red (#ff4444),
+   Y=green (#44ff44), Z=blue (#4488ff). Add a checkbox toggle "Show Axes"
+   in the Options panel, off by default.
+
+2. **Axis lines on bounding box**: Position the axes at the bounding box
+   origin or center, scaled to match the bounding box extents. Update
+   the axes when geometry changes (new bounding box).
+
+3. **Stretch controls**: Add three number inputs (X, Y, Z scale) in the
+   Options or a new "Transform" section. Default 1.0 each, step 0.1,
+   min 0.1. When changed, apply `meshGroup.scale.set(sx, sy, sz)` (or
+   the equivalent for point clouds). This scales the Three.js object
+   in-place without modifying geometry data.
+
+4. **Auto-apply stretch**: If auto-apply is on, changing a stretch value
+   should immediately update the scene. Otherwise, apply on next
+   generate/apply.
+
+5. **Stretch persists across regeneration**: The stretch values should
+   remain set when regenerating with new params. Reset them only when
+   the user manually sets them back to 1.0 or clicks a "Reset Scale"
+   button.
+
+6. **Interaction with bounding box**: The bounding box wireframe should
+   NOT be stretched — it represents the true container dimensions. Only
+   the geometry inside is stretched. This makes it visually clear how the
+   stretched shape relates to the actual container.
+
+**Files:**
+
+- `src/mathviz/static/index.html`
+
+**Tests:** `tests/test_preview/test_axes_and_stretch.py`
+
+- Preview HTML contains a "Show Axes" toggle checkbox
+- Axes toggle defaults to off
+- Enabling axes adds AxesHelper or equivalent to the scene
+- Axis labels use correct colors (X=red, Y=green, Z=blue)
+- Preview HTML contains three scale factor inputs (X, Y, Z)
+- Scale inputs default to 1.0
+- Setting scale X=2.0 doubles the geometry width without changing the
+  bounding box
+- Scale values persist across regeneration
+- Bounding box is not affected by stretch values
