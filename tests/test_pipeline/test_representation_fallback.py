@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import list_generators
 from mathviz.core.math_object import Curve, MathObject, Mesh, PointCloud
 from mathviz.core.representation import RepresentationType
@@ -12,6 +13,7 @@ from mathviz.pipeline.representation_strategy import (
     apply,
     get_default,
 )
+from mathviz.pipeline.runner import run
 
 
 # --- Helpers ---
@@ -66,6 +68,11 @@ class TestNamedGeneratorDefaults:
         """torus (mesh) still gets SURFACE_SHELL representation."""
         config = get_default("torus")
         assert config.type == RepresentationType.SURFACE_SHELL
+
+    def test_voronoi_sphere_gets_tube(self) -> None:
+        """voronoi_sphere (curves) gets TUBE, not SURFACE_SHELL."""
+        config = get_default("voronoi_sphere")
+        assert config.type == RepresentationType.TUBE
 
 
 # --- Geometry-based fallback ---
@@ -193,3 +200,23 @@ class TestAllRegisteredGenerators:
         assert missing == [], (
             f"Generators missing from GENERATOR_DEFAULTS: {missing}"
         )
+
+
+# --- voronoi_sphere pipeline integration ---
+
+
+class TestVoronoiSpherePipeline:
+    """voronoi_sphere renders through the full pipeline without error."""
+
+    def test_voronoi_sphere_renders_through_pipeline(self) -> None:
+        """voronoi_sphere completes the full pipeline with TUBE representation."""
+        result = run(
+            "voronoi_sphere",
+            params={"num_cells": 12},
+            seed=42,
+            container=Container.with_uniform_margin(),
+            placement=PlacementPolicy(),
+        )
+        assert result.math_object is not None
+        assert result.math_object.representation == "tube"
+        assert result.math_object.mesh is not None
