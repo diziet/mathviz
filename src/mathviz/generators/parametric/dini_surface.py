@@ -11,9 +11,12 @@ from typing import Any
 import numpy as np
 
 from mathviz.core.generator import GeneratorBase, register
-from mathviz.core.math_object import BoundingBox, MathObject, Mesh
+from mathviz.core.math_object import MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
-from mathviz.generators.parametric._mesh_utils import build_open_grid_faces
+from mathviz.generators.parametric._mesh_utils import (
+    build_open_grid_faces,
+    compute_padded_bounding_box,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,17 +58,6 @@ def _validate_params(
             f"grid_resolution must be >= {_MIN_GRID_RESOLUTION}, "
             f"got {grid_resolution}"
         )
-
-
-def _compute_bounding_box(vertices: np.ndarray) -> BoundingBox:
-    """Compute axis-aligned bounding box with padding."""
-    vmin = vertices.min(axis=0)
-    vmax = vertices.max(axis=0)
-    padding = (vmax - vmin) * 0.02 + 1e-6
-    return BoundingBox(
-        min_corner=tuple(vmin - padding),
-        max_corner=tuple(vmax + padding),
-    )
 
 
 def _generate_dini_mesh(
@@ -110,7 +102,11 @@ class DiniSurfaceGenerator(GeneratorBase):
         seed: int = 42,
         **resolution_kwargs: Any,
     ) -> MathObject:
-        """Generate a Dini's surface mesh."""
+        """Generate a Dini's surface mesh.
+
+        Surface is analytically deterministic; seed is stored for
+        metadata provenance only (no RNG used).
+        """
         merged = self.get_default_params()
         if params:
             merged.update(params)
@@ -125,7 +121,7 @@ class DiniSurfaceGenerator(GeneratorBase):
         _validate_params(a, b, turns, grid_resolution)
 
         mesh = _generate_dini_mesh(a, b, turns, grid_resolution)
-        bbox = _compute_bounding_box(mesh.vertices)
+        bbox = compute_padded_bounding_box(mesh.vertices)
 
         merged["grid_resolution"] = grid_resolution
 

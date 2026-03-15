@@ -11,9 +11,12 @@ from typing import Any
 import numpy as np
 
 from mathviz.core.generator import GeneratorBase, register
-from mathviz.core.math_object import BoundingBox, MathObject, Mesh
+from mathviz.core.math_object import MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
-from mathviz.generators.parametric._mesh_utils import build_mixed_grid_faces
+from mathviz.generators.parametric._mesh_utils import (
+    build_mixed_grid_faces,
+    compute_padded_bounding_box,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -141,16 +144,6 @@ def _generate_figure_eight_surface(theta: float, n: int) -> Mesh:
     return _build_surface_mesh(x, y, z, n)
 
 
-def _compute_bounding_box(vertices: np.ndarray) -> BoundingBox:
-    """Compute axis-aligned bounding box from vertices with padding."""
-    vmin = vertices.min(axis=0)
-    vmax = vertices.max(axis=0)
-    padding = (vmax - vmin) * 0.02 + 1e-6
-    return BoundingBox(
-        min_corner=tuple(vmin - padding),
-        max_corner=tuple(vmax + padding),
-    )
-
 
 def _trefoil_reference_knot(n_points: int) -> np.ndarray:
     """Reference trefoil knot via stereographic projection from S³."""
@@ -210,7 +203,7 @@ class SeifertSurfaceGenerator(GeneratorBase):
         else:
             mesh = _generate_figure_eight_surface(theta, grid_resolution)
 
-        bbox = _compute_bounding_box(mesh.vertices)
+        bbox = compute_padded_bounding_box(mesh.vertices)
         merged["grid_resolution"] = grid_resolution
 
         logger.info(
