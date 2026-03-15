@@ -6,6 +6,24 @@ them for subsurface laser engraving in crystal glass blocks. The output is a
 wall-mounted installation of glass blocks arranged in a grid, each containing a
 unique form rendered as a monochrome point cloud of micro-fractures.
 
+<table>
+  <tr>
+    <td><img src="screenshots/webp/1.webp" width="250"></td>
+    <td><img src="screenshots/webp/2.webp" width="250"></td>
+    <td><img src="screenshots/webp/3.webp" width="250"></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/webp/4.webp" width="250"></td>
+    <td><img src="screenshots/webp/5.webp" width="250"></td>
+    <td><img src="screenshots/webp/6.webp" width="250"></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/webp/7.webp" width="250"></td>
+    <td><img src="screenshots/webp/8.webp" width="250"></td>
+    <td><img src="screenshots/webp/9.webp" width="250"></td>
+  </tr>
+</table>
+
 ## Features
 
 - **68 generators** across 12 categories (attractors, fractals, knots, parametric surfaces, and more)
