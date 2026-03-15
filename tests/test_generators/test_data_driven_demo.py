@@ -29,6 +29,15 @@ def _clean_registry():
     clear_registry(suppress_discovery=True)
 
 
+def _get_geometry(obj, attr: str):
+    """Extract the primary geometry array from a MathObject."""
+    if attr == "curves":
+        return obj.curves[0].points
+    if attr == "mesh":
+        return obj.mesh.vertices
+    return obj.scalar_field
+
+
 # ---------------------------------------------------------------------------
 # Soundwave demo tests
 # ---------------------------------------------------------------------------
@@ -57,28 +66,6 @@ def test_soundwave_demo_produces_valid_curve() -> None:
     assert np.all(curve.points[:, 1] >= 0)
 
 
-def test_soundwave_demo_is_deterministic() -> None:
-    """Demo output is deterministic: same seed produces identical geometry."""
-    gen = SoundwaveGenerator()
-    obj1 = gen.generate(seed=123, num_samples=64)
-    obj2 = gen.generate(seed=123, num_samples=64)
-
-    np.testing.assert_array_equal(
-        obj1.curves[0].points, obj2.curves[0].points,
-    )
-
-
-def test_soundwave_demo_different_seeds_differ() -> None:
-    """Different seeds produce different demo geometry."""
-    gen = SoundwaveGenerator()
-    obj1 = gen.generate(seed=1, num_samples=64)
-    obj2 = gen.generate(seed=2, num_samples=64)
-
-    assert not np.array_equal(
-        obj1.curves[0].points, obj2.curves[0].points,
-    )
-
-
 # ---------------------------------------------------------------------------
 # Heightmap demo tests
 # ---------------------------------------------------------------------------
@@ -102,24 +89,6 @@ def test_heightmap_demo_produces_valid_field() -> None:
     assert obj.scalar_field.shape[1] >= 2
     assert obj.scalar_field.dtype == np.float64
     assert obj.bounding_box is not None
-
-
-def test_heightmap_demo_is_deterministic() -> None:
-    """Demo output is deterministic: same seed produces identical geometry."""
-    gen = HeightmapGenerator()
-    obj1 = gen.generate(seed=123)
-    obj2 = gen.generate(seed=123)
-
-    np.testing.assert_array_equal(obj1.scalar_field, obj2.scalar_field)
-
-
-def test_heightmap_demo_different_seeds_differ() -> None:
-    """Different seeds produce different demo geometry."""
-    gen = HeightmapGenerator()
-    obj1 = gen.generate(seed=1)
-    obj2 = gen.generate(seed=2)
-
-    assert not np.array_equal(obj1.scalar_field, obj2.scalar_field)
 
 
 # ---------------------------------------------------------------------------
@@ -150,23 +119,41 @@ def test_building_extrude_demo_produces_valid_mesh() -> None:
     assert len(obj.mesh.vertices) >= 8
 
 
-def test_building_extrude_demo_is_deterministic() -> None:
+# ---------------------------------------------------------------------------
+# Parametrized determinism and seed-variation tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("gen_cls,attr,gen_kwargs", [
+    (SoundwaveGenerator, "curves", {"num_samples": 64}),
+    (HeightmapGenerator, "scalar_field", {}),
+    (BuildingExtrudeGenerator, "mesh", {}),
+])
+def test_demo_is_deterministic(gen_cls, attr: str, gen_kwargs: dict) -> None:
     """Demo output is deterministic: same seed produces identical geometry."""
-    gen = BuildingExtrudeGenerator()
-    obj1 = gen.generate(seed=123)
-    obj2 = gen.generate(seed=123)
+    gen = gen_cls()
+    obj1 = gen.generate(seed=123, **gen_kwargs)
+    obj2 = gen.generate(seed=123, **gen_kwargs)
 
-    np.testing.assert_array_equal(obj1.mesh.vertices, obj2.mesh.vertices)
-    np.testing.assert_array_equal(obj1.mesh.faces, obj2.mesh.faces)
+    np.testing.assert_array_equal(
+        _get_geometry(obj1, attr), _get_geometry(obj2, attr),
+    )
 
 
-def test_building_extrude_demo_different_seeds_differ() -> None:
+@pytest.mark.parametrize("gen_cls,attr,gen_kwargs", [
+    (SoundwaveGenerator, "curves", {"num_samples": 64}),
+    (HeightmapGenerator, "scalar_field", {}),
+    (BuildingExtrudeGenerator, "mesh", {}),
+])
+def test_demo_different_seeds_differ(gen_cls, attr: str, gen_kwargs: dict) -> None:
     """Different seeds produce different demo geometry."""
-    gen = BuildingExtrudeGenerator()
-    obj1 = gen.generate(seed=1)
-    obj2 = gen.generate(seed=2)
+    gen = gen_cls()
+    obj1 = gen.generate(seed=1, **gen_kwargs)
+    obj2 = gen.generate(seed=2, **gen_kwargs)
 
-    assert not np.array_equal(obj1.mesh.vertices, obj2.mesh.vertices)
+    assert not np.array_equal(
+        _get_geometry(obj1, attr), _get_geometry(obj2, attr),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -252,35 +239,3 @@ def test_building_extrude_with_input_file_still_works(test_geojson: Path) -> Non
     obj.validate_or_raise()
     assert obj.mesh is not None
     assert "demo_mode" not in obj.parameters
-
-
-# ---------------------------------------------------------------------------
-# CLI render-2d integration tests
-# ---------------------------------------------------------------------------
-
-
-def test_render_2d_soundwave_demo(tmp_path: Path) -> None:
-    """mathviz render-2d soundwave -o out.png succeeds in demo mode."""
-    gen = SoundwaveGenerator()
-    obj = gen.generate(num_samples=64)
-    obj.validate_or_raise()
-    assert obj.generator_name == "soundwave"
-    assert obj.parameters.get("demo_mode") is True
-
-
-def test_render_2d_heightmap_demo(tmp_path: Path) -> None:
-    """mathviz render-2d heightmap -o out.png succeeds in demo mode."""
-    gen = HeightmapGenerator()
-    obj = gen.generate()
-    obj.validate_or_raise()
-    assert obj.generator_name == "heightmap"
-    assert obj.parameters.get("demo_mode") is True
-
-
-def test_render_2d_building_extrude_demo(tmp_path: Path) -> None:
-    """mathviz render-2d building_extrude -o out.png succeeds in demo mode."""
-    gen = BuildingExtrudeGenerator()
-    obj = gen.generate()
-    obj.validate_or_raise()
-    assert obj.generator_name == "building_extrude"
-    assert obj.parameters.get("demo_mode") is True

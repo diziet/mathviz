@@ -168,6 +168,7 @@ class SoundwaveGenerator(GeneratorBase):
             )
 
         merged["num_samples"] = num_samples
+        path: Path | None = None
 
         if not input_file:
             logger.info("No input_file provided, using built-in demo waveform")
@@ -183,16 +184,11 @@ class SoundwaveGenerator(GeneratorBase):
         points = _build_waveform_curve(envelope, length, amplitude_scale)
         bbox = BoundingBox.from_points(points)
 
-        if input_file:
-            logger.info(
-                "Generated soundwave: file=%s, sample_rate=%d, "
-                "audio_samples=%d, envelope_points=%d",
-                path.name, sample_rate, len(samples), num_samples,
-            )
-        else:
-            logger.info(
-                "Generated soundwave demo: envelope_points=%d", num_samples,
-            )
+        source = f"file={path.name}, " if path else "demo, "
+        logger.info(
+            "Generated soundwave: %senvelope_points=%d",
+            source, num_samples,
+        )
 
         curve = Curve(points=points, closed=False)
         return MathObject(

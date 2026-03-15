@@ -186,6 +186,8 @@ class HeightmapGenerator(GeneratorBase):
         if downsample < 1:
             raise ValueError(f"downsample must be >= 1, got {downsample}")
 
+        path: Path | None = None
+
         if not input_file:
             logger.info("No input_file provided, using built-in demo heightmap")
             arr = _synthesize_demo_heightmap(seed)
@@ -196,10 +198,10 @@ class HeightmapGenerator(GeneratorBase):
             arr = _try_load_geotiff(path)
             if arr is None:
                 arr = _load_image_as_array(path)
+            # Downsample before dimension validation so large images with
+            # high downsample factors are not unnecessarily rejected.
+            arr = _downsample(arr, downsample)
 
-        # Downsample before dimension validation so large images with high
-        # downsample factors are not unnecessarily rejected.
-        arr = _downsample(arr, downsample)
         _validate_dimensions(arr)
         field = _normalize_and_scale(arr, height_scale)
 
@@ -207,16 +209,11 @@ class HeightmapGenerator(GeneratorBase):
         z_max = float(field.max())
         bbox = _compute_aspect_bbox(field, z_min, z_max)
 
-        if input_file:
-            logger.info(
-                "Generated heightmap: file=%s, shape=%s, z_range=[%.4f, %.4f]",
-                path.name, field.shape, z_min, z_max,
-            )
-        else:
-            logger.info(
-                "Generated heightmap demo: shape=%s, z_range=[%.4f, %.4f]",
-                field.shape, z_min, z_max,
-            )
+        source = f"file={path.name}, " if path else "demo, "
+        logger.info(
+            "Generated heightmap: %sshape=%s, z_range=[%.4f, %.4f]",
+            source, field.shape, z_min, z_max,
+        )
 
         return MathObject(
             scalar_field=field,

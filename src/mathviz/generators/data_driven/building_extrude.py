@@ -228,6 +228,8 @@ class BuildingExtrudeGenerator(GeneratorBase):
                 f"default_height must be positive, got {default_height}"
             )
 
+        path: Path | None = None
+
         if not input_file:
             logger.info("No input_file provided, using built-in demo buildings")
             data = _synthesize_demo_buildings(seed)
@@ -246,18 +248,11 @@ class BuildingExtrudeGenerator(GeneratorBase):
         all_vertices, all_faces = _merge_meshes(mesh_parts)
         bbox = BoundingBox.from_points(all_vertices)
 
-        if input_file:
-            logger.info(
-                "Generated building_extrude: file=%s, polygons=%d, "
-                "vertices=%d, faces=%d",
-                path.name, len(polygons), len(all_vertices), len(all_faces),
-            )
-        else:
-            logger.info(
-                "Generated building_extrude demo: polygons=%d, "
-                "vertices=%d, faces=%d",
-                len(polygons), len(all_vertices), len(all_faces),
-            )
+        source = f"file={path.name}, " if path else "demo, "
+        logger.info(
+            "Generated building_extrude: %spolygons=%d, vertices=%d, faces=%d",
+            source, len(polygons), len(all_vertices), len(all_faces),
+        )
 
         return MathObject(
             mesh=Mesh(vertices=all_vertices, faces=all_faces),
