@@ -191,6 +191,7 @@ canvas{display:block}
     <div class="section-title">Options</div>
     <label><input type="checkbox" id="show-bbox" checked> Bounding Box</label>
     <label><input type="checkbox" id="toggle-bg"> Light Background</label>
+    <label><input type="checkbox" id="lock-camera"> Lock Camera</label>
 
     <button id="reset-view-btn" disabled>Reset View</button>
     <button id="screenshot-btn">Screenshot</button>
@@ -226,6 +227,7 @@ const state = {
   viewMode: 'points',
   pointSize: 2,
   darkBg: true,
+  cameraLocked: false,
 };
 
 const DARK_COLOR = 0x1a1a2e;
@@ -364,6 +366,23 @@ function fitCamera(object3d) {
   controls.update();
 }
 
+/* Save camera state before clearScene when lock is active */
+function saveCameraIfLocked() {
+  if (!state.cameraLocked) return null;
+  return {
+    target: controls.target.clone(),
+    position: camera.position.clone(),
+  };
+}
+
+/* Restore camera state after geometry reload */
+function restoreCameraIfSaved(saved) {
+  if (!saved) return;
+  controls.target.copy(saved.target);
+  camera.position.copy(saved.position);
+  controls.update();
+}
+
 function loadMeshFromGLB(url) {
   return new Promise((resolve, reject) => {
     new GLTFLoader().load(url, (gltf) => {
@@ -422,7 +441,9 @@ async function displayMesh(url, label) {
   state.meshGroup = group;
   scene.add(group);
   addBoundingBox(group);
-  fitCamera(group);
+  if (!state.cameraLocked) {
+    fitCamera(group);
+  }
   enableResetView();
   updateInfo({generator: label, vertices: totalVertices, faces: totalFaces});
 }
@@ -432,7 +453,9 @@ function displayCloud(points, vertexCount, label) {
   scene.add(points);
   if (!state.meshGroup) {
     addBoundingBox(points);
-    fitCamera(points);
+    if (!state.cameraLocked) {
+      fitCamera(points);
+    }
     document.getElementById('view-mode').value = 'points';
     state.viewMode = 'points';
   }
@@ -442,6 +465,7 @@ function displayCloud(points, vertexCount, label) {
 
 /* ── Shared display helper ── */
 async function displayGenerateResult(data, generatorName) {
+  const savedCamera = saveCameraIfLocked();
   clearScene();
   const hasMesh = Boolean(data.mesh_url);
   const hasCloud = Boolean(data.cloud_url);
@@ -461,6 +485,7 @@ async function displayGenerateResult(data, generatorName) {
     state.viewMode = 'points';
   }
   document.getElementById('view-mode').value = state.viewMode;
+  restoreCameraIfSaved(savedCamera);
   applyViewMode();
 }
 
@@ -492,6 +517,7 @@ async function loadFromFile(filePath) {
   loadingEl.style.display = 'block';
 
   try {
+    const savedCamera = saveCameraIfLocked();
     clearScene();
     const ext = filePath.split('.').pop().toLowerCase();
     const url = '/api/file';
@@ -508,6 +534,7 @@ async function loadFromFile(filePath) {
       }
     }
     document.getElementById('view-mode').value = state.viewMode;
+    restoreCameraIfSaved(savedCamera);
     applyViewMode();
   } catch (err) {
     console.error('File load error:', err);
@@ -595,6 +622,10 @@ document.getElementById('toggle-bg').addEventListener('change', (e) => {
   document.getElementById('info-panel').classList.toggle('light-bg', isLight);
   document.getElementById('container-panel').classList.toggle('light-bg', isLight);
   document.getElementById('param-panel').classList.toggle('light-bg', isLight);
+});
+
+document.getElementById('lock-camera').addEventListener('change', (e) => {
+  state.cameraLocked = e.target.checked;
 });
 
 /* ── Reset View ── */
