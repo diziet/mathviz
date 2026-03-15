@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 78 generators across 12 categories. Each generator produces a
+MathViz includes 81 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -1435,6 +1435,27 @@ Recommended representation: SURFACE_SHELL
 mathviz generate rd_surface --output rd_torus.ply
 mathviz generate rd_surface --param base_surface=sphere --param feed_rate=0.035 --param kill_rate=0.065 --output rd_spots.ply
 mathviz generate rd_surface --param base_surface=klein_bottle --param feed_rate=0.029 --param kill_rate=0.057 --output rd_maze.ply
+```
+
+### penrose_3d
+
+Aperiodic Penrose P3 rhombus tiling extruded as 3D relief. Generates a 2D
+Penrose tiling via Robinson triangle subdivision, then extrudes thick and thin
+tiles to different heights to create a non-periodic relief surface.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `generations` | 5 | Subdivision depth (1–8) |
+| `tile_height_ratio` | 0.3 | Height of thin tiles relative to thick (0–1) |
+| `extent` | 5.0 | Clipping boundary half-width |
+
+Aliases: `penrose_tiling`, `penrose`
+
+Recommended representation: SURFACE_SHELL
+
+```bash
+mathviz generate penrose_3d --output penrose.ply
+mathviz generate penrose_3d --param generations=6 --param tile_height_ratio=0.5 --output penrose.ply
 ```
 
 ### terrain
