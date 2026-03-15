@@ -402,11 +402,64 @@ const state = {
 const DARK_COLOR = 0x1a1a2e;
 const LIGHT_COLOR = 0xf0f0f0;
 
+/* ── Lighting constants ── */
+const HEMI_SKY_COLOR = 0x8899cc;
+const HEMI_GROUND_COLOR = 0x443322;
+const KEY_LIGHT_POSITION = [3, 5, 4];
+const FILL_LIGHT_POSITION = [-3, 2, -2];
+const RIM_LIGHT_POSITION = [0, 3, -5];
+const LIGHT_INTENSITIES = {
+  dark: {key: 1.2, fill: 0.4, rim: 0.3, hemi: 0.3, ambient: 0.15},
+  light: {key: 0.8, fill: 0.3, rim: 0.2, hemi: 0.2, ambient: 0.1},
+};
+
+function createLightingRig(shadowMapSize) {
+  const hemi = new THREE.HemisphereLight(HEMI_SKY_COLOR, HEMI_GROUND_COLOR, LIGHT_INTENSITIES.dark.hemi);
+  const ambient = new THREE.AmbientLight(0xffffff, LIGHT_INTENSITIES.dark.ambient);
+  const key = new THREE.DirectionalLight(0xffffff, LIGHT_INTENSITIES.dark.key);
+  key.position.set(...KEY_LIGHT_POSITION);
+  key.castShadow = true;
+  key.shadow.mapSize.width = shadowMapSize;
+  key.shadow.mapSize.height = shadowMapSize;
+  key.shadow.camera.near = 0.1;
+  key.shadow.camera.far = 50;
+  key.shadow.camera.left = -5;
+  key.shadow.camera.right = 5;
+  key.shadow.camera.top = 5;
+  key.shadow.camera.bottom = -5;
+  const fill = new THREE.DirectionalLight(0xffffff, LIGHT_INTENSITIES.dark.fill);
+  fill.position.set(...FILL_LIGHT_POSITION);
+  const rim = new THREE.DirectionalLight(0xffffff, LIGHT_INTENSITIES.dark.rim);
+  rim.position.set(...RIM_LIGHT_POSITION);
+  return {hemi, ambient, key, fill, rim};
+}
+
+function applyLightIntensities(lights, isDark) {
+  const vals = isDark ? LIGHT_INTENSITIES.dark : LIGHT_INTENSITIES.light;
+  lights.key.intensity = vals.key;
+  lights.fill.intensity = vals.fill;
+  lights.rim.intensity = vals.rim;
+  lights.hemi.intensity = vals.hemi;
+  lights.ambient.intensity = vals.ambient;
+}
+
+function addLightsToScene(s, lights) {
+  s.add(lights.hemi);
+  s.add(lights.ambient);
+  s.add(lights.key);
+  s.add(lights.fill);
+  s.add(lights.rim);
+}
+
 /* ── Scene setup ── */
 const container = document.getElementById('canvas-container');
 const renderer = new THREE.WebGLRenderer({antialias: true, preserveDrawingBuffer: true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -420,14 +473,8 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 
 /* ── Lighting ── */
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambientLight);
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-dirLight.position.set(3, 5, 4);
-scene.add(dirLight);
-const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
-fillLight.position.set(-2, -1, -3);
-scene.add(fillLight);
+const mainLights = createLightingRig(2048);
+addLightsToScene(scene, mainLights);
 
 /* ── URL params ── */
 function parseQueryParams() {
@@ -564,10 +611,11 @@ function loadMeshFromGLB(url) {
       gltf.scene.traverse((child) => {
         if (!child.isMesh) return;
         const geom = child.geometry;
+        geom.computeVertexNormals();
         totalVertices += geom.attributes.position.count;
         totalFaces += geom.index ? geom.index.count / 3 : geom.attributes.position.count / 3;
 
-        const shadedMat = new THREE.MeshStandardMaterial({
+        const shadedMat = new THREE.MeshPhysicalMaterial({
           color: 0x4488cc, metalness: 0.1, roughness: 0.6,
           side: THREE.DoubleSide,
         });
@@ -577,6 +625,8 @@ function loadMeshFromGLB(url) {
         const shadedMesh = new THREE.Mesh(geom, shadedMat);
         shadedMesh.name = 'shaded';
         shadedMesh.visible = (state.viewMode === 'shaded');
+        shadedMesh.castShadow = true;
+        shadedMesh.receiveShadow = true;
         const wireMesh = new THREE.Mesh(geom, wireMat);
         wireMesh.name = 'wireframe';
         wireMesh.visible = (state.viewMode === 'wireframe');
@@ -840,6 +890,7 @@ document.getElementById('toggle-bg').addEventListener('change', (e) => {
   const isLight = e.target.checked;
   state.darkBg = !isLight;
   scene.background = new THREE.Color(isLight ? LIGHT_COLOR : DARK_COLOR);
+  applyLightIntensities(mainLights, !isLight);
   document.getElementById('controls').classList.toggle('light-bg', isLight);
   document.getElementById('info-panel').classList.toggle('light-bg', isLight);
   document.getElementById('container-panel').classList.toggle('light-bg', isLight);
@@ -1566,14 +1617,10 @@ const PANEL_LABELS = ['A','B','C','D','E','F','G','H','I'];
 function createPanelScene() {
   const s = new THREE.Scene();
   s.background = new THREE.Color(state.darkBg ? DARK_COLOR : LIGHT_COLOR);
-  const al = new THREE.AmbientLight(0xffffff, 0.5);
-  s.add(al);
-  const dl = new THREE.DirectionalLight(0xffffff, 0.8);
-  dl.position.set(3, 5, 4);
-  s.add(dl);
-  const fl = new THREE.DirectionalLight(0xffffff, 0.3);
-  fl.position.set(-2, -1, -3);
-  s.add(fl);
+  const lights = createLightingRig(1024);
+  addLightsToScene(s, lights);
+  applyLightIntensities(lights, state.darkBg);
+  s.userData.lights = lights;
   return s;
 }
 
@@ -1835,6 +1882,9 @@ function updatePanelBackgrounds() {
   const color = new THREE.Color(state.darkBg ? DARK_COLOR : LIGHT_COLOR);
   for (const p of state.comparePanels) {
     p.scene.background = color.clone();
+    if (p.scene.userData.lights) {
+      applyLightIntensities(p.scene.userData.lights, state.darkBg);
+    }
   }
   for (const el of container.querySelectorAll('.panel-overlay')) {
     el.classList.toggle('light-bg', !state.darkBg);
