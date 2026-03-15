@@ -1945,31 +1945,107 @@ async function regeneratePanel(panelIndex) {
       return;
     }
     const data = await resp.json();
-
-    /* Clear panel scene geometry */
-    if (panel.meshGroup) { panel.scene.remove(panel.meshGroup); panel.meshGroup = null; }
-    if (panel.cloudPoints) { panel.scene.remove(panel.cloudPoints); panel.cloudPoints = null; }
-    if (panel.bboxHelper) { panel.scene.remove(panel.bboxHelper); panel.bboxHelper = null; }
-
-    /* Load mesh into panel scene */
-    if (data.mesh_url) {
-      const {group} = await loadMeshFromGLB(data.mesh_url + '?lod=preview');
-      panel.meshGroup = group;
-      panel.scene.add(group);
-      addBoundingBoxToScene(panel);
-    }
-    if (data.cloud_url) {
-      const {points} = await loadCloudFromPLY(data.cloud_url + '?lod=preview');
-      panel.cloudPoints = points;
-      panel.scene.add(points);
-      if (!panel.meshGroup) addBoundingBoxToScene(panel);
-    }
-    applyViewModeToPanel(panel);
+    await loadPanelGeometry(panelIndex, data);
   } catch (err) {
     console.error(`Panel ${panelIndex} generate error:`, err);
   } finally {
     panel.loading = false;
     setPanelSpinner(panelIndex, false);
+  }
+}
+
+async function loadPanelGeometry(panelIndex, data) {
+  const panel = state.comparePanels[panelIndex];
+  if (!panel) return;
+
+  /* Clear panel scene geometry */
+  if (panel.meshGroup) { panel.scene.remove(panel.meshGroup); panel.meshGroup = null; }
+  if (panel.cloudPoints) { panel.scene.remove(panel.cloudPoints); panel.cloudPoints = null; }
+  if (panel.bboxHelper) { panel.scene.remove(panel.bboxHelper); panel.bboxHelper = null; }
+
+  /* Load mesh into panel scene */
+  if (data.mesh_url) {
+    const {group} = await loadMeshFromGLB(data.mesh_url + '?lod=preview');
+    panel.meshGroup = group;
+    panel.scene.add(group);
+    addBoundingBoxToScene(panel);
+  }
+  if (data.cloud_url) {
+    const {points} = await loadCloudFromPLY(data.cloud_url + '?lod=preview');
+    panel.cloudPoints = points;
+    panel.scene.add(points);
+    if (!panel.meshGroup) addBoundingBoxToScene(panel);
+  }
+  applyViewModeToPanel(panel);
+}
+
+async function generateBatchPanels(panelIndices) {
+  const containerParams = getContainerParams();
+  const panels = panelIndices.map(i => {
+    const p = state.comparePanels[i];
+    return {
+      generator: p.generator,
+      params: p.params,
+      seed: p.seed,
+      container: containerParams,
+    };
+  });
+
+  const total = panelIndices.length;
+  for (const i of panelIndices) {
+    setPanelSpinner(i, true);
+    state.comparePanels[i].loading = true;
+  }
+  showLoading(`Generating 0/${total}...`);
+
+  try {
+    const resp = await fetch('/api/generate-batch', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({panels}),
+    });
+    if (!resp.ok) {
+      for (const i of panelIndices) {
+        setPanelSpinnerError(i, `Error: ${resp.status}`);
+        state.comparePanels[i].loading = false;
+      }
+      hideLoading();
+      return;
+    }
+    const data = await resp.json();
+
+    const limit = Math.min(data.panels.length, panelIndices.length);
+    let completed = 0;
+    const loadPromises = [];
+    for (let j = 0; j < limit; j++) {
+      const panelResult = data.panels[j];
+      const panelIndex = panelIndices[j];
+      if (panelResult.error) {
+        setPanelSpinnerError(panelIndex, panelResult.error);
+        state.comparePanels[panelIndex].loading = false;
+        completed++;
+        loadPromises.push(Promise.resolve());
+      } else {
+        loadPromises.push(
+          loadPanelGeometry(panelIndex, panelResult).then(() => {
+            setPanelSpinner(panelIndex, false);
+            state.comparePanels[panelIndex].loading = false;
+            completed++;
+            document.getElementById('loading-text').textContent =
+              `Generating ${completed}/${total}...`;
+          })
+        );
+      }
+    }
+    await Promise.all(loadPromises);
+  } catch (err) {
+    console.error('Batch generate error:', err);
+    for (const i of panelIndices) {
+      setPanelSpinnerError(i, 'Error');
+      state.comparePanels[i].loading = false;
+    }
+  } finally {
+    hideLoading();
   }
 }
 
@@ -2078,12 +2154,15 @@ async function enterCompareMode(mode) {
 
   refreshPanelOverlays();
 
-  /* Generate remaining panels */
-  const tasks = [];
-  for (let i = (state.meshGroup || state.cloudPoints) ? 1 : 0; i < count; i++) {
-    tasks.push(regeneratePanel(i));
+  /* Generate remaining panels in parallel via batch endpoint */
+  const startIdx = (state.meshGroup || state.cloudPoints) ? 1 : 0;
+  const indicesToGenerate = [];
+  for (let i = startIdx; i < count; i++) {
+    indicesToGenerate.push(i);
   }
-  await Promise.all(tasks);
+  if (indicesToGenerate.length > 0) {
+    await generateBatchPanels(indicesToGenerate);
+  }
 }
 
 function exitCompareMode() {
