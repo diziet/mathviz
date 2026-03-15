@@ -1595,3 +1595,47 @@ field, but the default values are not programmatically exposed.
 - `POST /api/generate` with no resolution field uses defaults (unchanged behavior)
 - Preview HTML contains resolution input fields
 - Info panel displays vertex/face/point counts after generation
+
+---
+
+## Task 46: Default preview UI view mode to Point Cloud
+
+**Objective:**
+
+Change the default view mode in the preview viewer from "Shaded Mesh" to
+"Point Cloud". Currently the `#view-mode` select element in `index.html`
+defaults to `"shaded"` (the first `<option>`). The default should be
+`"points"` instead, so the viewer starts in point cloud mode. The user can
+still switch to "Shaded Mesh" or "Wireframe" via the dropdown.
+
+**Suggested path:**
+
+In `src/mathviz/static/index.html`, move the `selected` attribute (or
+reorder the options) so `"points"` is the default:
+
+```html
+<select id="view-mode">
+  <option value="shaded">Shaded Mesh</option>
+  <option value="wireframe">Wireframe</option>
+  <option value="points" selected>Point Cloud</option>
+</select>
+```
+
+Also update the JavaScript `state` object to match:
+
+```js
+const state = {
+  ...
+  viewMode: 'points',
+  ...
+};
+```
+
+Ensure the initial render applies point cloud mode (not just setting the
+dropdown value — the scene objects' visibility must also default correctly).
+
+**Tests:** `tests/test_preview/test_view_mode_default.py`
+
+- Preview HTML has `"points"` as the default selected view mode option
+- JavaScript state initializes viewMode to `"points"`
+- Initial scene render shows point cloud, not shaded mesh
