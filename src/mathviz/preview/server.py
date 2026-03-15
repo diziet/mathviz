@@ -21,6 +21,7 @@ from mathviz.preview.lod import (
     mesh_to_glb,
     subsample_cloud,
 )
+from mathviz.preview.snapshot_routes import router as snapshot_router
 from mathviz.preview.snapshots import save_snapshot
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,7 @@ def reset_cache() -> None:
 
 
 app = FastAPI(title="MathViz Preview", version="0.1.0")
+app.include_router(snapshot_router)
 
 _STATIC_DIR = importlib.resources.files("mathviz").joinpath("static")
 _ALLOWED_FILE_EXTENSIONS = {".stl", ".ply", ".glb", ".gltf", ".obj"}
