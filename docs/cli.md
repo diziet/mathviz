@@ -92,6 +92,40 @@ mathviz info lorenz
 mathviz info gyroid --json
 ```
 
+## benchmark
+
+Run pipeline benchmarks across generators and produce an HTML report with
+per-stage timing data.
+
+```bash
+mathviz benchmark [OPTIONS]
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `--generators` | string | all non-data-driven | Comma-separated list of generators to benchmark |
+| `--workers` | int | CPU count | Number of parallel workers |
+| `--output` | path | benchmark_report.html | Output HTML report file path |
+| `--runs` | int | 3 | Number of runs per generator for averaging |
+| `--verbose` | flag | | Enable debug logging |
+| `--quiet` | flag | | Suppress non-error output |
+
+Examples:
+
+```bash
+# Benchmark all generators
+mathviz benchmark
+
+# Benchmark specific generators
+mathviz benchmark --generators lorenz,torus,gyroid
+
+# Single run with custom output
+mathviz benchmark --runs 1 --output results.html
+
+# Limit parallelism
+mathviz benchmark --workers 2
+```
+
 ## validate
 
 Generate and validate without exporting. Runs the pipeline through the
