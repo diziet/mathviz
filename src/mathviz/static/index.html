@@ -206,6 +206,49 @@ canvas{display:block}
 #param-loading{font-size:11px;opacity:0.6;display:none}
 .resolution-warning{font-size:10px;color:#ffaa33;margin-top:-4px}
 #param-panel label{display:flex;align-items:center;gap:6px;cursor:pointer}
+
+/* Compare mode */
+.compare-section{display:flex;gap:4px;align-items:center}
+#compare-mode{flex:1}
+
+.panel-label{
+  position:absolute;top:4px;left:4px;
+  background:rgba(30,30,30,0.7);color:#eee;
+  padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;
+  pointer-events:none;z-index:10;
+}
+.panel-overlay{
+  position:absolute;bottom:4px;left:4px;
+  background:rgba(30,30,30,0.75);color:#eee;
+  padding:4px 8px;border-radius:6px;font-size:11px;
+  backdrop-filter:blur(4px);z-index:10;cursor:pointer;
+  max-width:200px;transition:max-height 0.2s;overflow:hidden;
+}
+.panel-overlay.light-bg{background:rgba(240,240,240,0.85);color:#222}
+.panel-overlay .overlay-summary{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.panel-overlay .overlay-editor{display:none;margin-top:4px}
+.panel-overlay.expanded .overlay-editor{display:block}
+.panel-overlay .overlay-editor .overlay-row{
+  display:flex;gap:4px;align-items:center;margin:2px 0;
+}
+.panel-overlay .overlay-editor .overlay-row label{font-size:10px;min-width:50px;opacity:0.8}
+.panel-overlay .overlay-editor .overlay-row input{
+  width:60px;padding:2px 4px;border:1px solid #555;border-radius:3px;
+  background:rgba(0,0,0,0.3);color:inherit;font-size:10px;outline:none;
+}
+.panel-overlay .overlay-editor .overlay-row input:focus{border-color:#4488cc}
+.panel-overlay.light-bg .overlay-editor .overlay-row input{
+  background:rgba(255,255,255,0.5);border-color:#aaa;
+}
+.panel-overlay .overlay-apply{
+  margin-top:4px;padding:2px 6px;border:1px solid #555;border-radius:3px;
+  background:transparent;color:inherit;cursor:pointer;font-size:10px;
+}
+.panel-overlay .overlay-apply:hover{background:rgba(128,128,128,0.3)}
+.panel-spinner{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  color:#aaa;font-size:12px;display:none;z-index:10;pointer-events:none;
+}
 </style>
 </head>
 <body>
@@ -278,6 +321,15 @@ canvas{display:block}
     <label><input type="checkbox" id="toggle-bg"> Light Background</label>
     <label><input type="checkbox" id="lock-camera"> Lock Camera</label>
 
+    <div class="section-title">Compare</div>
+    <div class="compare-section">
+      <select id="compare-mode">
+        <option value="">Single View</option>
+        <option value="2x2">2×2 Grid</option>
+        <option value="3x3">3×3 Grid</option>
+      </select>
+    </div>
+
     <button id="reset-view-btn" disabled>Reset View</button>
     <button id="screenshot-btn">Screenshot</button>
   </div>
@@ -332,6 +384,8 @@ const state = {
   autoApply: false,
   geometryId: null,
   generatedWith: null,
+  compareMode: null,
+  comparePanels: [],
 };
 
 const DARK_COLOR = 0x1a1a2e;
@@ -441,17 +495,20 @@ function enableResetView() {
   resetViewBtn.disabled = false;
 }
 
-function addBoundingBox(object3d) {
+function createBBoxHelper() {
   const cp = getContainerParams();
-  const hw = cp.width_mm / 2;
-  const hh = cp.height_mm / 2;
-  const hd = cp.depth_mm / 2;
+  const hw = cp.width_mm / 2, hh = cp.height_mm / 2, hd = cp.depth_mm / 2;
   const box = new THREE.Box3(
     new THREE.Vector3(-hw, -hh, -hd),
     new THREE.Vector3(hw, hh, hd),
   );
   const helper = new THREE.Box3Helper(box, 0x44aaff);
   helper.visible = document.getElementById('show-bbox').checked;
+  return helper;
+}
+
+function addBoundingBox(object3d) {
+  const helper = createBBoxHelper();
   scene.add(helper);
   state.bboxHelper = helper;
 }
@@ -656,20 +713,22 @@ function viewModeNeedsMesh() {
   return state.viewMode === 'shaded' || state.viewMode === 'wireframe';
 }
 
-function applyViewMode() {
+function applyViewModeTo(meshGroup, cloudPoints) {
   const mode = state.viewMode;
-
-  if (state.meshGroup) {
-    state.meshGroup.traverse((child) => {
+  if (meshGroup) {
+    meshGroup.traverse((child) => {
       if (child.name === 'shaded') child.visible = (mode === 'shaded');
       if (child.name === 'wireframe') child.visible = (mode === 'wireframe');
       if (child.name === 'points') child.visible = (mode === 'points');
     });
   }
-
-  if (state.cloudPoints) {
-    state.cloudPoints.visible = (mode === 'points') || !state.meshGroup;
+  if (cloudPoints) {
+    cloudPoints.visible = (mode === 'points') || !meshGroup;
   }
+}
+
+function applyViewMode() {
+  applyViewModeTo(state.meshGroup, state.cloudPoints);
 }
 
 function updatePointSize(size) {
@@ -711,14 +770,18 @@ function updateFPS() {
 document.getElementById('view-mode').addEventListener('change', (e) => {
   state.viewMode = e.target.value;
   applyViewMode();
+  if (state.compareMode) applyViewModeToAllPanels();
 });
 
 document.getElementById('point-size').addEventListener('input', (e) => {
-  updatePointSize(parseFloat(e.target.value));
+  const size = parseFloat(e.target.value);
+  updatePointSize(size);
+  if (state.compareMode) updatePointSizeInPanels(size);
 });
 
 document.getElementById('show-bbox').addEventListener('change', (e) => {
   if (state.bboxHelper) state.bboxHelper.visible = e.target.checked;
+  if (state.compareMode) updatePanelBBoxVisibility(e.target.checked);
 });
 
 document.getElementById('toggle-bg').addEventListener('change', (e) => {
@@ -729,6 +792,7 @@ document.getElementById('toggle-bg').addEventListener('change', (e) => {
   document.getElementById('info-panel').classList.toggle('light-bg', isLight);
   document.getElementById('container-panel').classList.toggle('light-bg', isLight);
   document.getElementById('param-panel').classList.toggle('light-bg', isLight);
+  if (state.compareMode) updatePanelBackgrounds();
 });
 
 document.getElementById('lock-camera').addEventListener('change', (e) => {
@@ -994,13 +1058,47 @@ window.addEventListener('resize', () => {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
+  if (state.compareMode) refreshPanelOverlays();
 });
 
 /* ── Render loop ── */
+function renderCompareMode() {
+  const dim = getGridDimension();
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  const pw = Math.floor(w / dim);
+  const ph = Math.floor(h / dim);
+
+  camera.aspect = pw / ph;
+  camera.updateProjectionMatrix();
+
+  renderer.setScissorTest(true);
+  renderer.autoClear = false;
+  renderer.clear();
+
+  for (const panel of state.comparePanels) {
+    const col = panel.index % dim;
+    const row = dim - 1 - Math.floor(panel.index / dim);
+    const x = col * pw;
+    const y = row * ph;
+
+    renderer.setViewport(x, y, pw, ph);
+    renderer.setScissor(x, y, pw, ph);
+    renderer.render(panel.scene, camera);
+  }
+
+  renderer.setScissorTest(false);
+  renderer.autoClear = true;
+}
+
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
-  renderer.render(scene, camera);
+  if (state.compareMode && state.comparePanels.length > 0) {
+    renderCompareMode();
+  } else {
+    renderer.render(scene, camera);
+  }
   updateFPS();
 }
 animate();
@@ -1408,6 +1506,420 @@ handleEnterKey(document.getElementById('container-panel'), () => {
 
 handleEnterKey(document.getElementById('param-panel'), () => {
   applyParams();
+});
+
+/* ── Compare mode ── */
+const PANEL_LABELS = ['A','B','C','D','E','F','G','H','I'];
+
+function createPanelScene() {
+  const s = new THREE.Scene();
+  s.background = new THREE.Color(state.darkBg ? DARK_COLOR : LIGHT_COLOR);
+  const al = new THREE.AmbientLight(0xffffff, 0.5);
+  s.add(al);
+  const dl = new THREE.DirectionalLight(0xffffff, 0.8);
+  dl.position.set(3, 5, 4);
+  s.add(dl);
+  const fl = new THREE.DirectionalLight(0xffffff, 0.3);
+  fl.position.set(-2, -1, -3);
+  s.add(fl);
+  return s;
+}
+
+function createPanelData(index, generator, params, seed) {
+  return {
+    index,
+    generator: generator || '',
+    params: params ? {...params} : {},
+    seed: seed ?? 42,
+    scene: createPanelScene(),
+    meshGroup: null,
+    cloudPoints: null,
+    bboxHelper: null,
+    loading: false,
+  };
+}
+
+function getGridDimension() {
+  if (state.compareMode === '2x2') return 2;
+  if (state.compareMode === '3x3') return 3;
+  return 1;
+}
+
+function createPanelOverlayDOM(panel) {
+  const cw = container.clientWidth;
+  const ch = container.clientHeight;
+  const dim = getGridDimension();
+  const pw = cw / dim;
+  const ph = ch / dim;
+  const col = panel.index % dim;
+  const row = Math.floor(panel.index / dim);
+  const left = col * pw;
+  const top = row * ph;
+
+  /* Panel label */
+  const label = document.createElement('div');
+  label.className = 'panel-label';
+  label.dataset.panelIndex = panel.index;
+  label.textContent = PANEL_LABELS[panel.index] || String(panel.index + 1);
+  label.style.left = (left + 4) + 'px';
+  label.style.top = (top + 4) + 'px';
+  container.appendChild(label);
+
+  /* Parameter overlay */
+  const overlay = document.createElement('div');
+  overlay.className = 'panel-overlay';
+  overlay.dataset.panelIndex = panel.index;
+  if (!state.darkBg) overlay.classList.add('light-bg');
+  overlay.style.left = (left + 4) + 'px';
+  overlay.style.top = (top + ph - 4) + 'px';
+  overlay.style.transform = 'translateY(-100%)';
+
+  const summary = document.createElement('div');
+  summary.className = 'overlay-summary';
+  summary.textContent = `seed: ${panel.seed}`;
+  overlay.appendChild(summary);
+
+  const editor = document.createElement('div');
+  editor.className = 'overlay-editor';
+
+  /* Seed row */
+  const seedRow = document.createElement('div');
+  seedRow.className = 'overlay-row';
+  const seedLabel = document.createElement('label');
+  seedLabel.textContent = 'seed';
+  const seedInp = document.createElement('input');
+  seedInp.type = 'number';
+  seedInp.value = panel.seed;
+  seedInp.dataset.overlayParam = 'seed';
+  seedRow.appendChild(seedLabel);
+  seedRow.appendChild(seedInp);
+  editor.appendChild(seedRow);
+
+  /* Param rows */
+  for (const [k, v] of Object.entries(panel.params)) {
+    const r = document.createElement('div');
+    r.className = 'overlay-row';
+    const lb = document.createElement('label');
+    lb.textContent = k;
+    const inp = document.createElement('input');
+    inp.type = typeof v === 'number' ? 'number' : 'text';
+    inp.value = v;
+    inp.step = typeof v === 'number' && !Number.isInteger(v) ? '0.1' : '1';
+    inp.dataset.overlayParam = k;
+    r.appendChild(lb);
+    r.appendChild(inp);
+    editor.appendChild(r);
+  }
+
+  /* Apply button */
+  const applyBtn = document.createElement('button');
+  applyBtn.className = 'overlay-apply';
+  applyBtn.textContent = 'Apply';
+  applyBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    applyPanelOverlay(panel.index, overlay);
+  });
+  editor.appendChild(applyBtn);
+  overlay.appendChild(editor);
+
+  /* Toggle expand/collapse */
+  summary.addEventListener('click', (e) => {
+    e.stopPropagation();
+    overlay.classList.toggle('expanded');
+  });
+
+  /* Spinner */
+  const spinner = document.createElement('div');
+  spinner.className = 'panel-spinner';
+  spinner.dataset.panelIndex = panel.index;
+  spinner.textContent = 'Loading...';
+  spinner.style.left = (left + pw / 2) + 'px';
+  spinner.style.top = (top + ph / 2) + 'px';
+  container.appendChild(spinner);
+
+  container.appendChild(overlay);
+}
+
+function removeAllPanelDOM() {
+  for (const el of container.querySelectorAll('.panel-label,.panel-overlay,.panel-spinner')) {
+    el.remove();
+  }
+}
+
+function refreshPanelOverlays() {
+  removeAllPanelDOM();
+  if (!state.compareMode) return;
+  for (const p of state.comparePanels) {
+    createPanelOverlayDOM(p);
+  }
+}
+
+function updatePanelOverlaySummary(panelIndex) {
+  const overlay = container.querySelector(`.panel-overlay[data-panel-index="${panelIndex}"]`);
+  if (!overlay) return;
+  const panel = state.comparePanels[panelIndex];
+  if (!panel) return;
+  const base = state.comparePanels[0];
+  const diffs = [];
+  diffs.push(`seed: ${panel.seed}`);
+  for (const [k, v] of Object.entries(panel.params)) {
+    if (base && base.params[k] !== v) diffs.push(`${k}: ${v}`);
+  }
+  const summary = overlay.querySelector('.overlay-summary');
+  if (summary) summary.textContent = diffs.join(', ');
+}
+
+function setPanelSpinner(panelIndex, visible) {
+  const el = container.querySelector(`.panel-spinner[data-panel-index="${panelIndex}"]`);
+  if (!el) return;
+  el.style.display = visible ? 'block' : 'none';
+  if (visible) { el.textContent = 'Loading...'; el.style.color = '#aaa'; }
+}
+
+function setPanelSpinnerError(panelIndex, msg) {
+  const el = container.querySelector(`.panel-spinner[data-panel-index="${panelIndex}"]`);
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = '#ff6b6b';
+  el.style.display = 'block';
+}
+
+async function applyPanelOverlay(panelIndex, overlay) {
+  const panel = state.comparePanels[panelIndex];
+  if (!panel) return;
+
+  /* Read values from overlay inputs */
+  for (const inp of overlay.querySelectorAll('input[data-overlay-param]')) {
+    const pname = inp.dataset.overlayParam;
+    if (pname === 'seed') {
+      panel.seed = parseInt(inp.value, 10) || 42;
+    } else {
+      const num = parseFloat(inp.value);
+      panel.params[pname] = Number.isNaN(num) ? inp.value : num;
+    }
+  }
+
+  overlay.classList.remove('expanded');
+  updatePanelOverlaySummary(panelIndex);
+  await regeneratePanel(panelIndex);
+}
+
+async function regeneratePanel(panelIndex) {
+  const panel = state.comparePanels[panelIndex];
+  if (!panel || !panel.generator) return;
+
+  setPanelSpinner(panelIndex, true);
+  panel.loading = true;
+
+  try {
+    const body = {
+      generator: panel.generator,
+      params: panel.params,
+      seed: panel.seed,
+      container: getContainerParams(),
+    };
+    const resp = await fetch('/api/generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      setPanelSpinnerError(panelIndex, `Error: ${resp.status}`);
+      return;
+    }
+    const data = await resp.json();
+
+    /* Clear panel scene geometry */
+    if (panel.meshGroup) { panel.scene.remove(panel.meshGroup); panel.meshGroup = null; }
+    if (panel.cloudPoints) { panel.scene.remove(panel.cloudPoints); panel.cloudPoints = null; }
+    if (panel.bboxHelper) { panel.scene.remove(panel.bboxHelper); panel.bboxHelper = null; }
+
+    /* Load mesh into panel scene */
+    if (data.mesh_url) {
+      const {group} = await loadMeshFromGLB(data.mesh_url + '?lod=preview');
+      panel.meshGroup = group;
+      panel.scene.add(group);
+      addBoundingBoxToScene(panel);
+    }
+    if (data.cloud_url) {
+      const {points} = await loadCloudFromPLY(data.cloud_url + '?lod=preview');
+      panel.cloudPoints = points;
+      panel.scene.add(points);
+      if (!panel.meshGroup) addBoundingBoxToScene(panel);
+    }
+    applyViewModeToPanel(panel);
+  } catch (err) {
+    console.error(`Panel ${panelIndex} generate error:`, err);
+  } finally {
+    panel.loading = false;
+    setPanelSpinner(panelIndex, false);
+  }
+}
+
+function addBoundingBoxToScene(panel) {
+  const helper = createBBoxHelper();
+  panel.scene.add(helper);
+  panel.bboxHelper = helper;
+}
+
+function applyViewModeToPanel(panel) {
+  applyViewModeTo(panel.meshGroup, panel.cloudPoints);
+}
+
+function applyViewModeToAllPanels() {
+  for (const p of state.comparePanels) applyViewModeToPanel(p);
+}
+
+function updatePointSizeInPanels(size) {
+  const matSize = size * 0.01;
+  for (const p of state.comparePanels) {
+    p.scene.traverse((child) => {
+      if (child.isPoints && child.material) child.material.size = matSize;
+    });
+  }
+}
+
+function updatePanelBackgrounds() {
+  const color = new THREE.Color(state.darkBg ? DARK_COLOR : LIGHT_COLOR);
+  for (const p of state.comparePanels) {
+    p.scene.background = color.clone();
+  }
+  for (const el of container.querySelectorAll('.panel-overlay')) {
+    el.classList.toggle('light-bg', !state.darkBg);
+  }
+}
+
+function updatePanelBBoxVisibility(visible) {
+  for (const p of state.comparePanels) {
+    if (p.bboxHelper) p.bboxHelper.visible = visible;
+  }
+}
+
+function disposeSceneResources(s) {
+  s.traverse((obj) => {
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      if (Array.isArray(obj.material)) {
+        obj.material.forEach(m => m.dispose());
+      } else {
+        obj.material.dispose();
+      }
+    }
+  });
+}
+
+function disposeAllPanels() {
+  for (const p of state.comparePanels) {
+    disposeSceneResources(p.scene);
+  }
+  state.comparePanels = [];
+}
+
+async function enterCompareMode(mode) {
+  /* Clean up existing panels when switching modes directly */
+  if (state.comparePanels.length > 0) {
+    disposeAllPanels();
+    removeAllPanelDOM();
+  }
+
+  state.compareMode = mode;
+  const dim = getGridDimension();
+  const count = dim * dim;
+
+  /* Get current generator/params/seed */
+  const gen = searchInput.value || '';
+  const params = getEditorParams();
+  const seed = parseSeed();
+
+  /* Create panels, all starting with same generator/params */
+  state.comparePanels = [];
+  for (let i = 0; i < count; i++) {
+    const panel = createPanelData(i, gen, params, seed + i);
+    state.comparePanels.push(panel);
+  }
+
+  /* Copy panel 0 geometry from current single-view scene */
+  if (state.meshGroup || state.cloudPoints) {
+    const p0 = state.comparePanels[0];
+    p0.seed = seed;
+    if (state.meshGroup) {
+      const clonedGroup = state.meshGroup.clone();
+      p0.meshGroup = clonedGroup;
+      p0.scene.add(clonedGroup);
+    }
+    if (state.cloudPoints) {
+      const clonedPts = state.cloudPoints.clone();
+      p0.cloudPoints = clonedPts;
+      p0.scene.add(clonedPts);
+    }
+    addBoundingBoxToScene(p0);
+    applyViewModeToPanel(p0);
+  }
+
+  refreshPanelOverlays();
+
+  /* Generate remaining panels */
+  const tasks = [];
+  for (let i = (state.meshGroup || state.cloudPoints) ? 1 : 0; i < count; i++) {
+    tasks.push(regeneratePanel(i));
+  }
+  await Promise.all(tasks);
+}
+
+function exitCompareMode() {
+  /* Keep panel 0 geometry as active scene */
+  const p0 = state.comparePanels[0];
+  if (p0) {
+    clearScene();
+    if (p0.meshGroup) {
+      state.meshGroup = p0.meshGroup.clone();
+      scene.add(state.meshGroup);
+    }
+    if (p0.cloudPoints) {
+      state.cloudPoints = p0.cloudPoints.clone();
+      scene.add(state.cloudPoints);
+    }
+    const active = state.meshGroup || state.cloudPoints;
+    if (active) {
+      addBoundingBox(active);
+      if (!state.cameraLocked) fitCamera(active);
+      enableResetView();
+    }
+    applyViewMode();
+  }
+
+  /* Dispose GPU resources and clean up */
+  disposeAllPanels();
+  state.compareMode = null;
+  removeAllPanelDOM();
+
+  /* Restore renderer viewport and camera aspect to full canvas */
+  renderer.setViewport(0, 0, container.clientWidth, container.clientHeight);
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+}
+
+/* Compare mode toggle */
+document.getElementById('compare-mode').addEventListener('change', (e) => {
+  const val = e.target.value;
+  if (!val) {
+    exitCompareMode();
+  } else {
+    enterCompareMode(val);
+  }
+});
+
+/* Close overlay on outside click or Escape */
+function collapseAllOverlays() {
+  for (const el of container.querySelectorAll('.panel-overlay.expanded')) {
+    el.classList.remove('expanded');
+  }
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.panel-overlay')) collapseAllOverlays();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') collapseAllOverlays();
 });
 
 /* ── Init: load from URL params ── */
