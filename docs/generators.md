@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 75 generators across 12 categories. Each generator produces a
+MathViz includes 76 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -973,6 +973,24 @@ Aliases: `bour`
 
 ```bash
 mathviz generate bour_surface --param n=3 --output bour.ply
+```
+
+### dna_helix
+
+DNA double helix with twin helices offset by 180 degrees, connected by base pair
+rungs at regular intervals.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `turns` | 3 | Number of helix turns |
+| `radius` | 1.0 | Helix radius |
+| `rise_per_turn` | 3.4 | Vertical rise per full turn |
+| `base_pairs_per_turn` | 10 | Number of base pair rungs per turn |
+
+Aliases: `dna`, `double_helix`
+
+```bash
+mathviz generate dna_helix --param turns=5 --seed 42 --output dna.ply
 ```
 
 ### seifert_surface

@@ -30,6 +30,7 @@ GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     "roman_surface": _SURFACE_CONFIG,
     "seifert_surface": _SURFACE_CONFIG,
     "bour_surface": _SURFACE_CONFIG,
+    "dna_helix": _TUBE_CONFIG,
     # Geometry (curves)
     "voronoi_sphere": _TUBE_CONFIG,
     # Implicit surfaces (mesh)
