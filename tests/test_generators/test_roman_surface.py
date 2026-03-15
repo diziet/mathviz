@@ -6,7 +6,6 @@ determinism, parameter validation, and bounding box correctness.
 
 import numpy as np
 import pytest
-import trimesh
 
 from mathviz.core.generator import clear_registry, get_generator, register
 from mathviz.core.representation import RepresentationType
@@ -149,28 +148,29 @@ def test_invalid_grid_resolution_raises() -> None:
         gen.generate(grid_resolution=2)
 
 
-def test_tetrahedral_symmetry() -> None:
-    """The Roman surface has approximate tetrahedral symmetry.
+def test_implicit_equation() -> None:
+    """Vertices satisfy the Roman surface implicit equation.
 
-    We verify by checking that the vertex set is approximately invariant
-    under coordinate permutations (a subset of tetrahedral symmetry).
+    The Roman surface satisfies x²y² + y²z² + x²z² = scale² · xyz.
+    We verify this for vertices away from the origin where the
+    equation is numerically stable.
     """
     gen = RomanSurfaceGenerator()
     obj = gen.generate(grid_resolution=64)
     assert obj.mesh is not None
 
     verts = obj.mesh.vertices
-    # Under permutation (x,y,z) -> (y,z,x), a Roman surface with
-    # scale=1 maps to itself. Check that the set of rounded vertices
-    # overlaps significantly after permutation.
-    rounded = np.round(verts, decimals=2)
-    original_set = {tuple(row) for row in rounded}
+    x, y, z = verts[:, 0], verts[:, 1], verts[:, 2]
 
-    permuted = np.column_stack([verts[:, 1], verts[:, 2], verts[:, 0]])
-    permuted_rounded = np.round(permuted, decimals=2)
-    permuted_set = {tuple(row) for row in permuted_rounded}
+    lhs = x**2 * y**2 + y**2 * z**2 + x**2 * z**2
+    rhs = 1.0 * x * y * z  # scale=1.0, so scale² = 1.0
 
-    overlap = len(original_set & permuted_set)
-    # A meaningful fraction should overlap for symmetric surfaces
-    ratio = overlap / len(original_set) if original_set else 0
-    assert ratio > 0.1, f"Symmetry overlap ratio too low: {ratio:.3f}"
+    # Filter to vertices away from origin where both sides are nonzero
+    norms = np.linalg.norm(verts, axis=1)
+    mask = norms > 0.1
+    assert np.sum(mask) > 100, "Not enough vertices away from origin"
+
+    residual = np.abs(lhs[mask] - rhs[mask])
+    assert np.all(residual < 1e-10), (
+        f"Max residual: {np.max(residual):.2e}"
+    )
