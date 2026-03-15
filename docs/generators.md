@@ -1,6 +1,6 @@
 # Generators
 
-MathViz includes 61 generators across 12 categories. Each generator produces a
+MathViz includes 62 generators across 12 categories. Each generator produces a
 deterministic 3D mathematical form from a seed and a set of parameters.
 
 ## Attractors
@@ -830,6 +830,23 @@ Boy surface (RP² immersion) with triple self-intersection.
 
 ```bash
 mathviz generate boy_surface --output boy.ply
+```
+
+### seifert_surface
+
+Seifert surface — orientable surface bounded by a knot. Uses the Milnor fiber
+parameterization for torus knots (trefoil) and spanning surface construction for
+the figure-eight knot.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `knot_type` | `trefoil` | Knot type: `trefoil` or `figure_eight` |
+| `theta` | 0.0 | Milnor fiber angle (trefoil) / phase offset (figure-eight) |
+
+Aliases: `seifert`
+
+```bash
+mathviz generate seifert_surface --param knot_type=trefoil --output seifert.ply
 ```
 
 ### roman_surface
