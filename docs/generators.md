@@ -249,6 +249,20 @@ Aliases: `golden_spiral`
 mathviz generate fibonacci_spiral --param turns=6 --output spiral.ply
 ```
 
+### hilbert_3d
+
+3D Hilbert space-filling curve that visits every cell in a cubic grid
+exactly once using recursive coordinate transformation.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `order` | 4 | Recursion level (1–6); produces 8^N points |
+| `size` | 1.0 | Side length of the bounding cube |
+
+```bash
+mathviz generate hilbert_3d --param order=3 --seed 42 --output hilbert3d.ply
+```
+
 ### lissajous_curve
 
 3D Lissajous curve with configurable frequencies and phases.
