@@ -33,6 +33,7 @@ GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     "dna_helix": _TUBE_CONFIG,
     "hopf_fibration": _TUBE_CONFIG,
     # Geometry (curves)
+    "geodesic_sphere": _SURFACE_CONFIG,
     "voronoi_sphere": _TUBE_CONFIG,
     # Implicit surfaces (mesh)
     "genus2_surface": _SURFACE_CONFIG,
