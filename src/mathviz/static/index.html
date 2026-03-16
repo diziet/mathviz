@@ -182,6 +182,12 @@ canvas{display:block}
 #export-progress-fill{
   height:100%;background:#4488cc;border-radius:3px;width:0%;transition:width 0.1s;
 }
+#export-cancel-btn{
+  margin-top:12px;padding:6px 20px;border:1px solid rgba(255,255,255,0.3);
+  background:rgba(255,255,255,0.1);color:#eee;border-radius:5px;cursor:pointer;
+  font-size:13px;
+}
+#export-cancel-btn:hover{background:rgba(255,80,80,0.4);border-color:rgba(255,80,80,0.6)}
 
 #save-toast{
   position:absolute;bottom:56px;right:12px;
@@ -597,6 +603,7 @@ canvas{display:block}
   <div id="export-progress">
     <div id="export-progress-text">Capturing frame 0/360...</div>
     <div id="export-progress-bar"><div id="export-progress-fill"></div></div>
+    <button id="export-cancel-btn" onclick="state.exportCancelled = true">Cancel</button>
   </div>
 </div>
 
@@ -669,6 +676,7 @@ const state = {
   turntable: false,
   turntableSpeed: 1.0,
   exporting: false,
+  exportCancelled: false,
   colormapActive: false,
   colormapMetric: 'height',
   colormapGradient: 'viridis',
@@ -2062,6 +2070,7 @@ function getGeneratorFilename() {
 async function exportTurntable() {
   if (state.exporting) return;
   state.exporting = true;
+  state.exportCancelled = false;
 
   const format = document.getElementById('export-format').value;
   const resMult = parseInt(document.getElementById('export-resolution').value, 10);
@@ -2171,7 +2180,9 @@ async function exportWebM(cfg) {
 
   recorder.start();
 
+  let cancelled = false;
   for (let i = 0; i < totalFrames; i++) {
+    if (state.exportCancelled) { cancelled = true; break; }
     renderFrameAtAngle(i * anglePerFrame, pivotTarget, radius, startAngle, camY);
     if (canRequestFrame) track.requestFrame();
 
@@ -2182,7 +2193,9 @@ async function exportWebM(cfg) {
   recorder.stop();
   await donePromise;
 
-  downloadBlob(new Blob(chunks, {type: 'video/webm'}), getGeneratorFilename() + '_turntable.webm');
+  if (!cancelled) {
+    downloadBlob(new Blob(chunks, {type: 'video/webm'}), getGeneratorFilename() + '_turntable.webm');
+  }
 }
 
 async function exportGIF(cfg) {
@@ -2195,7 +2208,9 @@ async function exportGIF(cfg) {
   const delay = Math.round(1000 / fps);
   const gifEncoder = createGIFEncoder(exportWidth, exportHeight, delay);
 
+  let cancelled = false;
   for (let i = 0; i < totalFrames; i++) {
+    if (state.exportCancelled) { cancelled = true; break; }
     renderFrameAtAngle(i * anglePerFrame, pivotTarget, radius, startAngle, camY);
     ctx.drawImage(renderer.domElement, 0, 0, exportWidth, exportHeight);
     const imageData = ctx.getImageData(0, 0, exportWidth, exportHeight);
@@ -2205,10 +2220,11 @@ async function exportGIF(cfg) {
     await new Promise((r) => setTimeout(r, 0));
   }
 
-  progressText.textContent = 'Finalizing GIF...';
-  const gif = gifEncoder.finish();
-
-  downloadBlob(new Blob([gif], {type: 'image/gif'}), getGeneratorFilename() + '_turntable.gif');
+  if (!cancelled) {
+    progressText.textContent = 'Finalizing GIF...';
+    const gif = gifEncoder.finish();
+    downloadBlob(new Blob([gif], {type: 'image/gif'}), getGeneratorFilename() + '_turntable.gif');
+  }
 }
 
 function createGIFEncoder(width, height, delay) {
