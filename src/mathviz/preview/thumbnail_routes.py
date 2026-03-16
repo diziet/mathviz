@@ -51,7 +51,7 @@ def get_generator_thumbnail(
         logger.error("Failed to generate thumbnail for %s: %s", name, exc)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to generate thumbnail: {exc}",
+            detail="Failed to generate thumbnail.",
         ) from exc
 
     return FileResponse(str(path), media_type="image/png")

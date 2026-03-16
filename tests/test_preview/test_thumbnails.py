@@ -1,6 +1,6 @@
 """Tests for generator thumbnail endpoint and persistent disk cache."""
 
-import time
+from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -51,6 +51,13 @@ def _fake_render_to_png(obj: Any, path: Path, **kwargs: Any) -> Path:
     return path
 
 
+def _mock_pipeline_result() -> MagicMock:
+    """Create a mock PipelineResult with a MathObject."""
+    result = MagicMock()
+    result.math_object = _make_test_math_object()
+    return result
+
+
 @pytest.fixture(autouse=True)
 def _setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Register generators and redirect thumbnail dir to temp."""
@@ -64,20 +71,27 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-def _mock_pipeline_result() -> MagicMock:
-    """Create a mock PipelineResult with a MathObject."""
-    result = MagicMock()
-    result.math_object = _make_test_math_object()
-    return result
+@pytest.fixture
+def _mock_rendering() -> Generator[MagicMock, None, None]:
+    """Stub out pipeline + renderer for thumbnail tests."""
+    with (
+        patch(
+            "mathviz.preview.thumbnails.run_pipeline",
+            return_value=_mock_pipeline_result(),
+        ) as mock_run,
+        patch(
+            "mathviz.preview.thumbnails.render_to_png",
+            side_effect=_fake_render_to_png,
+        ),
+    ):
+        yield mock_run
 
 
 class TestThumbnailEndpoint:
     """Tests for GET /api/generators/{name}/thumbnail."""
 
-    @patch("mathviz.preview.thumbnails.render_to_png", side_effect=_fake_render_to_png)
-    @patch("mathviz.preview.thumbnails.run_pipeline", return_value=_mock_pipeline_result())
     def test_returns_valid_png(
-        self, mock_run: MagicMock, mock_render: MagicMock, client: TestClient,
+        self, _mock_rendering: MagicMock, client: TestClient,
     ) -> None:
         """Thumbnail endpoint returns a valid PNG for a known generator."""
         resp = client.get("/api/generators/torus/thumbnail")
@@ -91,25 +105,21 @@ class TestThumbnailEndpoint:
         assert resp.status_code == 404
         assert "not found" in resp.json()["detail"].lower()
 
-    @patch("mathviz.preview.thumbnails.render_to_png", side_effect=_fake_render_to_png)
-    @patch("mathviz.preview.thumbnails.run_pipeline", return_value=_mock_pipeline_result())
     def test_cache_hit_on_second_call(
-        self, mock_run: MagicMock, mock_render: MagicMock, client: TestClient,
+        self, _mock_rendering: MagicMock, client: TestClient,
     ) -> None:
         """Second request serves from disk cache without re-generating."""
         resp1 = client.get("/api/generators/torus/thumbnail")
         assert resp1.status_code == 200
-        assert mock_run.call_count == 1
+        assert _mock_rendering.call_count == 1
 
         resp2 = client.get("/api/generators/torus/thumbnail")
         assert resp2.status_code == 200
         # Pipeline should NOT be called again — served from disk cache
-        assert mock_run.call_count == 1
+        assert _mock_rendering.call_count == 1
 
-    @patch("mathviz.preview.thumbnails.render_to_png", side_effect=_fake_render_to_png)
-    @patch("mathviz.preview.thumbnails.run_pipeline", return_value=_mock_pipeline_result())
     def test_different_view_modes_produce_different_files(
-        self, mock_run: MagicMock, mock_render: MagicMock, client: TestClient,
+        self, _mock_rendering: MagicMock, client: TestClient,
     ) -> None:
         """Different view_mode values produce different cached files."""
         resp_points = client.get("/api/generators/torus/thumbnail?view_mode=points")
@@ -135,13 +145,10 @@ class TestThumbnailEndpoint:
 class TestDeleteThumbnails:
     """Tests for DELETE /api/thumbnails."""
 
-    @patch("mathviz.preview.thumbnails.render_to_png", side_effect=_fake_render_to_png)
-    @patch("mathviz.preview.thumbnails.run_pipeline", return_value=_mock_pipeline_result())
     def test_clears_all_cached_thumbnails(
-        self, mock_run: MagicMock, mock_render: MagicMock, client: TestClient,
+        self, _mock_rendering: MagicMock, client: TestClient,
     ) -> None:
         """DELETE /api/thumbnails removes all cached thumbnail files."""
-        # Generate some thumbnails first
         client.get("/api/generators/torus/thumbnail?view_mode=points")
         client.get("/api/generators/torus/thumbnail?view_mode=shaded")
 
@@ -175,10 +182,8 @@ class TestBatchThumbnails:
 class TestThumbnailDiskPath:
     """Tests for thumbnail disk storage paths."""
 
-    @patch("mathviz.preview.thumbnails.render_to_png", side_effect=_fake_render_to_png)
-    @patch("mathviz.preview.thumbnails.run_pipeline", return_value=_mock_pipeline_result())
     def test_stored_at_expected_path(
-        self, mock_run: MagicMock, mock_render: MagicMock, client: TestClient,
+        self, _mock_rendering: MagicMock, client: TestClient,
     ) -> None:
         """Thumbnails are stored at <thumbnails_dir>/<view_mode>/<name>.png."""
         client.get("/api/generators/torus/thumbnail?view_mode=wireframe")

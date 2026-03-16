@@ -46,7 +46,7 @@ def _halve_resolution(resolution: dict) -> dict:
         if isinstance(value, int) and value > 1:
             halved[key] = max(value // 2, 1)
         elif isinstance(value, float) and value > 0:
-            halved[key] = max(value / 2.0, 1.0)
+            halved[key] = min(value, max(value / 2.0, 0.01))
         else:
             halved[key] = value
     return halved
@@ -86,9 +86,10 @@ def generate_thumbnail(generator_name: str, view_mode: str = DEFAULT_VIEW_MODE) 
 
 def get_or_generate_thumbnail(generator_name: str, view_mode: str = DEFAULT_VIEW_MODE) -> Path:
     """Return cached thumbnail path, generating if missing."""
-    path = get_thumbnail_path(generator_name, view_mode)
+    meta = get_generator_meta(generator_name)
+    path = get_thumbnail_path(meta.name, view_mode)
     if path.is_file():
-        logger.debug("Thumbnail cache hit for %s (%s)", generator_name, view_mode)
+        logger.debug("Thumbnail cache hit for %s (%s)", meta.name, view_mode)
         return path
     return generate_thumbnail(generator_name, view_mode)
 
