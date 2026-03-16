@@ -95,6 +95,54 @@ class TestGenerationTimeout:
         with patch.dict(os.environ, {"MATHVIZ_GENERATION_TIMEOUT": "abc"}):
             assert get_timeout_seconds() == DEFAULT_TIMEOUT_SECONDS
 
+    def test_custom_timeout_passed_to_executor(self, client: TestClient) -> None:
+        """Request with custom timeout passes that value to the executor."""
+        captured_kwargs: dict[str, Any] = {}
+
+        original_submit = server_mod._executor.submit
+
+        def capturing_submit(*args: Any, **kwargs: Any) -> Any:
+            captured_kwargs.update(kwargs)
+            return original_submit(*args, **kwargs)
+
+        with patch.object(server_mod._executor, "submit", side_effect=capturing_submit):
+            resp = client.post(
+                "/api/generate",
+                json={"generator": "torus", "seed": 42, "timeout": 60},
+            )
+        assert resp.status_code == 200
+        assert captured_kwargs.get("timeout_override") == 60
+
+    def test_no_timeout_field_falls_back_to_default(self, client: TestClient) -> None:
+        """Request without timeout field falls back to env var / 300s default."""
+        captured_kwargs: dict[str, Any] = {}
+
+        original_submit = server_mod._executor.submit
+
+        def capturing_submit(*args: Any, **kwargs: Any) -> Any:
+            captured_kwargs.update(kwargs)
+            return original_submit(*args, **kwargs)
+
+        with patch.object(server_mod._executor, "submit", side_effect=capturing_submit):
+            resp = client.post(
+                "/api/generate",
+                json={"generator": "torus", "seed": 42},
+            )
+        assert resp.status_code == 200
+        assert captured_kwargs.get("timeout_override") is None
+
+    def test_custom_timeout_in_504_error_message(self, client: TestClient) -> None:
+        """504 error message reflects the custom timeout, not the server default."""
+        from concurrent.futures import TimeoutError
+
+        with patch.object(server_mod._executor, "submit", side_effect=TimeoutError()):
+            resp = client.post(
+                "/api/generate",
+                json={"generator": "torus", "seed": 42, "timeout": 45},
+            )
+        assert resp.status_code == 504
+        assert "45 seconds" in resp.json()["detail"]
+
 
 # --- Cancel endpoint ---
 
@@ -178,6 +226,21 @@ class TestPreviewUI:
         resp = client.get("/")
         html = resp.text
         assert "/api/generate/cancel" in html
+
+    def test_preview_html_has_timeout_input(self, client: TestClient) -> None:
+        """Preview HTML contains a timeout input control."""
+        resp = client.get("/")
+        html = resp.text
+        assert 'id="timeout-input"' in html
+
+    def test_preview_html_persists_timeout_in_localstorage(
+        self, client: TestClient
+    ) -> None:
+        """Preview HTML uses localStorage to persist the timeout setting."""
+        resp = client.get("/")
+        html = resp.text
+        assert "mathviz_generation_timeout" in html
+        assert "localStorage" in html
 
 
 # --- Picklability of pipeline args ---
