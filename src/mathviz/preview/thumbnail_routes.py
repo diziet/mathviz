@@ -9,6 +9,8 @@ from fastapi.responses import FileResponse
 from mathviz.core.generator import get_generator_meta
 from mathviz.preview.thumbnails import (
     VALID_VIEW_MODES,
+    ThumbnailSubprocessError,
+    ThumbnailTimeoutError,
     clear_all_thumbnails,
     get_all_thumbnail_urls,
     get_or_generate_thumbnail,
@@ -47,6 +49,18 @@ def get_generator_thumbnail(
 
     try:
         path = get_or_generate_thumbnail(name, view_mode)
+    except ThumbnailTimeoutError as exc:
+        logger.error("Thumbnail generation timed out for %s: %s", name, exc)
+        raise HTTPException(
+            status_code=503,
+            detail="Thumbnail generation timed out. Try again later.",
+        ) from exc
+    except ThumbnailSubprocessError as exc:
+        logger.error("Thumbnail subprocess failed for %s: %s", name, exc)
+        raise HTTPException(
+            status_code=503,
+            detail=f"Thumbnail generation failed: {exc}",
+        ) from exc
     except ImportError as exc:
         logger.warning("Render dependencies unavailable for thumbnail %s: %s", name, exc)
         raise HTTPException(
