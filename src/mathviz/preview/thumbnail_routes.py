@@ -34,7 +34,7 @@ def get_generator_thumbnail(
     name: str,
     view_mode: str = Query(default="points"),
 ) -> FileResponse:
-    """Return a 256x256 PNG thumbnail for the given generator."""
+    """Return a 472x472 WebP thumbnail for the given generator."""
     _validate_view_mode(view_mode)
 
     try:
@@ -47,6 +47,12 @@ def get_generator_thumbnail(
 
     try:
         path = get_or_generate_thumbnail(name, view_mode)
+    except ImportError as exc:
+        logger.warning("Render dependencies unavailable for thumbnail %s: %s", name, exc)
+        raise HTTPException(
+            status_code=501,
+            detail="Thumbnail rendering unavailable — install mathviz[render] dependencies.",
+        ) from exc
     except Exception as exc:
         logger.error("Failed to generate thumbnail for %s: %s", name, exc)
         raise HTTPException(
@@ -54,7 +60,7 @@ def get_generator_thumbnail(
             detail="Failed to generate thumbnail.",
         ) from exc
 
-    return FileResponse(str(path), media_type="image/png")
+    return FileResponse(str(path), media_type="image/webp")
 
 
 @router.get("/api/generators/thumbnails")
