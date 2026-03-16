@@ -1096,6 +1096,11 @@ async function displayGenerateResult(data, generatorName) {
     displayCloud(points, vertexCount, generatorName);
   }
 
+  /* For mesh-only generators, set up density filtering from mesh vertices */
+  if (hasMesh && !hasCloud) {
+    setupMeshDensity(state.meshGroup);
+  }
+
   if (!hasMesh && !hasCloud) {
     applyViewMode();
     return;
@@ -1466,6 +1471,55 @@ function updatePointSize(size) {
 }
 
 /* ── Density filtering ── */
+
+function extractMeshDensityCloud(meshGroup, targetScene) {
+  /* Extract vertex positions from mesh points children into a density-filterable cloud.
+     Returns {cloudPoints, fullPositions, vertexCount} or null if no points found.
+     Removes original points children from meshGroup — the standalone cloud handles
+     points-view visibility via applyViewModeTo(meshGroup, cloudPoints). */
+  const posArrays = [];
+  const pointsChildren = [];
+  meshGroup.traverse((child) => {
+    if (child.isPoints && child.name === 'points') {
+      pointsChildren.push(child);
+      const pos = child.geometry.getAttribute('position');
+      posArrays.push(new Float32Array(pos.array));
+    }
+  });
+  if (posArrays.length === 0) return null;
+
+  const totalFloats = posArrays.reduce((sum, a) => sum + a.length, 0);
+  const fullPositions = new Float32Array(totalFloats);
+  let offset = 0;
+  for (const arr of posArrays) {
+    fullPositions.set(arr, offset);
+    offset += arr.length;
+  }
+
+  const geom = new THREE.BufferGeometry();
+  const dynBuf = new THREE.BufferAttribute(new Float32Array(totalFloats), 3);
+  dynBuf.usage = THREE.DynamicDrawUsage;
+  geom.setAttribute('position', dynBuf);
+  const mat = new THREE.PointsMaterial({color: 0x44ccff, size: state.pointSize * 0.01});
+  const cloudPoints = new THREE.Points(geom, mat);
+
+  for (const child of pointsChildren) child.parent.remove(child);
+  targetScene.add(cloudPoints);
+
+  return { cloudPoints, fullPositions, vertexCount: totalFloats / 3 };
+}
+
+function setupMeshDensity(meshGroup) {
+  /* Set up density filtering for main scene from mesh vertices. */
+  const result = extractMeshDensityCloud(meshGroup, scene);
+  if (!result) return;
+  state.cloudPoints = result.cloudPoints;
+  state.fullCloudPositions = result.fullPositions;
+  state.fullCloudCount = result.vertexCount;
+  applyDensityFilter();
+  updateDensitySliderVisibility();
+}
+
 function applyDensityFilter() {
   if (!state.cloudPoints || !state.fullCloudPositions) return;
   const full = state.fullCloudPositions;
@@ -4008,8 +4062,21 @@ async function loadPanelGeometry(panelIndex, data) {
     panel.scene.add(points);
     if (!panel.meshGroup) addBoundingBoxToScene(panel);
   }
+  /* For mesh-only generators, set up density filtering from mesh vertices */
+  if (data.mesh_url && !data.cloud_url) {
+    setupPanelMeshDensity(panel);
+  }
   applyDensityToPanel(panel);
   applyViewModeToPanel(panel);
+}
+
+function setupPanelMeshDensity(panel) {
+  /* Set up density filtering for a comparison panel from mesh vertices. */
+  const result = extractMeshDensityCloud(panel.meshGroup, panel.scene);
+  if (!result) return;
+  panel.cloudPoints = result.cloudPoints;
+  panel.fullCloudPositions = result.fullPositions;
+  panel.fullCloudCount = result.vertexCount;
 }
 
 function applyDensityToPanel(panel) {
