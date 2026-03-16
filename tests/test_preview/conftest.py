@@ -4,10 +4,18 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from PIL import Image
 
 from mathviz.core.container import Container
+from mathviz.core.generator import register
+from mathviz.generators.parametric.torus import TorusGenerator
 from mathviz.preview.disk_cache import DiskCache
 from mathviz.preview.server import get_disk_cache, set_disk_cache
+from mathviz.preview.thumbnails import (
+    THUMBNAIL_SIZE,
+    THUMBNAILS_DIR_ENV_VAR,
+    get_thumbnail_path,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -36,3 +44,28 @@ def make_snapshot_request(geometry_id: str) -> dict[str, Any]:
         },
         "geometry_id": geometry_id,
     }
+
+
+def ensure_torus_registered() -> None:
+    """Re-register the torus generator if missing."""
+    import mathviz.core.generator as gen_mod
+
+    if "torus" not in gen_mod._alias_map:
+        gen_mod._discovered = True
+        register(TorusGenerator)
+
+
+def create_fake_thumbnail(name: str, view_mode: str) -> Path:
+    """Write a valid WebP file at the expected thumbnail cache path."""
+    path = get_thumbnail_path(name, view_mode)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    img = Image.new("RGB", (THUMBNAIL_SIZE, THUMBNAIL_SIZE), color=(128, 128, 128))
+    img.save(path, "webp")
+    return path
+
+
+@pytest.fixture
+def thumbnail_setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Register generators and redirect thumbnail dir to temp."""
+    ensure_torus_registered()
+    monkeypatch.setenv(THUMBNAILS_DIR_ENV_VAR, str(tmp_path / "thumbnails"))

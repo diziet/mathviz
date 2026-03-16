@@ -12,25 +12,14 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from mathviz.core.generator import register
 from mathviz.core.math_object import MathObject, Mesh
-from mathviz.generators.parametric.torus import TorusGenerator
 from mathviz.preview.server import app
 from mathviz.preview.thumbnails import (
     THUMBNAIL_SIZE,
-    THUMBNAILS_DIR_ENV_VAR,
     get_thumbnail_path,
     get_thumbnails_dir,
 )
-
-
-def _ensure_torus_registered() -> None:
-    """Re-register the torus generator if missing."""
-    import mathviz.core.generator as gen_mod
-
-    if "torus" not in gen_mod._alias_map:
-        gen_mod._discovered = True
-        register(TorusGenerator)
+from tests.test_preview.conftest import create_fake_thumbnail
 
 
 def _make_test_math_object() -> MathObject:
@@ -60,10 +49,8 @@ def _mock_pipeline_result() -> MagicMock:
 
 
 @pytest.fixture(autouse=True)
-def _setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Register generators and redirect thumbnail dir to temp."""
-    _ensure_torus_registered()
-    monkeypatch.setenv(THUMBNAILS_DIR_ENV_VAR, str(tmp_path / "thumbnails"))
+def _setup(thumbnail_setup: None) -> None:
+    """Use shared thumbnail setup fixture."""
 
 
 @pytest.fixture
@@ -72,20 +59,19 @@ def client() -> TestClient:
     return TestClient(app)
 
 
+def _fake_generate_subprocess(name: str, view_mode: str = "points", timeout: int = 60) -> Path:
+    """Simulate subprocess generation using shared helper."""
+    return create_fake_thumbnail(name, view_mode)
+
+
 @pytest.fixture
 def _mock_rendering() -> Generator[MagicMock, None, None]:
-    """Stub out pipeline + renderer for thumbnail tests."""
-    with (
-        patch(
-            "mathviz.preview.thumbnails.run_pipeline",
-            return_value=_mock_pipeline_result(),
-        ) as mock_run,
-        patch(
-            "mathviz.preview.thumbnails.render_to_png",
-            side_effect=_fake_render_to_png,
-        ),
-    ):
-        yield mock_run
+    """Stub out subprocess-based thumbnail generation."""
+    with patch(
+        "mathviz.preview.thumbnails.generate_thumbnail_subprocess",
+        side_effect=_fake_generate_subprocess,
+    ) as mock_gen:
+        yield mock_gen
 
 
 def _fetch_torus_thumbnail(client: TestClient) -> httpx.Response:
@@ -166,7 +152,7 @@ class TestThumbnailEndpoint:
     def test_thumbnail_missing_pyvista_returns_501(self, client: TestClient) -> None:
         """When render unavailable, endpoint returns 501 not 500."""
         with patch(
-            "mathviz.preview.thumbnails.run_pipeline",
+            "mathviz.preview.thumbnails.generate_thumbnail_subprocess",
             side_effect=ImportError("No module named 'pyvista'"),
         ):
             resp = client.get("/api/generators/torus/thumbnail")

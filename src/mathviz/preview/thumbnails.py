@@ -7,6 +7,8 @@ server-side rendering. Thumbnails are cached at
 
 import logging
 import os
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Literal
@@ -22,6 +24,7 @@ THUMBNAIL_SIZE = 472
 WEBP_QUALITY = 85
 DEFAULT_THUMBNAILS_DIR = Path.home() / ".mathviz" / "thumbnails"
 THUMBNAILS_DIR_ENV_VAR = "MATHVIZ_THUMBNAILS_DIR"
+SUBPROCESS_TIMEOUT_SECONDS = 60
 
 ViewMode = Literal["points", "shaded", "wireframe"]
 VALID_VIEW_MODES: tuple[str, ...] = ("points", "shaded", "wireframe")
@@ -98,14 +101,68 @@ def generate_thumbnail(generator_name: str, view_mode: str = DEFAULT_VIEW_MODE) 
     return webp_path
 
 
+class ThumbnailSubprocessError(RuntimeError):
+    """Raised when the thumbnail subprocess exits non-zero."""
+
+
+class ThumbnailTimeoutError(TimeoutError):
+    """Raised when the thumbnail subprocess exceeds its timeout."""
+
+
+def generate_thumbnail_subprocess(
+    generator_name: str,
+    view_mode: str = DEFAULT_VIEW_MODE,
+    timeout: int = SUBPROCESS_TIMEOUT_SECONDS,
+) -> Path:
+    """Generate a thumbnail in a subprocess to avoid VTK main-thread crashes.
+
+    Spawns `python -m mathviz.cli_thumbnail <name> <view_mode>` which runs
+    on its own main thread, satisfying macOS Cocoa/AppKit requirements.
+    """
+    expected_path = get_thumbnail_path(generator_name, view_mode)
+    env = os.environ.copy()
+    env.setdefault(THUMBNAILS_DIR_ENV_VAR, str(get_thumbnails_dir()))
+
+    cmd = [sys.executable, "-m", "mathviz.cli_thumbnail", generator_name, view_mode]
+    logger.info("Spawning thumbnail subprocess: %s", " ".join(cmd))
+
+    try:
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=timeout, env=env,
+        )
+    except subprocess.TimeoutExpired as exc:
+        logger.error("Thumbnail subprocess timed out after %ds for %s", timeout, generator_name)
+        raise ThumbnailTimeoutError(
+            f"Thumbnail generation timed out after {timeout}s for {generator_name!r}"
+        ) from exc
+
+    if result.returncode != 0:
+        stderr = result.stderr.strip()
+        logger.error(
+            "Thumbnail subprocess failed (rc=%d) for %s: %s",
+            result.returncode, generator_name, stderr,
+        )
+        raise ThumbnailSubprocessError(
+            f"Thumbnail generation failed for {generator_name!r}: {stderr}"
+        )
+
+    if not expected_path.is_file():
+        raise ThumbnailSubprocessError(
+            f"Subprocess exited 0 but thumbnail not found at {expected_path}"
+        )
+
+    logger.info("Subprocess generated thumbnail for %s at %s", generator_name, expected_path)
+    return expected_path
+
+
 def get_or_generate_thumbnail(generator_name: str, view_mode: str = DEFAULT_VIEW_MODE) -> Path:
-    """Return cached thumbnail path, generating if missing."""
+    """Return cached thumbnail path, generating via subprocess if missing."""
     meta = get_generator_meta(generator_name)
     path = get_thumbnail_path(meta.name, view_mode)
     if path.is_file():
         logger.debug("Thumbnail cache hit for %s (%s)", meta.name, view_mode)
         return path
-    return generate_thumbnail(generator_name, view_mode)
+    return generate_thumbnail_subprocess(meta.name, view_mode)
 
 
 def clear_all_thumbnails() -> int:
