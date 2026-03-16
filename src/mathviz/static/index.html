@@ -490,6 +490,7 @@ canvas{display:block}
       <option value="wireframe">Wireframe</option>
       <option value="points" selected>Point Cloud</option>
       <option value="crystal">Crystal Preview</option>
+      <option value="colormap">Color Map</option>
     </select>
 
     <div class="section-title">Point Size</div>
@@ -517,6 +518,31 @@ canvas{display:block}
       <label>Point Brightness <input type="range" id="crystal-brightness" min="0" max="1" step="0.05" value="0.8"></label>
       <label><input type="checkbox" id="crystal-led-base"> LED Base</label>
       <label>LED Color <input type="color" id="crystal-led-color" value="#fff0e0"></label>
+    </div>
+
+    <div id="colormap-controls" style="display:none">
+      <div class="section-title">Color Map Settings</div>
+      <label>Metric
+        <select id="colormap-metric">
+          <option value="height">Height (Z)</option>
+          <option value="distance">Distance from Center</option>
+          <option value="curvature">Curvature</option>
+          <option value="velocity">Velocity / Speed</option>
+        </select>
+      </label>
+      <label>Gradient
+        <select id="colormap-gradient">
+          <option value="viridis">Viridis</option>
+          <option value="inferno">Inferno</option>
+          <option value="coolwarm">Coolwarm</option>
+          <option value="rainbow">Rainbow</option>
+          <option value="custom">Custom</option>
+        </select>
+      </label>
+      <div id="colormap-custom-colors" style="display:none">
+        <label>Start <input type="color" id="colormap-start-color" value="#0000ff"></label>
+        <label>End <input type="color" id="colormap-end-color" value="#ff0000"></label>
+      </div>
     </div>
 
     <div class="section-title">Compare</div>
@@ -640,6 +666,9 @@ const state = {
   turntable: false,
   turntableSpeed: 1.0,
   exporting: false,
+  colormapActive: false,
+  colormapMetric: 'height',
+  colormapGradient: 'viridis',
 };
 
 const DARK_COLOR = 0x1a1a2e;
@@ -1357,6 +1386,7 @@ function viewModeNeedsMesh() {
 function applyViewModeTo(meshGroup, cloudPoints) {
   const mode = state.viewMode;
   if (mode === 'crystal') return; /* crystal mode handles its own visibility */
+  if (mode === 'colormap') return; /* color map mode handles its own visibility */
   if (meshGroup) {
     meshGroup.traverse((child) => {
       if (child.name === 'shaded') child.visible = (mode === 'shaded');
@@ -1376,7 +1406,15 @@ function applyViewMode() {
   } else if (state.viewMode !== 'crystal' && state.crystalActive) {
     exitCrystalMode();
   }
-  applyViewModeTo(state.meshGroup, state.cloudPoints);
+  /* Handle color map mode transitions */
+  if (state.viewMode === 'colormap' && !state.colormapActive) {
+    enterColorMapMode();
+  } else if (state.viewMode !== 'colormap' && state.colormapActive) {
+    exitColorMapMode();
+  }
+  if (state.viewMode !== 'colormap') {
+    applyViewModeTo(state.meshGroup, state.cloudPoints);
+  }
 }
 
 function updatePointSize(size) {
@@ -1432,6 +1470,229 @@ function updateDensitySliderVisibility() {
   document.getElementById('density-slider').style.display = isPoints ? '' : 'none';
 }
 
+/* ── Color Map ── */
+const COLORMAP_GRADIENTS = {
+  viridis: [
+    [0.267, 0.004, 0.329], [0.283, 0.141, 0.458], [0.254, 0.265, 0.530],
+    [0.207, 0.372, 0.553], [0.164, 0.471, 0.558], [0.128, 0.567, 0.551],
+    [0.135, 0.659, 0.518], [0.267, 0.749, 0.441], [0.478, 0.821, 0.318],
+    [0.741, 0.873, 0.150], [0.993, 0.906, 0.144],
+  ],
+  inferno: [
+    [0.001, 0.000, 0.014], [0.106, 0.042, 0.233], [0.258, 0.039, 0.406],
+    [0.417, 0.056, 0.424], [0.578, 0.105, 0.350], [0.735, 0.206, 0.224],
+    [0.863, 0.344, 0.114], [0.949, 0.517, 0.030], [0.982, 0.706, 0.124],
+    [0.961, 0.895, 0.371], [0.988, 1.000, 0.644],
+  ],
+  coolwarm: [
+    [0.230, 0.299, 0.754], [0.400, 0.450, 0.850], [0.580, 0.600, 0.920],
+    [0.740, 0.740, 0.960], [0.870, 0.870, 0.970], [0.970, 0.970, 0.970],
+    [0.960, 0.830, 0.830], [0.940, 0.680, 0.680], [0.890, 0.490, 0.490],
+    [0.800, 0.300, 0.300], [0.706, 0.016, 0.150],
+  ],
+  rainbow: [
+    [1, 0, 0], [1, 0.5, 0], [1, 1, 0], [0.5, 1, 0], [0, 1, 0],
+    [0, 1, 0.5], [0, 1, 1], [0, 0.5, 1], [0, 0, 1], [0.5, 0, 1], [1, 0, 1],
+  ],
+};
+
+function sampleGradient(stops, t) {
+  /* Sample a color from a gradient defined by evenly-spaced RGB stops. */
+  const n = stops.length - 1;
+  const idx = Math.min(Math.floor(t * n), n - 1);
+  const frac = t * n - idx;
+  const a = stops[idx], b = stops[idx + 1];
+  return [
+    a[0] + (b[0] - a[0]) * frac,
+    a[1] + (b[1] - a[1]) * frac,
+    a[2] + (b[2] - a[2]) * frac,
+  ];
+}
+
+function getGradientStops() {
+  /* Return the current gradient color stops array. */
+  const name = state.colormapGradient;
+  if (name === 'custom') {
+    const startHex = document.getElementById('colormap-start-color').value;
+    const endHex = document.getElementById('colormap-end-color').value;
+    const s = new THREE.Color(startHex);
+    const e = new THREE.Color(endHex);
+    return [[s.r, s.g, s.b], [e.r, e.g, e.b]];
+  }
+  return COLORMAP_GRADIENTS[name] || COLORMAP_GRADIENTS.viridis;
+}
+
+function computeMetricValues(posArray, count) {
+  /* Compute per-vertex scalar values for the selected metric. */
+  const metric = state.colormapMetric;
+  const values = new Float32Array(count);
+  if (metric === 'height') {
+    for (let i = 0; i < count; i++) values[i] = posArray[i * 3 + 2];
+  } else if (metric === 'distance') {
+    for (let i = 0; i < count; i++) {
+      const x = posArray[i * 3], y = posArray[i * 3 + 1], z = posArray[i * 3 + 2];
+      values[i] = Math.sqrt(x * x + y * y + z * z);
+    }
+  } else if (metric === 'curvature') {
+    computeCurvatureMetric(posArray, count, values);
+  } else if (metric === 'velocity') {
+    computeVelocityMetric(posArray, count, values);
+  }
+  return values;
+}
+
+function computeCurvatureMetric(posArray, count, values) {
+  /* Estimate curvature using local angle variation between neighbors. */
+  if (count < 3) { values.fill(0); return; }
+  values[0] = 0;
+  values[count - 1] = 0;
+  for (let i = 1; i < count - 1; i++) {
+    const ax = posArray[(i - 1) * 3], ay = posArray[(i - 1) * 3 + 1], az = posArray[(i - 1) * 3 + 2];
+    const bx = posArray[i * 3], by = posArray[i * 3 + 1], bz = posArray[i * 3 + 2];
+    const cx = posArray[(i + 1) * 3], cy = posArray[(i + 1) * 3 + 1], cz = posArray[(i + 1) * 3 + 2];
+    const d1x = bx - ax, d1y = by - ay, d1z = bz - az;
+    const d2x = cx - bx, d2y = cy - by, d2z = cz - bz;
+    const len1 = Math.sqrt(d1x * d1x + d1y * d1y + d1z * d1z) || 1;
+    const len2 = Math.sqrt(d2x * d2x + d2y * d2y + d2z * d2z) || 1;
+    const dot = (d1x * d2x + d1y * d2y + d1z * d2z) / (len1 * len2);
+    values[i] = Math.acos(Math.max(-1, Math.min(1, dot)));
+  }
+}
+
+function computeVelocityMetric(posArray, count, values) {
+  /* Compute velocity as distance between consecutive points. */
+  if (count < 2) { values.fill(0); return; }
+  values[0] = 0;
+  for (let i = 1; i < count; i++) {
+    const dx = posArray[i * 3] - posArray[(i - 1) * 3];
+    const dy = posArray[i * 3 + 1] - posArray[(i - 1) * 3 + 1];
+    const dz = posArray[i * 3 + 2] - posArray[(i - 1) * 3 + 2];
+    values[i] = Math.sqrt(dx * dx + dy * dy + dz * dz);
+  }
+}
+
+function normalizeValues(values) {
+  /* Normalize values to [0, 1] range. */
+  let min = Infinity, max = -Infinity;
+  for (let i = 0; i < values.length; i++) {
+    if (values[i] < min) min = values[i];
+    if (values[i] > max) max = values[i];
+  }
+  const range = max - min || 1;
+  const result = new Float32Array(values.length);
+  for (let i = 0; i < values.length; i++) {
+    result[i] = (values[i] - min) / range;
+  }
+  return result;
+}
+
+function buildVertexColors(posArray, count) {
+  /* Build a Float32Array of RGB vertex colors from metric + gradient. */
+  const raw = computeMetricValues(posArray, count);
+  const normalized = normalizeValues(raw);
+  const stops = getGradientStops();
+  const colors = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const [r, g, b] = sampleGradient(stops, normalized[i]);
+    colors[i * 3] = r;
+    colors[i * 3 + 1] = g;
+    colors[i * 3 + 2] = b;
+  }
+  return colors;
+}
+
+function applyColorMapToObject(obj) {
+  /* Apply vertex colors to a Three.js Points or Mesh object. */
+  if (!obj) return;
+  const geom = obj.geometry || (obj.isMesh ? obj.geometry : null);
+  if (!geom) return;
+  const posAttr = geom.getAttribute('position');
+  if (!posAttr) return;
+  const count = geom.drawRange.count < Infinity ? geom.drawRange.count : posAttr.count;
+  const colors = buildVertexColors(posAttr.array, count);
+  geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geom.attributes.color.needsUpdate = true;
+
+  if (obj.isPoints) {
+    if (!obj.userData.preColormapMaterial) {
+      obj.userData.preColormapMaterial = obj.material;
+    }
+    obj.material = new THREE.PointsMaterial({
+      vertexColors: true,
+      size: state.pointSize * 0.01,
+      sizeAttenuation: true,
+    });
+    obj.visible = true;
+  } else if (obj.isMesh) {
+    if (!obj.userData.preColormapMaterial) {
+      obj.userData.preColormapMaterial = obj.material;
+    }
+    obj.material = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      side: THREE.DoubleSide,
+    });
+    obj.visible = true;
+  }
+}
+
+function enterColorMapMode() {
+  /* Enter color map mode — apply vertex colors to all visible geometry. */
+  state.colormapActive = true;
+  document.getElementById('colormap-controls').style.display = 'block';
+
+  /* Hide wireframe/shaded, show mesh with vertex colors or points */
+  if (state.meshGroup) {
+    state.meshGroup.traverse((child) => {
+      if (child.name === 'wireframe') child.visible = false;
+      if (child.name === 'shaded') {
+        applyColorMapToObject(child);
+      }
+      if (child.name === 'points') child.visible = false;
+    });
+  }
+  if (state.cloudPoints) {
+    applyColorMapToObject(state.cloudPoints);
+  }
+  /* If no mesh group, show cloud with colors */
+  if (!state.meshGroup && state.cloudPoints) {
+    state.cloudPoints.visible = true;
+  }
+}
+
+function exitColorMapMode() {
+  /* Exit color map mode — restore original materials. */
+  state.colormapActive = false;
+  document.getElementById('colormap-controls').style.display = 'none';
+
+  /* Restore original materials */
+  scene.traverse((child) => {
+    if (child.userData.preColormapMaterial) {
+      child.material.dispose();
+      child.material = child.userData.preColormapMaterial;
+      delete child.userData.preColormapMaterial;
+    }
+    /* Remove color attribute added by color map */
+    if (child.geometry && child.geometry.getAttribute('color')) {
+      child.geometry.deleteAttribute('color');
+    }
+  });
+}
+
+function updateColorMap() {
+  /* Recompute and apply vertex colors without regenerating geometry. */
+  if (!state.colormapActive) return;
+  if (state.meshGroup) {
+    state.meshGroup.traverse((child) => {
+      if (child.name === 'shaded' && child.visible) {
+        applyColorMapToObject(child);
+      }
+    });
+  }
+  if (state.cloudPoints && state.cloudPoints.visible) {
+    applyColorMapToObject(state.cloudPoints);
+  }
+}
+
 /* ── Info panel ── */
 const infoState = {generator: '—', vertices: '—', faces: '—', points: '—'};
 
@@ -1463,6 +1724,26 @@ document.getElementById('view-mode').addEventListener('change', (e) => {
   applyViewMode();
   updateDensitySliderVisibility();
   if (state.compareMode) applyViewModeToAllPanels();
+});
+
+document.getElementById('colormap-metric').addEventListener('change', (e) => {
+  state.colormapMetric = e.target.value;
+  updateColorMap();
+});
+
+document.getElementById('colormap-gradient').addEventListener('change', (e) => {
+  state.colormapGradient = e.target.value;
+  const isCustom = e.target.value === 'custom';
+  document.getElementById('colormap-custom-colors').style.display = isCustom ? 'block' : 'none';
+  updateColorMap();
+});
+
+document.getElementById('colormap-start-color').addEventListener('input', () => {
+  if (state.colormapGradient === 'custom') updateColorMap();
+});
+
+document.getElementById('colormap-end-color').addEventListener('input', () => {
+  if (state.colormapGradient === 'custom') updateColorMap();
 });
 
 document.getElementById('point-size').addEventListener('input', (e) => {
