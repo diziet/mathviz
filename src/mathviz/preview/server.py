@@ -147,6 +147,7 @@ class SnapshotRequest(BaseModel):
     container: ContainerParams | None = None
     geometry_id: str
     thumbnail: str | None = None
+    ui_state: dict[str, Any] | None = None
 
 
 class SnapshotResponse(BaseModel):
@@ -528,6 +529,7 @@ def create_snapshot(req: SnapshotRequest) -> SnapshotResponse:
             container=container_dict,
             geometry_id=req.geometry_id,
             thumbnail_png=thumbnail_png,
+            ui_state=req.ui_state,
         )
     except OSError as exc:
         raise HTTPException(

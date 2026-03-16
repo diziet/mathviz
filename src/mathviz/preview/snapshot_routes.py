@@ -25,7 +25,7 @@ _GEOMETRY_MEDIA_TYPES: dict[str, str] = {
 
 def _snapshot_to_dict(s: Any) -> dict[str, Any]:
     """Convert a SnapshotInfo to a JSON-serializable dict."""
-    return {
+    result: dict[str, Any] = {
         "snapshot_id": s.snapshot_id,
         "generator": s.generator,
         "params": s.params,
@@ -36,6 +36,9 @@ def _snapshot_to_dict(s: Any) -> dict[str, Any]:
         "thumbnail_url": s.thumbnail_url,
         "geometry_files": s.geometry_files,
     }
+    if s.ui_state is not None:
+        result["ui_state"] = s.ui_state
+    return result
 
 
 @router.get("")
