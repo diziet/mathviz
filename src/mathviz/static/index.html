@@ -39,6 +39,14 @@ canvas{display:block}
   background:rgba(0,0,0,0.3);color:inherit;font-size:12px;outline:none;
 }
 .control-input:focus{border-color:#4488cc}
+.max-points-btn{
+  padding:2px 6px;border:1px solid #555;border-radius:4px;
+  background:rgba(0,0,0,0.3);color:inherit;font-size:11px;cursor:pointer;
+  line-height:1.4;white-space:nowrap;
+}
+.max-points-btn:hover{background:rgba(68,136,204,0.3);border-color:#4488cc}
+#controls.light-bg .max-points-btn{background:rgba(255,255,255,0.5);border-color:#aaa}
+#controls.light-bg .max-points-btn:hover{background:rgba(68,136,204,0.2);border-color:#4488cc}
 #controls.light-bg .control-input{background:rgba(255,255,255,0.5);border-color:#aaa}
 
 /* Generator selector */
@@ -512,7 +520,11 @@ canvas{display:block}
     </select>
 
     <div id="max-points-label" class="section-title" style="display:none">Max Points</div>
-    <input type="number" id="max-points-input" class="control-input" min="1000" step="10000" style="display:none">
+    <div id="max-points-row" style="display:none;align-items:center;gap:4px">
+      <input type="number" id="max-points-input" class="control-input" min="1000" step="10000" style="flex:1">
+      <button id="max-points-half" class="max-points-btn" title="Halve max points">÷2</button>
+      <button id="max-points-double" class="max-points-btn" title="Double max points">2×</button>
+    </div>
 
     <div class="section-title">Point Size</div>
     <input type="range" id="point-size" min="0.02" max="0.25" step="0.01" value="0.1" data-label="point-size-value"><span class="slider-value" id="point-size-value">0.1</span>
@@ -672,6 +684,7 @@ import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 /* ── Constants ── */
 const DEFAULT_MAX_SAMPLES = 500000;
+const MAX_ALLOWED_SAMPLES = 5000000;
 const VIEW_MODE_TO_SAMPLING = {dense: 'post_transform', surface: 'resolution_scaled', edge_cloud: 'edge'};
 
 /* ── State ── */
@@ -1704,7 +1717,7 @@ function updateDensitySliderVisibility() {
 function updateMaxPointsVisibility() {
   const show = isServerSampledMode();
   document.getElementById('max-points-label').style.display = show ? '' : 'none';
-  document.getElementById('max-points-input').style.display = show ? '' : 'none';
+  document.getElementById('max-points-row').style.display = show ? 'flex' : 'none';
 }
 
 function updateSidebarVisibility() {
@@ -2008,6 +2021,22 @@ try {
     }
   }
 } catch (_) { /* localStorage unavailable */ }
+
+/* 2× and ÷2 buttons for max points */
+function setMaxPoints(value) {
+  const input = document.getElementById('max-points-input');
+  const min = parseInt(input.min, 10) || 1000;
+  input.value = Math.min(MAX_ALLOWED_SAMPLES, Math.max(min, Math.floor(value)));
+  input.dispatchEvent(new Event('change'));
+}
+document.getElementById('max-points-double').addEventListener('click', () => {
+  const current = parseInt(document.getElementById('max-points-input').value, 10) || DEFAULT_MAX_SAMPLES;
+  setMaxPoints(current * 2);
+});
+document.getElementById('max-points-half').addEventListener('click', () => {
+  const current = parseInt(document.getElementById('max-points-input').value, 10) || DEFAULT_MAX_SAMPLES;
+  setMaxPoints(current / 2);
+});
 
 document.getElementById('colormap-metric').addEventListener('change', (e) => {
   state.colormapMetric = e.target.value;
