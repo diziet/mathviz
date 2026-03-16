@@ -544,7 +544,7 @@ canvas{display:block}
       <div class="export-row">
         <select id="export-format">
           <option value="gif">GIF</option>
-          <option value="mp4">MP4</option>
+          <option value="webm">WebM</option>
         </select>
         <select id="export-resolution">
           <option value="1">1x</option>
@@ -1670,6 +1670,7 @@ function setTurntable(enabled) {
 function setTurntableSpeed(speed) {
   state.turntableSpeed = speed;
   controls.autoRotateSpeed = speed * TURNTABLE_BASE_SPEED;
+  document.getElementById('turntable-speed').value = speed;
   document.getElementById('turntable-speed-label').textContent = speed + 'x';
 }
 
@@ -1728,10 +1729,14 @@ async function exportTurntable() {
   const camY = startPos.y;
 
   try {
-    if (format === 'mp4') {
-      await exportMP4(totalFrames, fps, anglePerFrame, pivotTarget, radius, startAngle, camY, progressText, progressFill, exportWidth, exportHeight);
+    const exportConfig = {
+      totalFrames, fps, anglePerFrame, pivotTarget, radius, startAngle,
+      camY, progressText, progressFill, exportWidth, exportHeight,
+    };
+    if (format === 'webm') {
+      await exportWebM(exportConfig);
     } else {
-      await exportGIF(totalFrames, fps, anglePerFrame, pivotTarget, radius, startAngle, camY, progressText, progressFill, exportWidth, exportHeight);
+      await exportGIF(exportConfig);
     }
   } finally {
     camera.position.copy(startPos);
@@ -1739,11 +1744,7 @@ async function exportTurntable() {
     controls.update();
     controls.autoRotate = wasAutoRotate;
 
-    renderer.setSize(
-      renderer.domElement.clientWidth / resMult,
-      renderer.domElement.clientHeight / resMult,
-      false,
-    );
+    renderer.setSize(origWidth, origHeight, false);
 
     progressEl.classList.remove('visible');
     state.exporting = false;
@@ -1758,7 +1759,6 @@ function renderFrameAtAngle(angle, pivotTarget, radius, startAngle, camY) {
     pivotTarget.z + radius * Math.cos(theta),
   );
   camera.lookAt(pivotTarget);
-  controls.update();
 
   if (state.compareMode && state.comparePanels.length > 0) {
     renderCompareMode();
@@ -1769,7 +1769,22 @@ function renderFrameAtAngle(angle, pivotTarget, radius, startAngle, camY) {
   }
 }
 
-async function exportMP4(totalFrames, fps, anglePerFrame, pivotTarget, radius, startAngle, camY, progressText, progressFill, exportWidth, exportHeight) {
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = url;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function updateCaptureProgress(i, totalFrames, progressText, progressFill, scale) {
+  progressText.textContent = 'Capturing frame ' + (i + 1) + '/' + totalFrames + '...';
+  progressFill.style.width = Math.round(((i + 1) / totalFrames) * scale) + '%';
+}
+
+async function exportWebM(cfg) {
+  const {totalFrames, fps, anglePerFrame, pivotTarget, radius, startAngle, camY, progressText, progressFill} = cfg;
   const stream = renderer.domElement.captureStream(0);
   const recorder = new MediaRecorder(stream, {mimeType: 'video/webm;codecs=vp9'});
   const chunks = [];
@@ -1780,73 +1795,75 @@ async function exportMP4(totalFrames, fps, anglePerFrame, pivotTarget, radius, s
     recorder.onstop = () => resolve();
   });
 
+  const track = stream.getVideoTracks()[0];
+  const canRequestFrame = typeof track.requestFrame === 'function';
+
   recorder.start();
 
   for (let i = 0; i < totalFrames; i++) {
     renderFrameAtAngle(i * anglePerFrame, pivotTarget, radius, startAngle, camY);
-    if (stream.getVideoTracks()[0].requestFrame) {
-      stream.getVideoTracks()[0].requestFrame();
-    }
+    if (canRequestFrame) track.requestFrame();
 
-    progressText.textContent = 'Capturing frame ' + (i + 1) + '/' + totalFrames + '...';
-    progressFill.style.width = Math.round(((i + 1) / totalFrames) * 100) + '%';
+    updateCaptureProgress(i, totalFrames, progressText, progressFill, 100);
     await new Promise((r) => setTimeout(r, 1000 / fps));
   }
 
   recorder.stop();
   await donePromise;
 
-  const blob = new Blob(chunks, {type: 'video/webm'});
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.download = getGeneratorFilename() + '_turntable.webm';
-  link.href = url;
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(new Blob(chunks, {type: 'video/webm'}), getGeneratorFilename() + '_turntable.webm');
 }
 
-async function exportGIF(totalFrames, fps, anglePerFrame, pivotTarget, radius, startAngle, camY, progressText, progressFill, exportWidth, exportHeight) {
+async function exportGIF(cfg) {
+  const {totalFrames, fps, anglePerFrame, pivotTarget, radius, startAngle, camY, progressText, progressFill, exportWidth, exportHeight} = cfg;
   const canvas = document.createElement('canvas');
   canvas.width = exportWidth;
   canvas.height = exportHeight;
   const ctx = canvas.getContext('2d');
 
-  const frames = [];
+  const delay = Math.round(1000 / fps);
+  const gifEncoder = createGIFEncoder(exportWidth, exportHeight, delay);
 
   for (let i = 0; i < totalFrames; i++) {
     renderFrameAtAngle(i * anglePerFrame, pivotTarget, radius, startAngle, camY);
     ctx.drawImage(renderer.domElement, 0, 0, exportWidth, exportHeight);
-    frames.push(ctx.getImageData(0, 0, exportWidth, exportHeight));
+    const imageData = ctx.getImageData(0, 0, exportWidth, exportHeight);
+    gifEncoder.addFrame(imageData.data);
 
-    progressText.textContent = 'Capturing frame ' + (i + 1) + '/' + totalFrames + '...';
-    progressFill.style.width = Math.round(((i + 1) / totalFrames) * 50) + '%';
+    updateCaptureProgress(i, totalFrames, progressText, progressFill, 100);
     await new Promise((r) => setTimeout(r, 0));
   }
 
-  progressText.textContent = 'Encoding GIF...';
+  progressText.textContent = 'Finalizing GIF...';
+  const gif = gifEncoder.finish();
 
-  const delay = Math.round(1000 / fps);
-  const gif = encodeGIF(frames, exportWidth, exportHeight, delay, (pct) => {
-    progressFill.style.width = (50 + Math.round(pct * 50)) + '%';
-  });
-
-  const blob = new Blob([gif], {type: 'image/gif'});
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.download = getGeneratorFilename() + '_turntable.gif';
-  link.href = url;
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(new Blob([gif], {type: 'image/gif'}), getGeneratorFilename() + '_turntable.gif');
 }
 
-function encodeGIF(frames, width, height, delay, onProgress) {
-  const buf = [];
+function createGIFEncoder(width, height, delay) {
+  const chunks = [];
+  let chunkBuf = new Uint8Array(65536);
+  let chunkPos = 0;
 
-  function writeByte(b) { buf.push(b & 0xff); }
-  function writeShort(s) { buf.push(s & 0xff); buf.push((s >> 8) & 0xff); }
-  function writeBytes(arr) { for (let i = 0; i < arr.length; i++) buf.push(arr[i]); }
-  function writeString(s) { for (let i = 0; i < s.length; i++) buf.push(s.charCodeAt(i)); }
+  function flush() {
+    if (chunkPos > 0) {
+      chunks.push(chunkBuf.slice(0, chunkPos));
+      chunkPos = 0;
+    }
+  }
 
+  function ensureCapacity(needed) {
+    if (chunkPos + needed > chunkBuf.length) {
+      flush();
+      if (needed > chunkBuf.length) chunkBuf = new Uint8Array(needed);
+    }
+  }
+
+  function writeByte(b) { ensureCapacity(1); chunkBuf[chunkPos++] = b & 0xff; }
+  function writeShort(s) { writeByte(s & 0xff); writeByte((s >> 8) & 0xff); }
+  function writeString(s) { for (let i = 0; i < s.length; i++) writeByte(s.charCodeAt(i)); }
+
+  /* Header + global color table */
   writeString('GIF89a');
   writeShort(width);
   writeShort(height);
@@ -1862,12 +1879,12 @@ function encodeGIF(frames, width, height, delay, onProgress) {
         writeByte(Math.round(b * 255 / 3));
       }
 
+  /* NETSCAPE looping extension */
   writeByte(0x21); writeByte(0xff); writeByte(11);
   writeString('NETSCAPE2.0');
   writeByte(3); writeByte(1); writeShort(0); writeByte(0);
 
-  for (let f = 0; f < frames.length; f++) {
-    const data = frames[f].data;
+  function addFrame(data) {
     writeByte(0x21); writeByte(0xf9); writeByte(4);
     writeByte(0x00);
     writeShort(Math.round(delay / 10));
@@ -1881,8 +1898,9 @@ function encodeGIF(frames, width, height, delay, onProgress) {
     const minCodeSize = 8;
     writeByte(minCodeSize);
 
-    const pixels = new Uint8Array(width * height);
-    for (let i = 0; i < width * height; i++) {
+    const pixelCount = width * height;
+    const pixels = new Uint8Array(pixelCount);
+    for (let i = 0; i < pixelCount; i++) {
       const off = i * 4;
       const ri = (data[off] >> 5) & 0x07;
       const gi = (data[off + 1] >> 5) & 0x07;
@@ -1895,15 +1913,26 @@ function encodeGIF(frames, width, height, delay, onProgress) {
     while (pos < encoded.length) {
       const chunk = Math.min(255, encoded.length - pos);
       writeByte(chunk);
-      for (let i = 0; i < chunk; i++) buf.push(encoded[pos++]);
+      ensureCapacity(chunk);
+      chunkBuf.set(encoded.subarray(pos, pos + chunk), chunkPos);
+      chunkPos += chunk;
+      pos += chunk;
     }
     writeByte(0);
-
-    if (onProgress) onProgress((f + 1) / frames.length);
   }
 
-  writeByte(0x3b);
-  return new Uint8Array(buf);
+  function finish() {
+    writeByte(0x3b);
+    flush();
+    let totalLen = 0;
+    for (const c of chunks) totalLen += c.length;
+    const result = new Uint8Array(totalLen);
+    let offset = 0;
+    for (const c of chunks) { result.set(c, offset); offset += c.length; }
+    return result;
+  }
+
+  return {addFrame, finish};
 }
 
 function lzwEncode(pixels, minCodeSize) {
@@ -1913,8 +1942,10 @@ function lzwEncode(pixels, minCodeSize) {
   let nextCode = eoiCode + 1;
   const maxCode = 4096;
 
-  const table = new Map();
-  const output = [];
+  /* Trie-based table: each node is a Map from child byte → code */
+  let trie = new Array(clearCode);
+  let outBuf = new Uint8Array(pixels.length + 1024);
+  let outPos = 0;
   let bitBuf = 0;
   let bitCount = 0;
 
@@ -1922,46 +1953,72 @@ function lzwEncode(pixels, minCodeSize) {
     bitBuf |= code << bitCount;
     bitCount += codeSize;
     while (bitCount >= 8) {
-      output.push(bitBuf & 0xff);
+      if (outPos >= outBuf.length) {
+        const newBuf = new Uint8Array(outBuf.length * 2);
+        newBuf.set(outBuf);
+        outBuf = newBuf;
+      }
+      outBuf[outPos++] = bitBuf & 0xff;
       bitBuf >>= 8;
       bitCount -= 8;
     }
   }
 
-  function resetTable() {
-    table.clear();
-    for (let i = 0; i < clearCode; i++) table.set(String(i), i);
+  function resetTrie() {
+    for (let i = 0; i < clearCode; i++) trie[i] = null;
     nextCode = eoiCode + 1;
     codeSize = minCodeSize + 1;
   }
 
   emit(clearCode);
-  resetTable();
+  resetTrie();
 
-  let current = String(pixels[0]);
+  let currentCode = pixels[0];
+  let currentNode = trie[currentCode];
+
   for (let i = 1; i < pixels.length; i++) {
-    const next = String(pixels[i]);
-    const combined = current + ',' + next;
-    if (table.has(combined)) {
-      current = combined;
+    const px = pixels[i];
+    const child = currentNode ? currentNode.get(px) : undefined;
+    if (child !== undefined) {
+      currentCode = child;
+      currentNode = trie[currentCode] || (currentCode < trie.length ? trie[currentCode] : null);
     } else {
-      emit(table.get(current));
+      emit(currentCode);
       if (nextCode < maxCode) {
-        table.set(combined, nextCode++);
-        if (nextCode > (1 << codeSize) && codeSize < 12) codeSize++;
+        if (!currentNode && currentCode < trie.length) {
+          trie[currentCode] = new Map();
+          currentNode = trie[currentCode];
+        } else if (!currentNode) {
+          if (trie.length <= currentCode) trie.length = currentCode + 1;
+          trie[currentCode] = new Map();
+          currentNode = trie[currentCode];
+        }
+        currentNode.set(px, nextCode);
+        if (nextCode >= trie.length) trie.length = nextCode + 1;
+        trie[nextCode] = null;
+        nextCode++;
+        if (nextCode >= (1 << codeSize) && codeSize < 12) codeSize++;
       } else {
         emit(clearCode);
-        resetTable();
+        resetTrie();
       }
-      current = next;
+      currentCode = px;
+      currentNode = trie[px];
     }
   }
 
-  emit(table.get(current));
+  emit(currentCode);
   emit(eoiCode);
 
-  if (bitCount > 0) output.push(bitBuf & 0xff);
-  return new Uint8Array(output);
+  if (bitCount > 0) {
+    if (outPos >= outBuf.length) {
+      const newBuf = new Uint8Array(outBuf.length + 1);
+      newBuf.set(outBuf);
+      outBuf = newBuf;
+    }
+    outBuf[outPos++] = bitBuf & 0xff;
+  }
+  return outBuf.subarray(0, outPos);
 }
 
 document.getElementById('export-btn').addEventListener('click', () => {
@@ -2260,7 +2317,6 @@ function restoreUiState(ui) {
   }
   if (typeof ui.turntable_speed === 'number') {
     setTurntableSpeed(ui.turntable_speed);
-    document.getElementById('turntable-speed').value = ui.turntable_speed;
   }
 
   /* Camera position and target */

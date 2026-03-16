@@ -173,11 +173,11 @@ class TestExportButtonVisibility:
         assert "visible" in body
 
     def test_export_format_select_exists(self, client: TestClient) -> None:
-        """Export format selector exists with GIF and MP4 options."""
+        """Export format selector exists with GIF and WebM options."""
         html = _get_html(client)
         assert 'id="export-format"' in html
         assert "GIF" in html
-        assert "MP4" in html
+        assert "WebM" in html
 
     def test_export_resolution_select_exists(self, client: TestClient) -> None:
         """Export resolution selector exists with 1x and 2x options."""
@@ -268,11 +268,22 @@ class TestExportProgress:
         assert 'id="export-progress-fill"' in html
 
     def test_export_updates_progress(self, client: TestClient) -> None:
-        """exportMP4 updates progress text during capture."""
+        """exportWebM updates progress text during capture."""
         html = _get_html(client)
-        body = _extract_js_function(html, "exportMP4")
-        assert "progressText.textContent" in body
-        assert "progressFill.style.width" in body
+        body = _extract_js_function(html, "exportWebM")
+        assert "updateCaptureProgress" in body
+
+    def test_download_blob_helper_exists(self, client: TestClient) -> None:
+        """downloadBlob helper is defined for shared download logic."""
+        html = _get_html(client)
+        assert "function downloadBlob(" in html
+
+    def test_update_capture_progress_helper_exists(
+        self, client: TestClient,
+    ) -> None:
+        """updateCaptureProgress helper is defined for shared progress logic."""
+        html = _get_html(client)
+        assert "function updateCaptureProgress(" in html
 
 
 class TestCaptureRestoreState:
