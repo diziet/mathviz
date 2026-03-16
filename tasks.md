@@ -6195,3 +6195,261 @@ Speed show no value — the user has to guess from the slider thumb position.
 - Manual: open Crystal Preview, move Bloom and Brightness sliders — values update
 - Manual: start turntable export, move speed slider — value updates
 - Manual: reload page — all sliders show their default values
+
+---
+
+## Task 143: Reduce point size slider range to 0.05–1
+
+**Objective:**
+
+The Point Size slider currently ranges from 0.1 to 5, but values above 0.5 produce oversized points that are never useful. Change the range to min=0.01, max=0.5, step=0.01, default=0.1. The slider should still save/restore its value when switching generators.
+
+**Suggested path:**
+
+Update the `<input>` element for `point-size` in `index.html` — change `min`, `max`, `step`, and `value` attributes. Verify that any JS code referencing the slider (the `input` event listener, `restoreUI`/`saveUI`, `updateSliderLabel`) still works with the new range. If there's a clamping or default-value fallback elsewhere, update it to match.
+
+**Tests:**
+
+- Manual: drag Point Size slider fully right — value reads 0.5
+- Manual: drag fully left — value reads 0.01
+- Manual: default on page load is 0.1
+- Manual: switch generators — point size restores correctly
+
+---
+
+## Task 144: Configurable generation timeout from the preview UI
+
+**Objective:**
+
+The generation timeout is currently hardcoded to 300 seconds and only
+configurable via the `MATHVIZ_GENERATION_TIMEOUT` env var. Users need to be
+able to raise or lower the timeout from the preview UI without restarting
+the server — some generators (e.g. mandelbulb at voxel_resolution 512) need
+more than 60 seconds, while a lower timeout is useful for iterating quickly.
+
+The timeout setting should persist across page reloads (localStorage) and
+apply to subsequent generations without a server restart.
+
+**Suggested path:**
+
+Add a settings control (either in an existing settings panel or a small
+dropdown/popover) where the user can set the generation timeout in seconds.
+Send the timeout value in the `/api/generate` request body. On the server
+side, use the per-request timeout if provided, falling back to the env var
+default. The executor already accepts a timeout — the plumbing is passing it
+through from the route handler.
+
+**Tests:** `tests/test_preview/test_generation_timeout.py`
+
+- Request with custom timeout uses that value instead of the server default
+- Request without timeout field falls back to env var / 300s default
+- UI persists timeout setting in localStorage across reloads
+
+---
+
+## Task 145: Show generation time in the info panel
+
+**Objective:**
+
+Display how long the server took to generate the current form, next to the
+FPS counter in the bottom-left info panel. This helps users understand
+whether a slow load is from generation or rendering, and makes it easy to
+compare performance across parameter changes.
+
+**Suggested path:**
+
+Add a `<div id="info-gen-time">` element after `info-fps` in the info panel.
+Measure wall-clock time around the `/api/generate` fetch in both
+`loadFromAPI` and `_doGenerate` — start a timer before the fetch, stop it
+after the response arrives (before `displayGenerateResult`). Update the
+element with the elapsed time formatted as e.g. "Gen: 2.4s" or "Gen: 1m 23s"
+for longer generations. For cache hits, show "Gen: 0.1s (cached)" using the
+existing `X-Cache` response header. Clear the value when a new generation
+starts.
+
+**Tests:**
+
+- Manual: generate a fast form (e.g. lorenz) — info panel shows sub-second gen time
+- Manual: generate a slow form (e.g. mandelbulb at high voxel_resolution) — time updates after completion
+- Manual: hit a cached result — shows "(cached)" suffix
+
+---
+
+## Task 146: Switch preview generation from ProcessPoolExecutor to ThreadPoolExecutor
+
+**Objective:**
+
+The preview server runs pipeline generation in a `ProcessPoolExecutor`
+subprocess (`src/mathviz/preview/executor.py`). This adds massive overhead:
+a mandelbulb at voxel_resolution=512 takes ~17s in-process but ~45s via
+subprocess, because the 4M-vertex mesh result must be pickled back to the
+parent and all modules (including numba) must be re-imported in the child.
+Switch single generations to `ThreadPoolExecutor` so the pipeline runs
+in-process. The numba JIT kernel releases the GIL, so threading won't block
+the event loop during the expensive compute.
+
+Cancel and timeout behavior must still work — `future.cancel()` won't kill
+a running thread, so the cancel mechanism needs adjustment. One approach:
+check a threading `Event` at pipeline stage boundaries and raise
+`CancelledError` if set. The batch generation pool can remain
+process-based since it benefits from true parallelism across CPU cores.
+
+**Tests:** `tests/test_preview/test_generation_timeout.py`
+
+- Single generation runs in a thread (not a subprocess)
+- Cancel request stops a running generation within a few seconds
+- Timeout still fires and returns HTTP 504
+- Batch generation still uses process pool for parallelism
+- Generation result is identical between old and new executor
+
+---
+
+## Task 147: Post-transform dense sampling view mode
+
+**Objective:**
+
+Add a new view mode "Dense Cloud" to the preview UI dropdown. When selected,
+the server re-samples the point cloud from the mesh **after** the transform
+step (in physical/container space) instead of before it. Currently
+SPARSE_SHELL samples from the raw generator mesh where surface area is tiny
+(~24 unit² for mandelbulb), producing only ~5,000 points regardless of voxel
+resolution. Sampling after the transform uses the physical-space area
+(~63,000 mm²), which produces a much denser cloud that better represents the
+form.
+
+The existing view modes must remain unchanged — this is an additional option,
+not a replacement. The server needs to know which sampling mode the client
+wants so it can run the pipeline differently.
+
+**Suggested path:**
+
+Add `dense` to the view-mode `<select>`. When the client requests generation
+with this mode, include a flag in the request body (e.g.
+`"sampling": "post_transform"`). On the server side, when this flag is set,
+run the represent step with a no-op or surface-shell strategy that preserves
+the mesh, then after the transform step apply SPARSE_SHELL sampling on the
+now-scaled mesh. Cap the sample count at a reasonable maximum (e.g. 200,000
+points) to avoid overwhelming the browser. The result should be cached
+separately from the normal sampling result.
+
+**Tests:** `tests/test_preview/test_dense_sampling.py`
+
+- Post-transform sampling produces significantly more points than pre-transform
+- Sample count is capped at the configured maximum
+- Existing view modes are unaffected
+- Cache keys differ between normal and dense sampling
+
+---
+
+## Task 148: Resolution-scaled density view mode
+
+**Objective:**
+
+Add a new view mode "HD Cloud" to the preview UI dropdown. When selected,
+the SPARSE_SHELL surface density scales proportionally with voxel resolution
+so that higher-resolution meshes produce denser point clouds. Currently the
+density is fixed at 100 pts/unit², meaning a mandelbulb at voxel 128 and
+voxel 512 produce nearly the same ~5,000 points despite the 512 mesh being
+25x larger and taking 25x longer to compute.
+
+The scaling should make higher resolution feel worthwhile — if the user waits
+longer for a finer mesh, they should see a visibly denser result.
+
+**Suggested path:**
+
+When the client requests this mode (e.g. `"sampling": "resolution_scaled"`),
+the server multiplies the SPARSE_SHELL density by
+`(voxel_resolution / default_resolution)²`. For mandelbulb with default=128:
+at voxel 256 the density becomes 4x (100→400), at 512 it becomes 16x
+(100→1600). The generator's `resolution_kwargs` are already available in the
+pipeline result's stored parameters. Cap the total sample count (e.g. 500,000)
+to keep the browser responsive. Cache separately from normal and dense modes.
+
+**Tests:** `tests/test_preview/test_resolution_scaled_sampling.py`
+
+- Doubling voxel resolution roughly quadruples point count
+- Default resolution produces the same count as normal SPARSE_SHELL
+- Sample count is capped at the configured maximum
+- Existing view modes are unaffected
+
+---
+
+## Task 149: Standardize parameter names and reject unknown params
+
+**Objective:**
+
+Generator parameter names are inconsistent: `quaternion_julia` uses
+`max_iter` while `mandelbulb`, `julia3d`, `burning_ship`, and
+`mandelbrot_heightmap` all use `max_iterations`. Standardize to
+`max_iterations` everywhere. More importantly, unknown params passed via
+`--param` or the API are silently merged into metadata and ignored — the
+generator happily uses its default with no warning. After this task,
+passing an unrecognized param key must produce a clear error listing valid
+param names.
+
+**Suggested path:**
+
+1. Rename `max_iter` to `max_iterations` in `quaternion_julia`'s
+   `get_default_params()`, `get_param_ranges()`, and `generate()`.
+   Audit all other generators for similar naming inconsistencies.
+
+2. Add validation in `GeneratorBase.generate` (or a shared helper called
+   at the top of each `generate`): compare user-supplied param keys against
+   `get_default_params().keys()` plus `resolution_params.keys()`. Raise
+   `ValueError` for any unrecognized key, with a message like
+   `Unknown parameter 'max_iter' for mandelbulb. Valid params: power, max_iterations, extent`.
+
+3. This validation must apply to both CLI and API/preview usage so there
+   is no silent path where a bad param slips through.
+
+**Tests:** `tests/test_core/test_param_validation.py`
+
+- Unknown param raises ValueError listing valid params
+- Valid params pass without error
+- `quaternion_julia` accepts `max_iterations` (not `max_iter`)
+- Resolution param passed as a regular param gets a helpful error message
+- All existing generators pass validation with their documented defaults
+
+---
+
+## Task 150: Full-pipeline smoke test for every generator
+
+**Objective:**
+
+Add a single parametrized test that runs every registered generator through
+the complete pipeline (generate → represent → transform → validate) with
+default params and verifies the output is valid. Currently each generator has
+its own test file, but there is no single test that catches regressions like
+a generator returning fewer points than expected, a param name mismatch
+silently dropping to defaults, or a representation strategy failing on a
+particular geometry shape. This test should be the safety net that catches
+any generator breaking in any pipeline stage.
+
+**Suggested path:**
+
+Create `tests/test_generators/test_all_generators_smoke.py`. Use
+`pytest.mark.parametrize` over all registered generator names (discovered
+via the registry, not hardcoded). For each generator: instantiate it, call
+`generate()` with default params, run the full pipeline with default
+representation, container, and placement, then assert:
+
+- `math_object` has at least one of mesh, point_cloud, or curves
+- If mesh exists: vertices and faces are non-empty, no NaN/inf values
+- If point_cloud exists: points are non-empty, no NaN/inf values
+- `validate_or_raise()` passes
+- Coordinate space is PHYSICAL after transform
+- `get_default_params()` keys match what `generate()` actually reads
+  (detect the max_iter vs max_iterations class of bug)
+
+Mark the test with `@pytest.mark.slow` and register the marker in
+`pyproject.toml`. Configure pytest so `slow` tests are **excluded by
+default** (e.g. `addopts = "-m 'not slow'"` in `pyproject.toml`). Run them
+explicitly with `pytest -m slow`. This way a bare `pytest` stays fast and
+the smoke suite only runs when requested.
+
+**Tests:** `tests/test_generators/test_all_generators_smoke.py`
+
+- Every registered generator completes the pipeline without error
+- Every generator produces valid, non-empty geometry
+- No generator has param keys in `get_default_params()` that it never reads
+- Test is parametrized so failures name the specific broken generator
