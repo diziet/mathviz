@@ -35,7 +35,7 @@ _DEFAULT_C_REAL = -0.2
 _DEFAULT_C_I = 0.8
 _DEFAULT_C_J = 0.0
 _DEFAULT_C_K = 0.0
-_DEFAULT_MAX_ITER = 10
+_DEFAULT_MAX_ITERATIONS = 10
 _DEFAULT_ESCAPE_RADIUS = 2.0
 _DEFAULT_SLICE_W = 0.0
 
@@ -60,7 +60,7 @@ class QuaternionJuliaGenerator(GeneratorBase):
             "c_i": {"min": -2.0, "max": 2.0, "step": 0.05},
             "c_j": {"min": -2.0, "max": 2.0, "step": 0.05},
             "c_k": {"min": -2.0, "max": 2.0, "step": 0.05},
-            "max_iter": {"min": 3, "max": 30, "step": 1},
+            "max_iterations": {"min": 3, "max": 30, "step": 1},
             "escape_radius": {"min": 1.0, "max": 10.0, "step": 0.5},
             "slice_w": {"min": -1.0, "max": 1.0, "step": 0.05},
         }
@@ -72,7 +72,7 @@ class QuaternionJuliaGenerator(GeneratorBase):
             "c_i": _DEFAULT_C_I,
             "c_j": _DEFAULT_C_J,
             "c_k": _DEFAULT_C_K,
-            "max_iter": _DEFAULT_MAX_ITER,
+            "max_iterations": _DEFAULT_MAX_ITERATIONS,
             "escape_radius": _DEFAULT_ESCAPE_RADIUS,
             "extent": DEFAULT_EXTENT,
             "slice_w": _DEFAULT_SLICE_W,
@@ -93,7 +93,7 @@ class QuaternionJuliaGenerator(GeneratorBase):
         c_i = float(merged["c_i"])
         c_j = float(merged["c_j"])
         c_k = float(merged["c_k"])
-        max_iter = int(merged["max_iter"])
+        max_iterations = int(merged["max_iterations"])
         escape_radius = float(merged["escape_radius"])
         extent = float(merged["extent"])
         slice_w = float(merged["slice_w"])
@@ -102,7 +102,7 @@ class QuaternionJuliaGenerator(GeneratorBase):
         )
 
         validate_fractal_params(
-            None, max_iter, voxel_resolution, extent,
+            None, max_iterations, voxel_resolution, extent,
         )
         validate_quaternion_c_params(c_real, c_i, c_j, c_k)
         validate_escape_radius(escape_radius)
@@ -111,7 +111,7 @@ class QuaternionJuliaGenerator(GeneratorBase):
         xs, ys, zs, bounds = build_voxel_grid(voxel_resolution, extent)
         field = quaternion_julia_escape_field(
             xs, ys, zs, slice_w,
-            max_iter, escape_radius,
+            max_iterations, escape_radius,
             c_real, c_i, c_j, c_k,
         )
         mesh = extract_mesh(field, bounds, isolevel=ESCAPE_ISOLEVEL)
@@ -123,9 +123,9 @@ class QuaternionJuliaGenerator(GeneratorBase):
 
         logger.info(
             "Generated quaternion_julia: c=(%.3f, %.3f, %.3f, %.3f), "
-            "max_iter=%d, escape_r=%.1f, slice_w=%.3f, "
+            "max_iterations=%d, escape_r=%.1f, slice_w=%.3f, "
             "voxel_res=%d, vertices=%d, faces=%d",
-            c_real, c_i, c_j, c_k, max_iter, escape_radius, slice_w,
+            c_real, c_i, c_j, c_k, max_iterations, escape_radius, slice_w,
             voxel_resolution, len(mesh.vertices), len(mesh.faces),
         )
 

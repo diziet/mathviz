@@ -73,6 +73,42 @@ class GeneratorBase(ABC):
         """Generate geometry in abstract coordinate space."""
         ...
 
+    def validate_param_keys(
+        self,
+        params: dict[str, Any] | None,
+    ) -> None:
+        """Validate that user-supplied param keys are recognized.
+
+        Raises ValueError for any unrecognized key, listing valid param names.
+        Also detects resolution params mistakenly passed as regular params.
+        """
+        if not params:
+            return
+
+        valid_params = set(self.get_default_params().keys())
+        resolution_keys = set(self.resolution_params.keys())
+        unknown = set(params.keys()) - valid_params
+
+        if not unknown:
+            return
+
+        # Check if any unknown params are actually resolution params
+        misplaced_resolution = unknown & resolution_keys
+        if misplaced_resolution:
+            res_names = ", ".join(sorted(misplaced_resolution))
+            raise ValueError(
+                f"Resolution parameter(s) {res_names} passed as regular "
+                f"param(s) for {self.name}. Pass resolution params via "
+                f"--resolution (CLI) or the resolution field (API) instead."
+            )
+
+        unknown_names = ", ".join(sorted(unknown))
+        valid_names = ", ".join(sorted(valid_params))
+        raise ValueError(
+            f"Unknown parameter(s) '{unknown_names}' for {self.name}. "
+            f"Valid params: {valid_names}"
+        )
+
     def get_default_resolution(self) -> dict[str, Any]:
         """Return default values for resolution parameters."""
         return dict(self._resolution_defaults)

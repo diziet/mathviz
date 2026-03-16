@@ -159,7 +159,7 @@ def test_metadata_recorded(qjulia: QuaternionJuliaGenerator) -> None:
     assert obj.category == "fractals"
     assert obj.parameters["c_real"] == -0.2
     assert obj.parameters["c_i"] == 0.8
-    assert obj.parameters["max_iter"] == 10
+    assert obj.parameters["max_iterations"] == 10
     assert obj.parameters["voxel_resolution"] == _TEST_VOXEL_RESOLUTION
 
 

@@ -1189,7 +1189,7 @@ Performance: O(N³) in voxel_resolution
 | `c_i` | float | 0.8 | -2.0–2.0 (step 0.05) | C i |
 | `c_j` | float | 0 | -2.0–2.0 (step 0.05) | C j |
 | `c_k` | float | 0 | -2.0–2.0 (step 0.05) | C k |
-| `max_iter` | int | 10 | 3–30 (step 1) | Max iter |
+| `max_iterations` | int | 10 | 3–30 (step 1) | Max iterations |
 | `escape_radius` | float | 2 | 1.0–10.0 (step 0.5) | Escape radius |
 | `extent` | float | 1.5 | — | Extent |
 | `slice_w` | float | 0 | -1.0–1.0 (step 0.05) | Slice w |
