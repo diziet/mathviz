@@ -82,7 +82,7 @@ SAMPLE_UI_STATE: dict[str, Any] = {
     "show_bbox": True,
     "show_axes": True,
     "light_bg": False,
-    "point_size": 3.5,
+    "point_size": 0.2,
 }
 
 
@@ -156,7 +156,7 @@ class TestSnapshotUiState:
         assert ui["show_bbox"] is True
         assert ui["show_axes"] is True
         assert ui["light_bg"] is False
-        assert ui["point_size"] == 3.5
+        assert ui["point_size"] == 0.2
         assert ui["camera"]["position"]["x"] == 1.5
         assert ui["camera"]["target"]["y"] == 0.0
         assert ui["camera"]["zoom"] == 1.0
