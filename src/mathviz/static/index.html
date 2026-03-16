@@ -785,7 +785,7 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 
 /* ── WASD Camera Controls ── */
-const _wasdKeys = {w: false, a: false, s: false, d: false, ' ': false};
+const _wasdKeys = {w: false, a: false, s: false, d: false, ' ': false, shift: false};
 const _wasdOffset = new THREE.Vector3();
 
 function _isFormElement(el) {
@@ -795,23 +795,30 @@ function _isFormElement(el) {
 
 document.addEventListener('keydown', (e) => {
   if (_isFormElement(e.target)) return;
-  const k = e.key.toLowerCase();
+  const k = e.key === 'Shift' ? 'shift' : e.key.toLowerCase();
   if (k in _wasdKeys) {
     e.preventDefault();
     _wasdKeys[k] = true;
   }
 });
 
+// keyup intentionally has no _isFormElement guard: if the user presses a key
+// outside a form then focuses an input, we still want keyup to clear the state.
 document.addEventListener('keyup', (e) => {
-  const k = e.key.toLowerCase();
+  const k = e.key === 'Shift' ? 'shift' : e.key.toLowerCase();
   if (k in _wasdKeys) _wasdKeys[k] = false;
+});
+
+window.addEventListener('blur', () => {
+  for (const k in _wasdKeys) _wasdKeys[k] = false;
 });
 
 function applyWASD() {
   if (state.cameraLocked === 'full') return;
   const dist = camera.position.distanceTo(controls.target);
   const speed = dist * 0.015;
-  const any = _wasdKeys.w || _wasdKeys.s || _wasdKeys.a || _wasdKeys.d || _wasdKeys[' '];
+  const any = _wasdKeys.w || _wasdKeys.s || _wasdKeys.a || _wasdKeys.d
+    || _wasdKeys[' '] || _wasdKeys.shift;
   if (!any) return;
   _wasdOffset.copy(camera.position);
   if (_wasdKeys.w) camera.translateZ(-speed);
@@ -819,6 +826,7 @@ function applyWASD() {
   if (_wasdKeys.a) camera.translateX(-speed);
   if (_wasdKeys.d) camera.translateX(speed);
   if (_wasdKeys[' ']) camera.translateY(speed);
+  if (_wasdKeys.shift) camera.translateY(-speed);
   _wasdOffset.subVectors(camera.position, _wasdOffset);
   controls.target.add(_wasdOffset);
 }
