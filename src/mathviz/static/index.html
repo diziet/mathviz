@@ -565,6 +565,12 @@ canvas{display:block}
       </select>
     </div>
 
+    <div class="section-title">Timeout</div>
+    <div class="editor-row dim-row">
+      <label for="timeout-input">Seconds</label>
+      <input type="number" id="timeout-input" class="control-input" value="300" min="1" max="3600" step="1">
+    </div>
+
     <button id="regenerate-btn" title="Force regenerate (bypass cache)">Regenerate</button>
     <button id="reset-view-btn" disabled>Reset View</button>
     <button id="screenshot-btn">Screenshot</button>
@@ -1180,7 +1186,7 @@ async function loadFromAPI(generator, genParams, seed, force) {
   _cancelController = new AbortController();
 
   try {
-    const body = {generator, params: genParams, seed, container: getContainerParams()};
+    const body = {generator, params: genParams, seed, container: getContainerParams(), timeout: getTimeoutSeconds()};
     if (force) body.force = true;
     const resp = await fetch('/api/generate', {
       method: 'POST',
@@ -3409,6 +3415,34 @@ function getContainerParams() {
   };
 }
 
+/* ── Timeout setting (localStorage) ── */
+const timeoutInput = document.getElementById('timeout-input');
+const TIMEOUT_STORAGE_KEY = 'mathviz_generation_timeout';
+const DEFAULT_TIMEOUT_SECONDS = 300; // Must match backend DEFAULT_TIMEOUT_SECONDS
+const MAX_TIMEOUT_SECONDS = 3600;    // Must match backend MAX_TIMEOUT_SECONDS
+
+function getTimeoutSeconds() {
+  const val = parseInt(timeoutInput.value, 10);
+  if (val > 0 && val <= MAX_TIMEOUT_SECONDS) return val;
+  return DEFAULT_TIMEOUT_SECONDS;
+}
+
+(function initTimeout() {
+  try {
+    const saved = localStorage.getItem(TIMEOUT_STORAGE_KEY);
+    if (saved) {
+      const parsed = parseInt(saved, 10);
+      if (parsed > 0) timeoutInput.value = parsed;
+    }
+  } catch (e) { /* localStorage unavailable */ }
+})();
+
+timeoutInput.addEventListener('change', () => {
+  const val = getTimeoutSeconds();
+  timeoutInput.value = val;
+  try { localStorage.setItem(TIMEOUT_STORAGE_KEY, String(val)); } catch (e) { /* ignore */ }
+});
+
 function resetContainerDefaults() {
   dimW.value = CONTAINER_DEFAULTS.w;
   dimH.value = CONTAINER_DEFAULTS.h;
@@ -3669,7 +3703,7 @@ async function _doGenerate(currentGen) {
   _cancelController = new AbortController();
 
   try {
-    const body = {generator: currentGen, params: genParams, seed, resolution, container: getContainerParams()};
+    const body = {generator: currentGen, params: genParams, seed, resolution, container: getContainerParams(), timeout: getTimeoutSeconds()};
     const resp = await fetch('/api/generate', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -4058,6 +4092,7 @@ async function regeneratePanel(panelIndex) {
       params: panel.params,
       seed: panel.seed,
       container: getContainerParams(),
+      timeout: getTimeoutSeconds(),
     };
     const resp = await fetch('/api/generate', {
       method: 'POST',

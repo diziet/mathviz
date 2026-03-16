@@ -18,7 +18,7 @@ from mathviz.core.generator import GeneratorMeta, get_generator_meta, list_gener
 from mathviz.preview.cache import CacheEntry, GeometryCache, compute_cache_key
 from mathviz.preview.cache_integration import load_from_disk, store_to_disk
 from mathviz.preview.disk_cache import DiskCache
-from mathviz.preview.executor import GenerationExecutor, get_timeout_seconds
+from mathviz.preview.executor import GenerationExecutor, MAX_TIMEOUT_SECONDS, get_timeout_seconds
 from mathviz.preview.lod import (
     cloud_to_binary_ply,
     decimate_mesh,
@@ -120,6 +120,7 @@ class GenerateRequest(BaseModel):
     resolution: dict[str, Any] = Field(default_factory=dict)
     container: ContainerParams | None = None
     force: bool = False
+    timeout: int | None = Field(default=None, gt=0, le=MAX_TIMEOUT_SECONDS, description="Per-request timeout in seconds")
 
 
 class GenerateResponse(BaseModel):
@@ -404,6 +405,7 @@ def _run_generation(
     container: Container,
 ) -> CacheEntry:
     """Execute the pipeline and return a CacheEntry."""
+    timeout = req.timeout if req.timeout is not None else get_timeout_seconds()
     try:
         result = _executor.submit(
             req.generator,
@@ -412,13 +414,13 @@ def _run_generation(
             resolution_kwargs=resolution,
             container=container,
             placement=PlacementPolicy(),
+            timeout_override=timeout,
         )
     except KeyError:
         raise _generator_not_found(req.generator)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except TimeoutError:
-        timeout = get_timeout_seconds()
         logger.error("Generation timed out after %d seconds", timeout)
         raise HTTPException(
             status_code=504,
