@@ -1015,7 +1015,7 @@ function loadMeshFromGLB(url) {
 /* Compute adaptive point size based on scene extent so points are visible at any scale. */
 function computeAdaptivePointSize(sliderValue, extent) {
   const e = extent !== undefined ? extent : state.sceneExtent;
-  return e * sliderValue * 0.003;
+  return e * sliderValue * 0.03;
 }
 
 /* Compute max extent from a geometry's bounding box (returns the value). */
@@ -1028,19 +1028,15 @@ function getGeometryExtent(geometry) {
   return Math.max(size.x, size.y, size.z, 1);
 }
 
-/* Update state.sceneExtent from a geometry's bounding box. */
-function updateSceneExtent(geometry) {
-  state.sceneExtent = getGeometryExtent(geometry);
-}
-
 function loadCloudFromPLY(url) {
   return fetch(url).then(r => r.arrayBuffer()).then(buf => {
     const parsed = parseBinaryPLY(buf);
     if (!parsed) throw new Error('Failed to parse PLY');
     const geom = new THREE.BufferGeometry();
     geom.setAttribute('position', new THREE.BufferAttribute(parsed.positions, 3));
-    updateSceneExtent(geom);
-    const mat = new THREE.PointsMaterial({color: 0x44ccff, size: computeAdaptivePointSize(state.pointSize)});
+    const cloudExtent = getGeometryExtent(geom);
+    state.sceneExtent = cloudExtent;
+    const mat = new THREE.PointsMaterial({color: 0x44ccff, size: computeAdaptivePointSize(state.pointSize, cloudExtent)});
     const points = new THREE.Points(geom, mat);
     return {points, vertexCount: parsed.vertexCount};
   });
