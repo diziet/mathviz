@@ -6600,3 +6600,55 @@ browser can handle.
 - Manual: set max points to 500,000 — cloud is visibly denser
 - Manual: switch to Point Cloud — max points input is hidden
 - Manual: reload page — max points value persists
+
+---
+
+## Task 156: Edge Cloud view mode and edge sampling for Dense Cloud
+
+**Objective:**
+
+Add edge sampling capability and a new "Edge Cloud" view mode. After this
+task, the three point-cloud-based view modes should produce visually distinct
+results:
+
+- **Point Cloud** (existing) — surface samples only (SPARSE_SHELL)
+- **Dense Cloud** (existing, modified) — surface samples AND edge samples
+  combined, giving the densest and most complete representation
+- **Edge Cloud** (new) — edge samples only, creating a wireframe-like
+  skeletal point cloud
+
+Edge sampling places points along mesh edges proportional to edge length,
+creating visible structure where faces meet. Combined with surface sampling
+in Dense Cloud, this fills in the wireframe skeleton that surface-only
+sampling misses.
+
+**Suggested path:**
+
+1. Add an `_sample_mesh_edges` helper in `dense_sampling.py`: extract
+   unique edges via `trimesh.Trimesh.edges_unique`, compute each edge's
+   length, distribute the point budget proportionally to edge length, then
+   interpolate points at uniform spacing along each edge. Seed the RNG for
+   deterministic output.
+
+2. **Edge Cloud**: add `edge_cloud` to the view-mode `<select>`, send
+   `"sampling": "edge"` in the request body. On the server, call
+   `_sample_mesh_edges` after the transform step (physical space). Cap at
+   `max_samples`.
+
+3. **Dense Cloud update**: modify `apply_dense_sampling` to combine surface
+   samples (existing) with edge samples. Split the `max_samples` budget
+   between surface and edges (e.g. 70/30 or make it configurable). Merge
+   the two point arrays into a single cloud.
+
+4. Both modes should respect the "Max Points" control from Task 155.
+
+**Tests:** `tests/test_pipeline/test_edge_sampling.py`
+
+- Edge sampling produces points that lie on mesh edges (within tolerance)
+- Point count respects the max_samples cap
+- Longer edges receive proportionally more points
+- Dense Cloud produces more points than either surface-only or edge-only alone
+- Mesh with no faces raises ValueError
+- Result is deterministic for the same seed
+- Manual: Edge Cloud on geodesic_sphere — wireframe skeleton visible
+- Manual: Dense Cloud on geodesic_sphere — surface fill plus visible edge structure
