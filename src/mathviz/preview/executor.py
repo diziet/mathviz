@@ -113,9 +113,10 @@ class GenerationExecutor:
         resolution_kwargs: dict[str, Any] | None,
         container: Container,
         placement: PlacementPolicy,
+        timeout_override: int | None = None,
     ) -> PipelineResult:
         """Run the pipeline with timeout. Raises TimeoutError or CancelledError."""
-        timeout = get_timeout_seconds()
+        timeout = timeout_override if timeout_override and timeout_override > 0 else get_timeout_seconds()
 
         with self._lock:
             pool = self._ensure_pool()
