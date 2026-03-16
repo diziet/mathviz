@@ -17,6 +17,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+# Ensure the src/ directory is on sys.path when running as a standalone script.
+_SRC_DIR = str(Path(__file__).resolve().parent.parent / "src")
+if _SRC_DIR not in sys.path:
+    sys.path.insert(0, _SRC_DIR)
+
 import yaml
 
 from mathviz.core.generator import GeneratorMeta, list_generators
