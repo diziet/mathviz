@@ -6066,3 +6066,132 @@ sees spinning placeholders.
 - Manual: open generator browser — thumbnails load as sharp images, no
   infinite spinners
 - Manual: thumbnails look crisp on retina displays
+
+## Task 141: Fix thumbnail generation crash on macOS — VTK main thread requirement
+
+**Objective:**
+
+Thumbnail generation crashes on macOS because VTK's Cocoa renderer requires
+`NSWindow` to be instantiated on the main thread, but FastAPI/uvicorn runs
+synchronous endpoint handlers in a thread pool. The crash is:
+
+```
+NSWindow should only be instantiated on the main thread!
+libc++abi: terminating due to uncaught exception of type NSException
+```
+
+This kills the entire server process — not just the request. The result is
+that generator browser thumbnails never load on macOS (infinite spinners),
+and the first thumbnail request that isn't cached crashes the preview server.
+
+There is a secondary bug: the `lorenz` generator's thumbnail fails with
+"mesh: face index out of bounds" from tube thickening, but that is a
+separate pipeline issue. This task is about the VTK threading crash.
+
+**Root cause:**
+
+`get_generator_thumbnail` in `thumbnail_routes.py` is a synchronous FastAPI
+endpoint. Uvicorn runs sync endpoints in a thread pool (`anyio.to_thread`).
+VTK's `vtkCocoaRenderWindow` calls `[NSWindow initWithContentRect:...]`
+which AppKit requires on the main thread. Even with `pv.OFF_SCREEN = True`
+and `off_screen=True`, VTK still creates a Cocoa render window on macOS
+unless an alternative backend (OSMesa/EGL) is used.
+
+**Suggested path:**
+
+1. **Generate thumbnails in a subprocess**: Instead of calling
+   `generate_thumbnail()` directly in the request handler, spawn a
+   subprocess that runs a small script or CLI command
+   (`mathviz render-thumbnail <name> --view-mode points`) and writes the
+   WebP to the cache directory. The subprocess has its own main thread,
+   so VTK/Cocoa works. The endpoint waits for the subprocess to complete
+   (with a timeout), then serves the cached file.
+
+2. **Add a `render-thumbnail` CLI command**: Add a thin CLI entry point
+   that calls `generate_thumbnail()` and exits. This can also be used
+   to pre-generate all thumbnails in batch:
+   `mathviz render-thumbnail --all`.
+
+3. **Update `get_or_generate_thumbnail`**: If the cached file exists,
+   return it immediately (no subprocess needed). Only spawn a subprocess
+   for uncached thumbnails.
+
+4. **Handle subprocess failures gracefully**: If the subprocess exits
+   non-zero or times out, return a 503 with a clear error message. Do
+   not crash the server.
+
+5. **Alternative approach — OSMesa backend**: If OSMesa is available
+   (`PYVISTA_OFF_SCREEN=true` + Mesa's software renderer), VTK avoids
+   the Cocoa path entirely. This could be set as an environment variable
+   in the preview server startup. However, OSMesa may not be installed
+   on all systems, so the subprocess approach is more portable.
+
+**Files:**
+
+- `src/mathviz/preview/thumbnails.py` (subprocess-based generation)
+- `src/mathviz/preview/thumbnail_routes.py` (error handling for subprocess)
+- `src/mathviz/cli.py` or new `src/mathviz/cli_thumbnail.py`
+  (`render-thumbnail` CLI command)
+
+**Tests:**
+
+- `test_thumbnail_subprocess_generates_webp`: subprocess produces a valid
+  WebP file in the cache directory
+- `test_thumbnail_cached_skips_subprocess`: cached thumbnail returns
+  immediately without spawning a subprocess
+- `test_thumbnail_subprocess_failure_returns_503`: non-zero exit returns
+  503 not server crash
+- `test_thumbnail_subprocess_timeout`: long-running generation is killed
+  after timeout
+- `test_render_thumbnail_cli`: CLI command generates thumbnail and exits 0
+- `test_render_thumbnail_all`: `--all` flag generates thumbnails for all
+  generators
+- Manual: start `mathviz preview torus`, open generator browser — thumbnails
+  load without crashing the server
+- Manual: thumbnails load on macOS (Apple Silicon and Intel)
+- Manual: pre-generate via `mathviz render-thumbnail --all`, then browser
+  loads instantly from cache
+
+## Task 142: Show current value next to all sliders
+
+**Objective:**
+
+Every range slider in the preview UI should display its current numeric value
+to the right of the slider. Currently only the stretch sliders have paired
+number inputs. Point Size, Density, Bloom, Point Brightness, and Turntable
+Speed show no value — the user has to guess from the slider thumb position.
+
+**Sliders to update:**
+
+| Slider | ID | Range |
+|---|---|---|
+| Point Size | `point-size` | 0.1–5, step 0.1 |
+| Density | `density-slider` | 0.01–1, step 0.01 |
+| Bloom | `crystal-bloom` | 0–1, step 0.05 |
+| Point Brightness | `crystal-brightness` | 0–1, step 0.05 |
+| Turntable Speed | `turntable-speed` | 0.5–5, step 0.5 |
+
+**Suggested path:**
+
+1. Add a `<span>` after each slider to display its current value. Use a
+   consistent class like `slider-value` for styling.
+
+2. On page load and on each slider's `input` event, update the span's
+   `textContent` with the slider's current value.
+
+3. Style `.slider-value` to be a small, fixed-width, right-aligned label
+   next to the slider (e.g. `display:inline-block; width:3em; text-align:right;
+   font-size:12px; opacity:0.7`).
+
+**Files:**
+
+- `src/mathviz/static/index.html` (HTML: add value spans; CSS: `.slider-value`;
+  JS: update spans on input events)
+
+**Tests:**
+
+- Manual: move Point Size slider — value updates in real time next to it
+- Manual: move Density slider — value updates
+- Manual: open Crystal Preview, move Bloom and Brightness sliders — values update
+- Manual: start turntable export, move speed slider — value updates
+- Manual: reload page — all sliders show their default values
