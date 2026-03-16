@@ -212,8 +212,10 @@ canvas{display:block}
 .snap-info{flex:1;min-width:0}
 .snap-info .snap-gen{font-weight:600;font-size:13px}
 .snap-info .snap-date{font-size:11px;opacity:0.6}
-.snap-info .snap-params{font-size:11px;opacity:0.7;white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis}
+.snap-info .snap-params{font-size:11px;opacity:0.7}
+.snap-params-grid{display:grid;grid-template-columns:auto 1fr;gap:1px 8px;margin-top:4px}
+.snap-params-grid .sp-key{opacity:0.6;text-align:right}
+.snap-params-grid .sp-val{word-break:break-all}
 .snap-actions{display:flex;gap:6px;flex-shrink:0}
 .snap-actions button{
   padding:4px 10px;border:1px solid #555;border-radius:4px;
@@ -1315,6 +1317,21 @@ function captureCanvasThumbnail(size) {
   return dataUrl.replace(/^data:image\/png;base64,/, '');
 }
 
+function captureUiState() {
+  return {
+    camera: {
+      position: {x: camera.position.x, y: camera.position.y, z: camera.position.z},
+      target: {x: controls.target.x, y: controls.target.y, z: controls.target.z},
+      zoom: camera.zoom,
+    },
+    view_mode: state.viewMode,
+    camera_lock: state.cameraLocked,
+    show_bbox: document.getElementById('show-bbox').checked,
+    light_bg: document.getElementById('toggle-bg').checked,
+    point_size: state.pointSize,
+  };
+}
+
 saveBtn.addEventListener('click', async () => {
   if (!state.geometryId || !state.generatedWith) return;
   saveBtn.disabled = true;
@@ -1328,6 +1345,7 @@ saveBtn.addEventListener('click', async () => {
       container: gw.container,
       geometry_id: state.geometryId,
       thumbnail: captureCanvasThumbnail(256),
+      ui_state: captureUiState(),
     };
     const resp = await fetch('/api/snapshots', {
       method: 'POST',
@@ -1394,14 +1412,49 @@ async function openGallery() {
   }
 }
 
-function formatParamsSummary(params) {
-  return Object.entries(params)
-    .map(([k, v]) => {
-      if (typeof v === 'number') return `${k}=${Number(v.toFixed(4))}`;
-      if (typeof v === 'string') return `${k}=${v}`;
-      return `${k}=${JSON.stringify(v)}`;
-    })
-    .join(', ');
+function formatParamValue(v) {
+  if (typeof v === 'number') return String(Number(v.toFixed(4)));
+  if (typeof v === 'string') return v;
+  return JSON.stringify(v);
+}
+
+function buildParamsGrid(snap) {
+  const grid = document.createElement('div');
+  grid.className = 'snap-params-grid';
+
+  function addRow(key, val) {
+    const k = document.createElement('span');
+    k.className = 'sp-key';
+    k.textContent = key + ':';
+    const v = document.createElement('span');
+    v.className = 'sp-val';
+    v.textContent = val;
+    grid.appendChild(k);
+    grid.appendChild(v);
+  }
+
+  for (const [key, val] of Object.entries(snap.params)) {
+    addRow(key, formatParamValue(val));
+  }
+  addRow('seed', String(snap.seed));
+
+  if (snap.container) {
+    const c = snap.container;
+    const dims = `${c.width_mm}\u00d7${c.height_mm}\u00d7${c.depth_mm} mm`;
+    addRow('container', dims);
+    const mx = c.margin_x_mm, my = c.margin_y_mm, mz = c.margin_z_mm;
+    if (mx === my && my === mz) {
+      addRow('margin', `${mx} mm`);
+    } else {
+      addRow('margin', `${mx}/${my}/${mz} mm`);
+    }
+  }
+
+  if (snap.ui_state && snap.ui_state.view_mode) {
+    addRow('view', snap.ui_state.view_mode);
+  }
+
+  return grid;
 }
 
 function buildSnapshotCard(snap) {
@@ -1428,12 +1481,9 @@ function buildSnapshotCard(snap) {
   const dateDiv = document.createElement('div');
   dateDiv.className = 'snap-date';
   dateDiv.textContent = dateStr;
-  const paramsDiv = document.createElement('div');
-  paramsDiv.className = 'snap-params';
-  paramsDiv.textContent = formatParamsSummary(snap.params);
   info.appendChild(genDiv);
   info.appendChild(dateDiv);
-  info.appendChild(paramsDiv);
+  info.appendChild(buildParamsGrid(snap));
 
   const actions = document.createElement('div');
   actions.className = 'snap-actions';
@@ -1451,6 +1501,72 @@ function buildSnapshotCard(snap) {
   card.appendChild(info);
   card.appendChild(actions);
   return card;
+}
+
+function restoreUiState(ui) {
+  if (!ui) return;
+
+  /* View mode */
+  if (ui.view_mode) {
+    state.viewMode = ui.view_mode;
+    document.getElementById('view-mode').value = ui.view_mode;
+  }
+
+  /* Camera lock */
+  if (ui.camera_lock) {
+    const labels = {
+      render: '\u{1f512} Render Lock',
+      full: '\u{1f512} Full Lock',
+      off: '\u{1f513} Free',
+    };
+    state.cameraLocked = ui.camera_lock;
+    const btn = document.getElementById('lock-camera');
+    btn.dataset.mode = ui.camera_lock;
+    btn.textContent = labels[ui.camera_lock] || labels.render;
+    controls.enabled = ui.camera_lock !== 'full';
+    renderer.domElement.style.cursor = ui.camera_lock === 'full' ? 'not-allowed' : '';
+  }
+
+  /* Bounding box toggle */
+  if (typeof ui.show_bbox === 'boolean') {
+    document.getElementById('show-bbox').checked = ui.show_bbox;
+    if (state.bboxHelper) state.bboxHelper.visible = ui.show_bbox;
+  }
+
+  /* Light/dark background */
+  if (typeof ui.light_bg === 'boolean') {
+    const isLight = ui.light_bg;
+    state.darkBg = !isLight;
+    document.getElementById('toggle-bg').checked = isLight;
+    if (!state.crystalActive) {
+      scene.background = new THREE.Color(isLight ? LIGHT_COLOR : DARK_COLOR);
+    }
+    applyLightIntensities(mainLights, !isLight);
+    document.getElementById('controls').classList.toggle('light-bg', isLight);
+    document.getElementById('info-panel').classList.toggle('light-bg', isLight);
+    document.getElementById('container-panel').classList.toggle('light-bg', isLight);
+    document.getElementById('param-panel').classList.toggle('light-bg', isLight);
+  }
+
+  /* Point size */
+  if (typeof ui.point_size === 'number') {
+    document.getElementById('point-size').value = ui.point_size;
+    updatePointSize(ui.point_size);
+  }
+
+  /* Camera position and target */
+  if (ui.camera) {
+    const cam = ui.camera;
+    if (cam.position) {
+      camera.position.set(cam.position.x, cam.position.y, cam.position.z);
+    }
+    if (cam.target) {
+      controls.target.set(cam.target.x, cam.target.y, cam.target.z);
+    }
+    if (typeof cam.zoom === 'number') camera.zoom = cam.zoom;
+    camera.updateProjectionMatrix();
+    controls.update();
+  }
 }
 
 async function loadSnapshot(snap) {
@@ -1483,7 +1599,6 @@ async function loadSnapshot(snap) {
     }
 
     /* Load saved geometry files directly */
-    const savedCamera = saveCameraIfLocked();
     clearScene();
     const sid = snap.snapshot_id;
     const hasMesh = snap.geometry_files.includes('mesh.glb');
@@ -1503,8 +1618,10 @@ async function loadSnapshot(snap) {
       state.viewMode = 'points';
     }
     document.getElementById('view-mode').value = state.viewMode;
-    restoreCameraIfSaved(savedCamera);
     applyViewMode();
+
+    /* Restore saved UI state (camera, view mode, toggles) */
+    restoreUiState(snap.ui_state);
 
     state.generatedWith = {
       generator: snap.generator,
@@ -1512,8 +1629,9 @@ async function loadSnapshot(snap) {
       seed: snap.seed,
       container: snap.container,
     };
-    state.geometryId = null;
-    document.getElementById('save-btn').disabled = true;
+    /* Keep the snapshot's geometry_id so Save works immediately */
+    state.geometryId = snap.geometry_id || null;
+    document.getElementById('save-btn').disabled = !state.geometryId;
   } catch (err) {
     console.error('Load snapshot error:', err);
   } finally {
