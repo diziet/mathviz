@@ -83,7 +83,7 @@ class TestViewerHTML:
         html = resp.text
         assert 'value="shaded"' in html
         assert 'value="wireframe"' in html
-        assert 'value="points"' in html
+        assert 'value="vertex"' in html
 
     def test_html_contains_background_toggle(self, client: TestClient) -> None:
         """Viewer HTML has a background toggle control."""

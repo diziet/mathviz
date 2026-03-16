@@ -41,9 +41,9 @@ class TestThumbnailSubprocessGeneratesWebp:
         """Subprocess produces a valid WebP file in the cache directory."""
         with patch(
             "mathviz.preview.thumbnails.subprocess.run",
-            side_effect=_mock_subprocess_success("torus", "points"),
+            side_effect=_mock_subprocess_success("torus", "vertex"),
         ):
-            path = generate_thumbnail_subprocess("torus", "points")
+            path = generate_thumbnail_subprocess("torus", "vertex")
 
         assert path.is_file()
         img = Image.open(path)
@@ -56,10 +56,10 @@ class TestThumbnailCachedSkipsSubprocess:
 
     def test_cached_skips_subprocess(self) -> None:
         """Cached thumbnail returns immediately without spawning a subprocess."""
-        create_fake_thumbnail("torus", "points")
+        create_fake_thumbnail("torus", "vertex")
 
         with patch("mathviz.preview.thumbnails.subprocess.run") as mock_run:
-            path = get_or_generate_thumbnail("torus", "points")
+            path = get_or_generate_thumbnail("torus", "vertex")
 
         mock_run.assert_not_called()
         assert path.is_file()
@@ -80,7 +80,7 @@ class TestThumbnailSubprocessFailure:
             return_value=mock_result,
         ):
             with pytest.raises(ThumbnailSubprocessError, match="rendering failure"):
-                generate_thumbnail_subprocess("torus", "points")
+                generate_thumbnail_subprocess("torus", "vertex")
 
 
 class TestThumbnailSubprocessTimeout:
@@ -93,7 +93,7 @@ class TestThumbnailSubprocessTimeout:
             side_effect=subprocess.TimeoutExpired(cmd=["test"], timeout=5),
         ):
             with pytest.raises(ThumbnailTimeoutError, match="timed out"):
-                generate_thumbnail_subprocess("torus", "points", timeout=5)
+                generate_thumbnail_subprocess("torus", "vertex", timeout=5)
 
 
 class TestThumbnailSubprocessEndpoint:

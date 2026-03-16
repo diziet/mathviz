@@ -20,7 +20,7 @@ PYVISTA_INSTALL_MSG = (
     "PyVista is required for rendering. Install it with: pip install mathviz[render]"
 )
 
-RenderStyle = Literal["shaded", "wireframe", "points"]
+RenderStyle = Literal["shaded", "wireframe", "vertex"]
 VALID_RENDER_STYLES: tuple[RenderStyle, ...] = get_args(RenderStyle)
 
 # All named views: (direction_vector, view_up_vector)
@@ -94,7 +94,7 @@ class RenderConfig:
     object_color: str = "white"
     opacity: float = 0.85
     lighting: str = "backlit"
-    style: RenderStyle = "points"
+    style: RenderStyle = "vertex"
     point_size: float = 3.0
 
     def __post_init__(self) -> None:
@@ -158,7 +158,7 @@ def _setup_backlit_scene(plotter: "object", pv_mesh: "object", config: RenderCon
         mesh_kwargs["smooth_shading"] = True
     elif config.style == "wireframe":
         mesh_kwargs["style"] = "wireframe"
-    elif config.style == "points":
+    elif config.style == "vertex":
         mesh_kwargs["style"] = "points"
         mesh_kwargs["point_size"] = config.point_size
         mesh_kwargs["render_points_as_spheres"] = True

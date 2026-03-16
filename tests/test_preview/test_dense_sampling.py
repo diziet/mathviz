@@ -126,10 +126,10 @@ class TestExistingViewModesUnaffected:
         html = _get_html(client)
         assert '<option value="shaded">' in html
 
-    def test_points_still_default(self, client: TestClient) -> None:
-        """Points is still the default selected view mode."""
+    def test_vertex_still_default(self, client: TestClient) -> None:
+        """Vertex Cloud is still the default selected view mode."""
         html = _get_html(client)
-        match = re.search(r'<option\s+value="points"[^>]*>', html)
+        match = re.search(r'<option\s+value="vertex"[^>]*>', html)
         assert match is not None
         assert "selected" in match.group(0)
 
@@ -141,7 +141,7 @@ class TestExistingViewModesUnaffected:
     def test_all_original_options_present(self, client: TestClient) -> None:
         """All original view mode options are still present."""
         html = _get_html(client)
-        for value in ("shaded", "wireframe", "points", "crystal", "colormap"):
+        for value in ("shaded", "wireframe", "vertex", "crystal", "colormap"):
             assert f'value="{value}"' in html
 
 

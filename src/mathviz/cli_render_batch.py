@@ -243,9 +243,9 @@ def register_render_all_command(
             help="Comma-separated list of generators (default: all non-data-driven)",
         ),
         style: str = typer.Option(
-            "points",
+            "vertex",
             "--style",
-            help="Render style: shaded, wireframe, points",
+            help="Render style: shaded, wireframe, vertex",
         ),
         width: int = typer.Option(1920, "--width", help="Image width in pixels"),
         height: int = typer.Option(1080, "--height", help="Image height in pixels"),

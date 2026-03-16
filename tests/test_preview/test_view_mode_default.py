@@ -1,4 +1,4 @@
-"""Tests for default view mode being Point Cloud.
+"""Tests for default view mode being Vertex Cloud.
 
 Verifies that view mode is only overridden when incompatible with available
 data, not unconditionally after every generation or file load.
@@ -54,13 +54,13 @@ def _get_html(client: TestClient) -> str:
 
 
 class TestViewModeDefault:
-    """Tests that the default view mode is Point Cloud."""
+    """Tests that the default view mode is Vertex Cloud."""
 
-    def test_points_option_is_selected_by_default(self, client: TestClient) -> None:
-        """The points option in the view-mode select has the selected attribute."""
+    def test_vertex_option_is_selected_by_default(self, client: TestClient) -> None:
+        """The vertex option in the view-mode select has the selected attribute."""
         html = _get_html(client)
-        match = re.search(r'<option\s+value="points"[^>]*>', html)
-        assert match is not None, "points option not found"
+        match = re.search(r'<option\s+value="vertex"[^>]*>', html)
+        assert match is not None, "vertex option not found"
         assert "selected" in match.group(0)
 
     def test_shaded_option_not_selected(self, client: TestClient) -> None:
@@ -70,10 +70,10 @@ class TestViewModeDefault:
         assert match is not None, "shaded option not found"
         assert "selected" not in match.group(0)
 
-    def test_js_state_initializes_viewmode_to_points(self, client: TestClient) -> None:
-        """JavaScript state object initializes viewMode to 'points'."""
+    def test_js_state_initializes_viewmode_to_vertex(self, client: TestClient) -> None:
+        """JavaScript state object initializes viewMode to 'vertex'."""
         html = _get_html(client)
-        assert "viewMode: 'points'" in html
+        assert "viewMode: 'vertex'" in html
 
     def test_initial_mesh_visibility_uses_state_viewmode(
         self, client: TestClient,
@@ -81,7 +81,7 @@ class TestViewModeDefault:
         """Mesh children visibility is set based on state.viewMode at creation."""
         html = _get_html(client)
         assert "shadedMesh.visible = (state.viewMode === 'shaded')" in html
-        assert "pts.visible = (state.viewMode === 'points')" in html
+        assert "pts.visible = (state.viewMode === 'vertex')" in html
 
     def test_display_generate_guards_empty_response(
         self, client: TestClient,
@@ -107,7 +107,7 @@ class TestViewModeNotOverridden:
         # The old else branch that forced shaded should be gone
         assert "state.viewMode = 'shaded'" not in html
 
-    def test_mesh_only_preserves_points_mode(self, client: TestClient) -> None:
+    def test_mesh_only_preserves_vertex_mode(self, client: TestClient) -> None:
         """For mesh-only generators, displayGenerateResult does not force shaded."""
         html = _get_html(client)
         gen_fn = re.search(
@@ -117,13 +117,13 @@ class TestViewModeNotOverridden:
         )
         assert gen_fn is not None
         fn_body = gen_fn.group(0)
-        # Only fallback assignment should be to 'points' (for incompatible mode)
+        # Only fallback assignment should be to 'vertex' (for incompatible mode)
         assert "state.viewMode = 'shaded'" not in fn_body
         # The guard uses the helper and only fires when no mesh is available
         assert "viewModeNeedsMesh()" in fn_body
 
-    def test_cloud_only_preserves_points_mode(self, client: TestClient) -> None:
-        """For cloud-only data, displayGenerateResult keeps points mode."""
+    def test_cloud_only_preserves_vertex_mode(self, client: TestClient) -> None:
+        """For cloud-only data, displayGenerateResult keeps vertex mode."""
         html = _get_html(client)
         gen_fn = re.search(
             r"async function displayGenerateResult.*?^}",
@@ -133,7 +133,7 @@ class TestViewModeNotOverridden:
         assert gen_fn is not None
         fn_body = gen_fn.group(0)
         # Cloud-only means !hasMesh, so the guard fires only if mode needs mesh.
-        # Points mode (the default) does not need mesh, so no override occurs.
+        # Vertex mode (the default) does not need mesh, so no override occurs.
         assert "viewModeNeedsMesh() && !hasMesh" in fn_body
         # Verify dropdown is synced to state (not hardcoded)
         assert "document.getElementById('view-mode').value = state.viewMode" in fn_body
@@ -147,12 +147,12 @@ class TestViewModeNotOverridden:
             in html
         )
 
-    def test_incompatible_mode_falls_back_to_points(
+    def test_incompatible_mode_falls_back_to_vertex(
         self, client: TestClient,
     ) -> None:
-        """When viewMode needs mesh but no mesh is available, fall back to points."""
+        """When viewMode needs mesh but no mesh is available, fall back to vertex."""
         html = _get_html(client)
-        # The guard uses the extracted helper and falls back to points
+        # The guard uses the extracted helper and falls back to vertex
         pattern = r"viewModeNeedsMesh\(\)\s*&&\s*!hasMesh"
         assert re.search(pattern, html), (
             "Missing incompatibility guard for mesh-requiring view modes"
@@ -176,7 +176,7 @@ class TestViewModeNotOverridden:
     def test_load_from_file_ply_falls_back_when_incompatible(
         self, client: TestClient,
     ) -> None:
-        """loadFromFile for PLY falls back to points when mode needs mesh."""
+        """loadFromFile for PLY falls back to vertex when mode needs mesh."""
         html = _get_html(client)
         ply_block = re.search(
             r"ext === 'ply'.*?applyViewMode",
@@ -186,7 +186,7 @@ class TestViewModeNotOverridden:
         assert ply_block is not None
         block = ply_block.group(0)
         assert "viewModeNeedsMesh()" in block
-        assert "state.viewMode = 'points'" in block
+        assert "state.viewMode = 'vertex'" in block
 
     def test_user_wireframe_preserved_across_mesh_regeneration(
         self, client: TestClient,
@@ -206,8 +206,8 @@ class TestViewModeNotOverridden:
         assert "state.viewMode = 'shaded'" not in fn_body
         # The only assignment should be the fallback for incompatible modes
         assignments = re.findall(r"state\.viewMode\s*=\s*'(\w+)'", fn_body)
-        assert assignments == ["points"], (
-            f"Expected only fallback to 'points', got: {assignments}"
+        assert assignments == ["vertex"], (
+            f"Expected only fallback to 'vertex', got: {assignments}"
         )
 
     def test_switching_generators_preserves_compatible_mode(

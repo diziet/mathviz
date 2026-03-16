@@ -179,7 +179,13 @@ class UiState(BaseModel):
     camera: CameraState = Field(default_factory=CameraState)
     # "dense" maps to GenerateRequest.sampling="post_transform" at request time.
     # "hd_cloud" maps to GenerateRequest.sampling="resolution_scaled".
-    view_mode: Literal["points", "shaded", "wireframe", "crystal", "dense", "hd_cloud", "edge_cloud", "colormap"] = "points"
+    view_mode: Literal["vertex", "shaded", "wireframe", "crystal", "dense", "hd_cloud", "edge_cloud", "colormap"] = "vertex"
+
+    @field_validator("view_mode", mode="before")
+    @classmethod
+    def migrate_points_to_vertex(cls, v: str) -> str:
+        """Migrate legacy 'points' view mode to 'vertex'."""
+        return "vertex" if v == "points" else v
     stretch: StretchState = Field(default_factory=StretchState)
     camera_lock: Literal["off", "render", "full"] = "render"
     show_bbox: bool = True

@@ -59,7 +59,7 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-def _fake_generate_subprocess(name: str, view_mode: str = "points", timeout: int = 60) -> Path:
+def _fake_generate_subprocess(name: str, view_mode: str = "vertex", timeout: int = 60) -> Path:
     """Simulate subprocess generation using shared helper."""
     return create_fake_thumbnail(name, view_mode)
 
@@ -130,17 +130,17 @@ class TestThumbnailEndpoint:
         self, _mock_rendering: MagicMock, client: TestClient,
     ) -> None:
         """Different view_mode values produce different cached files."""
-        resp_points = client.get("/api/generators/torus/thumbnail?view_mode=points")
+        resp_vertex = client.get("/api/generators/torus/thumbnail?view_mode=vertex")
         resp_shaded = client.get("/api/generators/torus/thumbnail?view_mode=shaded")
 
-        assert resp_points.status_code == 200
+        assert resp_vertex.status_code == 200
         assert resp_shaded.status_code == 200
 
-        points_path = get_thumbnail_path("torus", "points")
+        vertex_path = get_thumbnail_path("torus", "vertex")
         shaded_path = get_thumbnail_path("torus", "shaded")
 
-        assert points_path != shaded_path
-        assert points_path.is_file()
+        assert vertex_path != shaded_path
+        assert vertex_path.is_file()
         assert shaded_path.is_file()
 
     def test_invalid_view_mode_returns_400(self, client: TestClient) -> None:
@@ -167,10 +167,10 @@ class TestDeleteThumbnails:
         self, _mock_rendering: MagicMock, client: TestClient,
     ) -> None:
         """DELETE /api/thumbnails removes all cached thumbnail files."""
-        client.get("/api/generators/torus/thumbnail?view_mode=points")
+        client.get("/api/generators/torus/thumbnail?view_mode=vertex")
         client.get("/api/generators/torus/thumbnail?view_mode=shaded")
 
-        assert get_thumbnail_path("torus", "points").is_file()
+        assert get_thumbnail_path("torus", "vertex").is_file()
         assert get_thumbnail_path("torus", "shaded").is_file()
 
         resp = client.delete("/api/thumbnails")
@@ -179,7 +179,7 @@ class TestDeleteThumbnails:
         assert data["status"] == "ok"
         assert data["thumbnails_removed"] == 2
 
-        assert not get_thumbnail_path("torus", "points").is_file()
+        assert not get_thumbnail_path("torus", "vertex").is_file()
         assert not get_thumbnail_path("torus", "shaded").is_file()
 
 
@@ -194,7 +194,7 @@ class TestBatchThumbnails:
         assert isinstance(data, dict)
         assert "torus" in data
         assert "/api/generators/torus/thumbnail" in data["torus"]
-        assert "view_mode=points" in data["torus"]
+        assert "view_mode=vertex" in data["torus"]
 
 
 class TestThumbnailDiskPath:
