@@ -181,7 +181,7 @@ class UiState(BaseModel):
     show_bbox: bool = True
     show_axes: bool = False
     light_bg: bool = False
-    point_size: float = 0.5
+    point_size: float = 0.1
 
 
 class SnapshotRequest(BaseModel):
