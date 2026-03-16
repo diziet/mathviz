@@ -648,6 +648,7 @@ const state = {
   axisLabels: [],
   viewMode: 'points',
   pointSize: 2,
+  sceneExtent: 1,
   darkBg: true,
   cameraLocked: 'render',
   stretch: {x: 1, y: 1, z: 1},
@@ -984,11 +985,12 @@ function loadMeshFromGLB(url) {
         wireMesh.visible = (state.viewMode === 'wireframe');
 
         /* Point cloud from mesh vertices */
-        const pointsMat = new THREE.PointsMaterial({color: 0x44ccff, size: state.pointSize * 0.01});
+        const pointsMat = new THREE.PointsMaterial({color: 0x44ccff, size: computeAdaptivePointSize(state.pointSize)});
         const pts = new THREE.Points(geom, pointsMat);
         pts.name = 'points';
         pts.visible = (state.viewMode === 'points');
 
+        updateSceneExtent(geom);
         group.add(shadedMesh, wireMesh, pts);
       });
 
@@ -997,13 +999,29 @@ function loadMeshFromGLB(url) {
   });
 }
 
+/* Compute adaptive point size based on scene extent so points are visible at any scale. */
+function computeAdaptivePointSize(sliderValue) {
+  return state.sceneExtent * sliderValue * 0.008;
+}
+
+/* Compute scene extent from a geometry's bounding box. */
+function updateSceneExtent(geometry) {
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox;
+  if (!box) return;
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  state.sceneExtent = Math.max(size.x, size.y, size.z, 1);
+}
+
 function loadCloudFromPLY(url) {
   return fetch(url).then(r => r.arrayBuffer()).then(buf => {
     const parsed = parseBinaryPLY(buf);
     if (!parsed) throw new Error('Failed to parse PLY');
     const geom = new THREE.BufferGeometry();
     geom.setAttribute('position', new THREE.BufferAttribute(parsed.positions, 3));
-    const mat = new THREE.PointsMaterial({color: 0x44ccff, size: state.pointSize * 0.01});
+    updateSceneExtent(geom);
+    const mat = new THREE.PointsMaterial({color: 0x44ccff, size: computeAdaptivePointSize(state.pointSize)});
     const points = new THREE.Points(geom, mat);
     return {points, vertexCount: parsed.vertexCount};
   });
@@ -1244,7 +1262,7 @@ function createCrystalPointsMaterial() {
   const brightness = parseFloat(document.getElementById('crystal-brightness').value);
   return new THREE.PointsMaterial({
     color: 0xe8f0ff,
-    size: state.pointSize * 0.012,
+    size: computeAdaptivePointSize(state.pointSize) * 1.2,
     map: texture,
     transparent: true,
     opacity: brightness,
@@ -1421,7 +1439,7 @@ function applyViewMode() {
 
 function updatePointSize(size) {
   state.pointSize = size;
-  const matSize = size * 0.01;
+  const matSize = computeAdaptivePointSize(size);
   scene.traverse((child) => {
     if (child.isPoints && child.material) {
       child.material.size = matSize;
@@ -1629,7 +1647,7 @@ function applyColorMapToObject(obj) {
   if (obj.isPoints) {
     swapColormapMaterial(obj, new THREE.PointsMaterial({
       vertexColors: true,
-      size: state.pointSize * 0.01,
+      size: computeAdaptivePointSize(state.pointSize),
       sizeAttenuation: true,
     }));
   } else if (obj.isMesh) {
@@ -4083,7 +4101,7 @@ function applyViewModeToAllPanels() {
 }
 
 function updatePointSizeInPanels(size) {
-  const matSize = size * 0.01;
+  const matSize = computeAdaptivePointSize(size);
   for (const p of state.comparePanels) {
     p.scene.traverse((child) => {
       if (child.isPoints && child.material) child.material.size = matSize;
