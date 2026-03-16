@@ -101,11 +101,12 @@ class TestViewerHTML:
         assert "screenshot" in resp.text.lower()
 
     def test_html_contains_info_display(self, client: TestClient) -> None:
-        """Viewer HTML has an info panel with FPS and geometry stats."""
+        """Viewer HTML has an info panel with FPS, gen time, and geometry stats."""
         resp = client.get("/")
         html = resp.text
         assert "info-panel" in html
         assert "info-fps" in html
+        assert "info-gen-time" in html
 
     def test_html_contains_bounding_box_toggle(self, client: TestClient) -> None:
         """Viewer HTML has a bounding box toggle."""

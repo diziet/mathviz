@@ -604,6 +604,7 @@ canvas{display:block}
     <div id="info-faces">Faces: —</div>
     <div id="info-points">Points: —</div>
     <div id="info-fps">FPS: —</div>
+    <div id="info-gen-time">Gen: —</div>
   </div>
 
   <button id="load-btn">Load</button>
@@ -1180,25 +1181,50 @@ function updateCacheStatus(resp) {
   showCacheBadge(resp.headers.get('X-Cache') === 'HIT');
 }
 
+/* ── Generation time display ── */
+const genTimeEl = document.getElementById('info-gen-time');
+
+function formatGenTime(ms) {
+  if (ms < 1000) return (ms / 1000).toFixed(1) + 's';
+  if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
+  const minutes = Math.floor(ms / 60000);
+  const seconds = Math.round((ms % 60000) / 1000);
+  return minutes + 'm ' + seconds + 's';
+}
+
+function updateGenTime(elapsedMs, isCached) {
+  const suffix = isCached ? ' (cached)' : '';
+  genTimeEl.textContent = 'Gen: ' + formatGenTime(elapsedMs) + suffix;
+}
+
+function clearGenTime() {
+  genTimeEl.textContent = 'Gen: …';
+}
+
 /* ── Loading workflows ── */
 async function loadFromAPI(generator, genParams, seed, force) {
   showLoading(force ? 'Regenerating...' : 'Generating...');
+  clearGenTime();
   _cancelController = new AbortController();
 
   try {
     const body = {generator, params: genParams, seed, container: getContainerParams(), timeout: getTimeoutSeconds()};
     if (force) body.force = true;
+    const genStart = performance.now();
     const resp = await fetch('/api/generate', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body),
       signal: _cancelController.signal,
     });
+    const genElapsed = performance.now() - genStart;
     if (!resp.ok) {
       const errData = await resp.json().catch(() => null);
       throw new Error(extractErrorMessage(errData, resp.status));
     }
+    const isCached = resp.headers.get('X-Cache') === 'HIT';
     updateCacheStatus(resp);
+    updateGenTime(genElapsed, isCached);
     const data = await resp.json();
     state.geometryId = data.geometry_id;
     state.generatedWith = {generator, params: genParams, seed, container: body.container};
@@ -3700,22 +3726,27 @@ async function _doGenerate(currentGen) {
   paramError.style.display = 'none';
   paramLoadingEl.style.display = 'block';
   showLoading('Generating...');
+  clearGenTime();
   _cancelController = new AbortController();
 
   try {
     const body = {generator: currentGen, params: genParams, seed, resolution, container: getContainerParams(), timeout: getTimeoutSeconds()};
+    const genStart = performance.now();
     const resp = await fetch('/api/generate', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body),
       signal: _cancelController.signal,
     });
+    const genElapsed = performance.now() - genStart;
     if (!resp.ok) {
       const errData = await resp.json().catch(() => null);
       const errMsg = extractErrorMessage(errData, resp.status);
       return {ok: false, status: resp.status, error: errMsg};
     }
+    const isCached = resp.headers.get('X-Cache') === 'HIT';
     updateCacheStatus(resp);
+    updateGenTime(genElapsed, isCached);
     const data = await resp.json();
     await displayGenerateResult(data, currentGen);
     return {ok: true};
