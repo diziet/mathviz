@@ -160,9 +160,9 @@ class TestStretchBehavior:
         self, preview_html: str
     ) -> None:
         """Bounding box is not affected by stretch values."""
-        # applyStretch only touches meshGroup and cloudPoints, not bboxHelper
+        # Extract full applyStretch function body up to next function keyword
         stretch_fn = preview_html.split("function applyStretch")[1].split(
-            "}"
+            "\nfunction "
         )[0]
         assert "bboxHelper" not in stretch_fn
 

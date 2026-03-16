@@ -619,9 +619,7 @@ function clearScene() {
   if (state.meshGroup) {scene.remove(state.meshGroup); state.meshGroup = null;}
   if (state.cloudPoints) {scene.remove(state.cloudPoints); state.cloudPoints = null;}
   if (state.bboxHelper) {scene.remove(state.bboxHelper); state.bboxHelper = null;}
-  if (state.axesHelper) {scene.remove(state.axesHelper); state.axesHelper = null;}
-  state.axisLabels.forEach((s) => scene.remove(s));
-  state.axisLabels = [];
+  removeAxes();
   resetViewBtn.disabled = true;
 }
 
@@ -1262,6 +1260,13 @@ document.getElementById('show-axes').addEventListener('change', (e) => {
   }
 });
 
+function syncStretchUI(values) {
+  ['x', 'y', 'z'].forEach((a) => {
+    document.getElementById('stretch-' + a).value = values[a];
+    document.getElementById('stretch-' + a + '-num').value = Number(values[a]).toFixed(1);
+  });
+}
+
 function applyStretch() {
   const s = state.stretch;
   if (state.meshGroup) state.meshGroup.scale.set(s.x, s.y, s.z);
@@ -1279,7 +1284,9 @@ function applyStretch() {
     applyStretch();
   });
   numInput.addEventListener('input', (e) => {
-    const val = Math.max(0.1, Math.min(3, parseFloat(e.target.value) || 0.1));
+    const parsed = parseFloat(e.target.value);
+    if (isNaN(parsed)) return;
+    const val = Math.max(0.1, Math.min(3, parsed));
     slider.value = val;
     state.stretch[axis] = val;
     applyStretch();
@@ -1288,10 +1295,7 @@ function applyStretch() {
 
 document.getElementById('reset-scale-btn').addEventListener('click', () => {
   state.stretch = {x: 1, y: 1, z: 1};
-  ['x', 'y', 'z'].forEach((a) => {
-    document.getElementById('stretch-' + a).value = 1;
-    document.getElementById('stretch-' + a + '-num').value = '1.0';
-  });
+  syncStretchUI(state.stretch);
   applyStretch();
 });
 
@@ -1674,10 +1678,7 @@ function restoreUiState(ui) {
   if (ui.stretch) {
     const s = ui.stretch;
     state.stretch = {x: s.x ?? 1, y: s.y ?? 1, z: s.z ?? 1};
-    ['x', 'y', 'z'].forEach((a) => {
-      document.getElementById('stretch-' + a).value = state.stretch[a];
-      document.getElementById('stretch-' + a + '-num').value = state.stretch[a].toFixed(1);
-    });
+    syncStretchUI(state.stretch);
     applyStretch();
   }
 
