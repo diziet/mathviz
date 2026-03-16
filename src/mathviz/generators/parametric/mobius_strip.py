@@ -13,6 +13,7 @@ import numpy as np
 from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.generators.parametric._mesh_utils import build_mobius_wrapped_faces
 
 logger = logging.getLogger(__name__)
 
@@ -34,23 +35,6 @@ def _evaluate_mobius(
     y = (radius + v * np.cos(half_u)) * np.sin(u)
     z = v * np.sin(half_u)
     return x, y, z
-
-
-def _build_u_wrapped_grid_faces(n_u: int, n_v: int) -> np.ndarray:
-    """Build triangle faces wrapping in u but open in v."""
-    rows = np.arange(n_u)
-    cols = np.arange(n_v - 1)
-    rr, cc = np.meshgrid(rows, cols, indexing="ij")
-    rr, cc = rr.ravel(), cc.ravel()
-
-    i00 = rr * n_v + cc
-    i10 = ((rr + 1) % n_u) * n_v + cc
-    i01 = rr * n_v + (cc + 1)
-    i11 = ((rr + 1) % n_u) * n_v + (cc + 1)
-
-    tri1 = np.stack([i00, i10, i11], axis=-1)
-    tri2 = np.stack([i00, i11, i01], axis=-1)
-    return np.concatenate([tri1, tri2], axis=0).astype(np.int64)
 
 
 def _validate_params(
@@ -90,7 +74,12 @@ def _generate_mobius_mesh(
     x, y, z = _evaluate_mobius(uu, vv, radius, half_width)
     vertices = np.column_stack([x.ravel(), y.ravel(), z.ravel()])
     vertices = vertices.astype(np.float64)
-    faces = _build_u_wrapped_grid_faces(n, n)
+
+    # Duplicate row 0 for independent seam normals
+    row0_verts = vertices[:n]
+    vertices = np.concatenate([vertices, row0_verts], axis=0)
+
+    faces = build_mobius_wrapped_faces(n, n)
     return Mesh(vertices=vertices, faces=faces)
 
 

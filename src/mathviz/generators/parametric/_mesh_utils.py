@@ -155,9 +155,11 @@ def build_klein_wrapped_faces(n_u: int, n_v: int) -> np.ndarray:
     ).astype(np.int64)
 
 
-def build_open_grid_faces(n_u: int, n_v: int) -> np.ndarray:
-    """Build triangle faces for an open grid (no wrapping)."""
-    rows = np.arange(n_u - 1)
+def _build_open_v_interior_faces(
+    n_u_rows: int, n_v: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Build interior triangle faces for rows 0..n_u_rows-1 open in v."""
+    rows = np.arange(n_u_rows)
     cols = np.arange(n_v - 1)
     rr, cc = np.meshgrid(rows, cols, indexing="ij")
     rr, cc = rr.ravel(), cc.ravel()
@@ -169,6 +171,39 @@ def build_open_grid_faces(n_u: int, n_v: int) -> np.ndarray:
 
     tri1 = np.stack([i00, i10, i11], axis=-1)
     tri2 = np.stack([i00, i11, i01], axis=-1)
+    return tri1, tri2
+
+
+def build_mobius_wrapped_faces(n_u: int, n_v: int) -> np.ndarray:
+    """Build triangle faces for a Möbius strip with half-twist at u-seam.
+
+    Interior faces cover rows 0..n_u-2, open in v. Seam faces connect
+    row n_u-1 to a duplicate of row 0 (starting at index n_u*n_v) with
+    v-reversal: vertex (n_u-1, v) connects to duplicate (0, n_v-1-v).
+    """
+    interior_tri1, interior_tri2 = _build_open_v_interior_faces(
+        n_u - 1, n_v,
+    )
+
+    # Seam faces: row n_u-1 → duplicate row 0 with v-reversal
+    dup_offset = n_u * n_v
+    sc = np.arange(n_v - 1)
+    s00 = (n_u - 1) * n_v + sc
+    s01 = (n_u - 1) * n_v + (sc + 1)
+    s10 = dup_offset + (n_v - 1 - sc)
+    s11 = dup_offset + (n_v - 2 - sc)
+
+    seam_tri1 = np.stack([s00, s10, s11], axis=-1)
+    seam_tri2 = np.stack([s00, s11, s01], axis=-1)
+
+    return np.concatenate(
+        [interior_tri1, interior_tri2, seam_tri1, seam_tri2], axis=0,
+    ).astype(np.int64)
+
+
+def build_open_grid_faces(n_u: int, n_v: int) -> np.ndarray:
+    """Build triangle faces for an open grid (no wrapping)."""
+    tri1, tri2 = _build_open_v_interior_faces(n_u - 1, n_v)
     return np.concatenate([tri1, tri2], axis=0).astype(np.int64)
 
 
