@@ -75,6 +75,7 @@ def _render_one(
         console.print(f"[red]Unknown generator: {name!r}[/red]")
         raise typer.Exit(code=2)
     except Exception as exc:
+        logger.debug("Thumbnail generation failed for %s", name, exc_info=True)
         console.print(f"[red]Failed to generate thumbnail for {name}: {exc}[/red]")
         raise typer.Exit(code=1)
 
@@ -85,28 +86,34 @@ def _render_one(
 def _render_all(view_mode: str, console: Console, quiet: bool) -> None:
     """Render thumbnails for all registered generators."""
     generators = list_generators()
-    succeeded = 0
+    generated = 0
+    cached = 0
     failed: list[str] = []
 
     for meta in generators:
-        cached = get_thumbnail_path(meta.name, view_mode)
-        if cached.is_file():
+        cached_path = get_thumbnail_path(meta.name, view_mode)
+        if cached_path.is_file():
             if not quiet:
                 console.print(f"  [dim]{meta.name}: cached[/dim]")
-            succeeded += 1
+            cached += 1
             continue
         try:
             generate_thumbnail(meta.name, view_mode)
-            succeeded += 1
+            generated += 1
             if not quiet:
                 console.print(f"  [green]{meta.name}: ok[/green]")
+        except KeyError:
+            failed.append(meta.name)
+            console.print(f"  [red]{meta.name}: unknown generator[/red]")
         except Exception as exc:
+            logger.debug("Thumbnail generation failed for %s", meta.name, exc_info=True)
             failed.append(meta.name)
             console.print(f"  [red]{meta.name}: {exc}[/red]")
 
+    total = len(generators)
     if not quiet:
         console.print(
-            f"\n[bold]Generated {succeeded}/{len(generators)} thumbnails[/bold]"
+            f"\n[bold]Generated {generated}, cached {cached} / {total} thumbnails[/bold]"
         )
     if failed:
         console.print(f"[red]Failed: {', '.join(failed)}[/red]")
@@ -126,6 +133,13 @@ def render_thumbnail_main() -> None:
 
     generator_name = sys.argv[1]
     view_mode = sys.argv[2]
+
+    if view_mode not in VALID_VIEW_MODES:
+        print(
+            f"Invalid view_mode {view_mode!r}. Must be one of {VALID_VIEW_MODES}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
 
     logging.basicConfig(level=logging.WARNING, format="%(name)s %(levelname)s: %(message)s")
 

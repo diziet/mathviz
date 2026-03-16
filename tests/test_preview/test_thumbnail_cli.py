@@ -1,46 +1,18 @@
 """Tests for the render-thumbnail CLI command."""
 
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from PIL import Image
 from typer.testing import CliRunner
 
 from mathviz.cli import app
-from mathviz.core.generator import register
-from mathviz.generators.parametric.torus import TorusGenerator
-from mathviz.preview.thumbnails import (
-    THUMBNAIL_SIZE,
-    THUMBNAILS_DIR_ENV_VAR,
-    get_thumbnail_path,
-)
-
-
-def _ensure_torus_registered() -> None:
-    """Re-register the torus generator if missing."""
-    import mathviz.core.generator as gen_mod
-
-    if "torus" not in gen_mod._alias_map:
-        gen_mod._discovered = True
-        register(TorusGenerator)
-
-
-def _fake_generate_thumbnail(name: str, view_mode: str = "points") -> Path:
-    """Write a fake WebP at the expected cache path and return it."""
-    path = get_thumbnail_path(name, view_mode)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    img = Image.new("RGB", (THUMBNAIL_SIZE, THUMBNAIL_SIZE), color=(64, 64, 64))
-    img.save(path, "webp")
-    return path
+from tests.test_preview.conftest import create_fake_thumbnail
 
 
 @pytest.fixture(autouse=True)
-def _setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Register generators and redirect thumbnail dir to temp."""
-    _ensure_torus_registered()
-    monkeypatch.setenv(THUMBNAILS_DIR_ENV_VAR, str(tmp_path / "thumbnails"))
+def _setup(thumbnail_setup: None) -> None:
+    """Use shared thumbnail setup fixture."""
 
 
 @pytest.fixture
@@ -56,7 +28,7 @@ class TestRenderThumbnailCli:
         """CLI command generates thumbnail and exits 0."""
         with patch(
             "mathviz.cli_thumbnail.generate_thumbnail",
-            side_effect=_fake_generate_thumbnail,
+            side_effect=create_fake_thumbnail,
         ):
             result = runner.invoke(app, ["render-thumbnail", "torus"])
         assert result.exit_code == 0
@@ -66,7 +38,7 @@ class TestRenderThumbnailCli:
         """`--all` flag generates thumbnails for all generators."""
         with patch(
             "mathviz.cli_thumbnail.generate_thumbnail",
-            side_effect=_fake_generate_thumbnail,
+            side_effect=create_fake_thumbnail,
         ):
             result = runner.invoke(app, ["render-thumbnail", "--all"])
         assert result.exit_code == 0

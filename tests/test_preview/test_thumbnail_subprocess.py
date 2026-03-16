@@ -7,49 +7,25 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PIL import Image
 
-from mathviz.core.generator import register
-from mathviz.generators.parametric.torus import TorusGenerator
 from mathviz.preview.thumbnails import (
     THUMBNAIL_SIZE,
-    THUMBNAILS_DIR_ENV_VAR,
     ThumbnailSubprocessError,
     ThumbnailTimeoutError,
     generate_thumbnail_subprocess,
     get_or_generate_thumbnail,
-    get_thumbnail_path,
-    get_thumbnails_dir,
 )
-
-
-def _ensure_torus_registered() -> None:
-    """Re-register the torus generator if missing."""
-    import mathviz.core.generator as gen_mod
-
-    if "torus" not in gen_mod._alias_map:
-        gen_mod._discovered = True
-        register(TorusGenerator)
+from tests.test_preview.conftest import create_fake_thumbnail
 
 
 @pytest.fixture(autouse=True)
-def _setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Register generators and redirect thumbnail dir to temp."""
-    _ensure_torus_registered()
-    monkeypatch.setenv(THUMBNAILS_DIR_ENV_VAR, str(tmp_path / "thumbnails"))
-
-
-def _place_fake_webp(generator_name: str, view_mode: str) -> Path:
-    """Write a valid WebP file at the expected cache path."""
-    path = get_thumbnail_path(generator_name, view_mode)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    img = Image.new("RGB", (THUMBNAIL_SIZE, THUMBNAIL_SIZE), color=(64, 64, 64))
-    img.save(path, "webp")
-    return path
+def _setup(thumbnail_setup: None) -> None:
+    """Use shared thumbnail setup fixture."""
 
 
 def _mock_subprocess_success(generator_name: str, view_mode: str) -> MagicMock:
     """Create a mock subprocess.run that writes a fake WebP and returns rc=0."""
     def side_effect(cmd, **kwargs):
-        _place_fake_webp(generator_name, view_mode)
+        create_fake_thumbnail(generator_name, view_mode)
         result = MagicMock()
         result.returncode = 0
         result.stdout = ""
@@ -80,7 +56,7 @@ class TestThumbnailCachedSkipsSubprocess:
 
     def test_cached_skips_subprocess(self) -> None:
         """Cached thumbnail returns immediately without spawning a subprocess."""
-        _place_fake_webp("torus", "points")
+        create_fake_thumbnail("torus", "points")
 
         with patch("mathviz.preview.thumbnails.subprocess.run") as mock_run:
             path = get_or_generate_thumbnail("torus", "points")

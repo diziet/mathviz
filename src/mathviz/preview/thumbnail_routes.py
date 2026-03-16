@@ -59,7 +59,7 @@ def get_generator_thumbnail(
         logger.error("Thumbnail subprocess failed for %s: %s", name, exc)
         raise HTTPException(
             status_code=503,
-            detail=f"Thumbnail generation failed: {exc}",
+            detail="Thumbnail generation failed. Please try again later.",
         ) from exc
     except ImportError as exc:
         logger.warning("Render dependencies unavailable for thumbnail %s: %s", name, exc)

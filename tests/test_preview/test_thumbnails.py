@@ -12,26 +12,14 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from mathviz.core.generator import register
 from mathviz.core.math_object import MathObject, Mesh
-from mathviz.generators.parametric.torus import TorusGenerator
 from mathviz.preview.server import app
 from mathviz.preview.thumbnails import (
     THUMBNAIL_SIZE,
-    THUMBNAILS_DIR_ENV_VAR,
-    generate_thumbnail_subprocess,
     get_thumbnail_path,
     get_thumbnails_dir,
 )
-
-
-def _ensure_torus_registered() -> None:
-    """Re-register the torus generator if missing."""
-    import mathviz.core.generator as gen_mod
-
-    if "torus" not in gen_mod._alias_map:
-        gen_mod._discovered = True
-        register(TorusGenerator)
+from tests.test_preview.conftest import create_fake_thumbnail
 
 
 def _make_test_math_object() -> MathObject:
@@ -61,10 +49,8 @@ def _mock_pipeline_result() -> MagicMock:
 
 
 @pytest.fixture(autouse=True)
-def _setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Register generators and redirect thumbnail dir to temp."""
-    _ensure_torus_registered()
-    monkeypatch.setenv(THUMBNAILS_DIR_ENV_VAR, str(tmp_path / "thumbnails"))
+def _setup(thumbnail_setup: None) -> None:
+    """Use shared thumbnail setup fixture."""
 
 
 @pytest.fixture
@@ -74,12 +60,8 @@ def client() -> TestClient:
 
 
 def _fake_generate_subprocess(name: str, view_mode: str = "points", timeout: int = 60) -> Path:
-    """Write a valid WebP at the expected cache path, simulating subprocess."""
-    path = get_thumbnail_path(name, view_mode)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    img = Image.new("RGB", (THUMBNAIL_SIZE, THUMBNAIL_SIZE), color=(128, 128, 128))
-    img.save(path, "webp")
-    return path
+    """Simulate subprocess generation using shared helper."""
+    return create_fake_thumbnail(name, view_mode)
 
 
 @pytest.fixture
