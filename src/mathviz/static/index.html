@@ -940,6 +940,10 @@ function displayCloud(points, vertexCount, label) {
   const posAttr = points.geometry.getAttribute('position');
   state.fullCloudPositions = new Float32Array(posAttr.array);
   state.fullCloudCount = vertexCount;
+  /* Pre-allocate a dynamic buffer for density filtering (avoids GPU re-upload) */
+  const dynBuf = new THREE.BufferAttribute(new Float32Array(state.fullCloudPositions.length), 3);
+  dynBuf.usage = THREE.DynamicDrawUsage;
+  points.geometry.setAttribute('position', dynBuf);
   scene.add(points);
   if (!state.meshGroup) {
     setupCameraForObject(points);
@@ -947,7 +951,7 @@ function displayCloud(points, vertexCount, label) {
     state.viewMode = 'points';
   }
   enableResetView();
-  updateInfo({generator: label, points: vertexCount});
+  updateInfo({generator: label});
   applyDensityFilter();
   updateDensitySliderVisibility();
 }
@@ -1338,25 +1342,24 @@ function applyDensityFilter() {
   const full = state.fullCloudPositions;
   const totalPoints = state.fullCloudCount;
   const density = state.density;
-  if (density >= 1.0) {
-    const geom = state.cloudPoints.geometry;
-    geom.setAttribute('position', new THREE.BufferAttribute(full, 3));
-    geom.setDrawRange(0, totalPoints);
-    updateDensityInfo(totalPoints, totalPoints);
-    return;
-  }
-  const displayCount = Math.max(1, Math.round(totalPoints * density));
-  /* Deterministic every-Nth sampling for stable visuals */
-  const step = totalPoints / displayCount;
-  const filtered = new Float32Array(displayCount * 3);
-  for (let i = 0; i < displayCount; i++) {
-    const srcIdx = Math.floor(i * step) * 3;
-    filtered[i * 3] = full[srcIdx];
-    filtered[i * 3 + 1] = full[srcIdx + 1];
-    filtered[i * 3 + 2] = full[srcIdx + 2];
-  }
   const geom = state.cloudPoints.geometry;
-  geom.setAttribute('position', new THREE.BufferAttribute(filtered, 3));
+  const posAttr = geom.getAttribute('position');
+  const displayCount = density >= 1.0
+    ? totalPoints
+    : Math.max(1, Math.round(totalPoints * density));
+  if (density >= 1.0) {
+    posAttr.array.set(full);
+  } else {
+    /* Deterministic every-Nth sampling for stable visuals */
+    const step = totalPoints / displayCount;
+    for (let i = 0; i < displayCount; i++) {
+      const srcIdx = Math.floor(i * step) * 3;
+      posAttr.array[i * 3] = full[srcIdx];
+      posAttr.array[i * 3 + 1] = full[srcIdx + 1];
+      posAttr.array[i * 3 + 2] = full[srcIdx + 2];
+    }
+  }
+  posAttr.needsUpdate = true;
   geom.setDrawRange(0, displayCount);
   updateDensityInfo(displayCount, totalPoints);
 }
@@ -1366,6 +1369,7 @@ function updateDensityInfo(displayed, total) {
   const label = displayed === total
     ? total.toLocaleString()
     : displayed.toLocaleString() + ' / ' + total.toLocaleString() + ' (' + pct + '%)';
+  infoState.points = label;
   document.getElementById('info-points').textContent = 'Points: ' + label;
 }
 
@@ -1414,9 +1418,17 @@ document.getElementById('point-size').addEventListener('input', (e) => {
   if (state.compareMode) updatePointSizeInPanels(size);
 });
 
+let densityDirty = false;
 document.getElementById('density-slider').addEventListener('input', (e) => {
   state.density = parseFloat(e.target.value);
-  requestAnimationFrame(() => applyDensityFilter());
+  if (!densityDirty) {
+    densityDirty = true;
+    requestAnimationFrame(() => {
+      densityDirty = false;
+      applyDensityFilter();
+      if (state.compareMode) updateDensityInPanels();
+    });
+  }
 });
 
 document.getElementById('show-bbox').addEventListener('change', (e) => {
@@ -3226,12 +3238,44 @@ async function loadPanelGeometry(panelIndex, data) {
     addBoundingBoxToScene(panel);
   }
   if (data.cloud_url) {
-    const {points} = await loadCloudFromPLY(data.cloud_url + '?lod=preview');
+    const {points, vertexCount} = await loadCloudFromPLY(data.cloud_url + '?lod=preview');
     panel.cloudPoints = points;
+    const panelPosAttr = points.geometry.getAttribute('position');
+    panel.fullCloudPositions = new Float32Array(panelPosAttr.array);
+    panel.fullCloudCount = vertexCount;
+    const dynBuf = new THREE.BufferAttribute(new Float32Array(panel.fullCloudPositions.length), 3);
+    dynBuf.usage = THREE.DynamicDrawUsage;
+    points.geometry.setAttribute('position', dynBuf);
     panel.scene.add(points);
     if (!panel.meshGroup) addBoundingBoxToScene(panel);
   }
+  applyDensityToPanel(panel);
   applyViewModeToPanel(panel);
+}
+
+function applyDensityToPanel(panel) {
+  if (!panel.cloudPoints || !panel.fullCloudPositions) return;
+  const full = panel.fullCloudPositions;
+  const totalPoints = panel.fullCloudCount;
+  const density = state.density;
+  const geom = panel.cloudPoints.geometry;
+  const posAttr = geom.getAttribute('position');
+  const displayCount = density >= 1.0
+    ? totalPoints
+    : Math.max(1, Math.round(totalPoints * density));
+  if (density >= 1.0) {
+    posAttr.array.set(full);
+  } else {
+    const step = totalPoints / displayCount;
+    for (let i = 0; i < displayCount; i++) {
+      const srcIdx = Math.floor(i * step) * 3;
+      posAttr.array[i * 3] = full[srcIdx];
+      posAttr.array[i * 3 + 1] = full[srcIdx + 1];
+      posAttr.array[i * 3 + 2] = full[srcIdx + 2];
+    }
+  }
+  posAttr.needsUpdate = true;
+  geom.setDrawRange(0, displayCount);
 }
 
 async function generateBatchPanels(panelIndices) {
@@ -3338,6 +3382,10 @@ function updatePanelBackgrounds() {
   for (const el of container.querySelectorAll('.panel-overlay')) {
     el.classList.toggle('light-bg', !state.darkBg);
   }
+}
+
+function updateDensityInPanels() {
+  for (const p of state.comparePanels) applyDensityToPanel(p);
 }
 
 function updatePanelBBoxVisibility(visible) {
