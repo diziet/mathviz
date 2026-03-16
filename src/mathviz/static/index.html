@@ -526,8 +526,8 @@ canvas{display:block}
         <select id="colormap-metric">
           <option value="height">Height (Z)</option>
           <option value="distance">Distance from Center</option>
-          <option value="curvature">Curvature</option>
-          <option value="velocity">Velocity / Speed</option>
+          <option value="curvature">Curvature (curves)</option>
+          <option value="velocity">Velocity (curves)</option>
         </select>
       </label>
       <label>Gradient
@@ -1601,6 +1601,17 @@ function buildVertexColors(posArray, count) {
   return colors;
 }
 
+function swapColormapMaterial(obj, newMat) {
+  /* Save original material and swap to newMat, disposing any previous colormap material. */
+  if (!obj.userData.preColormapMaterial) {
+    obj.userData.preColormapMaterial = obj.material;
+  } else {
+    obj.material.dispose();
+  }
+  obj.material = newMat;
+  obj.visible = true;
+}
+
 function applyColorMapToObject(obj) {
   /* Apply vertex colors to a Three.js Points or Mesh object. */
   if (!obj) return;
@@ -1608,30 +1619,22 @@ function applyColorMapToObject(obj) {
   if (!geom) return;
   const posAttr = geom.getAttribute('position');
   if (!posAttr) return;
-  const count = geom.drawRange.count < Infinity ? geom.drawRange.count : posAttr.count;
+  const count = posAttr.count;
   const colors = buildVertexColors(posAttr.array, count);
   geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geom.attributes.color.needsUpdate = true;
 
   if (obj.isPoints) {
-    if (!obj.userData.preColormapMaterial) {
-      obj.userData.preColormapMaterial = obj.material;
-    }
-    obj.material = new THREE.PointsMaterial({
+    swapColormapMaterial(obj, new THREE.PointsMaterial({
       vertexColors: true,
       size: state.pointSize * 0.01,
       sizeAttenuation: true,
-    });
-    obj.visible = true;
+    }));
   } else if (obj.isMesh) {
-    if (!obj.userData.preColormapMaterial) {
-      obj.userData.preColormapMaterial = obj.material;
-    }
-    obj.material = new THREE.MeshStandardMaterial({
+    swapColormapMaterial(obj, new THREE.MeshStandardMaterial({
       vertexColors: true,
       side: THREE.DoubleSide,
-    });
-    obj.visible = true;
+    }));
   }
 }
 
@@ -1640,22 +1643,17 @@ function enterColorMapMode() {
   state.colormapActive = true;
   document.getElementById('colormap-controls').style.display = 'block';
 
-  /* Hide wireframe/shaded, show mesh with vertex colors or points */
   if (state.meshGroup) {
+    /* Show shaded mesh with vertex colors, hide wireframe and points */
     state.meshGroup.traverse((child) => {
       if (child.name === 'wireframe') child.visible = false;
-      if (child.name === 'shaded') {
-        applyColorMapToObject(child);
-      }
+      if (child.name === 'shaded') applyColorMapToObject(child);
       if (child.name === 'points') child.visible = false;
     });
-  }
-  if (state.cloudPoints) {
+    /* Hide cloud when mesh is available to prevent z-fighting */
+    if (state.cloudPoints) state.cloudPoints.visible = false;
+  } else if (state.cloudPoints) {
     applyColorMapToObject(state.cloudPoints);
-  }
-  /* If no mesh group, show cloud with colors */
-  if (!state.meshGroup && state.cloudPoints) {
-    state.cloudPoints.visible = true;
   }
 }
 
@@ -1664,16 +1662,13 @@ function exitColorMapMode() {
   state.colormapActive = false;
   document.getElementById('colormap-controls').style.display = 'none';
 
-  /* Restore original materials */
+  /* Restore only objects that were modified by color map */
   scene.traverse((child) => {
     if (child.userData.preColormapMaterial) {
       child.material.dispose();
       child.material = child.userData.preColormapMaterial;
       delete child.userData.preColormapMaterial;
-    }
-    /* Remove color attribute added by color map */
-    if (child.geometry && child.geometry.getAttribute('color')) {
-      child.geometry.deleteAttribute('color');
+      if (child.geometry) child.geometry.deleteAttribute('color');
     }
   });
 }

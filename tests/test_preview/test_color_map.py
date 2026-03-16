@@ -116,25 +116,11 @@ class TestMetricUpdateWithoutRegeneration:
 class TestGradientPresets:
     """Gradient presets produce visually distinct color mappings."""
 
-    def test_viridis_gradient(self, html: str) -> None:
-        """Viridis gradient preset is defined."""
-        assert "viridis" in html
-        assert 'value="viridis"' in html
-
-    def test_inferno_gradient(self, html: str) -> None:
-        """Inferno gradient preset is defined."""
-        assert "inferno" in html
-        assert 'value="inferno"' in html
-
-    def test_coolwarm_gradient(self, html: str) -> None:
-        """Coolwarm gradient preset is defined."""
-        assert "coolwarm" in html
-        assert 'value="coolwarm"' in html
-
-    def test_rainbow_gradient(self, html: str) -> None:
-        """Rainbow gradient preset is defined."""
-        assert "rainbow" in html
-        assert 'value="rainbow"' in html
+    @pytest.mark.parametrize("name", ["viridis", "inferno", "coolwarm", "rainbow"])
+    def test_gradient_preset_option(self, html: str, name: str) -> None:
+        """Each gradient preset is defined and available in the selector."""
+        assert name in html
+        assert f'value="{name}"' in html
 
     def test_custom_gradient(self, html: str) -> None:
         """Custom gradient option with color pickers is available."""
@@ -208,6 +194,28 @@ class TestExitColorMapMode:
             html,
             re.DOTALL,
         ), "Switching away from colormap should call exitColorMapMode"
+
+
+class TestColorMapMaterialLifecycle:
+    """Material swap helper properly manages GPU resources."""
+
+    def test_swap_helper_exists(self, html: str) -> None:
+        """swapColormapMaterial function is defined."""
+        assert "function swapColormapMaterial" in html
+
+    def test_swap_disposes_previous_colormap_material(self, html: str) -> None:
+        """Repeated swaps dispose the previous colormap material."""
+        assert re.search(
+            r"swapColormapMaterial.*obj\.material\.dispose\(\)", html, re.DOTALL
+        ), "swapColormapMaterial should dispose previous material on re-entry"
+
+    def test_exit_scoped_to_modified_objects(self, html: str) -> None:
+        """exitColorMapMode only cleans up objects with preColormapMaterial."""
+        assert re.search(
+            r"if \(child\.userData\.preColormapMaterial\).*deleteAttribute\('color'\)",
+            html,
+            re.DOTALL,
+        ), "Exit should only delete color attribute on objects it modified"
 
 
 class TestColorMapNormalization:
