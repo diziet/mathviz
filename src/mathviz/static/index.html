@@ -1332,7 +1332,6 @@ function enterCrystalMode() {
     if (child.isPoints && child.material) {
       child.userData.originalMaterial = child.material;
       const cloned = crystalMat.clone();
-      cloned.renderOrder = 1;
       child.material = cloned;
       child.renderOrder = 1;
       child.material.depthTest = false;
@@ -1381,13 +1380,6 @@ function exitCrystalMode() {
     state.crystalGlassBlock = null;
   }
 
-  /* Dispose template material and its shared texture */
-  if (state.crystalTemplateMat) {
-    if (state.crystalTemplateMat.map) state.crystalTemplateMat.map.dispose();
-    state.crystalTemplateMat.dispose();
-    state.crystalTemplateMat = null;
-  }
-
   /* Restore original point materials, disposing cloned materials */
   scene.traverse((child) => {
     if (child.isPoints && child.userData.originalMaterial) {
@@ -1397,6 +1389,13 @@ function exitCrystalMode() {
       delete child.userData.originalMaterial;
     }
   });
+
+  /* Dispose template material and its shared texture after consumers */
+  if (state.crystalTemplateMat) {
+    if (state.crystalTemplateMat.map) state.crystalTemplateMat.map.dispose();
+    state.crystalTemplateMat.dispose();
+    state.crystalTemplateMat = null;
+  }
 
   /* Remove LED light */
   removeCrystalLedLight();
