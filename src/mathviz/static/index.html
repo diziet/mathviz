@@ -471,6 +471,9 @@ canvas{display:block}
     <div class="section-title">Point Size</div>
     <input type="range" id="point-size" min="0.5" max="10" step="0.5" value="2">
 
+    <div id="density-control" class="section-title" style="display:none">Density</div>
+    <input type="range" id="density-slider" min="0.01" max="1" step="0.01" value="1" style="display:none">
+
     <div class="section-title">Options</div>
     <label><input type="checkbox" id="show-bbox" checked> Bounding Box</label>
     <label><input type="checkbox" id="show-axes"> Axes</label>
@@ -581,6 +584,9 @@ const state = {
   crystalLedLight: null,
   crystalActive: false,
   crystalEnvRT: null,
+  density: 1.0,
+  fullCloudPositions: null,
+  fullCloudCount: 0,
 };
 
 const DARK_COLOR = 0x1a1a2e;
@@ -729,6 +735,8 @@ const resetViewBtn = document.getElementById('reset-view-btn');
 function clearScene() {
   if (state.meshGroup) {scene.remove(state.meshGroup); state.meshGroup = null;}
   if (state.cloudPoints) {scene.remove(state.cloudPoints); state.cloudPoints = null;}
+  state.fullCloudPositions = null;
+  state.fullCloudCount = 0;
   if (state.bboxHelper) {scene.remove(state.bboxHelper); state.bboxHelper = null;}
   removeAxes();
   resetViewBtn.disabled = true;
@@ -929,6 +937,13 @@ async function displayMesh(url, label) {
 
 function displayCloud(points, vertexCount, label) {
   state.cloudPoints = points;
+  const posAttr = points.geometry.getAttribute('position');
+  state.fullCloudPositions = new Float32Array(posAttr.array);
+  state.fullCloudCount = vertexCount;
+  /* Pre-allocate a dynamic buffer for density filtering (avoids GPU re-upload) */
+  const dynBuf = new THREE.BufferAttribute(new Float32Array(state.fullCloudPositions.length), 3);
+  dynBuf.usage = THREE.DynamicDrawUsage;
+  points.geometry.setAttribute('position', dynBuf);
   scene.add(points);
   if (!state.meshGroup) {
     setupCameraForObject(points);
@@ -936,7 +951,9 @@ function displayCloud(points, vertexCount, label) {
     state.viewMode = 'points';
   }
   enableResetView();
-  updateInfo({generator: label, points: vertexCount});
+  updateInfo({generator: label});
+  applyDensityFilter();
+  updateDensitySliderVisibility();
 }
 
 /* ── Shared display helper ── */
@@ -1319,6 +1336,49 @@ function updatePointSize(size) {
   });
 }
 
+/* ── Density filtering ── */
+function applyDensityFilter() {
+  if (!state.cloudPoints || !state.fullCloudPositions) return;
+  const full = state.fullCloudPositions;
+  const totalPoints = state.fullCloudCount;
+  const density = state.density;
+  const geom = state.cloudPoints.geometry;
+  const posAttr = geom.getAttribute('position');
+  const displayCount = density >= 1.0
+    ? totalPoints
+    : Math.max(1, Math.round(totalPoints * density));
+  if (density >= 1.0) {
+    posAttr.array.set(full);
+  } else {
+    /* Deterministic every-Nth sampling for stable visuals */
+    const step = totalPoints / displayCount;
+    for (let i = 0; i < displayCount; i++) {
+      const srcIdx = Math.floor(i * step) * 3;
+      posAttr.array[i * 3] = full[srcIdx];
+      posAttr.array[i * 3 + 1] = full[srcIdx + 1];
+      posAttr.array[i * 3 + 2] = full[srcIdx + 2];
+    }
+  }
+  posAttr.needsUpdate = true;
+  geom.setDrawRange(0, displayCount);
+  updateDensityInfo(displayCount, totalPoints);
+}
+
+function updateDensityInfo(displayed, total) {
+  const pct = Math.round((displayed / total) * 100);
+  const label = displayed === total
+    ? total.toLocaleString()
+    : displayed.toLocaleString() + ' / ' + total.toLocaleString() + ' (' + pct + '%)';
+  infoState.points = label;
+  document.getElementById('info-points').textContent = 'Points: ' + label;
+}
+
+function updateDensitySliderVisibility() {
+  const isPoints = state.viewMode === 'points';
+  document.getElementById('density-control').style.display = isPoints ? '' : 'none';
+  document.getElementById('density-slider').style.display = isPoints ? '' : 'none';
+}
+
 /* ── Info panel ── */
 const infoState = {generator: '—', vertices: '—', faces: '—', points: '—'};
 
@@ -1348,6 +1408,7 @@ function updateFPS() {
 document.getElementById('view-mode').addEventListener('change', (e) => {
   state.viewMode = e.target.value;
   applyViewMode();
+  updateDensitySliderVisibility();
   if (state.compareMode) applyViewModeToAllPanels();
 });
 
@@ -1355,6 +1416,19 @@ document.getElementById('point-size').addEventListener('input', (e) => {
   const size = parseFloat(e.target.value);
   updatePointSize(size);
   if (state.compareMode) updatePointSizeInPanels(size);
+});
+
+let densityDirty = false;
+document.getElementById('density-slider').addEventListener('input', (e) => {
+  state.density = parseFloat(e.target.value);
+  if (!densityDirty) {
+    densityDirty = true;
+    requestAnimationFrame(() => {
+      densityDirty = false;
+      applyDensityFilter();
+      if (state.compareMode) updateDensityInPanels();
+    });
+  }
 });
 
 document.getElementById('show-bbox').addEventListener('change', (e) => {
@@ -1556,6 +1630,7 @@ function captureUiState() {
     show_axes: document.getElementById('show-axes').checked,
     light_bg: document.getElementById('toggle-bg').checked,
     point_size: state.pointSize,
+    density: state.density,
   };
 }
 
@@ -1797,6 +1872,13 @@ function restoreUiState(ui) {
   if (typeof ui.point_size === 'number') {
     document.getElementById('point-size').value = ui.point_size;
     updatePointSize(ui.point_size);
+  }
+
+  /* Density */
+  if (typeof ui.density === 'number') {
+    state.density = ui.density;
+    document.getElementById('density-slider').value = ui.density;
+    applyDensityFilter();
   }
 
   /* Camera position and target */
@@ -3156,12 +3238,44 @@ async function loadPanelGeometry(panelIndex, data) {
     addBoundingBoxToScene(panel);
   }
   if (data.cloud_url) {
-    const {points} = await loadCloudFromPLY(data.cloud_url + '?lod=preview');
+    const {points, vertexCount} = await loadCloudFromPLY(data.cloud_url + '?lod=preview');
     panel.cloudPoints = points;
+    const panelPosAttr = points.geometry.getAttribute('position');
+    panel.fullCloudPositions = new Float32Array(panelPosAttr.array);
+    panel.fullCloudCount = vertexCount;
+    const dynBuf = new THREE.BufferAttribute(new Float32Array(panel.fullCloudPositions.length), 3);
+    dynBuf.usage = THREE.DynamicDrawUsage;
+    points.geometry.setAttribute('position', dynBuf);
     panel.scene.add(points);
     if (!panel.meshGroup) addBoundingBoxToScene(panel);
   }
+  applyDensityToPanel(panel);
   applyViewModeToPanel(panel);
+}
+
+function applyDensityToPanel(panel) {
+  if (!panel.cloudPoints || !panel.fullCloudPositions) return;
+  const full = panel.fullCloudPositions;
+  const totalPoints = panel.fullCloudCount;
+  const density = state.density;
+  const geom = panel.cloudPoints.geometry;
+  const posAttr = geom.getAttribute('position');
+  const displayCount = density >= 1.0
+    ? totalPoints
+    : Math.max(1, Math.round(totalPoints * density));
+  if (density >= 1.0) {
+    posAttr.array.set(full);
+  } else {
+    const step = totalPoints / displayCount;
+    for (let i = 0; i < displayCount; i++) {
+      const srcIdx = Math.floor(i * step) * 3;
+      posAttr.array[i * 3] = full[srcIdx];
+      posAttr.array[i * 3 + 1] = full[srcIdx + 1];
+      posAttr.array[i * 3 + 2] = full[srcIdx + 2];
+    }
+  }
+  posAttr.needsUpdate = true;
+  geom.setDrawRange(0, displayCount);
 }
 
 async function generateBatchPanels(panelIndices) {
@@ -3268,6 +3382,10 @@ function updatePanelBackgrounds() {
   for (const el of container.querySelectorAll('.panel-overlay')) {
     el.classList.toggle('light-bg', !state.darkBg);
   }
+}
+
+function updateDensityInPanels() {
+  for (const p of state.comparePanels) applyDensityToPanel(p);
 }
 
 function updatePanelBBoxVisibility(visible) {
