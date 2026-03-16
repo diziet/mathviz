@@ -2699,11 +2699,13 @@ function restoreUiState(ui) {
     applyStretch();
   }
 
-  /* Point size */
+  /* Point size — clamp to slider range for backwards compat with old snapshots */
   if (typeof ui.point_size === 'number') {
-    document.getElementById('point-size').value = ui.point_size;
-    updateSliderLabel('point-size', ui.point_size);
-    updatePointSize(ui.point_size);
+    const slider = document.getElementById('point-size');
+    const clamped = Math.min(Math.max(ui.point_size, parseFloat(slider.min)), parseFloat(slider.max));
+    slider.value = clamped;
+    updateSliderLabel('point-size', clamped);
+    updatePointSize(clamped);
   }
 
   /* Density */
