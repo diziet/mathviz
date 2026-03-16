@@ -6726,3 +6726,40 @@ increases the ceiling.
 - Default cap is 5,000,000 when no max_samples override is provided
 - Client-specified max_samples below 5M is respected
 - Manual: UI input defaults to 500,000 on fresh load
+
+---
+
+## Task 160: Add WASD camera controls to the preview UI
+
+**Objective:**
+
+The preview UI currently only supports OrbitControls (mouse drag to rotate,
+scroll to zoom). Add keyboard WASD controls so the user can move the camera
+viewpoint: W moves forward, S moves backward, A strafes left, D strafes
+right. Q and E can optionally move down/up. This gives a first-person-style
+navigation that complements the existing orbit controls, making it easier to
+inspect geometry from specific angles. The controls should work whenever the
+canvas has focus and should not conflict with text inputs (param editor,
+seed field, etc.).
+
+**Suggested path:**
+
+Add a `keydown`/`keyup` event listener on `document` that tracks which WASD
+keys are currently pressed. In the existing animation loop (`animate()`),
+check the pressed-key state and translate the camera along its local axes
+accordingly. Use `camera.translateZ(-speed)` for W, `camera.translateZ(speed)`
+for S, `camera.translateX(-speed)` for A, `camera.translateX(speed)` for D.
+Ignore key events when `document.activeElement` is an `input`, `select`, or
+`textarea` to avoid interfering with form fields. Movement speed should be
+proportional to the current camera distance from the orbit target so it
+feels consistent at any zoom level. After translating the camera, update
+`controls.target` to maintain the same relative offset so OrbitControls
+doesn't snap the camera back on the next frame.
+
+**Tests:**
+
+- Manual: pressing W moves camera forward toward the object
+- Manual: pressing S moves camera backward away from the object
+- Manual: A/D strafe left/right relative to current view direction
+- Manual: WASD keys do not trigger when typing in the seed or param inputs
+- Manual: WASD and mouse orbit controls work together without conflict
