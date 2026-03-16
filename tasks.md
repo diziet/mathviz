@@ -5599,54 +5599,62 @@ connections instead of left-to-right crossover.
 - Seam face areas within 5× of interior face areas
 - Vertex normals at u=0 have magnitude > 50% of interior mean
 
-## Task 132: Fix invisible point cloud rendering — sub-pixel point size for cloud-only generators
+## Task 132: Fix invisible point rendering — sub-pixel point size across all view modes
 
 **Objective:**
 
-Fix point cloud rendering so cloud-only generators (sacks_spiral, prime_gaps,
-ulam_spiral, digit_encoding) produce visible points in the preview UI. Currently
-these generators show a blank scene because the THREE.js point size is sub-pixel.
+Fix point rendering so points are visible in all contexts: cloud-only generators
+in points view, mesh generators in points view, and Crystal Preview mode (which
+is entirely point-based). Currently all points are sub-pixel and invisible.
 
 **Root cause:**
 
-`loadCloudFromPLY` creates `THREE.PointsMaterial` with
-`size: state.pointSize * 0.01` (= 0.02 world units) and `sizeAttenuation: true`
-(default). After the pipeline transforms points into the 100mm container, the
-camera sits ~162 units away. THREE.js attenuated point size formula:
+All THREE.PointsMaterial instances use a tiny world-space size with
+`sizeAttenuation: true`:
+- `loadCloudFromPLY`: `size: state.pointSize * 0.01` = 0.02 world units
+- `loadMeshFromGLB` (points child): `size: state.pointSize * 0.01` = 0.02
+- `createCrystalPointsMaterial`: `size: state.pointSize * 0.012` = 0.024
+
+After the pipeline transforms geometry into the 100mm container, the camera
+sits ~162 units away. THREE.js attenuated point size formula:
 `pixelSize = size * (canvasHeight / 2) / distance` = 0.02 * 300 / 162 = **0.037 pixels**.
 This is sub-pixel and invisible.
 
-Mesh-based generators are unaffected because they render surfaces; the tiny
-points in their "points" view mode are a secondary issue. But cloud-only
-generators have NO mesh fallback, so nothing renders at all.
-
-Affected generators: sacks_spiral, prime_gaps, ulam_spiral, digit_encoding,
-and any future point-cloud-only generator.
+**Impact:**
+- Cloud-only generators (sacks_spiral, prime_gaps, ulam_spiral, digit_encoding)
+  show blank scenes in points view — no mesh fallback
+- ALL generators show blank scenes in Crystal Preview mode — crystal mode hides
+  mesh surfaces and only shows points, which are invisible
+- Mesh generators' points view is also broken but less noticeable since users
+  default to shaded/wireframe views
 
 **Suggested path:**
 
-1. **Adaptive point size**: In `loadCloudFromPLY` (or `displayCloud`), compute
-   a point size based on the scene extent. For example:
-   `size = maxExtent * 0.02` where maxExtent is computed from the point cloud
-   bounding box. This keeps points at ~2% of the scene, visible at any scale.
+1. **Adaptive point size**: Compute a base point size from the scene extent
+   when geometry is loaded. For example: `baseSize = maxExtent * 0.02` where
+   maxExtent comes from the bounding box. Store in state and use as the
+   multiplier for all PointsMaterial sizes. This keeps points at ~2% of the
+   scene, yielding ~3-4 pixel points — visible at any scale.
 
-2. **Alternative**: Set `sizeAttenuation: false` on the PointsMaterial and use
-   a fixed pixel size (e.g. 2-4 pixels). This is simpler but ignores depth.
+2. **Update all creation sites**: `loadCloudFromPLY`, `loadMeshFromGLB`
+   (points child), `createCrystalPointsMaterial`, and `updatePointSize`
+   should all use the adaptive base size.
 
-3. **Point size slider**: The existing point size slider should also scale
-   adaptively. Currently `updatePointSize` sets `size * 0.01` which has the
-   same sub-pixel problem.
+3. **Point size slider**: Scale relative to the adaptive base, so the slider
+   provides meaningful control (e.g. `size = baseSize * sliderValue`).
 
 **Files:**
 
-- `src/mathviz/static/index.html` (loadCloudFromPLY, displayCloud, updatePointSize)
+- `src/mathviz/static/index.html` (loadCloudFromPLY, loadMeshFromGLB,
+  createCrystalPointsMaterial, displayCloud, updatePointSize, fitCamera)
 
 **Tests:**
 
-- Manual: generate sacks_spiral and verify points are visible
+- Manual: generate sacks_spiral — points visible in points view
+- Manual: generate torus — switch to Crystal Preview — points visible inside glass
 - Manual: generate prime_gaps, ulam_spiral, digit_encoding — all visible
-- Manual: point size slider changes visible point density/size
-- Manual: mesh generators still render correctly in all view modes
+- Manual: point size slider changes visible point size in all modes
+- Manual: mesh generators still render correctly in shaded/wireframe views
 
 ## Task 133: Fix density slider for mesh-derived point clouds
 
@@ -5694,5 +5702,72 @@ slider handler calls `applyDensityFilter()` which early-returns when
 - Manual: load a mesh generator (e.g. torus), switch to points view, adjust density slider — point count should change
 - Manual: density slider still works for cloud-only generators (sacks_spiral)
 - Manual: density percentage label updates correctly
-- Max edge length < 3× median across entire mesh
-- Existing Möbius strip tests still pass
+
+## Task 134: Fix Crystal Preview rendering — glass block occludes points
+
+**Objective:**
+
+Fix the Crystal Preview view mode so engraved points are visible inside the
+glass block. Currently switching to Crystal Preview shows nothing (or just a
+faintly visible glass block outline with no internal points).
+
+**Root cause — three compounding bugs:**
+
+1. **Shared texture disposal**: `enterCrystalMode` creates a crystal points
+   material with a `CanvasTexture` (radial glow gradient), clones it for each
+   Points child, then immediately calls `crystalMat.map.dispose()`. But
+   `Material.clone()` in THREE.js shares the texture reference — it does NOT
+   deep-clone. So all cloned materials reference a disposed texture. With
+   `transparent: true` and `blending: AdditiveBlending`, a disposed texture
+   sampling as zeros produces fully transparent fragments — invisible points.
+
+2. **MeshPhysicalMaterial transmission + EffectComposer**: The glass block uses
+   `transmission: 0.95`, which requires THREE.js to internally render the scene
+   behind the glass into a `transmissionRenderTarget`. When the scene is rendered
+   through `EffectComposer` → `RenderPass` (offscreen framebuffer), the
+   transmission render target may not correctly capture the points, making the
+   glass block appear opaque and occluding everything inside.
+
+3. **`transparent: false` on transmissive material**: The glass block's
+   `MeshPhysicalMaterial` has `transparent: false`, which puts the object in
+   the opaque render list. Combined with `side: THREE.FrontSide`, the glass
+   front face depth-occludes points inside the block, even though the material
+   is supposed to be see-through via transmission.
+
+**Suggested path:**
+
+1. **Don't dispose shared texture**: Remove `crystalMat.map.dispose()` and
+   `crystalMat.dispose()` from `enterCrystalMode`. Instead, track the template
+   material and its texture in state, and dispose them in `exitCrystalMode`
+   along with the clones' materials.
+
+2. **Fix glass block transparency**: Set `transparent: true` on the glass
+   block's `MeshPhysicalMaterial` so it enters the transparent render list
+   and doesn't depth-occlude internal points. Consider using
+   `side: THREE.BackSide` so only the back faces of the box render, letting
+   the camera see through the front face directly to the points.
+
+3. **Test EffectComposer + transmission**: If transmission still doesn't work
+   through the bloom composer, consider an alternative approach: render the
+   glass block as a simple transparent wireframe or use `opacity: 0.15` with
+   `transparent: true` instead of the `transmission` property. This avoids
+   the transmission render target entirely while still giving a glass-like
+   appearance.
+
+4. **Render order**: Ensure points render AFTER the glass block
+   (`renderOrder: 0` for glass, `renderOrder: 1` for points with
+   `depthTest: false`) so points always appear on top inside the block.
+
+**Files:**
+
+- `src/mathviz/static/index.html` (createGlassBlock, createCrystalPointsMaterial,
+  enterCrystalMode, exitCrystalMode)
+
+**Tests:**
+
+- Manual: load torus, switch to Crystal Preview — glowing points visible inside glass block
+- Manual: rotate view — points visible from all angles through glass
+- Manual: adjust Point Brightness slider — points brighten/dim
+- Manual: adjust Bloom slider — glow effect changes
+- Manual: toggle LED Base — light appears below glass
+- Manual: exit Crystal Preview — returns to normal shaded view without artifacts

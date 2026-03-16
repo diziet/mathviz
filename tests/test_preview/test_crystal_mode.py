@@ -43,15 +43,15 @@ class TestCrystalGlassBlock:
     """Crystal mode creates a MeshPhysicalMaterial glass block."""
 
     def test_glass_block_uses_physical_material(self, html: str) -> None:
-        """Glass block uses MeshPhysicalMaterial with transmission > 0."""
+        """Glass block uses MeshPhysicalMaterial with transparent opacity."""
         assert "MeshPhysicalMaterial" in html
-        assert re.search(r"transmission:\s*0\.95", html), (
-            "Glass block transmission not set to 0.95"
+        assert re.search(r"transparent:\s*true", html), (
+            "Glass block not set to transparent"
         )
 
-    def test_glass_block_ior(self, html: str) -> None:
-        """Glass block has K9 glass refractive index (1.5)."""
-        assert re.search(r"ior:\s*1\.5", html), "Glass IOR not set to 1.5"
+    def test_glass_block_opacity(self, html: str) -> None:
+        """Glass block has low opacity so points are visible inside."""
+        assert re.search(r"opacity:\s*0\.15", html), "Glass opacity not 0.15"
 
     def test_glass_block_clearcoat(self, html: str) -> None:
         """Glass block has clearcoat for polished surface."""
@@ -61,9 +61,9 @@ class TestCrystalGlassBlock:
         """Glass block has low roughness for polished surface."""
         assert re.search(r"roughness:\s*0\.02", html), "Roughness not 0.02"
 
-    def test_glass_block_thickness(self, html: str) -> None:
-        """Glass block has thickness for solid block refraction."""
-        assert re.search(r"thickness:\s*50", html), "Thickness not set"
+    def test_glass_block_backside_rendering(self, html: str) -> None:
+        """Glass block uses BackSide so front face doesn't occlude points."""
+        assert re.search(r"side:\s*THREE\.BackSide", html), "BackSide not set"
 
     def test_glass_block_env_map(self, html: str) -> None:
         """Glass block uses a PMREMGenerator environment map."""
@@ -157,16 +157,19 @@ class TestCrystalModeExit:
         ), "Environment map RT disposal not found"
 
     def test_exit_disposes_canvas_textures(self, html: str) -> None:
-        """exitCrystalMode disposes canvas textures before material disposal."""
+        """exitCrystalMode disposes template texture via crystalTemplateMat."""
         assert re.search(
-            r"child\.material\.map.*\.dispose\(\)", html
+            r"crystalTemplateMat\.map.*\.dispose\(\)", html
         ), "Canvas texture disposal not found in exitCrystalMode"
 
-    def test_template_material_disposed_after_cloning(self, html: str) -> None:
-        """Template crystal material is disposed after cloning to children."""
+    def test_template_material_disposed_on_exit(self, html: str) -> None:
+        """Template crystal material is stored in state and disposed on exit."""
         assert re.search(
-            r"crystalMat\.dispose\(\)", html
-        ), "Template material disposal not found"
+            r"crystalTemplateMat\.dispose\(\)", html
+        ), "Template material disposal not found in exitCrystalMode"
+        assert re.search(
+            r"state\.crystalTemplateMat\s*=\s*crystalMat", html
+        ), "Template material not stored in state"
 
 
 class TestCrystalLedBase:

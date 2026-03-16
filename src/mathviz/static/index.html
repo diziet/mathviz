@@ -1249,21 +1249,19 @@ function createGlassBlock() {
 
   const mat = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(document.getElementById('crystal-glass-tint').value),
-    transmission: 0.95,
-    ior: 1.5,
-    thickness: 50,
     roughness: 0.02,
     clearcoat: 1.0,
     clearcoatRoughness: 0.05,
-    opacity: 1,
-    transparent: false,
+    opacity: 0.15,
+    transparent: true,
     envMap: envRT.texture,
-    envMapIntensity: 0.5,
-    side: THREE.FrontSide,
+    envMapIntensity: 0.3,
+    side: THREE.BackSide,
+    depthWrite: false,
   });
   const mesh = new THREE.Mesh(geom, mat);
   mesh.name = 'crystal-glass-block';
-  mesh.renderOrder = 1;
+  mesh.renderOrder = 0;
   return mesh;
 }
 
@@ -1329,16 +1327,17 @@ function enterCrystalMode() {
 
   /* Replace point materials with crystal-style soft glow */
   const crystalMat = createCrystalPointsMaterial();
+  state.crystalTemplateMat = crystalMat;
   scene.traverse((child) => {
     if (child.isPoints && child.material) {
       child.userData.originalMaterial = child.material;
-      child.material = crystalMat.clone();
+      const cloned = crystalMat.clone();
+      child.material = cloned;
+      child.renderOrder = 1;
+      child.material.depthTest = false;
       child.visible = true;
     }
   });
-  /* Dispose the template material and its texture after cloning */
-  if (crystalMat.map) crystalMat.map.dispose();
-  crystalMat.dispose();
 
   /* Hide shaded/wireframe meshes */
   if (state.meshGroup) {
@@ -1381,15 +1380,22 @@ function exitCrystalMode() {
     state.crystalGlassBlock = null;
   }
 
-  /* Restore original point materials, disposing canvas textures */
+  /* Restore original point materials, disposing cloned materials */
   scene.traverse((child) => {
     if (child.isPoints && child.userData.originalMaterial) {
-      if (child.material.map) child.material.map.dispose();
       child.material.dispose();
       child.material = child.userData.originalMaterial;
+      child.renderOrder = 0;
       delete child.userData.originalMaterial;
     }
   });
+
+  /* Dispose template material and its shared texture after consumers */
+  if (state.crystalTemplateMat) {
+    if (state.crystalTemplateMat.map) state.crystalTemplateMat.map.dispose();
+    state.crystalTemplateMat.dispose();
+    state.crystalTemplateMat = null;
+  }
 
   /* Remove LED light */
   removeCrystalLedLight();
