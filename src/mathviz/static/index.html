@@ -501,6 +501,7 @@ canvas{display:block}
       <option value="wireframe">Wireframe</option>
       <option value="points" selected>Point Cloud</option>
       <option value="dense">Dense Cloud</option>
+      <option value="hd_cloud">HD Cloud</option>
       <option value="crystal">Crystal Preview</option>
       <option value="colormap">Color Map</option>
     </select>
@@ -1236,6 +1237,7 @@ async function loadFromAPI(generator, genParams, seed, force) {
     const body = {generator, params: genParams, seed, container: getContainerParams(), timeout: getTimeoutSeconds()};
     if (force) body.force = true;
     if (state.viewMode === 'dense') body.sampling = 'post_transform';
+    if (state.viewMode === 'hd_cloud') body.sampling = 'resolution_scaled';
     const resp = await timedGenerate(body, _cancelController.signal);
     const data = await resp.json();
     state.geometryId = data.geometry_id;
@@ -1481,7 +1483,7 @@ function removeCrystalLedLight() {
 
 /* ── View mode ── */
 function isPointLikeMode(mode) {
-  return mode === 'points' || mode === 'dense';
+  return mode === 'points' || mode === 'dense' || mode === 'hd_cloud';
 }
 
 function viewModeNeedsMesh() {
@@ -1887,9 +1889,10 @@ document.getElementById('view-mode').addEventListener('change', (e) => {
   applyViewMode();
   updateDensitySliderVisibility();
   if (state.compareMode) applyViewModeToAllPanels();
-  /* Dense mode uses a different server-side pipeline; re-generate when toggling */
-  const denseChanged = (prev === 'dense') !== (state.viewMode === 'dense');
-  if (denseChanged && state.generatedWith) {
+  /* Dense / HD Cloud modes use different server-side pipelines; re-generate when toggling */
+  const samplingFor = (m) => m === 'dense' ? 'post_transform' : m === 'hd_cloud' ? 'resolution_scaled' : 'default';
+  const samplingChanged = samplingFor(prev) !== samplingFor(state.viewMode);
+  if (samplingChanged && state.generatedWith) {
     const gw = state.generatedWith;
     loadFromAPI(gw.generator, gw.params, gw.seed, false);
   }

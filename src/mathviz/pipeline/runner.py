@@ -14,7 +14,10 @@ from mathviz.core.math_object import MathObject
 from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.core.validator import ValidationResult, validate_engraving, validate_mesh
 from mathviz.pipeline import representation_strategy, sampler, transformer
-from mathviz.pipeline.dense_sampling import apply_post_transform_sampling
+from mathviz.pipeline.dense_sampling import (
+    apply_post_transform_sampling,
+    apply_resolution_scaled_sampling,
+)
 from mathviz.pipeline.mesh_exporter import export_mesh
 from mathviz.pipeline.point_cloud_exporter import export_point_cloud
 from mathviz.pipeline.sampler import SamplerConfig
@@ -77,6 +80,7 @@ def run(
     export_config: ExportConfig | None = None,
     cancel_event: threading.Event | None = None,
     post_transform_sampling: bool = False,
+    resolution_scaled_sampling: bool = False,
 ) -> PipelineResult:
     """Execute the full or partial pipeline.
 
@@ -92,6 +96,10 @@ def run(
     after the transform. Any caller-supplied *representation_config* is
     overridden with a warning. If the generator produces no mesh, the
     flag is ignored with a warning and the normal pipeline runs instead.
+
+    When *resolution_scaled_sampling* is True, the density is scaled by
+    (resolution / default_resolution)² so higher-resolution meshes produce
+    proportionally denser point clouds.
     """
     timer = PipelineTimer()
 
@@ -109,21 +117,28 @@ def run(
 
     # --- Represent ---
     _check_cancelled(cancel_event)
+    _needs_mesh = post_transform_sampling or resolution_scaled_sampling
+    _sampling_mode = (
+        "resolution_scaled_sampling" if resolution_scaled_sampling
+        else "post_transform_sampling"
+    )
     with timer.stage("represent"):
-        if post_transform_sampling and obj.mesh is not None:
+        if _needs_mesh and obj.mesh is not None:
             if representation_config is not None:
                 logger.warning(
-                    "post_transform_sampling overrides representation_config "
+                    "%s overrides representation_config "
                     "(%s) with SURFACE_SHELL",
+                    _sampling_mode,
                     representation_config.type.value,
                 )
             rep_config = RepresentationConfig(
                 type=RepresentationType.SURFACE_SHELL,
             )
-        elif post_transform_sampling and obj.mesh is None:
+        elif _needs_mesh and obj.mesh is None:
             logger.warning(
-                "post_transform_sampling requested but %s has no mesh; "
+                "%s requested but %s has no mesh; "
                 "falling back to normal pipeline",
+                _sampling_mode,
                 obj.generator_name or "object",
             )
             rep_config = representation_config or representation_strategy.get_default(
@@ -142,8 +157,18 @@ def run(
         obj = transformer.fit(obj, container, placement)
     # transformer.fit already calls validate_or_raise internally
 
-    # --- Post-transform sampling (dense cloud mode) ---
-    if post_transform_sampling and obj.mesh is not None:
+    # --- Post-transform sampling (dense cloud / resolution-scaled mode) ---
+    if resolution_scaled_sampling and obj.mesh is not None:
+        _check_cancelled(cancel_event)
+        default_res = gen_instance.get_default_resolution()
+        with timer.stage("dense_sample"):
+            obj = apply_resolution_scaled_sampling(
+                obj,
+                resolution_kwargs=resolution_kwargs or {},
+                default_resolution=default_res,
+            )
+        obj.validate_or_raise()
+    elif post_transform_sampling and obj.mesh is not None:
         _check_cancelled(cancel_event)
         with timer.stage("dense_sample"):
             obj = apply_post_transform_sampling(obj)
