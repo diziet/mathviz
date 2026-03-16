@@ -6453,3 +6453,29 @@ the smoke suite only runs when requested.
 - Every generator produces valid, non-empty geometry
 - No generator has param keys in `get_default_params()` that it never reads
 - Test is parametrized so failures name the specific broken generator
+
+---
+
+## Task 151: Make Stretch section collapsible and collapsed by default
+
+**Objective:**
+
+The Stretch controls (X/Y/Z sliders) take up sidebar space but are rarely
+used. Collapse them by default, matching the Dimensions/Margins section
+which is already collapsible. Users can expand when needed.
+
+**Suggested path:**
+
+Wrap the Stretch section in a collapsible panel using the same pattern as
+`container-panel` / `container-toggle`: a `<button>` with a chevron that
+toggles a `collapsed` class on the parent, hiding the child controls via
+CSS. Start with the `collapsed` class applied. Reuse the existing
+`#container-toggle` CSS styles (or extract a shared `.collapsible-panel`
+class if the duplication is awkward).
+
+**Tests:**
+
+- Manual: on page load, Stretch sliders are hidden behind a collapsed header
+- Manual: click the Stretch header — sliders expand with chevron rotation
+- Manual: click again — collapses back
+- Manual: Dimensions/Margins still works independently
