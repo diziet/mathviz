@@ -125,6 +125,8 @@ class GenerateRequest(BaseModel):
     # when the user selects the Dense Cloud view mode.
     # "resolution_scaled" maps to "HD Cloud" — density scales with resolution.
     sampling: Literal["default", "post_transform", "resolution_scaled"] = "default"
+    max_samples: int | None = Field(default=None, gt=0, description="Override max sample count for dense/HD cloud")
+
 
 
 class GenerateResponse(BaseModel):
@@ -358,6 +360,7 @@ def generate_geometry(req: GenerateRequest) -> Response:
         resolution or {},
         container_kwargs=_container_cache_dict(req.container),
         sampling=req.sampling,
+        max_samples=req.max_samples,
     )
     cache = get_cache()
     disk_cache = get_disk_cache()
@@ -373,6 +376,7 @@ def generate_geometry(req: GenerateRequest) -> Response:
             req, params, resolution, container,
             post_transform_sampling=is_post_transform,
             resolution_scaled_sampling=is_resolution_scaled,
+            max_samples=req.max_samples,
         )
         cache.put(cache_key, entry)
         store_to_disk(cache_key, entry, disk_cache, container_kwargs=container_dict)
@@ -425,6 +429,7 @@ def _run_generation(
     *,
     post_transform_sampling: bool = False,
     resolution_scaled_sampling: bool = False,
+    max_samples: int | None = None,
 ) -> CacheEntry:
     """Execute the pipeline and return a CacheEntry."""
     timeout = req.timeout if req.timeout is not None else get_timeout_seconds()
@@ -439,6 +444,7 @@ def _run_generation(
             timeout_override=timeout,
             post_transform_sampling=post_transform_sampling,
             resolution_scaled_sampling=resolution_scaled_sampling,
+            max_samples=max_samples,
         )
     except KeyError:
         raise _generator_not_found(req.generator)

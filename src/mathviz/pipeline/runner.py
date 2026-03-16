@@ -81,6 +81,7 @@ def run(
     cancel_event: threading.Event | None = None,
     post_transform_sampling: bool = False,
     resolution_scaled_sampling: bool = False,
+    max_samples: int | None = None,
 ) -> PipelineResult:
     """Execute the full or partial pipeline.
 
@@ -164,17 +165,22 @@ def run(
     if resolution_scaled_sampling and obj.mesh is not None:
         _check_cancelled(cancel_event)
         default_res = gen_instance.get_default_resolution()
+        sample_kwargs: dict[str, Any] = {
+            "resolution_kwargs": resolution_kwargs or {},
+            "default_resolution": default_res,
+        }
+        if max_samples is not None:
+            sample_kwargs["max_samples"] = max_samples
         with timer.stage("dense_sample"):
-            obj = apply_resolution_scaled_sampling(
-                obj,
-                resolution_kwargs=resolution_kwargs or {},
-                default_resolution=default_res,
-            )
+            obj = apply_resolution_scaled_sampling(obj, **sample_kwargs)
         obj.validate_or_raise()
     elif post_transform_sampling and obj.mesh is not None:
         _check_cancelled(cancel_event)
+        dense_kwargs: dict[str, Any] = {}
+        if max_samples is not None:
+            dense_kwargs["max_samples"] = max_samples
         with timer.stage("dense_sample"):
-            obj = apply_post_transform_sampling(obj)
+            obj = apply_post_transform_sampling(obj, **dense_kwargs)
         obj.validate_or_raise()
 
     # --- Sample (optional) ---
