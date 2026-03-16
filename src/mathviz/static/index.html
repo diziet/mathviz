@@ -503,7 +503,7 @@ canvas{display:block}
     <select id="view-mode">
       <option value="shaded">Shaded Mesh</option>
       <option value="wireframe">Wireframe</option>
-      <option value="points" selected>Point Cloud</option>
+      <option value="vertex" selected>Vertex Cloud</option>
       <option value="dense">Dense Cloud</option>
       <option value="edge_cloud">Edge Cloud</option>
       <option value="hd_cloud">HD Cloud</option>
@@ -681,7 +681,7 @@ const state = {
   bboxHelper: null,
   axesHelper: null,
   axisLabels: [],
-  viewMode: 'points',
+  viewMode: 'vertex',
   pointSize: 0.1,
   sceneExtent: 1,
   darkBg: true,
@@ -1039,7 +1039,7 @@ function loadMeshFromGLB(url) {
         const pointsMat = new THREE.PointsMaterial({color: 0x44ccff, size: computeAdaptivePointSize(state.pointSize, meshExtent)});
         const pts = new THREE.Points(geom, pointsMat);
         pts.name = 'points';
-        pts.visible = (state.viewMode === 'points');
+        pts.visible = (state.viewMode === 'vertex');
 
         group.add(shadedMesh, wireMesh, pts);
       });
@@ -1101,8 +1101,8 @@ function displayCloud(points, vertexCount, label) {
   scene.add(points);
   if (!state.meshGroup) {
     setupCameraForObject(points);
-    document.getElementById('view-mode').value = 'points';
-    state.viewMode = 'points';
+    document.getElementById('view-mode').value = 'vertex';
+    state.viewMode = 'vertex';
   }
   enableResetView();
   updateInfo({generator: label});
@@ -1141,7 +1141,7 @@ async function displayGenerateResult(data, generatorName) {
   }
   /* Only override view mode when current mode is incompatible with data */
   if (viewModeNeedsMesh() && !hasMesh) {
-    state.viewMode = 'points';
+    state.viewMode = 'vertex';
   }
   document.getElementById('view-mode').value = state.viewMode;
   restoreCameraIfSaved(savedCamera);
@@ -1290,9 +1290,9 @@ async function loadFromFile(filePath) {
     } else if (ext === 'ply') {
       const {points, vertexCount} = await loadCloudFromPLY(url);
       displayCloud(points, vertexCount, 'file');
-      /* PLY is cloud-only: shaded/wireframe need mesh, so fall back to points */
+      /* PLY is cloud-only: shaded/wireframe need mesh, so fall back to vertex */
       if (viewModeNeedsMesh()) {
-        state.viewMode = 'points';
+        state.viewMode = 'vertex';
       }
     }
     document.getElementById('view-mode').value = state.viewMode;
@@ -1505,7 +1505,7 @@ function removeCrystalLedLight() {
 
 /* ── View mode ── */
 function isPointLikeMode(mode) {
-  return mode === 'points' || mode === 'dense' || mode === 'hd_cloud' || mode === 'edge_cloud';
+  return mode === 'vertex' || mode === 'dense' || mode === 'hd_cloud' || mode === 'edge_cloud';
 }
 
 function isServerSampledMode() {
@@ -2759,10 +2759,11 @@ function buildSnapshotCard(snap) {
 function restoreUiState(ui) {
   if (!ui) return;
 
-  /* View mode */
+  /* View mode — migrate legacy 'points' to 'vertex' */
   if (ui.view_mode) {
-    state.viewMode = ui.view_mode;
-    document.getElementById('view-mode').value = ui.view_mode;
+    const mode = ui.view_mode === 'points' ? 'vertex' : ui.view_mode;
+    state.viewMode = mode;
+    document.getElementById('view-mode').value = mode;
   }
 
   /* Camera lock */
@@ -2906,7 +2907,7 @@ async function loadSnapshot(snap) {
     }
 
     if (viewModeNeedsMesh() && !hasMesh) {
-      state.viewMode = 'points';
+      state.viewMode = 'vertex';
     }
     document.getElementById('view-mode').value = state.viewMode;
 
@@ -4428,8 +4429,8 @@ function disposeAllPanels() {
 async function enterCompareMode(mode) {
   /* Exit crystal mode if active — the two modes conflict */
   if (state.crystalActive) {
-    state.viewMode = 'points';
-    document.getElementById('view-mode').value = 'points';
+    state.viewMode = 'vertex';
+    document.getElementById('view-mode').value = 'vertex';
     exitCrystalMode();
     applyViewMode();
   }

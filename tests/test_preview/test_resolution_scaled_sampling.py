@@ -209,7 +209,7 @@ class TestExistingModesUnaffected:
         """All original view mode options are still present."""
         resp = client.get("/")
         html = resp.text
-        for value in ("shaded", "wireframe", "points", "dense", "crystal", "colormap"):
+        for value in ("shaded", "wireframe", "vertex", "dense", "crystal", "colormap"):
             assert f'value="{value}"' in html
 
 
