@@ -54,7 +54,7 @@ GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     "rossler": _TUBE_CONFIG,
     "aizawa": _TUBE_CONFIG,
     "chen": _TUBE_CONFIG,
-    "clifford": _TUBE_CONFIG,
+    "clifford": _SPARSE_CONFIG,
     "dequan_li": _TUBE_CONFIG,
     "double_pendulum": _TUBE_CONFIG,
     "halvorsen": _TUBE_CONFIG,
