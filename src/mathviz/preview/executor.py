@@ -51,6 +51,7 @@ def _run_pipeline_in_thread(
     placement: PlacementPolicy,
     cancel_event: threading.Event,
     post_transform_sampling: bool = False,
+    resolution_scaled_sampling: bool = False,
 ) -> PipelineResult:
     """Target function executed in the thread pool."""
     return run_pipeline(
@@ -62,6 +63,7 @@ def _run_pipeline_in_thread(
         placement=placement,
         cancel_event=cancel_event,
         post_transform_sampling=post_transform_sampling,
+        resolution_scaled_sampling=resolution_scaled_sampling,
     )
 
 
@@ -152,6 +154,7 @@ class GenerationExecutor:
         placement: PlacementPolicy,
         timeout_override: int | None = None,
         post_transform_sampling: bool = False,
+        resolution_scaled_sampling: bool = False,
     ) -> PipelineResult:
         """Run the pipeline with timeout. Raises TimeoutError or CancelledError."""
         timeout = timeout_override if timeout_override is not None and timeout_override > 0 else get_timeout_seconds()
@@ -169,6 +172,7 @@ class GenerationExecutor:
                 placement,
                 cancel_event,
                 post_transform_sampling,
+                resolution_scaled_sampling,
             )
             task = GenerationTask(future=future, cancel_event=cancel_event)
             self._current_task = task

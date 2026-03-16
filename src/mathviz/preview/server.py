@@ -123,7 +123,8 @@ class GenerateRequest(BaseModel):
     timeout: int | None = Field(default=None, gt=0, le=MAX_TIMEOUT_SECONDS, description="Per-request timeout in seconds")
     # Maps to UI view_mode "dense" — JS sends sampling="post_transform"
     # when the user selects the Dense Cloud view mode.
-    sampling: Literal["default", "post_transform"] = "default"
+    # "resolution_scaled" maps to "HD Cloud" — density scales with resolution.
+    sampling: Literal["default", "post_transform", "resolution_scaled"] = "default"
 
 
 class GenerateResponse(BaseModel):
@@ -173,7 +174,8 @@ class UiState(BaseModel):
 
     camera: CameraState = Field(default_factory=CameraState)
     # "dense" maps to GenerateRequest.sampling="post_transform" at request time.
-    view_mode: Literal["points", "shaded", "wireframe", "crystal", "dense"] = "points"
+    # "hd_cloud" maps to GenerateRequest.sampling="resolution_scaled".
+    view_mode: Literal["points", "shaded", "wireframe", "crystal", "dense", "hd_cloud"] = "points"
     stretch: StretchState = Field(default_factory=StretchState)
     camera_lock: Literal["off", "render", "full"] = "render"
     show_bbox: bool = True
@@ -360,9 +362,11 @@ def generate_geometry(req: GenerateRequest) -> Response:
     )
     if entry is None:
         is_post_transform = req.sampling == "post_transform"
+        is_resolution_scaled = req.sampling == "resolution_scaled"
         entry = _run_generation(
             req, params, resolution, container,
             post_transform_sampling=is_post_transform,
+            resolution_scaled_sampling=is_resolution_scaled,
         )
         cache.put(cache_key, entry)
         store_to_disk(cache_key, entry, disk_cache, container_kwargs=container_dict)
@@ -414,6 +418,7 @@ def _run_generation(
     container: Container,
     *,
     post_transform_sampling: bool = False,
+    resolution_scaled_sampling: bool = False,
 ) -> CacheEntry:
     """Execute the pipeline and return a CacheEntry."""
     timeout = req.timeout if req.timeout is not None else get_timeout_seconds()
@@ -427,6 +432,7 @@ def _run_generation(
             placement=PlacementPolicy(),
             timeout_override=timeout,
             post_transform_sampling=post_transform_sampling,
+            resolution_scaled_sampling=resolution_scaled_sampling,
         )
     except KeyError:
         raise _generator_not_found(req.generator)
