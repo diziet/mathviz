@@ -506,7 +506,7 @@ canvas{display:block}
       <option value="vertex" selected>Vertex Cloud</option>
       <option value="dense">Dense Cloud</option>
       <option value="edge_cloud">Edge Cloud</option>
-      <option value="hd_cloud">HD Cloud</option>
+      <option value="surface">Surface Cloud</option>
       <option value="crystal">Crystal Preview</option>
       <option value="colormap">Color Map</option>
     </select>
@@ -672,7 +672,7 @@ import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 /* ── Constants ── */
 const DEFAULT_MAX_SAMPLES = 200000;
-const VIEW_MODE_TO_SAMPLING = {dense: 'post_transform', hd_cloud: 'resolution_scaled', edge_cloud: 'edge'};
+const VIEW_MODE_TO_SAMPLING = {dense: 'post_transform', surface: 'resolution_scaled', edge_cloud: 'edge'};
 
 /* ── State ── */
 const state = {
@@ -1505,7 +1505,7 @@ function removeCrystalLedLight() {
 
 /* ── View mode ── */
 function isPointLikeMode(mode) {
-  return mode === 'vertex' || mode === 'dense' || mode === 'hd_cloud' || mode === 'edge_cloud';
+  return mode === 'vertex' || mode === 'dense' || mode === 'surface' || mode === 'edge_cloud';
 }
 
 function isServerSampledMode() {
@@ -1926,7 +1926,7 @@ document.getElementById('view-mode').addEventListener('change', (e) => {
   applyViewMode();
   updateSidebarVisibility();
   if (state.compareMode) applyViewModeToAllPanels();
-  /* Dense / HD Cloud modes use different server-side pipelines; re-generate when toggling */
+  /* Dense / Surface Cloud modes use different server-side pipelines; re-generate when toggling */
   const samplingFor = (m) => VIEW_MODE_TO_SAMPLING[m] || 'default';
   const samplingChanged = samplingFor(prev) !== samplingFor(state.viewMode);
   if (samplingChanged && state.generatedWith) {

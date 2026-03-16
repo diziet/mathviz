@@ -123,10 +123,10 @@ class GenerateRequest(BaseModel):
     timeout: int | None = Field(default=None, gt=0, le=MAX_TIMEOUT_SECONDS, description="Per-request timeout in seconds")
     # Maps to UI view_mode "dense" — JS sends sampling="post_transform"
     # when the user selects the Dense Cloud view mode.
-    # "resolution_scaled" maps to "HD Cloud" — density scales with resolution.
+    # "resolution_scaled" maps to "Surface Cloud" — density scales with resolution.
     sampling: Literal["default", "post_transform", "resolution_scaled", "edge"] = "default"
     max_samples: int | None = Field(
-        default=None, ge=1000, description="Override max sample count for dense/HD cloud",
+        default=None, ge=1000, description="Override max sample count for dense/surface cloud",
     )
 
 
@@ -178,14 +178,18 @@ class UiState(BaseModel):
 
     camera: CameraState = Field(default_factory=CameraState)
     # "dense" maps to GenerateRequest.sampling="post_transform" at request time.
-    # "hd_cloud" maps to GenerateRequest.sampling="resolution_scaled".
-    view_mode: Literal["vertex", "shaded", "wireframe", "crystal", "dense", "hd_cloud", "edge_cloud", "colormap"] = "vertex"
+    # "surface" maps to GenerateRequest.sampling="resolution_scaled".
+    view_mode: Literal["vertex", "shaded", "wireframe", "crystal", "dense", "surface", "edge_cloud", "colormap"] = "vertex"
 
     @field_validator("view_mode", mode="before")
     @classmethod
     def migrate_points_to_vertex(cls, v: str) -> str:
-        """Migrate legacy 'points' view mode to 'vertex'."""
-        return "vertex" if v == "points" else v
+        """Migrate legacy view mode values."""
+        if v == "points":
+            return "vertex"
+        if v == "hd_cloud":
+            return "surface"
+        return v
     stretch: StretchState = Field(default_factory=StretchState)
     camera_lock: Literal["off", "render", "full"] = "render"
     show_bbox: bool = True

@@ -310,5 +310,5 @@ class TestEdgeCloudFrontend:
     def test_existing_options_still_present(self, client: TestClient) -> None:
         """All original view mode options remain present."""
         html = client.get("/").text
-        for value in ("shaded", "wireframe", "vertex", "dense", "hd_cloud", "crystal", "colormap"):
+        for value in ("shaded", "wireframe", "vertex", "dense", "surface", "crystal", "colormap"):
             assert f'value="{value}"' in html
