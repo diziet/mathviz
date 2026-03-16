@@ -176,7 +176,7 @@ class DupinCyclideGenerator(GeneratorBase):
         return {
             "a": {"min": 0.5, "max": 3.0, "step": 0.1},
             "b": {"min": 0.1, "max": 2.0, "step": 0.1},
-            "c": {"min": 0.1, "max": 0.4, "step": 0.1},
+            "c": {"min": 0.1, "max": 0.8, "step": 0.1},
             "d": {"min": 0.1, "max": 2.0, "step": 0.1},
         }
 
