@@ -7,7 +7,6 @@ server-side rendering. Thumbnails are cached at
 
 import logging
 import os
-import shutil
 from pathlib import Path
 from typing import Literal
 
