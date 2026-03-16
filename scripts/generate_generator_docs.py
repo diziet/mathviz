@@ -251,6 +251,14 @@ def _build_generator_section(
     return "\n".join(lines)
 
 
+_PARAM_DESCRIPTIONS: dict[str, str] = {
+    "R": "Major radius of the embedding torus",
+    "r": "Minor radius of the tube",
+    "torus_R": "Major radius of the torus",
+    "torus_r": "Minor radius of the torus tube",
+}
+
+
 def _get_param_description(meta: GeneratorMeta, param_name: str) -> str:
     """Get a description for a parameter from the schema or a fallback."""
     inst = meta.generator_class.create(meta.name)
@@ -259,6 +267,9 @@ def _get_param_description(meta: GeneratorMeta, param_name: str) -> str:
         entry = schema[param_name]
         if isinstance(entry, dict) and "description" in entry:
             return entry["description"]
+    # Check known parameter descriptions (handles case-sensitive names)
+    if param_name in _PARAM_DESCRIPTIONS:
+        return _PARAM_DESCRIPTIONS[param_name]
     # Fallback: capitalize and humanize the parameter name
     return param_name.replace("_", " ").capitalize()
 

@@ -1413,11 +1413,11 @@ Seed behavior: **seed-dependent**
 
 - Coarse cells on a sphere
   ```bash
-  mathviz generate voronoi_sphere --param num_points=12 --output voronoi_sphere.ply
+  mathviz generate voronoi_sphere --param num_cells=12 --output voronoi_sphere.ply
   ```
 - Fine tessellation
   ```bash
-  mathviz generate voronoi_sphere --param num_points=64 --output voronoi_sphere.ply
+  mathviz generate voronoi_sphere --param num_cells=128 --output voronoi_sphere.ply
   ```
 
 ### weaire_phelan
@@ -1841,8 +1841,8 @@ Seed behavior: **deterministic**
 |---|---|---|---|---|
 | `p` | int | 2 | — | P |
 | `q` | int | 3 | — | Q |
-| `R` | float | 1 | — | R |
-| `r` | float | 0.4 | — | R |
+| `R` | float | 1 | — | Major radius of the embedding torus |
+| `r` | float | 0.4 | — | Minor radius of the tube |
 
 **Resolution parameters:**
 
@@ -1881,8 +1881,8 @@ Seed behavior: **deterministic**
 
 | Parameter | Type | Default | Range | Description |
 |---|---|---|---|---|
-| `torus_R` | float | 1 | — | Torus r |
-| `torus_r` | float | 0.4 | — | Torus r |
+| `torus_R` | float | 1 | — | Major radius of the torus |
+| `torus_r` | float | 0.4 | — | Minor radius of the torus tube |
 
 **Resolution parameters:**
 
@@ -2322,7 +2322,7 @@ Seed behavior: **deterministic**
 |---|---|---|---|---|
 | `a` | float | 1 | 0.5–3.0 (step 0.1) | A |
 | `b` | float | 0.8 | 0.1–2.0 (step 0.1) | B |
-| `c` | float | 0.5 | 0.1–0.4 (step 0.1) | C |
+| `c` | float | 0.5 | 0.1–0.8 (step 0.1) | C |
 | `d` | float | 0.6 | 0.1–2.0 (step 0.1) | D |
 
 **Resolution parameters:**

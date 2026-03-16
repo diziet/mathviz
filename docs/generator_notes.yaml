@@ -436,9 +436,9 @@ voronoi_sphere:
   seed_behavior: seed-dependent
   examples:
     - description: "Coarse cells on a sphere"
-      params: {num_points: 12}
+      params: {num_cells: 12}
     - description: "Fine tessellation"
-      params: {num_points: 64}
+      params: {num_cells: 128}
 
 weaire_phelan:
   math_description: >
