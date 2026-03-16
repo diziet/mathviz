@@ -124,7 +124,7 @@ class GenerateRequest(BaseModel):
     # Maps to UI view_mode "dense" — JS sends sampling="post_transform"
     # when the user selects the Dense Cloud view mode.
     # "resolution_scaled" maps to "HD Cloud" — density scales with resolution.
-    sampling: Literal["default", "post_transform", "resolution_scaled"] = "default"
+    sampling: Literal["default", "post_transform", "resolution_scaled", "edge"] = "default"
     max_samples: int | None = Field(
         default=None, ge=1000, description="Override max sample count for dense/HD cloud",
     )
@@ -179,7 +179,7 @@ class UiState(BaseModel):
     camera: CameraState = Field(default_factory=CameraState)
     # "dense" maps to GenerateRequest.sampling="post_transform" at request time.
     # "hd_cloud" maps to GenerateRequest.sampling="resolution_scaled".
-    view_mode: Literal["points", "shaded", "wireframe", "crystal", "dense", "hd_cloud", "colormap"] = "points"
+    view_mode: Literal["points", "shaded", "wireframe", "crystal", "dense", "hd_cloud", "edge_cloud", "colormap"] = "points"
     stretch: StretchState = Field(default_factory=StretchState)
     camera_lock: Literal["off", "render", "full"] = "render"
     show_bbox: bool = True
@@ -374,10 +374,12 @@ def generate_geometry(req: GenerateRequest) -> Response:
     if entry is None:
         is_post_transform = req.sampling == "post_transform"
         is_resolution_scaled = req.sampling == "resolution_scaled"
+        is_edge = req.sampling == "edge"
         entry = _run_generation(
             req, params, resolution, container,
             post_transform_sampling=is_post_transform,
             resolution_scaled_sampling=is_resolution_scaled,
+            edge_sampling=is_edge,
             max_samples=req.max_samples,
         )
         cache.put(cache_key, entry)
@@ -431,6 +433,7 @@ def _run_generation(
     *,
     post_transform_sampling: bool = False,
     resolution_scaled_sampling: bool = False,
+    edge_sampling: bool = False,
     max_samples: int | None = None,
 ) -> CacheEntry:
     """Execute the pipeline and return a CacheEntry."""
@@ -446,6 +449,7 @@ def _run_generation(
             timeout_override=timeout,
             post_transform_sampling=post_transform_sampling,
             resolution_scaled_sampling=resolution_scaled_sampling,
+            edge_sampling=edge_sampling,
             max_samples=max_samples,
         )
     except KeyError:

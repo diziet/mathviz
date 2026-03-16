@@ -15,6 +15,7 @@ from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.core.validator import ValidationResult, validate_engraving, validate_mesh
 from mathviz.pipeline import representation_strategy, sampler, transformer
 from mathviz.pipeline.dense_sampling import (
+    apply_edge_sampling,
     apply_post_transform_sampling,
     apply_resolution_scaled_sampling,
 )
@@ -81,6 +82,7 @@ def run(
     cancel_event: threading.Event | None = None,
     post_transform_sampling: bool = False,
     resolution_scaled_sampling: bool = False,
+    edge_sampling: bool = False,
     max_samples: int | None = None,
 ) -> PipelineResult:
     """Execute the full or partial pipeline.
@@ -94,9 +96,10 @@ def run(
 
     When *post_transform_sampling* is True, the represent stage uses
     SURFACE_SHELL (to preserve the mesh) and a dense sampling step runs
-    after the transform. Any caller-supplied *representation_config* is
-    overridden with a warning. If the generator produces no mesh, the
-    flag is ignored with a warning and the normal pipeline runs instead.
+    after the transform combining surface and edge samples.
+
+    When *edge_sampling* is True, the represent stage uses SURFACE_SHELL
+    and only edge samples are produced (wireframe-like skeleton).
 
     When *resolution_scaled_sampling* is True, the density is scaled by
     (resolution / default_resolution)² so higher-resolution meshes produce
@@ -121,9 +124,10 @@ def run(
 
     # --- Represent ---
     _check_cancelled(cancel_event)
-    _needs_mesh = post_transform_sampling or resolution_scaled_sampling
+    _needs_mesh = post_transform_sampling or resolution_scaled_sampling or edge_sampling
     _sampling_mode = (
         "resolution_scaled_sampling" if resolution_scaled_sampling
+        else "edge_sampling" if edge_sampling
         else "post_transform_sampling"
     )
     with timer.stage("represent"):
@@ -173,6 +177,14 @@ def run(
             sample_kwargs["max_samples"] = max_samples
         with timer.stage("dense_sample"):
             obj = apply_resolution_scaled_sampling(obj, **sample_kwargs)
+        obj.validate_or_raise()
+    elif edge_sampling and obj.mesh is not None:
+        _check_cancelled(cancel_event)
+        edge_kwargs: dict[str, Any] = {}
+        if max_samples is not None:
+            edge_kwargs["max_samples"] = max_samples
+        with timer.stage("dense_sample"):
+            obj = apply_edge_sampling(obj, **edge_kwargs)
         obj.validate_or_raise()
     elif post_transform_sampling and obj.mesh is not None:
         _check_cancelled(cancel_event)

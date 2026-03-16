@@ -52,6 +52,7 @@ def _run_pipeline_in_thread(
     cancel_event: threading.Event,
     post_transform_sampling: bool = False,
     resolution_scaled_sampling: bool = False,
+    edge_sampling: bool = False,
     max_samples: int | None = None,
 ) -> PipelineResult:
     """Target function executed in the thread pool."""
@@ -65,6 +66,7 @@ def _run_pipeline_in_thread(
         cancel_event=cancel_event,
         post_transform_sampling=post_transform_sampling,
         resolution_scaled_sampling=resolution_scaled_sampling,
+        edge_sampling=edge_sampling,
         max_samples=max_samples,
     )
 
@@ -157,6 +159,7 @@ class GenerationExecutor:
         timeout_override: int | None = None,
         post_transform_sampling: bool = False,
         resolution_scaled_sampling: bool = False,
+        edge_sampling: bool = False,
         max_samples: int | None = None,
     ) -> PipelineResult:
         """Run the pipeline with timeout. Raises TimeoutError or CancelledError."""
@@ -176,6 +179,7 @@ class GenerationExecutor:
                 cancel_event,
                 post_transform_sampling,
                 resolution_scaled_sampling,
+                edge_sampling,
                 max_samples,
             )
             task = GenerationTask(future=future, cancel_event=cancel_event)
