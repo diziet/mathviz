@@ -6539,3 +6539,34 @@ works after a param-editor generate.
 - Generate with non-default params, switch to HD Cloud — same
 - Switch back to Point Cloud — still shows the editor's params, not defaults
 - Generate via editor, then switch Dense→Point Cloud→Dense — no param reset
+
+---
+
+## Task 154: Fix param editor ignoring current sampling mode (Dense/HD Cloud)
+
+**Objective:**
+
+When Dense Cloud or HD Cloud is the active view mode, applying new parameters
+via the param editor regenerates with default (sparse) sampling instead of
+the active sampling mode. The user sees the point cloud revert to sparse
+despite the view mode dropdown still showing Dense or HD Cloud.
+
+The root cause is that `_doGenerate` builds its request body without checking
+`state.viewMode` for the `sampling` flag. `loadFromAPI` correctly adds
+`body.sampling = 'post_transform'` or `'resolution_scaled'` based on the
+view mode, but `_doGenerate` never does.
+
+**Suggested path:**
+
+Add the same sampling-mode logic from `loadFromAPI` (lines 1247-1248) to
+`_doGenerate`'s request body construction: if `state.viewMode === 'dense'`,
+set `body.sampling = 'post_transform'`; if `state.viewMode === 'hd_cloud'`,
+set `body.sampling = 'resolution_scaled'`. Consider extracting a small
+helper like `applySamplingMode(body)` that both code paths call so this
+stays in sync.
+
+**Tests:**
+
+- Manual: select Dense Cloud, change a param and apply — result is dense, not sparse
+- Manual: select HD Cloud, change a param and apply — result is HD, not sparse
+- Manual: select Point Cloud, change a param and apply — result is sparse (unchanged behavior)
