@@ -505,6 +505,7 @@ canvas{display:block}
       <option value="wireframe">Wireframe</option>
       <option value="points" selected>Point Cloud</option>
       <option value="dense">Dense Cloud</option>
+      <option value="edge_cloud">Edge Cloud</option>
       <option value="hd_cloud">HD Cloud</option>
       <option value="crystal">Crystal Preview</option>
       <option value="colormap">Color Map</option>
@@ -1247,6 +1248,7 @@ async function timedGenerate(body, signal) {
 function applySamplingMode(body) {
   if (state.viewMode === 'dense') body.sampling = 'post_transform';
   if (state.viewMode === 'hd_cloud') body.sampling = 'resolution_scaled';
+  if (state.viewMode === 'edge_cloud') body.sampling = 'edge';
   if (isDenseOrHdCloud()) body.max_samples = state.maxSamples;
 }
 
@@ -1503,11 +1505,11 @@ function removeCrystalLedLight() {
 
 /* ── View mode ── */
 function isPointLikeMode(mode) {
-  return mode === 'points' || mode === 'dense' || mode === 'hd_cloud';
+  return mode === 'points' || mode === 'dense' || mode === 'hd_cloud' || mode === 'edge_cloud';
 }
 
 function isDenseOrHdCloud() {
-  return state.viewMode === 'dense' || state.viewMode === 'hd_cloud';
+  return state.viewMode === 'dense' || state.viewMode === 'hd_cloud' || state.viewMode === 'edge_cloud';
 }
 
 function viewModeNeedsMesh() {
@@ -1925,7 +1927,7 @@ document.getElementById('view-mode').addEventListener('change', (e) => {
   updateSidebarVisibility();
   if (state.compareMode) applyViewModeToAllPanels();
   /* Dense / HD Cloud modes use different server-side pipelines; re-generate when toggling */
-  const samplingFor = (m) => m === 'dense' ? 'post_transform' : m === 'hd_cloud' ? 'resolution_scaled' : 'default';
+  const samplingFor = (m) => m === 'dense' ? 'post_transform' : m === 'hd_cloud' ? 'resolution_scaled' : m === 'edge_cloud' ? 'edge' : 'default';
   const samplingChanged = samplingFor(prev) !== samplingFor(state.viewMode);
   if (samplingChanged && state.generatedWith) {
     const gw = state.generatedWith;
