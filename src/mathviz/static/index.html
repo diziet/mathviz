@@ -3766,7 +3766,8 @@ async function _doGenerate(currentGen) {
     await displayGenerateResult(data, currentGen);
     state.generatedWith = {generator: currentGen, params: genParams, seed, resolution, container: body.container};
     state.geometryId = data.geometry_id;
-    document.getElementById('save-btn').disabled = false;
+    const saveBtn = document.getElementById('save-btn');
+    if (saveBtn) saveBtn.disabled = false;
     return {ok: true};
   } catch (err) {
     if (err.name === 'AbortError') return {ok: false, status: 0, aborted: true};
