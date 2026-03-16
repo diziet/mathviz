@@ -298,6 +298,9 @@ canvas{display:block}
 
 /* Generator browser modal */
 #generator-browser{
+  --card-bg:rgba(255,255,255,0.06);
+  --card-hover-bg:rgba(68,136,204,0.2);
+  --accent-color:#4488cc;
   display:none;position:fixed;top:0;left:0;width:100%;height:100%;
   background:rgba(0,0,0,0.75);z-index:300;
   justify-content:center;align-items:center;
@@ -334,11 +337,11 @@ canvas{display:block}
   grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));
 }
 .category-card{
-  background:rgba(255,255,255,0.06);border-radius:10px;padding:16px;
+  background:var(--card-bg);border-radius:10px;padding:16px;
   cursor:pointer;transition:background 0.15s;position:relative;
 }
-.category-card:hover{background:rgba(68,136,204,0.2)}
-.category-card.active{outline:2px solid #4488cc}
+.category-card:hover{background:var(--card-hover-bg)}
+.category-card.active{outline:2px solid var(--accent-color)}
 .category-name{font-weight:600;font-size:14px;margin-bottom:4px}
 .category-count{font-size:12px;opacity:0.6;margin-bottom:10px}
 .category-shortcut{
@@ -362,12 +365,12 @@ canvas{display:block}
 
 /* Generator cards within a category */
 .generator-card{
-  background:rgba(255,255,255,0.06);border-radius:10px;padding:12px;
+  background:var(--card-bg);border-radius:10px;padding:12px;
   cursor:pointer;transition:background 0.15s;position:relative;
   display:flex;flex-direction:column;align-items:center;gap:8px;
 }
-.generator-card:hover{background:rgba(68,136,204,0.2)}
-.generator-card.selected{outline:2px solid #4488cc}
+.generator-card:hover{background:var(--card-hover-bg)}
+.generator-card.selected{outline:2px solid var(--accent-color)}
 .generator-card-thumb{
   width:100%;aspect-ratio:1;border-radius:6px;object-fit:cover;background:#333;
 }
@@ -378,11 +381,11 @@ canvas{display:block}
 /* Search results */
 .search-result-card{
   display:flex;gap:12px;align-items:center;padding:10px 14px;
-  background:rgba(255,255,255,0.06);border-radius:8px;cursor:pointer;
+  background:var(--card-bg);border-radius:8px;cursor:pointer;
   transition:background 0.15s;
 }
-.search-result-card:hover{background:rgba(68,136,204,0.2)}
-.search-result-card.selected{outline:2px solid #4488cc}
+.search-result-card:hover{background:var(--card-hover-bg)}
+.search-result-card.selected{outline:2px solid var(--accent-color)}
 .search-result-thumb{
   width:48px;height:48px;border-radius:6px;object-fit:cover;background:#333;flex-shrink:0;
 }
@@ -2068,14 +2071,32 @@ function browserGoBack() {
   }
 }
 
+let cachedGrouped = null;
+let cachedGroupedFor = null;
+
 function getGroupedGenerators() {
+  if (cachedGroupedFor === allGenerators && cachedGrouped) return cachedGrouped;
   const groups = {};
   for (const gen of allGenerators) {
     if (!groups[gen.category]) groups[gen.category] = [];
     groups[gen.category].push(gen);
   }
   const sorted = Object.keys(groups).sort();
-  return sorted.map(cat => ({ name: cat, generators: groups[cat] }));
+  cachedGrouped = sorted.map(cat => ({ name: cat, generators: groups[cat] }));
+  cachedGroupedFor = allGenerators;
+  return cachedGrouped;
+}
+
+function getCurrentGeneratorName() {
+  return searchInput.value;
+}
+
+function appendShortcutBadge(card, idx) {
+  if (idx >= 10) return;
+  const shortcut = document.createElement('div');
+  shortcut.className = 'category-shortcut';
+  shortcut.textContent = String(idx + 1 > 9 ? 0 : idx + 1);
+  card.appendChild(shortcut);
 }
 
 function createThumbImg(generatorName) {
@@ -2088,6 +2109,7 @@ function createThumbImg(generatorName) {
   img.alt = generatorName;
   img.style.display = 'none';
   img.addEventListener('load', () => {
+    img.className = placeholder.className;
     placeholder.replaceWith(img);
     img.style.display = '';
   });
@@ -2104,7 +2126,7 @@ function renderCategoryGrid() {
   const categories = getGroupedGenerators();
   const grid = document.createElement('div');
   grid.className = 'browser-grid';
-  const currentGen = searchInput.value;
+  const currentGen = getCurrentGeneratorName();
 
   categories.forEach((cat, idx) => {
     const card = document.createElement('div');
@@ -2114,12 +2136,7 @@ function renderCategoryGrid() {
     }
     card.innerHTML = '<div class="category-name">' + escapeHtml(cat.name) + '</div>'
       + '<div class="category-count">' + cat.generators.length + ' generator' + (cat.generators.length !== 1 ? 's' : '') + '</div>';
-    if (idx < 12) {
-      const shortcut = document.createElement('div');
-      shortcut.className = 'category-shortcut';
-      shortcut.textContent = String(idx + 1 > 9 ? 0 : idx + 1);
-      card.appendChild(shortcut);
-    }
+    appendShortcutBadge(card, idx);
     const thumbStrip = document.createElement('div');
     thumbStrip.className = 'category-thumbs';
     const previewGens = cat.generators.slice(0, 3);
@@ -2157,7 +2174,7 @@ function showCategoryGenerators(categoryName) {
   const grid = document.createElement('div');
   grid.className = 'browser-grid';
   grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(150px, 1fr))';
-  const currentGen = searchInput.value;
+  const currentGen = getCurrentGeneratorName();
 
   cat.generators.forEach((gen, idx) => {
     const card = document.createElement('div');
@@ -2168,12 +2185,7 @@ function showCategoryGenerators(categoryName) {
     name.className = 'generator-card-name';
     name.textContent = gen.name;
     card.appendChild(name);
-    if (idx < 10) {
-      const shortcut = document.createElement('div');
-      shortcut.className = 'category-shortcut';
-      shortcut.textContent = String(idx + 1 > 9 ? 0 : idx + 1);
-      card.appendChild(shortcut);
-    }
+    appendShortcutBadge(card, idx);
     card.addEventListener('click', () => {
       closeBrowser();
       selectGenerator(gen.name);
@@ -2183,16 +2195,18 @@ function showCategoryGenerators(categoryName) {
   browserContent.appendChild(grid);
 }
 
+const MAX_SEARCH_RESULTS = 50;
+
 function renderSearchResults(query) {
   browserContent.innerHTML = '';
-  const filtered = filterGenerators(query);
+  const filtered = filterGenerators(query).slice(0, MAX_SEARCH_RESULTS);
   if (filtered.length === 0) {
     browserContent.innerHTML = '<div style="text-align:center;padding:40px;opacity:0.5">No generators match "' + escapeHtml(query) + '"</div>';
     return;
   }
   const list = document.createElement('div');
   list.style.cssText = 'display:flex;flex-direction:column;gap:8px';
-  const currentGen = searchInput.value;
+  const currentGen = getCurrentGeneratorName();
   for (const gen of filtered) {
     const card = document.createElement('div');
     card.className = 'search-result-card';
@@ -2238,6 +2252,8 @@ searchInput.addEventListener('focus', (e) => {
   if (browserState === 'closed' && allGenerators.length > 0) {
     e.target.blur();
     openBrowser();
+  } else if (allGenerators.length === 0) {
+    showFilteredDropdown();
   }
 });
 
@@ -2282,7 +2298,7 @@ document.addEventListener('keydown', (e) => {
       const idx = num === 0 ? 9 : num - 1;
       if (browserState === 'browsing_categories') {
         const categories = getGroupedGenerators();
-        if (idx < categories.length && idx < 12) {
+        if (idx < categories.length && idx < 10) {
           e.preventDefault();
           showCategoryGenerators(categories[idx].name);
         }
