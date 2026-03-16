@@ -357,7 +357,10 @@ def generate_geometry(req: GenerateRequest) -> Response:
     )
     if entry is None:
         is_post_transform = req.sampling == "post_transform"
-        entry = _run_generation(req, params, resolution, container, post_transform_sampling=is_post_transform)
+        entry = _run_generation(
+            req, params, resolution, container,
+            post_transform_sampling=is_post_transform,
+        )
         cache.put(cache_key, entry)
         store_to_disk(cache_key, entry, disk_cache, container_kwargs=container_dict)
         cache_status = "MISS"
