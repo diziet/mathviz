@@ -60,15 +60,13 @@ class TestApplySamplingMode:
         """applySamplingMode helper function is defined."""
         assert "function applySamplingMode(body)" in preview_html
 
-    def test_helper_handles_dense(self, apply_sampling_body: str) -> None:
-        """applySamplingMode sets post_transform for dense mode."""
-        assert "post_transform" in apply_sampling_body
-        assert "dense" in apply_sampling_body
+    def test_helper_handles_dense(self, preview_html: str) -> None:
+        """VIEW_MODE_TO_SAMPLING maps dense to post_transform."""
+        assert "dense: 'post_transform'" in preview_html
 
-    def test_helper_handles_hd_cloud(self, apply_sampling_body: str) -> None:
-        """applySamplingMode sets resolution_scaled for hd_cloud mode."""
-        assert "resolution_scaled" in apply_sampling_body
-        assert "hd_cloud" in apply_sampling_body
+    def test_helper_handles_hd_cloud(self, preview_html: str) -> None:
+        """VIEW_MODE_TO_SAMPLING maps hd_cloud to resolution_scaled."""
+        assert "hd_cloud: 'resolution_scaled'" in preview_html
 
     def test_load_from_api_uses_helper(self, preview_html: str) -> None:
         """loadFromAPI calls applySamplingMode instead of inline checks."""

@@ -164,7 +164,7 @@ def run(
             logger.warning(
                 "%s requested but %s has no mesh; "
                 "falling back to normal pipeline",
-                _sampling_mode,
+                sampling_mode,
                 obj.generator_name or "object",
             )
             rep_config = representation_config or representation_strategy.get_default(
