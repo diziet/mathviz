@@ -3116,15 +3116,16 @@ function createThumbImg(generatorName, cssSize) {
   const placeholder = document.createElement('div');
   placeholder.className = 'thumb-placeholder';
   img.src = '/api/generators/' + encodeURIComponent(generatorName) + '/thumbnail?view_mode=' + encodeURIComponent(viewMode);
-  img.loading = 'lazy';
   img.alt = generatorName;
   img.width = size;
   img.height = size;
-  img.style.display = 'none';
+  img.style.position = 'absolute';
+  img.style.opacity = '0';
   img.addEventListener('load', () => {
     img.className = placeholder.className;
+    img.style.position = '';
+    img.style.opacity = '';
     placeholder.replaceWith(img);
-    img.style.display = '';
   });
   img.addEventListener('error', () => {
     placeholder.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity:0.3">'
