@@ -5933,3 +5933,136 @@ abort is to reload the page.
 - Manual: start WebM export, click cancel — export stops, UI resets
 - Manual: after cancelling, can start a new export without issues
 - Manual: completing export without cancel still works as before
+
+## Task 138: Adjust generator browser modal layout sizing
+
+**Objective:**
+
+Make the generator browser category cards wider and taller so that only five
+fit horizontally on a 15″ MacBook display (currently seven fit). Increase
+thumbnail preview size within category cards to match the larger card
+dimensions.
+
+**Root cause:**
+
+The current `.browser-grid` uses `minmax(200px, 1fr)` which produces cards
+that are too narrow — seven fit across a typical laptop screen. The category
+card has no explicit height, and the thumbnail placeholders/images are 48×48px,
+which looks small inside the card.
+
+**Suggested path:**
+
+1. **Widen grid columns**: Change `.browser-grid` from
+   `grid-template-columns: repeat(auto-fill, minmax(200px, 1fr))` to
+   `grid-template-columns: repeat(auto-fill, minmax(261px, 1fr))`.
+
+2. **Reduce grid gap**: Change `.browser-grid` gap from `16px` to `8px`.
+
+3. **Set category card height**: Add `height: 200px` to `.category-card`.
+
+4. **Enlarge category thumbnails**: Change `.category-thumbs img` and
+   `.thumb-placeholder` from 48×48px to 90×90px. Update
+   `.category-thumbs` height from `48px` to `90px`.
+
+**Files:**
+
+- `src/mathviz/static/index.html` (CSS: `.browser-grid`, `.category-card`,
+  `.category-thumbs`, `.category-thumbs img`, `.thumb-placeholder`)
+
+**Tests:**
+
+- Manual: open generator browser on 15″ MacBook — five category cards fit per row
+- Manual: category cards are visibly taller with larger thumbnail previews
+- Manual: thumbnail images/placeholders render at 90×90px
+- Manual: grid still reflows correctly when resizing the browser window
+
+## Task 139: Adjust generator browser second-level grid sizing
+
+**Objective:**
+
+Widen the generator cards in the second-level view (generators within a
+category) so they are larger and more visually balanced with the resized
+category cards from Task 138.
+
+**Suggested path:**
+
+1. In `showCategoryGenerators()`, the grid currently uses inline style
+   `grid-template-columns: repeat(auto-fill, minmax(150px, 1fr))`. Change
+   this to `repeat(auto-fill, minmax(222px, 1fr))`.
+
+**Files:**
+
+- `src/mathviz/static/index.html` (JS: `showCategoryGenerators` inline
+  grid-template-columns)
+
+**Tests:**
+
+- Manual: open generator browser, click a category — generator cards are wider
+- Manual: grid reflows correctly when resizing the browser window
+
+## Task 140: Fix thumbnail generation — render WebP at retina resolution
+
+**Objective:**
+
+Generator browser thumbnails currently show an infinite spinner because the
+server-side PyVista renderer either fails silently or is not installed. Replace
+the current approach with a working thumbnail pipeline that produces WebP
+images at retina resolution, cached to disk.
+
+Currently the `/api/generators/{name}/thumbnail` endpoint calls PyVista's
+`render_to_png` synchronously. If PyVista is not installed or VTK has no
+display backend, the endpoint returns a 500. The browser JS `error` handler
+replaces the spinner with a `?`, but this is hard to notice — the user just
+sees spinning placeholders.
+
+**Suggested path:**
+
+1. **Change output format to WebP**: Render at 2× pixel density and convert
+   to WebP for smaller file sizes and retina sharpness. Second-level
+   generator card thumbnails should be 236×236 CSS pixels, so render at
+   472×472 actual pixels. Category-level thumbnails (90×90 CSS from Task 138)
+   can reuse the same 472×472 WebP — the browser downscales.
+
+2. **Update `generate_thumbnail`** in `src/mathviz/preview/thumbnails.py`:
+   - Change `THUMBNAIL_SIZE` from 256 to 472.
+   - After rendering to PNG with PyVista, convert to WebP using Pillow
+     (`Image.open(png_path).save(webp_path, 'webp', quality=85)`).
+   - Cache as `.webp` instead of `.png`. Update `get_thumbnail_path` and
+     `build_thumbnail_url` accordingly.
+   - Add Pillow to `[render]` optional dependencies in `pyproject.toml` if
+     not already present.
+
+3. **Update the thumbnail route** in
+   `src/mathviz/preview/thumbnail_routes.py`:
+   - Return `media_type="image/webp"` from `FileResponse`.
+
+4. **Update the browser JS** in `src/mathviz/static/index.html`:
+   - In `createThumbImg`, set the `<img>` element's `width` and `height`
+     attributes to the CSS display size (90 for category thumbs, 236 for
+     generator cards) so the browser knows the retina image should be
+     downscaled.
+
+5. **Graceful fallback when PyVista is unavailable**: If `render_to_png`
+   raises `ImportError`, return a 501 with a clear message instead of 500.
+   The JS `error` handler should replace the spinner with a static
+   placeholder icon (e.g. a simple SVG shape) instead of just `?`.
+
+**Files:**
+
+- `src/mathviz/preview/thumbnails.py` (size, format, conversion)
+- `src/mathviz/preview/thumbnail_routes.py` (media type, error handling)
+- `src/mathviz/static/index.html` (JS `createThumbImg`, CSS thumb sizes)
+- `pyproject.toml` (Pillow dependency if needed)
+
+**Tests:**
+
+- `test_thumbnail_generates_webp`: generated thumbnail is a valid WebP file
+- `test_thumbnail_dimensions`: output image is 472×472 pixels
+- `test_thumbnail_cached_on_disk`: second call returns cached file without
+  re-rendering
+- `test_thumbnail_route_returns_webp`: GET returns `Content-Type: image/webp`
+- `test_thumbnail_missing_pyvista_returns_501`: when render unavailable,
+  endpoint returns 501 not 500
+- Manual: open generator browser — thumbnails load as sharp images, no
+  infinite spinners
+- Manual: thumbnails look crisp on retina displays
