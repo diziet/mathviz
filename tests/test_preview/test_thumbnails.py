@@ -1,5 +1,6 @@
 """Tests for generator thumbnail endpoint and persistent disk cache."""
 
+import io
 from collections.abc import Generator
 from pathlib import Path
 from typing import Any
@@ -8,20 +9,18 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from mathviz.core.generator import register
 from mathviz.core.math_object import MathObject, Mesh
 from mathviz.generators.parametric.torus import TorusGenerator
 from mathviz.preview.server import app
 from mathviz.preview.thumbnails import (
+    THUMBNAIL_SIZE,
     THUMBNAILS_DIR_ENV_VAR,
     get_thumbnail_path,
     get_thumbnails_dir,
 )
-
-# Minimal valid PNG: signature + IHDR + IDAT + IEND
-_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
-_MINIMAL_PNG = _PNG_SIGNATURE + b"\x00" * 100
 
 
 def _ensure_torus_registered() -> None:
@@ -45,9 +44,10 @@ def _make_test_math_object() -> MathObject:
 
 
 def _fake_render_to_png(obj: Any, path: Path, **kwargs: Any) -> Path:
-    """Write a fake PNG file for testing."""
+    """Write a valid PNG file that Pillow can open."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(_MINIMAL_PNG)
+    img = Image.new("RGB", (THUMBNAIL_SIZE, THUMBNAIL_SIZE), color=(128, 128, 128))
+    img.save(path, "PNG")
     return path
 
 
@@ -90,14 +90,31 @@ def _mock_rendering() -> Generator[MagicMock, None, None]:
 class TestThumbnailEndpoint:
     """Tests for GET /api/generators/{name}/thumbnail."""
 
-    def test_returns_valid_png(
+    def test_thumbnail_route_returns_webp(
         self, _mock_rendering: MagicMock, client: TestClient,
     ) -> None:
-        """Thumbnail endpoint returns a valid PNG for a known generator."""
+        """Thumbnail endpoint returns WebP content type."""
         resp = client.get("/api/generators/torus/thumbnail")
         assert resp.status_code == 200
-        assert resp.headers["content-type"] == "image/png"
-        assert resp.content[:4] == b"\x89PNG"
+        assert resp.headers["content-type"] == "image/webp"
+
+    def test_thumbnail_generates_webp(
+        self, _mock_rendering: MagicMock, client: TestClient,
+    ) -> None:
+        """Generated thumbnail is a valid WebP file."""
+        resp = client.get("/api/generators/torus/thumbnail")
+        assert resp.status_code == 200
+        img = Image.open(io.BytesIO(resp.content))
+        assert img.format == "WEBP"
+
+    def test_thumbnail_dimensions(
+        self, _mock_rendering: MagicMock, client: TestClient,
+    ) -> None:
+        """Output image is 472x472 pixels."""
+        resp = client.get("/api/generators/torus/thumbnail")
+        assert resp.status_code == 200
+        img = Image.open(io.BytesIO(resp.content))
+        assert img.size == (THUMBNAIL_SIZE, THUMBNAIL_SIZE)
 
     def test_unknown_generator_returns_404(self, client: TestClient) -> None:
         """Thumbnail endpoint returns 404 for unknown generators."""
@@ -105,10 +122,10 @@ class TestThumbnailEndpoint:
         assert resp.status_code == 404
         assert "not found" in resp.json()["detail"].lower()
 
-    def test_cache_hit_on_second_call(
+    def test_thumbnail_cached_on_disk(
         self, _mock_rendering: MagicMock, client: TestClient,
     ) -> None:
-        """Second request serves from disk cache without re-generating."""
+        """Second call returns cached file without re-rendering."""
         resp1 = client.get("/api/generators/torus/thumbnail")
         assert resp1.status_code == 200
         assert _mock_rendering.call_count == 1
@@ -140,6 +157,16 @@ class TestThumbnailEndpoint:
         resp = client.get("/api/generators/torus/thumbnail?view_mode=invalid")
         assert resp.status_code == 400
         assert "Invalid view_mode" in resp.json()["detail"]
+
+    def test_thumbnail_missing_pyvista_returns_501(self, client: TestClient) -> None:
+        """When render unavailable, endpoint returns 501 not 500."""
+        with patch(
+            "mathviz.preview.thumbnails.run_pipeline",
+            side_effect=ImportError("No module named 'pyvista'"),
+        ):
+            resp = client.get("/api/generators/torus/thumbnail")
+        assert resp.status_code == 501
+        assert "unavailable" in resp.json()["detail"].lower()
 
 
 class TestDeleteThumbnails:
@@ -185,8 +212,8 @@ class TestThumbnailDiskPath:
     def test_stored_at_expected_path(
         self, _mock_rendering: MagicMock, client: TestClient,
     ) -> None:
-        """Thumbnails are stored at <thumbnails_dir>/<view_mode>/<name>.png."""
+        """Thumbnails are stored at <thumbnails_dir>/<view_mode>/<name>.webp."""
         client.get("/api/generators/torus/thumbnail?view_mode=wireframe")
 
-        expected = get_thumbnails_dir() / "wireframe" / "torus.png"
+        expected = get_thumbnails_dir() / "wireframe" / "torus.webp"
         assert expected.is_file()
