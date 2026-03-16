@@ -11,9 +11,10 @@ from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.engraving import EngravingProfile
 from mathviz.core.generator import GeneratorBase, get_generator
 from mathviz.core.math_object import MathObject
-from mathviz.core.representation import RepresentationConfig
+from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.core.validator import ValidationResult, validate_engraving, validate_mesh
 from mathviz.pipeline import representation_strategy, sampler, transformer
+from mathviz.pipeline.dense_sampling import apply_post_transform_sampling
 from mathviz.pipeline.mesh_exporter import export_mesh
 from mathviz.pipeline.point_cloud_exporter import export_point_cloud
 from mathviz.pipeline.sampler import SamplerConfig
@@ -75,6 +76,7 @@ def run(
     engraving_profile: EngravingProfile | None = None,
     export_config: ExportConfig | None = None,
     cancel_event: threading.Event | None = None,
+    post_transform_sampling: bool = False,
 ) -> PipelineResult:
     """Execute the full or partial pipeline.
 
@@ -102,9 +104,14 @@ def run(
     # --- Represent ---
     _check_cancelled(cancel_event)
     with timer.stage("represent"):
-        rep_config = representation_config or representation_strategy.get_default(
-            obj.generator_name, obj=obj
-        )
+        if post_transform_sampling and obj.mesh is not None:
+            rep_config = RepresentationConfig(
+                type=RepresentationType.SURFACE_SHELL,
+            )
+        else:
+            rep_config = representation_config or representation_strategy.get_default(
+                obj.generator_name, obj=obj
+            )
         obj = representation_strategy.apply(obj, rep_config)
     obj.validate_or_raise()
 
@@ -113,6 +120,13 @@ def run(
     with timer.stage("transform"):
         obj = transformer.fit(obj, container, placement)
     # transformer.fit already calls validate_or_raise internally
+
+    # --- Post-transform sampling (dense cloud mode) ---
+    if post_transform_sampling and obj.mesh is not None:
+        _check_cancelled(cancel_event)
+        with timer.stage("dense_sample"):
+            obj = apply_post_transform_sampling(obj)
+        obj.validate_or_raise()
 
     # --- Sample (optional) ---
     if sampler_config is not None:
