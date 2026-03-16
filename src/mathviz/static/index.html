@@ -159,6 +159,30 @@ canvas{display:block}
 #save-btn:disabled:hover{background:rgba(30,30,30,0.85)}
 
 /* Toast notification */
+/* Turntable controls */
+.turntable-row{display:flex;align-items:center;gap:6px}
+.turntable-row label{flex:1;display:flex;align-items:center;gap:6px;cursor:pointer}
+#turntable-speed{flex:1;min-width:60px}
+#turntable-speed-label{font-size:11px;opacity:0.8;min-width:24px;text-align:right}
+#turntable-export-section{display:none;flex-direction:column;gap:4px}
+#turntable-export-section.visible{display:flex}
+.export-row{display:flex;gap:4px}
+.export-row select{flex:1}
+#export-progress{
+  display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:rgba(30,30,30,0.92);color:#eee;padding:20px 28px;border-radius:10px;
+  font-size:14px;text-align:center;backdrop-filter:blur(8px);z-index:300;
+  min-width:240px;
+}
+#export-progress.visible{display:block}
+#export-progress-bar{
+  width:100%;height:6px;background:rgba(255,255,255,0.15);border-radius:3px;
+  margin-top:10px;overflow:hidden;
+}
+#export-progress-fill{
+  height:100%;background:#4488cc;border-radius:3px;width:0%;transition:width 0.1s;
+}
+
 #save-toast{
   position:absolute;bottom:56px;right:12px;
   padding:8px 16px;border-radius:6px;
@@ -507,6 +531,28 @@ canvas{display:block}
     <button id="regenerate-btn" title="Force regenerate (bypass cache)">Regenerate</button>
     <button id="reset-view-btn" disabled>Reset View</button>
     <button id="screenshot-btn">Screenshot</button>
+
+    <div class="section-title">Turntable</div>
+    <div class="turntable-row">
+      <label><input type="checkbox" id="turntable-toggle"> Auto-Rotate</label>
+    </div>
+    <div class="turntable-row">
+      <input type="range" id="turntable-speed" min="0.5" max="5" step="0.5" value="1" disabled>
+      <span id="turntable-speed-label">1x</span>
+    </div>
+    <div id="turntable-export-section">
+      <div class="export-row">
+        <select id="export-format">
+          <option value="gif">GIF</option>
+          <option value="mp4">MP4</option>
+        </select>
+        <select id="export-resolution">
+          <option value="1">1x</option>
+          <option value="2">2x</option>
+        </select>
+        <button id="export-btn">Export</button>
+      </div>
+    </div>
   </div>
 
   <div id="info-panel">
@@ -520,6 +566,10 @@ canvas{display:block}
   <button id="load-btn">Load</button>
   <button id="save-btn" disabled>Save</button>
   <div id="save-toast">Saved!</div>
+  <div id="export-progress">
+    <div id="export-progress-text">Capturing frame 0/360...</div>
+    <div id="export-progress-bar"><div id="export-progress-fill"></div></div>
+  </div>
 </div>
 
 <div id="snapshot-gallery">
@@ -587,6 +637,9 @@ const state = {
   density: 1.0,
   fullCloudPositions: null,
   fullCloudCount: 0,
+  turntable: false,
+  turntableSpeed: 1.0,
+  exporting: false,
 };
 
 const DARK_COLOR = 0x1a1a2e;
@@ -1598,6 +1651,323 @@ document.getElementById('screenshot-btn').addEventListener('click', () => {
   link.click();
 });
 
+/* ── Turntable ── */
+const TURNTABLE_BASE_SPEED = 2;
+
+function setTurntable(enabled) {
+  state.turntable = enabled;
+  controls.autoRotate = enabled;
+  controls.autoRotateSpeed = enabled ? state.turntableSpeed * TURNTABLE_BASE_SPEED : 0;
+  document.getElementById('turntable-speed').disabled = !enabled;
+  const exportSection = document.getElementById('turntable-export-section');
+  if (enabled) {
+    exportSection.classList.add('visible');
+  } else {
+    exportSection.classList.remove('visible');
+  }
+}
+
+function setTurntableSpeed(speed) {
+  state.turntableSpeed = speed;
+  controls.autoRotateSpeed = speed * TURNTABLE_BASE_SPEED;
+  document.getElementById('turntable-speed-label').textContent = speed + 'x';
+}
+
+document.getElementById('turntable-toggle').addEventListener('change', (e) => {
+  setTurntable(e.target.checked);
+});
+
+document.getElementById('turntable-speed').addEventListener('input', (e) => {
+  setTurntableSpeed(parseFloat(e.target.value));
+});
+
+/* ── Turntable export ── */
+function getGeneratorFilename() {
+  const gen = document.getElementById('generator-search').value || 'mathviz';
+  return gen.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+async function exportTurntable() {
+  if (state.exporting) return;
+  state.exporting = true;
+
+  const format = document.getElementById('export-format').value;
+  const resMult = parseInt(document.getElementById('export-resolution').value, 10);
+  const progressEl = document.getElementById('export-progress');
+  const progressText = document.getElementById('export-progress-text');
+  const progressFill = document.getElementById('export-progress-fill');
+
+  progressEl.classList.add('visible');
+  progressFill.style.width = '0%';
+
+  const fps = 30;
+  const duration = 360 / (state.turntableSpeed * 10);
+  const totalFrames = Math.round(fps * duration);
+
+  const origWidth = renderer.domElement.width;
+  const origHeight = renderer.domElement.height;
+  const exportWidth = origWidth * resMult;
+  const exportHeight = origHeight * resMult;
+
+  renderer.setSize(
+    renderer.domElement.clientWidth * resMult,
+    renderer.domElement.clientHeight * resMult,
+    false,
+  );
+
+  const wasAutoRotate = controls.autoRotate;
+  controls.autoRotate = false;
+
+  const anglePerFrame = (2 * Math.PI) / totalFrames;
+  const pivotTarget = controls.target.clone();
+
+  const startPos = camera.position.clone();
+  const offsetFromTarget = startPos.clone().sub(pivotTarget);
+  const radius = Math.sqrt(offsetFromTarget.x ** 2 + offsetFromTarget.z ** 2);
+  const startAngle = Math.atan2(offsetFromTarget.x, offsetFromTarget.z);
+  const camY = startPos.y;
+
+  try {
+    if (format === 'mp4') {
+      await exportMP4(totalFrames, fps, anglePerFrame, pivotTarget, radius, startAngle, camY, progressText, progressFill, exportWidth, exportHeight);
+    } else {
+      await exportGIF(totalFrames, fps, anglePerFrame, pivotTarget, radius, startAngle, camY, progressText, progressFill, exportWidth, exportHeight);
+    }
+  } finally {
+    camera.position.copy(startPos);
+    camera.lookAt(pivotTarget);
+    controls.update();
+    controls.autoRotate = wasAutoRotate;
+
+    renderer.setSize(
+      renderer.domElement.clientWidth / resMult,
+      renderer.domElement.clientHeight / resMult,
+      false,
+    );
+
+    progressEl.classList.remove('visible');
+    state.exporting = false;
+  }
+}
+
+function renderFrameAtAngle(angle, pivotTarget, radius, startAngle, camY) {
+  const theta = startAngle + angle;
+  camera.position.set(
+    pivotTarget.x + radius * Math.sin(theta),
+    camY,
+    pivotTarget.z + radius * Math.cos(theta),
+  );
+  camera.lookAt(pivotTarget);
+  controls.update();
+
+  if (state.compareMode && state.comparePanels.length > 0) {
+    renderCompareMode();
+  } else if (state.crystalActive && state.crystalComposer) {
+    state.crystalComposer.render();
+  } else {
+    renderer.render(scene, camera);
+  }
+}
+
+async function exportMP4(totalFrames, fps, anglePerFrame, pivotTarget, radius, startAngle, camY, progressText, progressFill, exportWidth, exportHeight) {
+  const stream = renderer.domElement.captureStream(0);
+  const recorder = new MediaRecorder(stream, {mimeType: 'video/webm;codecs=vp9'});
+  const chunks = [];
+
+  recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+
+  const donePromise = new Promise((resolve) => {
+    recorder.onstop = () => resolve();
+  });
+
+  recorder.start();
+
+  for (let i = 0; i < totalFrames; i++) {
+    renderFrameAtAngle(i * anglePerFrame, pivotTarget, radius, startAngle, camY);
+    if (stream.getVideoTracks()[0].requestFrame) {
+      stream.getVideoTracks()[0].requestFrame();
+    }
+
+    progressText.textContent = 'Capturing frame ' + (i + 1) + '/' + totalFrames + '...';
+    progressFill.style.width = Math.round(((i + 1) / totalFrames) * 100) + '%';
+    await new Promise((r) => setTimeout(r, 1000 / fps));
+  }
+
+  recorder.stop();
+  await donePromise;
+
+  const blob = new Blob(chunks, {type: 'video/webm'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.download = getGeneratorFilename() + '_turntable.webm';
+  link.href = url;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+async function exportGIF(totalFrames, fps, anglePerFrame, pivotTarget, radius, startAngle, camY, progressText, progressFill, exportWidth, exportHeight) {
+  const canvas = document.createElement('canvas');
+  canvas.width = exportWidth;
+  canvas.height = exportHeight;
+  const ctx = canvas.getContext('2d');
+
+  const frames = [];
+
+  for (let i = 0; i < totalFrames; i++) {
+    renderFrameAtAngle(i * anglePerFrame, pivotTarget, radius, startAngle, camY);
+    ctx.drawImage(renderer.domElement, 0, 0, exportWidth, exportHeight);
+    frames.push(ctx.getImageData(0, 0, exportWidth, exportHeight));
+
+    progressText.textContent = 'Capturing frame ' + (i + 1) + '/' + totalFrames + '...';
+    progressFill.style.width = Math.round(((i + 1) / totalFrames) * 50) + '%';
+    await new Promise((r) => setTimeout(r, 0));
+  }
+
+  progressText.textContent = 'Encoding GIF...';
+
+  const delay = Math.round(1000 / fps);
+  const gif = encodeGIF(frames, exportWidth, exportHeight, delay, (pct) => {
+    progressFill.style.width = (50 + Math.round(pct * 50)) + '%';
+  });
+
+  const blob = new Blob([gif], {type: 'image/gif'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.download = getGeneratorFilename() + '_turntable.gif';
+  link.href = url;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function encodeGIF(frames, width, height, delay, onProgress) {
+  const buf = [];
+
+  function writeByte(b) { buf.push(b & 0xff); }
+  function writeShort(s) { buf.push(s & 0xff); buf.push((s >> 8) & 0xff); }
+  function writeBytes(arr) { for (let i = 0; i < arr.length; i++) buf.push(arr[i]); }
+  function writeString(s) { for (let i = 0; i < s.length; i++) buf.push(s.charCodeAt(i)); }
+
+  writeString('GIF89a');
+  writeShort(width);
+  writeShort(height);
+  writeByte(0xf7);
+  writeByte(0);
+  writeByte(0);
+
+  for (let r = 0; r < 8; r++)
+    for (let g = 0; g < 8; g++)
+      for (let b = 0; b < 4; b++) {
+        writeByte(Math.round(r * 255 / 7));
+        writeByte(Math.round(g * 255 / 7));
+        writeByte(Math.round(b * 255 / 3));
+      }
+
+  writeByte(0x21); writeByte(0xff); writeByte(11);
+  writeString('NETSCAPE2.0');
+  writeByte(3); writeByte(1); writeShort(0); writeByte(0);
+
+  for (let f = 0; f < frames.length; f++) {
+    const data = frames[f].data;
+    writeByte(0x21); writeByte(0xf9); writeByte(4);
+    writeByte(0x00);
+    writeShort(Math.round(delay / 10));
+    writeByte(0); writeByte(0);
+
+    writeByte(0x2c);
+    writeShort(0); writeShort(0);
+    writeShort(width); writeShort(height);
+    writeByte(0);
+
+    const minCodeSize = 8;
+    writeByte(minCodeSize);
+
+    const pixels = new Uint8Array(width * height);
+    for (let i = 0; i < width * height; i++) {
+      const off = i * 4;
+      const ri = (data[off] >> 5) & 0x07;
+      const gi = (data[off + 1] >> 5) & 0x07;
+      const bi = (data[off + 2] >> 6) & 0x03;
+      pixels[i] = (ri << 5) | (gi << 2) | bi;
+    }
+
+    const encoded = lzwEncode(pixels, minCodeSize);
+    let pos = 0;
+    while (pos < encoded.length) {
+      const chunk = Math.min(255, encoded.length - pos);
+      writeByte(chunk);
+      for (let i = 0; i < chunk; i++) buf.push(encoded[pos++]);
+    }
+    writeByte(0);
+
+    if (onProgress) onProgress((f + 1) / frames.length);
+  }
+
+  writeByte(0x3b);
+  return new Uint8Array(buf);
+}
+
+function lzwEncode(pixels, minCodeSize) {
+  const clearCode = 1 << minCodeSize;
+  const eoiCode = clearCode + 1;
+  let codeSize = minCodeSize + 1;
+  let nextCode = eoiCode + 1;
+  const maxCode = 4096;
+
+  const table = new Map();
+  const output = [];
+  let bitBuf = 0;
+  let bitCount = 0;
+
+  function emit(code) {
+    bitBuf |= code << bitCount;
+    bitCount += codeSize;
+    while (bitCount >= 8) {
+      output.push(bitBuf & 0xff);
+      bitBuf >>= 8;
+      bitCount -= 8;
+    }
+  }
+
+  function resetTable() {
+    table.clear();
+    for (let i = 0; i < clearCode; i++) table.set(String(i), i);
+    nextCode = eoiCode + 1;
+    codeSize = minCodeSize + 1;
+  }
+
+  emit(clearCode);
+  resetTable();
+
+  let current = String(pixels[0]);
+  for (let i = 1; i < pixels.length; i++) {
+    const next = String(pixels[i]);
+    const combined = current + ',' + next;
+    if (table.has(combined)) {
+      current = combined;
+    } else {
+      emit(table.get(current));
+      if (nextCode < maxCode) {
+        table.set(combined, nextCode++);
+        if (nextCode > (1 << codeSize) && codeSize < 12) codeSize++;
+      } else {
+        emit(clearCode);
+        resetTable();
+      }
+      current = next;
+    }
+  }
+
+  emit(table.get(current));
+  emit(eoiCode);
+
+  if (bitCount > 0) output.push(bitBuf & 0xff);
+  return new Uint8Array(output);
+}
+
+document.getElementById('export-btn').addEventListener('click', () => {
+  exportTurntable();
+});
+
 /* ── Save snapshot ── */
 const saveBtn = document.getElementById('save-btn');
 const saveToast = document.getElementById('save-toast');
@@ -1631,6 +2001,8 @@ function captureUiState() {
     light_bg: document.getElementById('toggle-bg').checked,
     point_size: state.pointSize,
     density: state.density,
+    turntable: state.turntable,
+    turntable_speed: state.turntableSpeed,
   };
 }
 
@@ -1879,6 +2251,16 @@ function restoreUiState(ui) {
     state.density = ui.density;
     document.getElementById('density-slider').value = ui.density;
     applyDensityFilter();
+  }
+
+  /* Turntable */
+  if (typeof ui.turntable === 'boolean') {
+    document.getElementById('turntable-toggle').checked = ui.turntable;
+    setTurntable(ui.turntable);
+  }
+  if (typeof ui.turntable_speed === 'number') {
+    setTurntableSpeed(ui.turntable_speed);
+    document.getElementById('turntable-speed').value = ui.turntable_speed;
   }
 
   /* Camera position and target */
