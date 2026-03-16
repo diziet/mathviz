@@ -1513,7 +1513,8 @@ function restoreUiState(ui) {
   }
 
   /* Camera lock */
-  if (ui.camera_lock) {
+  const validLockModes = ['render', 'full', 'off'];
+  if (ui.camera_lock && validLockModes.includes(ui.camera_lock)) {
     const labels = {
       render: '\u{1f512} Render Lock',
       full: '\u{1f512} Full Lock',
@@ -1522,9 +1523,11 @@ function restoreUiState(ui) {
     state.cameraLocked = ui.camera_lock;
     const btn = document.getElementById('lock-camera');
     btn.dataset.mode = ui.camera_lock;
-    btn.textContent = labels[ui.camera_lock] || labels.render;
+    btn.textContent = labels[ui.camera_lock];
     controls.enabled = ui.camera_lock !== 'full';
     renderer.domElement.style.cursor = ui.camera_lock === 'full' ? 'not-allowed' : '';
+  } else if (ui.camera_lock) {
+    console.warn('Unknown camera_lock value in snapshot:', ui.camera_lock);
   }
 
   /* Bounding box toggle */
@@ -1618,10 +1621,12 @@ async function loadSnapshot(snap) {
       state.viewMode = 'points';
     }
     document.getElementById('view-mode').value = state.viewMode;
-    applyViewMode();
 
     /* Restore saved UI state (camera, view mode, toggles) */
     restoreUiState(snap.ui_state);
+
+    /* Apply view mode after restoreUiState so saved mode takes effect */
+    applyViewMode();
 
     state.generatedWith = {
       generator: snap.generator,

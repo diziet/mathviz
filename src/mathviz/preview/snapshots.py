@@ -141,7 +141,7 @@ class SnapshotInfo:
     has_thumbnail: bool
     thumbnail_url: str | None
     geometry_files: list[str]
-    geometry_id: str | None = None
+    geometry_id: str
     ui_state: dict[str, Any] | None = None
 
 
@@ -157,7 +157,7 @@ def _read_snapshot_metadata(snapshot_dir: Path) -> dict[str, Any] | None:
         return None
 
 
-_REQUIRED_METADATA_KEYS = {"generator", "params", "seed", "container", "created_at"}
+_REQUIRED_METADATA_KEYS = {"generator", "params", "seed", "container", "created_at", "geometry_id"}
 
 
 def _snapshot_info_from_dir(snapshot_dir: Path) -> SnapshotInfo | None:
@@ -186,7 +186,7 @@ def _snapshot_info_from_dir(snapshot_dir: Path) -> SnapshotInfo | None:
         has_thumbnail=has_thumb,
         thumbnail_url=thumb_url,
         geometry_files=geo_files,
-        geometry_id=metadata.get("geometry_id"),
+        geometry_id=metadata["geometry_id"],
         ui_state=metadata.get("ui_state"),
     )
 

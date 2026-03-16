@@ -5,7 +5,7 @@ import io
 import logging
 from concurrent.futures import CancelledError, TimeoutError
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import trimesh
 from fastapi import FastAPI, HTTPException, Query
@@ -138,6 +138,33 @@ class GeneratorInfo(BaseModel):
     resolution_params: dict[str, str]
 
 
+class CameraPosition(BaseModel):
+    """3D position vector for camera state."""
+
+    x: float = 0.0
+    y: float = 0.0
+    z: float = 0.0
+
+
+class CameraState(BaseModel):
+    """Camera position, target, and zoom level."""
+
+    position: CameraPosition = Field(default_factory=CameraPosition)
+    target: CameraPosition = Field(default_factory=CameraPosition)
+    zoom: float = 1.0
+
+
+class UiState(BaseModel):
+    """Display and control state saved with a snapshot."""
+
+    camera: CameraState = Field(default_factory=CameraState)
+    view_mode: Literal["points", "shaded", "wireframe", "crystal"] = "points"
+    camera_lock: Literal["off", "render", "full"] = "render"
+    show_bbox: bool = True
+    light_bg: bool = False
+    point_size: float = 2.0
+
+
 class SnapshotRequest(BaseModel):
     """Request body for POST /api/snapshots."""
 
@@ -147,7 +174,7 @@ class SnapshotRequest(BaseModel):
     container: ContainerParams | None = None
     geometry_id: str
     thumbnail: str | None = None
-    ui_state: dict[str, Any] | None = None
+    ui_state: UiState | None = None
 
 
 class SnapshotResponse(BaseModel):
@@ -529,7 +556,7 @@ def create_snapshot(req: SnapshotRequest) -> SnapshotResponse:
             container=container_dict,
             geometry_id=req.geometry_id,
             thumbnail_png=thumbnail_png,
-            ui_state=req.ui_state,
+            ui_state=req.ui_state.model_dump() if req.ui_state else None,
         )
     except OSError as exc:
         raise HTTPException(
