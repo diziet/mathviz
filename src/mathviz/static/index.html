@@ -961,6 +961,19 @@ function loadMeshFromGLB(url) {
       const group = new THREE.Group();
       let totalVertices = 0, totalFaces = 0;
 
+      /* First pass: compute union bounding box across all geometries */
+      const unionBox = new THREE.Box3();
+      gltf.scene.traverse((child) => {
+        if (!child.isMesh) return;
+        child.geometry.computeBoundingBox();
+        if (child.geometry.boundingBox) unionBox.union(child.geometry.boundingBox);
+      });
+      const unionSize = new THREE.Vector3();
+      unionBox.getSize(unionSize);
+      const meshExtent = Math.max(unionSize.x, unionSize.y, unionSize.z, 1);
+      state.sceneExtent = meshExtent;
+
+      /* Second pass: build scene objects with correctly-sized point materials */
       gltf.scene.traverse((child) => {
         if (!child.isMesh) return;
         const geom = child.geometry;
@@ -985,12 +998,11 @@ function loadMeshFromGLB(url) {
         wireMesh.visible = (state.viewMode === 'wireframe');
 
         /* Point cloud from mesh vertices */
-        const pointsMat = new THREE.PointsMaterial({color: 0x44ccff, size: computeAdaptivePointSize(state.pointSize)});
+        const pointsMat = new THREE.PointsMaterial({color: 0x44ccff, size: computeAdaptivePointSize(state.pointSize, meshExtent)});
         const pts = new THREE.Points(geom, pointsMat);
         pts.name = 'points';
         pts.visible = (state.viewMode === 'points');
 
-        updateSceneExtent(geom);
         group.add(shadedMesh, wireMesh, pts);
       });
 
@@ -1000,18 +1012,24 @@ function loadMeshFromGLB(url) {
 }
 
 /* Compute adaptive point size based on scene extent so points are visible at any scale. */
-function computeAdaptivePointSize(sliderValue) {
-  return state.sceneExtent * sliderValue * 0.008;
+function computeAdaptivePointSize(sliderValue, extent) {
+  const e = extent !== undefined ? extent : state.sceneExtent;
+  return e * sliderValue * 0.008;
 }
 
-/* Compute scene extent from a geometry's bounding box. */
-function updateSceneExtent(geometry) {
+/* Compute max extent from a geometry's bounding box (returns the value). */
+function getGeometryExtent(geometry) {
   geometry.computeBoundingBox();
   const box = geometry.boundingBox;
-  if (!box) return;
+  if (!box) return 1;
   const size = new THREE.Vector3();
   box.getSize(size);
-  state.sceneExtent = Math.max(size.x, size.y, size.z, 1);
+  return Math.max(size.x, size.y, size.z, 1);
+}
+
+/* Update state.sceneExtent from a geometry's bounding box. */
+function updateSceneExtent(geometry) {
+  state.sceneExtent = getGeometryExtent(geometry);
 }
 
 function loadCloudFromPLY(url) {
@@ -3758,6 +3776,7 @@ function createPanelData(index, generator, params, seed) {
     cloudPoints: null,
     bboxHelper: null,
     loading: false,
+    sceneExtent: state.sceneExtent,
   };
 }
 
@@ -3968,15 +3987,17 @@ async function loadPanelGeometry(panelIndex, data) {
   if (panel.cloudPoints) { panel.scene.remove(panel.cloudPoints); panel.cloudPoints = null; }
   if (panel.bboxHelper) { panel.scene.remove(panel.bboxHelper); panel.bboxHelper = null; }
 
-  /* Load mesh into panel scene */
+  /* Load mesh into panel scene — loadMeshFromGLB sets state.sceneExtent as side effect */
   if (data.mesh_url) {
     const {group} = await loadMeshFromGLB(data.mesh_url + '?lod=preview');
     panel.meshGroup = group;
+    panel.sceneExtent = state.sceneExtent;
     panel.scene.add(group);
     addBoundingBoxToScene(panel);
   }
   if (data.cloud_url) {
     const {points, vertexCount} = await loadCloudFromPLY(data.cloud_url + '?lod=preview');
+    panel.sceneExtent = state.sceneExtent;
     panel.cloudPoints = points;
     const panelPosAttr = points.geometry.getAttribute('position');
     panel.fullCloudPositions = new Float32Array(panelPosAttr.array);
@@ -4101,8 +4122,8 @@ function applyViewModeToAllPanels() {
 }
 
 function updatePointSizeInPanels(size) {
-  const matSize = computeAdaptivePointSize(size);
   for (const p of state.comparePanels) {
+    const matSize = computeAdaptivePointSize(size, p.sceneExtent);
     p.scene.traverse((child) => {
       if (child.isPoints && child.material) child.material.size = matSize;
     });
