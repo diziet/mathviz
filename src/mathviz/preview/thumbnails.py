@@ -26,9 +26,9 @@ DEFAULT_THUMBNAILS_DIR = Path.home() / ".mathviz" / "thumbnails"
 THUMBNAILS_DIR_ENV_VAR = "MATHVIZ_THUMBNAILS_DIR"
 SUBPROCESS_TIMEOUT_SECONDS = 60
 
-ViewMode = Literal["points", "shaded", "wireframe"]
-VALID_VIEW_MODES: tuple[str, ...] = ("points", "shaded", "wireframe")
-DEFAULT_VIEW_MODE: ViewMode = "points"
+ViewMode = Literal["vertex", "shaded", "wireframe"]
+VALID_VIEW_MODES: tuple[str, ...] = ("vertex", "shaded", "wireframe")
+DEFAULT_VIEW_MODE: ViewMode = "vertex"
 
 
 def get_thumbnails_dir() -> Path:

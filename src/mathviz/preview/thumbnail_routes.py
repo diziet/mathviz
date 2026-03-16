@@ -34,7 +34,7 @@ def _validate_view_mode(view_mode: str) -> str:
 @router.get("/api/generators/{name}/thumbnail")
 def get_generator_thumbnail(
     name: str,
-    view_mode: str = Query(default="points"),
+    view_mode: str = Query(default="vertex"),
 ) -> FileResponse:
     """Return a 472x472 WebP thumbnail for the given generator."""
     _validate_view_mode(view_mode)
@@ -79,7 +79,7 @@ def get_generator_thumbnail(
 
 @router.get("/api/generators/thumbnails")
 def get_all_thumbnails(
-    view_mode: str = Query(default="points"),
+    view_mode: str = Query(default="vertex"),
 ) -> dict[str, str]:
     """Return a map of generator_name -> thumbnail_url for all generators."""
     _validate_view_mode(view_mode)

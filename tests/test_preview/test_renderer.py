@@ -322,10 +322,10 @@ class TestRenderConfig:
         with pytest.raises(ValueError, match="height must be positive"):
             RenderConfig(height=-1)
 
-    def test_default_style_is_points(self) -> None:
-        """Default render style is points."""
+    def test_default_style_is_vertex(self) -> None:
+        """Default render style is vertex."""
         config = RenderConfig()
-        assert config.style == "points"
+        assert config.style == "vertex"
 
     def test_default_point_size(self) -> None:
         """Default point size is 3.0."""
@@ -349,7 +349,7 @@ class TestRenderConfig:
 
 
 class TestRenderStyles:
-    """Tests for render style options (shaded, wireframe, points)."""
+    """Tests for render style options (shaded, wireframe, vertex)."""
 
     def _render_with_style(
         self, tmp_path: Path, style: str, point_size: float = 3.0, suffix: str = ""
@@ -391,9 +391,9 @@ class TestRenderStyles:
         call_kwargs = mock_plotter.add_mesh.call_args[1]
         assert call_kwargs.get("style") == "wireframe"
 
-    def test_points_style_produces_png(self, tmp_path: Path) -> None:
-        """Points style produces a non-trivial PNG."""
-        mock_plotter, output_file = self._render_with_style(tmp_path, "points")
+    def test_vertex_style_produces_png(self, tmp_path: Path) -> None:
+        """Vertex style produces a non-trivial PNG."""
+        mock_plotter, output_file = self._render_with_style(tmp_path, "vertex")
         assert output_file.exists()
         assert output_file.stat().st_size > 0
         mock_plotter.add_mesh.assert_called_once()
@@ -401,27 +401,27 @@ class TestRenderStyles:
         assert call_kwargs.get("style") == "points"
         assert call_kwargs.get("render_points_as_spheres") is True
 
-    def test_points_style_uses_point_size(self, tmp_path: Path) -> None:
-        """Points style passes point_size to add_mesh."""
-        mock_plotter, _ = self._render_with_style(tmp_path, "points", point_size=5.0)
+    def test_vertex_style_uses_point_size(self, tmp_path: Path) -> None:
+        """Vertex style passes point_size to add_mesh."""
+        mock_plotter, _ = self._render_with_style(tmp_path, "vertex", point_size=5.0)
         call_kwargs = mock_plotter.add_mesh.call_args[1]
         assert call_kwargs.get("point_size") == 5.0
 
     def test_point_size_default_differs_from_custom(self, tmp_path: Path) -> None:
         """Different point_size values produce different add_mesh calls."""
-        default_plotter, _ = self._render_with_style(tmp_path, "points", point_size=3.0)
+        default_plotter, _ = self._render_with_style(tmp_path, "vertex", point_size=3.0)
         default_size = default_plotter.add_mesh.call_args[1]["point_size"]
 
         custom_plotter, _ = self._render_with_style(
-            tmp_path, "points", point_size=5.0, suffix="_large"
+            tmp_path, "vertex", point_size=5.0, suffix="_large"
         )
         custom_size = custom_plotter.add_mesh.call_args[1]["point_size"]
 
         assert default_size != custom_size
         assert custom_size == 5.0
 
-    def test_default_render_uses_points_style(self, tmp_path: Path) -> None:
-        """Default render (no explicit style) uses points style."""
-        mock_plotter, _ = self._render_with_style(tmp_path, "points")
+    def test_default_render_uses_vertex_style(self, tmp_path: Path) -> None:
+        """Default render (no explicit style) uses vertex style."""
+        mock_plotter, _ = self._render_with_style(tmp_path, "vertex")
         call_kwargs = mock_plotter.add_mesh.call_args[1]
         assert call_kwargs.get("style") == "points"
