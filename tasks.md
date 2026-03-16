@@ -5703,6 +5703,69 @@ slider handler calls `applyDensityFilter()` which early-returns when
 - Manual: density slider still works for cloud-only generators (sacks_spiral)
 - Manual: density percentage label updates correctly
 
+## Task 136: Recalibrate point size slider range and default after adaptive sizing
+
+**Objective:**
+
+Fix the point size slider so it has a useful range and a sensible default after
+the adaptive point sizing change in Task 132. Currently the slider range and
+default are miscalibrated: the default is too small on first render, the maximum
+is far too large, and the minimum is higher than what the initial render produces,
+creating a jarring jump when the user first touches the slider.
+
+**Root cause:**
+
+The slider HTML is `min="0.5" max="10" step="0.5" value="2"` and
+`computeAdaptivePointSize(sliderValue)` = `sceneExtent * sliderValue * 0.008`.
+For a typical 90mm scene extent:
+
+| Slider | World units | Pixels at distance 162 |
+|--------|-------------|------------------------|
+| 0.5 (min) | 0.36 | ~0.7 px (barely visible) |
+| 1.0 | 0.72 | ~1.3 px |
+| 2.0 (default) | 1.44 | ~2.7 px |
+| 10 (max) | 7.2 | ~13 px (way too large) |
+
+Problems:
+- Default (2) produces ~2.7px points — too small for a comfortable starting view
+- Max (10) produces ~13px blobs — far too large; useful max is around slider 1.0
+- The slider's lowest value (0.5) may produce bigger points than the initial
+  render if `sceneExtent` isn't set yet when materials are first created,
+  causing a visible jump when the user first touches the slider
+
+**Suggested path:**
+
+1. **Reduce the multiplier and adjust the range**: Lower the adaptive multiplier
+   (e.g. from 0.008 to 0.002) and adjust the slider range to compensate. For
+   example: slider `min="0.1" max="5" step="0.1" value="1"` with multiplier
+   `sceneExtent * sliderValue * 0.003`. This gives:
+   - min (0.1): ~0.5px (very small)
+   - default (1.0): ~5px (comfortable)
+   - max (5.0): ~25px (large but occasionally useful)
+
+2. **Or normalize the slider**: Make the slider represent a conceptual "point
+   radius in percent of scene extent" so the numbers are intuitive. e.g.
+   `min="0.1" max="2" step="0.05" value="0.5"` where value means "0.5% of
+   scene extent" as the point radius.
+
+3. **Ensure sceneExtent is set before any material creation**: Verify that
+   `state.sceneExtent` is always updated before `computeAdaptivePointSize`
+   is called, including on the very first load. If there's a timing issue,
+   defer material size updates until after extent is known.
+
+**Files:**
+
+- `src/mathviz/static/index.html` (point-size slider HTML, computeAdaptivePointSize,
+  updatePointSize, loadMeshFromGLB, loadCloudFromPLY)
+
+**Tests:**
+
+- Manual: start preview with torus — default point size is comfortable (~4-6px dots)
+- Manual: slider at minimum — points are very small but still visible
+- Manual: slider at maximum — points are large but not absurdly bloated
+- Manual: moving slider from default doesn't cause a size jump
+- Manual: works for both mesh generators and cloud-only generators
+
 ## Task 135: Fix initial camera zoom — restoreCameraIfSaved overrides fitCamera on first load
 
 **Objective:**
