@@ -125,6 +125,7 @@ canvas{display:block}
 .editor-row label{flex:0 0 auto;font-size:11px;opacity:0.8}
 .editor-row input{flex:1;width:0;min-width:0}
 .dim-row label{min-width:28px}
+.stretch-num{width:50px!important;flex:0 0 50px!important}
 .param-row label{min-width:80px}
 #usable-volume{font-size:11px;opacity:0.7;margin-top:2px}
 .container-buttons{display:flex;gap:6px}
@@ -377,9 +378,10 @@ canvas{display:block}
     <button id="lock-camera" data-mode="render" title="Camera: Locked (movable)">&#x1f512; Render Lock</button>
 
     <div class="section-title">Stretch</div>
-    <div class="editor-row dim-row"><label>X</label><input type="range" id="stretch-x" min="0.1" max="3" step="0.1" value="1"></div>
-    <div class="editor-row dim-row"><label>Y</label><input type="range" id="stretch-y" min="0.1" max="3" step="0.1" value="1"></div>
-    <div class="editor-row dim-row"><label>Z</label><input type="range" id="stretch-z" min="0.1" max="3" step="0.1" value="1"></div>
+    <div class="editor-row dim-row"><label>X</label><input type="range" id="stretch-x" min="0.1" max="3" step="0.1" value="1"><input type="number" id="stretch-x-num" class="control-input stretch-num" min="0.1" max="3" step="0.1" value="1.0"></div>
+    <div class="editor-row dim-row"><label>Y</label><input type="range" id="stretch-y" min="0.1" max="3" step="0.1" value="1"><input type="number" id="stretch-y-num" class="control-input stretch-num" min="0.1" max="3" step="0.1" value="1.0"></div>
+    <div class="editor-row dim-row"><label>Z</label><input type="range" id="stretch-z" min="0.1" max="3" step="0.1" value="1"><input type="number" id="stretch-z-num" class="control-input stretch-num" min="0.1" max="3" step="0.1" value="1.0"></div>
+    <button id="reset-scale-btn">Reset Scale</button>
 
     <div id="crystal-controls" style="display:none">
       <div class="section-title">Crystal Settings</div>
@@ -451,6 +453,7 @@ const state = {
   cloudPoints: null,
   bboxHelper: null,
   axesHelper: null,
+  axisLabels: [],
   viewMode: 'points',
   pointSize: 2,
   darkBg: true,
@@ -617,6 +620,8 @@ function clearScene() {
   if (state.cloudPoints) {scene.remove(state.cloudPoints); state.cloudPoints = null;}
   if (state.bboxHelper) {scene.remove(state.bboxHelper); state.bboxHelper = null;}
   if (state.axesHelper) {scene.remove(state.axesHelper); state.axesHelper = null;}
+  state.axisLabels.forEach((s) => scene.remove(s));
+  state.axisLabels = [];
   resetViewBtn.disabled = true;
 }
 
@@ -634,6 +639,58 @@ function createBBoxHelper() {
   const helper = new THREE.Box3Helper(box, 0x44aaff);
   helper.visible = document.getElementById('show-bbox').checked;
   return helper;
+}
+
+function createAxisLabelSprite(text, color) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  ctx.font = 'bold 48px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = color;
+  ctx.fillText(text, 32, 32);
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({map: tex, depthTest: false});
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(6, 6, 1);
+  return sprite;
+}
+
+const AXIS_COLORS = {x: '#ff4444', y: '#44ff44', z: '#4488ff'};
+
+function createAxesWithLabels() {
+  const cp = getContainerParams();
+  const axisLen = Math.max(cp.width_mm, cp.height_mm, cp.depth_mm) * 0.6;
+  const helper = new THREE.AxesHelper(axisLen);
+  scene.add(helper);
+  state.axesHelper = helper;
+
+  const labels = [
+    {text: 'X', color: AXIS_COLORS.x, pos: new THREE.Vector3(axisLen * 1.08, 0, 0)},
+    {text: 'Y', color: AXIS_COLORS.y, pos: new THREE.Vector3(0, axisLen * 1.08, 0)},
+    {text: 'Z', color: AXIS_COLORS.z, pos: new THREE.Vector3(0, 0, axisLen * 1.08)},
+  ];
+  labels.forEach(({text, color, pos}) => {
+    const sprite = createAxisLabelSprite(text, color);
+    sprite.position.copy(pos);
+    scene.add(sprite);
+    state.axisLabels.push(sprite);
+  });
+}
+
+function removeAxes() {
+  if (state.axesHelper) {scene.remove(state.axesHelper); state.axesHelper = null;}
+  state.axisLabels.forEach((s) => scene.remove(s));
+  state.axisLabels = [];
+}
+
+function refreshAxesIfVisible() {
+  if (document.getElementById('show-axes').checked) {
+    removeAxes();
+    createAxesWithLabels();
+  }
 }
 
 function addBoundingBox(object3d) {
@@ -804,6 +861,8 @@ async function displayGenerateResult(data, generatorName) {
   document.getElementById('view-mode').value = state.viewMode;
   restoreCameraIfSaved(savedCamera);
   applyViewMode();
+  applyStretch();
+  refreshAxesIfVisible();
 }
 
 /* ── Loading / cancel helpers ── */
@@ -1196,15 +1255,10 @@ document.getElementById('show-bbox').addEventListener('change', (e) => {
 
 document.getElementById('show-axes').addEventListener('change', (e) => {
   if (e.target.checked) {
-    if (!state.axesHelper) {
-      const cp = getContainerParams();
-      const axisLen = Math.max(cp.width_mm, cp.height_mm, cp.depth_mm) * 0.6;
-      state.axesHelper = new THREE.AxesHelper(axisLen);
-      scene.add(state.axesHelper);
-    }
-    state.axesHelper.visible = true;
-  } else if (state.axesHelper) {
-    state.axesHelper.visible = false;
+    removeAxes();
+    createAxesWithLabels();
+  } else {
+    removeAxes();
   }
 });
 
@@ -1215,11 +1269,30 @@ function applyStretch() {
 }
 
 ['stretch-x', 'stretch-y', 'stretch-z'].forEach((id) => {
-  document.getElementById(id).addEventListener('input', (e) => {
-    const axis = id.split('-')[1];
-    state.stretch[axis] = parseFloat(e.target.value);
+  const axis = id.split('-')[1];
+  const slider = document.getElementById(id);
+  const numInput = document.getElementById(id + '-num');
+  slider.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    numInput.value = val.toFixed(1);
+    state.stretch[axis] = val;
     applyStretch();
   });
+  numInput.addEventListener('input', (e) => {
+    const val = Math.max(0.1, Math.min(3, parseFloat(e.target.value) || 0.1));
+    slider.value = val;
+    state.stretch[axis] = val;
+    applyStretch();
+  });
+});
+
+document.getElementById('reset-scale-btn').addEventListener('click', () => {
+  state.stretch = {x: 1, y: 1, z: 1};
+  ['x', 'y', 'z'].forEach((a) => {
+    document.getElementById('stretch-' + a).value = 1;
+    document.getElementById('stretch-' + a + '-num').value = '1.0';
+  });
+  applyStretch();
 });
 
 document.getElementById('toggle-bg').addEventListener('change', (e) => {
@@ -1593,22 +1666,18 @@ function restoreUiState(ui) {
   /* Show axes toggle */
   if (typeof ui.show_axes === 'boolean') {
     document.getElementById('show-axes').checked = ui.show_axes;
-    if (ui.show_axes && !state.axesHelper) {
-      const cp = getContainerParams();
-      const axisLen = Math.max(cp.width_mm, cp.height_mm, cp.depth_mm) * 0.6;
-      state.axesHelper = new THREE.AxesHelper(axisLen);
-      scene.add(state.axesHelper);
-    }
-    if (state.axesHelper) state.axesHelper.visible = ui.show_axes;
+    removeAxes();
+    if (ui.show_axes) createAxesWithLabels();
   }
 
   /* Stretch (per-axis scale) */
   if (ui.stretch) {
     const s = ui.stretch;
     state.stretch = {x: s.x ?? 1, y: s.y ?? 1, z: s.z ?? 1};
-    document.getElementById('stretch-x').value = state.stretch.x;
-    document.getElementById('stretch-y').value = state.stretch.y;
-    document.getElementById('stretch-z').value = state.stretch.z;
+    ['x', 'y', 'z'].forEach((a) => {
+      document.getElementById('stretch-' + a).value = state.stretch[a];
+      document.getElementById('stretch-' + a + '-num').value = state.stretch[a].toFixed(1);
+    });
     applyStretch();
   }
 
