@@ -5599,54 +5599,62 @@ connections instead of left-to-right crossover.
 - Seam face areas within 5× of interior face areas
 - Vertex normals at u=0 have magnitude > 50% of interior mean
 
-## Task 132: Fix invisible point cloud rendering — sub-pixel point size for cloud-only generators
+## Task 132: Fix invisible point rendering — sub-pixel point size across all view modes
 
 **Objective:**
 
-Fix point cloud rendering so cloud-only generators (sacks_spiral, prime_gaps,
-ulam_spiral, digit_encoding) produce visible points in the preview UI. Currently
-these generators show a blank scene because the THREE.js point size is sub-pixel.
+Fix point rendering so points are visible in all contexts: cloud-only generators
+in points view, mesh generators in points view, and Crystal Preview mode (which
+is entirely point-based). Currently all points are sub-pixel and invisible.
 
 **Root cause:**
 
-`loadCloudFromPLY` creates `THREE.PointsMaterial` with
-`size: state.pointSize * 0.01` (= 0.02 world units) and `sizeAttenuation: true`
-(default). After the pipeline transforms points into the 100mm container, the
-camera sits ~162 units away. THREE.js attenuated point size formula:
+All THREE.PointsMaterial instances use a tiny world-space size with
+`sizeAttenuation: true`:
+- `loadCloudFromPLY`: `size: state.pointSize * 0.01` = 0.02 world units
+- `loadMeshFromGLB` (points child): `size: state.pointSize * 0.01` = 0.02
+- `createCrystalPointsMaterial`: `size: state.pointSize * 0.012` = 0.024
+
+After the pipeline transforms geometry into the 100mm container, the camera
+sits ~162 units away. THREE.js attenuated point size formula:
 `pixelSize = size * (canvasHeight / 2) / distance` = 0.02 * 300 / 162 = **0.037 pixels**.
 This is sub-pixel and invisible.
 
-Mesh-based generators are unaffected because they render surfaces; the tiny
-points in their "points" view mode are a secondary issue. But cloud-only
-generators have NO mesh fallback, so nothing renders at all.
-
-Affected generators: sacks_spiral, prime_gaps, ulam_spiral, digit_encoding,
-and any future point-cloud-only generator.
+**Impact:**
+- Cloud-only generators (sacks_spiral, prime_gaps, ulam_spiral, digit_encoding)
+  show blank scenes in points view — no mesh fallback
+- ALL generators show blank scenes in Crystal Preview mode — crystal mode hides
+  mesh surfaces and only shows points, which are invisible
+- Mesh generators' points view is also broken but less noticeable since users
+  default to shaded/wireframe views
 
 **Suggested path:**
 
-1. **Adaptive point size**: In `loadCloudFromPLY` (or `displayCloud`), compute
-   a point size based on the scene extent. For example:
-   `size = maxExtent * 0.02` where maxExtent is computed from the point cloud
-   bounding box. This keeps points at ~2% of the scene, visible at any scale.
+1. **Adaptive point size**: Compute a base point size from the scene extent
+   when geometry is loaded. For example: `baseSize = maxExtent * 0.02` where
+   maxExtent comes from the bounding box. Store in state and use as the
+   multiplier for all PointsMaterial sizes. This keeps points at ~2% of the
+   scene, yielding ~3-4 pixel points — visible at any scale.
 
-2. **Alternative**: Set `sizeAttenuation: false` on the PointsMaterial and use
-   a fixed pixel size (e.g. 2-4 pixels). This is simpler but ignores depth.
+2. **Update all creation sites**: `loadCloudFromPLY`, `loadMeshFromGLB`
+   (points child), `createCrystalPointsMaterial`, and `updatePointSize`
+   should all use the adaptive base size.
 
-3. **Point size slider**: The existing point size slider should also scale
-   adaptively. Currently `updatePointSize` sets `size * 0.01` which has the
-   same sub-pixel problem.
+3. **Point size slider**: Scale relative to the adaptive base, so the slider
+   provides meaningful control (e.g. `size = baseSize * sliderValue`).
 
 **Files:**
 
-- `src/mathviz/static/index.html` (loadCloudFromPLY, displayCloud, updatePointSize)
+- `src/mathviz/static/index.html` (loadCloudFromPLY, loadMeshFromGLB,
+  createCrystalPointsMaterial, displayCloud, updatePointSize, fitCamera)
 
 **Tests:**
 
-- Manual: generate sacks_spiral and verify points are visible
+- Manual: generate sacks_spiral — points visible in points view
+- Manual: generate torus — switch to Crystal Preview — points visible inside glass
 - Manual: generate prime_gaps, ulam_spiral, digit_encoding — all visible
-- Manual: point size slider changes visible point density/size
-- Manual: mesh generators still render correctly in all view modes
+- Manual: point size slider changes visible point size in all modes
+- Manual: mesh generators still render correctly in shaded/wireframe views
 
 ## Task 133: Fix density slider for mesh-derived point clouds
 
