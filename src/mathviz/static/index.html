@@ -1237,6 +1237,11 @@ async function timedGenerate(body, signal) {
 }
 
 /* ── Loading workflows ── */
+function applySamplingMode(body) {
+  if (state.viewMode === 'dense') body.sampling = 'post_transform';
+  if (state.viewMode === 'hd_cloud') body.sampling = 'resolution_scaled';
+}
+
 async function loadFromAPI(generator, genParams, seed, force) {
   showLoading(force ? 'Regenerating...' : 'Generating...');
   _cancelController = new AbortController();
@@ -1244,8 +1249,7 @@ async function loadFromAPI(generator, genParams, seed, force) {
   try {
     const body = {generator, params: genParams, seed, container: getContainerParams(), timeout: getTimeoutSeconds()};
     if (force) body.force = true;
-    if (state.viewMode === 'dense') body.sampling = 'post_transform';
-    if (state.viewMode === 'hd_cloud') body.sampling = 'resolution_scaled';
+    applySamplingMode(body);
     const resp = await timedGenerate(body, _cancelController.signal);
     const data = await resp.json();
     state.geometryId = data.geometry_id;
@@ -3761,6 +3765,7 @@ async function _doGenerate(currentGen) {
 
   try {
     const body = {generator: currentGen, params: genParams, seed, resolution, container: getContainerParams(), timeout: getTimeoutSeconds()};
+    applySamplingMode(body);
     const resp = await timedGenerate(body, _cancelController.signal);
     const data = await resp.json();
     await displayGenerateResult(data, currentGen);
