@@ -5598,5 +5598,101 @@ connections instead of left-to-right crossover.
 - No seam edge > 3× median edge length (eliminates "><" artifact)
 - Seam face areas within 5× of interior face areas
 - Vertex normals at u=0 have magnitude > 50% of interior mean
+
+## Task 132: Fix invisible point cloud rendering — sub-pixel point size for cloud-only generators
+
+**Objective:**
+
+Fix point cloud rendering so cloud-only generators (sacks_spiral, prime_gaps,
+ulam_spiral, digit_encoding) produce visible points in the preview UI. Currently
+these generators show a blank scene because the THREE.js point size is sub-pixel.
+
+**Root cause:**
+
+`loadCloudFromPLY` creates `THREE.PointsMaterial` with
+`size: state.pointSize * 0.01` (= 0.02 world units) and `sizeAttenuation: true`
+(default). After the pipeline transforms points into the 100mm container, the
+camera sits ~162 units away. THREE.js attenuated point size formula:
+`pixelSize = size * (canvasHeight / 2) / distance` = 0.02 * 300 / 162 = **0.037 pixels**.
+This is sub-pixel and invisible.
+
+Mesh-based generators are unaffected because they render surfaces; the tiny
+points in their "points" view mode are a secondary issue. But cloud-only
+generators have NO mesh fallback, so nothing renders at all.
+
+Affected generators: sacks_spiral, prime_gaps, ulam_spiral, digit_encoding,
+and any future point-cloud-only generator.
+
+**Suggested path:**
+
+1. **Adaptive point size**: In `loadCloudFromPLY` (or `displayCloud`), compute
+   a point size based on the scene extent. For example:
+   `size = maxExtent * 0.02` where maxExtent is computed from the point cloud
+   bounding box. This keeps points at ~2% of the scene, visible at any scale.
+
+2. **Alternative**: Set `sizeAttenuation: false` on the PointsMaterial and use
+   a fixed pixel size (e.g. 2-4 pixels). This is simpler but ignores depth.
+
+3. **Point size slider**: The existing point size slider should also scale
+   adaptively. Currently `updatePointSize` sets `size * 0.01` which has the
+   same sub-pixel problem.
+
+**Files:**
+
+- `src/mathviz/static/index.html` (loadCloudFromPLY, displayCloud, updatePointSize)
+
+**Tests:**
+
+- Manual: generate sacks_spiral and verify points are visible
+- Manual: generate prime_gaps, ulam_spiral, digit_encoding — all visible
+- Manual: point size slider changes visible point density/size
+- Manual: mesh generators still render correctly in all view modes
+
+## Task 133: Fix density slider for mesh-derived point clouds
+
+**Objective:**
+
+Make the point density slider work for mesh-based generators, not just PLY
+point cloud generators. Currently the density slider only affects generators
+that go through the `displayCloud` path (cloud-only generators). For mesh
+generators, the "points" view mode creates THREE.Points from mesh vertices
+but never sets `state.cloudPoints` or `state.fullCloudPositions`, so
+`applyDensityFilter()` early-returns on its null check.
+
+**Root cause:**
+
+In `loadMeshFromGLB`, points are created as children of `meshGroup`:
+```javascript
+const pts = new THREE.Points(geom.clone(), pointsMat);
+pts.name = 'points';
+group.add(shadedMesh, wireMesh, pts);
+```
+
+But `state.cloudPoints` is only set in `displayCloud`, which is only called
+for generators with a `cloud_url` (point-cloud-only generators). The density
+slider handler calls `applyDensityFilter()` which early-returns when
+`state.cloudPoints` is null.
+
+**Suggested path:**
+
+1. After loading a mesh, extract the points geometry and set up the density
+   filtering infrastructure (state.cloudPoints, state.fullCloudPositions,
+   state.fullCloudCount) the same way `displayCloud` does.
+
+2. Alternatively, make `applyDensityFilter` work on mesh group points by
+   finding the `points` child in `state.meshGroup` and filtering its geometry.
+
+3. Update `updateDensitySliderVisibility` to show the slider when mesh points
+   are available, not just when `state.cloudPoints` is set.
+
+**Files:**
+
+- `src/mathviz/static/index.html` (displayMesh, applyDensityFilter, updateDensitySliderVisibility)
+
+**Tests:**
+
+- Manual: load a mesh generator (e.g. torus), switch to points view, adjust density slider — point count should change
+- Manual: density slider still works for cloud-only generators (sacks_spiral)
+- Manual: density percentage label updates correctly
 - Max edge length < 3× median across entire mesh
 - Existing Möbius strip tests still pass
