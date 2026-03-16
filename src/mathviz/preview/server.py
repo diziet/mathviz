@@ -120,6 +120,7 @@ class GenerateRequest(BaseModel):
     resolution: dict[str, Any] = Field(default_factory=dict)
     container: ContainerParams | None = None
     force: bool = False
+    timeout: int | None = Field(default=None, gt=0, description="Per-request timeout in seconds")
 
 
 class GenerateResponse(BaseModel):
@@ -404,6 +405,7 @@ def _run_generation(
     container: Container,
 ) -> CacheEntry:
     """Execute the pipeline and return a CacheEntry."""
+    effective_timeout = req.timeout if req.timeout and req.timeout > 0 else get_timeout_seconds()
     try:
         result = _executor.submit(
             req.generator,
@@ -412,17 +414,17 @@ def _run_generation(
             resolution_kwargs=resolution,
             container=container,
             placement=PlacementPolicy(),
+            timeout_override=req.timeout,
         )
     except KeyError:
         raise _generator_not_found(req.generator)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except TimeoutError:
-        timeout = get_timeout_seconds()
-        logger.error("Generation timed out after %d seconds", timeout)
+        logger.error("Generation timed out after %d seconds", effective_timeout)
         raise HTTPException(
             status_code=504,
-            detail=f"Generation timed out after {timeout} seconds",
+            detail=f"Generation timed out after {effective_timeout} seconds",
         )
     except CancelledError:
         raise HTTPException(status_code=499, detail="Generation cancelled")
