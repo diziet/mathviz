@@ -283,34 +283,30 @@ class TestThreadBasedExecution:
     def test_cancel_stops_running_generation(self) -> None:
         """Cancel request stops a running thread-based generation within a few seconds."""
         executor = GenerationExecutor()
-        cancel_event = threading.Event()
         started = threading.Event()
         finished = threading.Event()
-        was_cancelled = threading.Event()
 
         def slow_pipeline(*args: Any, **kwargs: Any) -> None:
+            # Extract the cancel_event passed by the executor (last positional arg)
+            ce = args[6] if len(args) > 6 else kwargs.get("cancel_event")
             started.set()
             for _ in range(100):
-                if cancel_event.is_set():
-                    was_cancelled.set()
+                if ce is not None and ce.is_set():
                     raise CancelledError("cancelled")
                 time.sleep(0.05)
             finished.set()
 
         with patch("mathviz.preview.executor._run_pipeline_in_thread", side_effect=slow_pipeline):
-            # Submit in background thread
-            result_holder: list[Any] = []
             error_holder: list[Any] = []
 
             def do_submit() -> None:
                 try:
-                    r = executor.submit(
+                    executor.submit(
                         "torus", None, 42, None,
                         Container.with_uniform_margin(),
                         PlacementPolicy(),
                         timeout_override=30,
                     )
-                    result_holder.append(r)
                 except (CancelledError, Exception) as e:
                     error_holder.append(e)
 

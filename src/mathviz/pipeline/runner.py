@@ -80,6 +80,10 @@ def run(
 
     Chains: generate -> represent -> transform -> sample -> validate -> export.
     Calls validate_or_raise() at every stage boundary.
+
+    If *cancel_event* is provided, it is checked between stages. Cancellation
+    is cooperative: a long-running stage (e.g. generate) will not be interrupted
+    mid-execution — the event is only checked at stage boundaries.
     """
     timer = PipelineTimer()
 

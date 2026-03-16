@@ -108,8 +108,19 @@ class BatchResult:
     timed_out: bool = False
 
 
+_CANCEL_GRACE_SECONDS = 2
+
+
 class GenerationExecutor:
-    """Manages pipeline generation with timeout and cancel support."""
+    """Manages pipeline generation with timeout and cancel support.
+
+    Single generations run in a ThreadPoolExecutor to avoid subprocess
+    pickle/import overhead. The numba JIT kernel releases the GIL, so
+    CPU-bound compute does not block the event loop. Cancellation is
+    cooperative via a threading.Event checked between pipeline stages.
+    If a thread does not exit within the grace period after cancellation,
+    the pool is recreated as a last resort.
+    """
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -163,6 +174,7 @@ class GenerationExecutor:
         except TimeoutError:
             cancel_event.set()
             future.cancel()
+            self._wait_or_recreate_pool(future)
             raise
         except CancelledError:
             raise
@@ -233,6 +245,26 @@ class GenerationExecutor:
 
         return result
 
+    def _wait_or_recreate_pool(self, future: Future) -> None:
+        """Wait briefly for the thread to exit; recreate the pool if it doesn't."""
+        try:
+            future.result(timeout=_CANCEL_GRACE_SECONDS)
+        except (TimeoutError, CancelledError, KeyError, ValueError):
+            pass
+        except Exception:
+            pass
+
+        if not future.done():
+            logger.warning(
+                "Generation thread did not exit within %ds grace period; "
+                "recreating thread pool",
+                _CANCEL_GRACE_SECONDS,
+            )
+            with self._lock:
+                if self._thread_pool is not None:
+                    self._thread_pool.shutdown(wait=False, cancel_futures=True)
+                    self._thread_pool = None
+
     def cancel(self) -> bool:
         """Cancel the running generation. Returns True if cancelled."""
         with self._lock:
@@ -243,6 +275,7 @@ class GenerationExecutor:
             task.cancel_event.set()
             task.future.cancel()
 
+        self._wait_or_recreate_pool(task.future)
         return True
 
     def is_running(self) -> bool:
