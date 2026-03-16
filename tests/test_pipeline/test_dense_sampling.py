@@ -1,16 +1,18 @@
 """Tests for dense sampling caps and defaults.
 
 Verifies that MAX_DENSE_SAMPLES and MAX_RESOLUTION_SCALED_SAMPLES are
-5,000,000 and that client-specified max_samples below the cap is respected.
+5,000,000 hard ceilings, DEFAULT_DENSE_SAMPLES is 500,000, function
+defaults use the default constant, and enforcement clamps values above
+the ceiling.
 """
 
 import inspect
 
 import numpy as np
-import pytest
 
 from mathviz.core.math_object import CoordSpace, MathObject, Mesh
 from mathviz.pipeline.dense_sampling import (
+    DEFAULT_DENSE_SAMPLES,
     MAX_DENSE_SAMPLES,
     MAX_RESOLUTION_SCALED_SAMPLES,
     apply_edge_sampling,
@@ -41,26 +43,27 @@ def _make_cube_obj() -> MathObject:
     )
 
 
-def test_max_dense_samples_is_5_million() -> None:
-    """Default cap is 5,000,000 when no max_samples override is provided."""
+def test_hard_caps_are_5_million() -> None:
+    """Hard ceiling constants are 5,000,000."""
     assert MAX_DENSE_SAMPLES == 5_000_000
-
-
-def test_max_resolution_scaled_samples_is_5_million() -> None:
-    """Resolution-scaled cap is also 5,000,000."""
     assert MAX_RESOLUTION_SCALED_SAMPLES == 5_000_000
 
 
-def test_default_parameter_values_match_constants() -> None:
-    """Function default kwargs use the module-level constants."""
+def test_default_is_500k() -> None:
+    """Comfortable default is 500,000."""
+    assert DEFAULT_DENSE_SAMPLES == 500_000
+
+
+def test_function_defaults_use_default_constant() -> None:
+    """Function default kwargs use DEFAULT_DENSE_SAMPLES, not the hard cap."""
     post_sig = inspect.signature(apply_post_transform_sampling)
-    assert post_sig.parameters["max_samples"].default == MAX_DENSE_SAMPLES
+    assert post_sig.parameters["max_samples"].default == DEFAULT_DENSE_SAMPLES
 
     edge_sig = inspect.signature(apply_edge_sampling)
-    assert edge_sig.parameters["max_samples"].default == MAX_DENSE_SAMPLES
+    assert edge_sig.parameters["max_samples"].default == DEFAULT_DENSE_SAMPLES
 
     res_sig = inspect.signature(apply_resolution_scaled_sampling)
-    assert res_sig.parameters["max_samples"].default == MAX_RESOLUTION_SCALED_SAMPLES
+    assert res_sig.parameters["max_samples"].default == DEFAULT_DENSE_SAMPLES
 
 
 def test_client_specified_max_samples_below_cap_is_respected() -> None:
@@ -77,3 +80,32 @@ def test_client_edge_sampling_respects_cap() -> None:
     client_cap = 100
     result = apply_edge_sampling(obj, max_samples=client_cap)
     assert len(result.point_cloud.points) <= client_cap
+
+
+def test_hard_cap_enforced_on_post_transform() -> None:
+    """Passing max_samples above the hard cap gets clamped."""
+    obj = _make_cube_obj()
+    over_cap = MAX_DENSE_SAMPLES + 1_000_000
+    result = apply_post_transform_sampling(obj, max_samples=over_cap)
+    assert len(result.point_cloud.points) <= MAX_DENSE_SAMPLES
+
+
+def test_hard_cap_enforced_on_edge_sampling() -> None:
+    """Edge sampling clamps values above the hard cap."""
+    obj = _make_cube_obj()
+    over_cap = MAX_DENSE_SAMPLES + 1_000_000
+    result = apply_edge_sampling(obj, max_samples=over_cap)
+    assert len(result.point_cloud.points) <= MAX_DENSE_SAMPLES
+
+
+def test_hard_cap_enforced_on_resolution_scaled() -> None:
+    """Resolution-scaled sampling clamps values above the hard cap."""
+    obj = _make_cube_obj()
+    over_cap = MAX_RESOLUTION_SCALED_SAMPLES + 1_000_000
+    result = apply_resolution_scaled_sampling(
+        obj,
+        resolution_kwargs={"res": 10},
+        default_resolution={"res": 10},
+        max_samples=over_cap,
+    )
+    assert len(result.point_cloud.points) <= MAX_RESOLUTION_SCALED_SAMPLES
