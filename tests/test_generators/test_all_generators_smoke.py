@@ -19,13 +19,29 @@ def _generator_names() -> list[str]:
 class _AccessTrackingDict(dict):
     """Dict subclass that records which keys are accessed."""
 
-    def __init__(self, *args: object, **kwargs: object) -> None:
+    def __init__(
+        self,
+        *args: object,
+        _shared_keys: set[str] | None = None,
+        **kwargs: object,
+    ) -> None:
         super().__init__(*args, **kwargs)
-        self.accessed_keys: set[str] = set()
+        self.accessed_keys: set[str] = _shared_keys if _shared_keys is not None else set()
 
     def __getitem__(self, key: str) -> object:
         self.accessed_keys.add(key)
         return super().__getitem__(key)
+
+    def __contains__(self, key: object) -> bool:
+        """Track key access via `in` operator."""
+        if isinstance(key, str):
+            self.accessed_keys.add(key)
+        return super().__contains__(key)
+
+    def __iter__(self):
+        """Track all keys on iteration."""
+        self.accessed_keys.update(super().keys())
+        return super().__iter__()
 
     def get(self, key: str, default: object = None) -> object:
         """Track key access via .get() calls."""
@@ -36,6 +52,16 @@ class _AccessTrackingDict(dict):
         """Track key access via .pop() calls."""
         self.accessed_keys.add(key)
         return super().pop(key, *args)
+
+    def items(self):
+        """Track all keys on .items() iteration."""
+        self.accessed_keys.update(super().keys())
+        return super().items()
+
+    def values(self):
+        """Track all keys on .values() iteration."""
+        self.accessed_keys.update(super().keys())
+        return super().values()
 
 
 def _check_no_nan_inf(arr: np.ndarray, label: str) -> None:
@@ -115,11 +141,19 @@ def test_generator_default_params_consistency(generator_name: str) -> None:
     # Monkey-patch get_default_params to return a tracking dict.
     # Generators do `merged = self.get_default_params()` then read from merged,
     # so we must intercept at this level, not via the params argument.
-    tracking = _AccessTrackingDict(default_params)
-    gen.get_default_params = lambda: tracking  # type: ignore[assignment]
+    # Each call returns a fresh copy (some generators pop() keys from merged)
+    # but all copies share a single accessed_keys set.
+    # Note: generate() doesn't receive container/placement — those are
+    # pipeline-level concerns — so this only covers generation-stage params.
+    shared_keys: set[str] = set()
+
+    def _tracking_defaults() -> _AccessTrackingDict:
+        return _AccessTrackingDict(default_params, _shared_keys=shared_keys)
+
+    gen.get_default_params = _tracking_defaults  # type: ignore[assignment]
     gen.generate(seed=42)
 
-    unused_keys = set(default_params.keys()) - tracking.accessed_keys
+    unused_keys = set(default_params.keys()) - shared_keys
     assert not unused_keys, (
         f"{generator_name}: get_default_params() declares keys that generate() "
         f"never reads: {unused_keys}"
