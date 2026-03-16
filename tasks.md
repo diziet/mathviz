@@ -6763,3 +6763,31 @@ doesn't snap the camera back on the next frame.
 - Manual: A/D strafe left/right relative to current view direction
 - Manual: WASD keys do not trigger when typing in the seed or param inputs
 - Manual: WASD and mouse orbit controls work together without conflict
+
+---
+
+## Task 161: Add 2× and ÷2 buttons for max points input
+
+**Objective:**
+
+Manually typing exact sample counts is tedious. Add a "2×" button and a
+"÷2" button next to the max points input field so the user can quickly
+double or halve the current value with one click. This makes it fast to
+iterate on point density without mental math or precise typing.
+
+**Suggested path:**
+
+Add two small buttons (labels "2×" and "÷2") adjacent to the max points
+`<input>`. On click, "2×" sets the input value to `current * 2` and "÷2"
+sets it to `Math.max(1000, Math.floor(current / 2))` (floor to keep it an
+integer, clamp to a sensible minimum like 1,000). After updating the value,
+dispatch a `change` event on the input so existing listeners pick up the new
+value and trigger regeneration if appropriate. Style the buttons to be
+compact and visually consistent with the existing UI controls.
+
+**Tests:**
+
+- Manual: clicking "2×" doubles the displayed max points value
+- Manual: clicking "÷2" halves the value (rounded down)
+- Manual: "÷2" does not go below the minimum floor (e.g. 1,000)
+- Manual: changing max points via buttons triggers regeneration in sampling modes
