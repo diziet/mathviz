@@ -7,6 +7,7 @@ server-side rendering. Thumbnails are cached at
 
 import logging
 import os
+import tempfile
 from pathlib import Path
 from typing import Literal
 
@@ -83,11 +84,15 @@ def generate_thumbnail(generator_name: str, view_mode: str = DEFAULT_VIEW_MODE) 
     webp_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Render to a temporary PNG, then convert to WebP
-    png_path = webp_path.with_suffix(".png")
+    fd, tmp_png = tempfile.mkstemp(suffix=".tmp.png", dir=webp_path.parent)
+    os.close(fd)
+    png_path = Path(tmp_png)
     render_to_png(result.math_object, png_path, config=config, view="front-right-top")
 
-    Image.open(png_path).save(webp_path, "webp", quality=WEBP_QUALITY)
-    png_path.unlink(missing_ok=True)
+    try:
+        Image.open(png_path).save(webp_path, "webp", quality=WEBP_QUALITY)
+    finally:
+        png_path.unlink(missing_ok=True)
 
     logger.info("Generated thumbnail for %s (%s) at %s", generator_name, view_mode, webp_path)
     return webp_path
@@ -110,13 +115,10 @@ def clear_all_thumbnails() -> int:
         return 0
 
     count = 0
-    for thumb_file in thumbnails_dir.rglob("*.webp"):
-        thumb_file.unlink()
-        count += 1
-    # Also clean legacy PNGs
-    for png_file in thumbnails_dir.rglob("*.png"):
-        png_file.unlink()
-        count += 1
+    for ext in ("*.webp", "*.png"):
+        for thumb_file in thumbnails_dir.rglob(ext):
+            thumb_file.unlink()
+            count += 1
 
     # Clean up empty subdirectories
     for subdir in thumbnails_dir.iterdir():

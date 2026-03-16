@@ -3089,6 +3089,7 @@ function appendShortcutBadge(card, idx) {
 }
 
 function createThumbImg(generatorName, cssSize) {
+  const size = cssSize || 236;
   const viewMode = document.getElementById('view-mode').value;
   const img = document.createElement('img');
   const placeholder = document.createElement('div');
@@ -3096,10 +3097,8 @@ function createThumbImg(generatorName, cssSize) {
   img.src = '/api/generators/' + encodeURIComponent(generatorName) + '/thumbnail?view_mode=' + encodeURIComponent(viewMode);
   img.loading = 'lazy';
   img.alt = generatorName;
-  if (cssSize) {
-    img.width = cssSize;
-    img.height = cssSize;
-  }
+  img.width = size;
+  img.height = size;
   img.style.display = 'none';
   img.addEventListener('load', () => {
     img.className = placeholder.className;

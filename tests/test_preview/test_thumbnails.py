@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import httpx
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
@@ -87,6 +88,13 @@ def _mock_rendering() -> Generator[MagicMock, None, None]:
         yield mock_run
 
 
+def _fetch_torus_thumbnail(client: TestClient) -> httpx.Response:
+    """Fetch torus thumbnail and assert 200."""
+    resp = client.get("/api/generators/torus/thumbnail")
+    assert resp.status_code == 200
+    return resp
+
+
 class TestThumbnailEndpoint:
     """Tests for GET /api/generators/{name}/thumbnail."""
 
@@ -94,16 +102,14 @@ class TestThumbnailEndpoint:
         self, _mock_rendering: MagicMock, client: TestClient,
     ) -> None:
         """Thumbnail endpoint returns WebP content type."""
-        resp = client.get("/api/generators/torus/thumbnail")
-        assert resp.status_code == 200
+        resp = _fetch_torus_thumbnail(client)
         assert resp.headers["content-type"] == "image/webp"
 
     def test_thumbnail_generates_webp(
         self, _mock_rendering: MagicMock, client: TestClient,
     ) -> None:
         """Generated thumbnail is a valid WebP file."""
-        resp = client.get("/api/generators/torus/thumbnail")
-        assert resp.status_code == 200
+        resp = _fetch_torus_thumbnail(client)
         img = Image.open(io.BytesIO(resp.content))
         assert img.format == "WEBP"
 
@@ -111,8 +117,7 @@ class TestThumbnailEndpoint:
         self, _mock_rendering: MagicMock, client: TestClient,
     ) -> None:
         """Output image is 472x472 pixels."""
-        resp = client.get("/api/generators/torus/thumbnail")
-        assert resp.status_code == 200
+        resp = _fetch_torus_thumbnail(client)
         img = Image.open(io.BytesIO(resp.content))
         assert img.size == (THUMBNAIL_SIZE, THUMBNAIL_SIZE)
 
