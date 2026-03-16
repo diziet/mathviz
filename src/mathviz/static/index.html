@@ -505,10 +505,10 @@ canvas{display:block}
     </select>
 
     <div class="section-title">Point Size</div>
-    <input type="range" id="point-size" min="0.1" max="5" step="0.1" value="1"><span class="slider-value" id="point-size-value">1</span>
+    <input type="range" id="point-size" min="0.1" max="5" step="0.1" value="1" data-label="point-size-value"><span class="slider-value" id="point-size-value">1</span>
 
     <div id="density-control" class="section-title" style="display:none">Density</div>
-    <input type="range" id="density-slider" min="0.01" max="1" step="0.01" value="1" style="display:none"><span class="slider-value" id="density-value" style="display:none">1</span>
+    <input type="range" id="density-slider" min="0.01" max="1" step="0.01" value="1" style="display:none" data-label="density-value"><span class="slider-value" id="density-value" style="display:none">1</span>
 
     <div class="section-title">Options</div>
     <label><input type="checkbox" id="show-bbox" checked> Bounding Box</label>
@@ -525,8 +525,8 @@ canvas{display:block}
     <div id="crystal-controls" style="display:none">
       <div class="section-title">Crystal Settings</div>
       <label>Glass Tint <input type="color" id="crystal-glass-tint" value="#ffffff"></label>
-      <label>Bloom <input type="range" id="crystal-bloom" min="0" max="1" step="0.05" value="0.4"><span class="slider-value" id="crystal-bloom-value">0.4</span></label>
-      <label>Point Brightness <input type="range" id="crystal-brightness" min="0" max="1" step="0.05" value="0.8"><span class="slider-value" id="crystal-brightness-value">0.8</span></label>
+      <label>Bloom <input type="range" id="crystal-bloom" min="0" max="1" step="0.05" value="0.4" data-label="crystal-bloom-value"><span class="slider-value" id="crystal-bloom-value">0.4</span></label>
+      <label>Point Brightness <input type="range" id="crystal-brightness" min="0" max="1" step="0.05" value="0.8" data-label="crystal-brightness-value"><span class="slider-value" id="crystal-brightness-value">0.8</span></label>
       <label><input type="checkbox" id="crystal-led-base"> LED Base</label>
       <label>LED Color <input type="color" id="crystal-led-color" value="#fff0e0"></label>
     </div>
@@ -1820,6 +1820,17 @@ function updateFPS() {
   }
 }
 
+/* ── Slider value labels ── */
+function updateSliderLabel(sliderId, value) {
+  const el = document.getElementById(sliderId + '-value');
+  if (el) el.textContent = value;
+}
+document.querySelectorAll('input[type="range"][data-label]').forEach(slider => {
+  slider.addEventListener('input', () => {
+    document.getElementById(slider.dataset.label).textContent = slider.value;
+  });
+});
+
 /* ── Controls wiring ── */
 document.getElementById('view-mode').addEventListener('change', (e) => {
   state.viewMode = e.target.value;
@@ -1850,14 +1861,12 @@ document.getElementById('colormap-end-color').addEventListener('input', () => {
 
 document.getElementById('point-size').addEventListener('input', (e) => {
   const size = parseFloat(e.target.value);
-  document.getElementById('point-size-value').textContent = e.target.value;
   updatePointSize(size);
   if (state.compareMode) updatePointSizeInPanels(size);
 });
 
 let densityDirty = false;
 document.getElementById('density-slider').addEventListener('input', (e) => {
-  document.getElementById('density-value').textContent = e.target.value;
   state.density = parseFloat(e.target.value);
   if (!densityDirty) {
     densityDirty = true;
@@ -1966,7 +1975,6 @@ document.getElementById('crystal-glass-tint').addEventListener('input', (e) => {
 });
 
 document.getElementById('crystal-bloom').addEventListener('input', (e) => {
-  document.getElementById('crystal-bloom-value').textContent = e.target.value;
   if (state.crystalComposer) {
     const bloomPass = state.crystalComposer.passes.find(p => p.name === 'crystal-bloom');
     if (bloomPass) bloomPass.strength = parseFloat(e.target.value);
@@ -1974,7 +1982,6 @@ document.getElementById('crystal-bloom').addEventListener('input', (e) => {
 });
 
 document.getElementById('crystal-brightness').addEventListener('input', (e) => {
-  document.getElementById('crystal-brightness-value').textContent = e.target.value;
   const brightness = parseFloat(e.target.value);
   scene.traverse((child) => {
     if (child.isPoints && child.material && child.material.blending === THREE.AdditiveBlending) {
@@ -2695,7 +2702,7 @@ function restoreUiState(ui) {
   /* Point size */
   if (typeof ui.point_size === 'number') {
     document.getElementById('point-size').value = ui.point_size;
-    document.getElementById('point-size-value').textContent = ui.point_size;
+    updateSliderLabel('point-size', ui.point_size);
     updatePointSize(ui.point_size);
   }
 
@@ -2703,7 +2710,7 @@ function restoreUiState(ui) {
   if (typeof ui.density === 'number') {
     state.density = ui.density;
     document.getElementById('density-slider').value = ui.density;
-    document.getElementById('density-value').textContent = ui.density;
+    updateSliderLabel('density', ui.density);
     applyDensityFilter();
   }
 
