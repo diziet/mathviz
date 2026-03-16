@@ -70,6 +70,7 @@ CODE_KEYBOARD_SHORTCUTS = [
     "backspace",
     "arrow",
     "enter",
+    "r",
 ]
 
 

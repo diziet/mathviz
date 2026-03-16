@@ -28,7 +28,7 @@ Open the generator browser with **Cmd+K** (macOS) or **Ctrl+K** (other
 platforms). The browser is a full-screen modal that lets you explore all
 available generators organized by category.
 
-![Generator browser](images/ui/generator-browser.png)
+<!-- Screenshot: generator-browser.png — full-screen modal with category cards -->
 
 ### Category Grid
 
@@ -75,7 +75,7 @@ generators without opening the full browser. Type to filter the list.
 The left-column **Parameters** panel displays editable fields for the
 selected generator's parameters, populated from the generator's schema.
 
-![Parameters panel](images/ui/parameters-panel.png)
+<!-- Screenshot: parameters-panel.png — left-column parameter editor -->
 
 ### Parameter Fields
 
@@ -134,7 +134,7 @@ margins used by the Transform pipeline stage. The panel is collapsible —
 click its header to expand or collapse. Its collapsed state persists across
 sessions via localStorage.
 
-![Container panel](images/ui/container-panel.png)
+<!-- Screenshot: container-panel.png — dimensions and margin controls -->
 
 | Control | Default | Description |
 |---|---|---|
