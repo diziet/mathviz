@@ -46,9 +46,10 @@ def _write_metadata(
     container: dict[str, Any],
     geometry_id: str,
     created_at: datetime,
+    ui_state: dict[str, Any] | None = None,
 ) -> None:
     """Write metadata.json to the snapshot directory."""
-    metadata = {
+    metadata: dict[str, Any] = {
         "generator": generator,
         "params": params,
         "seed": seed,
@@ -56,6 +57,8 @@ def _write_metadata(
         "created_at": created_at.isoformat(),
         "geometry_id": geometry_id,
     }
+    if ui_state is not None:
+        metadata["ui_state"] = ui_state
     meta_path = snapshot_dir / "metadata.json"
     meta_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     logger.info("Wrote snapshot metadata to %s", meta_path)
@@ -91,6 +94,7 @@ def save_snapshot(
     container: dict[str, Any],
     geometry_id: str,
     thumbnail_png: bytes | None = None,
+    ui_state: dict[str, Any] | None = None,
 ) -> tuple[str, Path]:
     """Save a snapshot and return (snapshot_id, snapshot_dir)."""
     now = datetime.now(timezone.utc)
@@ -110,7 +114,8 @@ def save_snapshot(
 
     try:
         _write_metadata(
-            snapshot_dir, generator, params, seed, container, geometry_id, now
+            snapshot_dir, generator, params, seed, container, geometry_id, now,
+            ui_state=ui_state,
         )
         _save_geometry_files(snapshot_dir, math_object)
         if thumbnail_png is not None:
@@ -136,6 +141,8 @@ class SnapshotInfo:
     has_thumbnail: bool
     thumbnail_url: str | None
     geometry_files: list[str]
+    geometry_id: str
+    ui_state: dict[str, Any] | None = None
 
 
 def _read_snapshot_metadata(snapshot_dir: Path) -> dict[str, Any] | None:
@@ -150,7 +157,7 @@ def _read_snapshot_metadata(snapshot_dir: Path) -> dict[str, Any] | None:
         return None
 
 
-_REQUIRED_METADATA_KEYS = {"generator", "params", "seed", "container", "created_at"}
+_REQUIRED_METADATA_KEYS = {"generator", "params", "seed", "container", "created_at", "geometry_id"}
 
 
 def _snapshot_info_from_dir(snapshot_dir: Path) -> SnapshotInfo | None:
@@ -179,6 +186,8 @@ def _snapshot_info_from_dir(snapshot_dir: Path) -> SnapshotInfo | None:
         has_thumbnail=has_thumb,
         thumbnail_url=thumb_url,
         geometry_files=geo_files,
+        geometry_id=metadata["geometry_id"],
+        ui_state=metadata.get("ui_state"),
     )
 
 
