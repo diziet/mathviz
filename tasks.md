@@ -6652,3 +6652,28 @@ sampling misses.
 - Result is deterministic for the same seed
 - Manual: Edge Cloud on geodesic_sphere — wireframe skeleton visible
 - Manual: Dense Cloud on geodesic_sphere — surface fill plus visible edge structure
+
+---
+
+## Task 157: Rename "Point Cloud" view mode to "Vertex Cloud"
+
+**Objective:**
+
+With the addition of Dense Cloud and Edge Cloud, the original "Point Cloud"
+name is ambiguous — all three modes produce point clouds. Rename it to
+"Vertex Cloud" to clarify that this mode samples surface vertices only,
+distinguishing it from Edge Cloud (edges only) and Dense Cloud (vertices +
+edges).
+
+**Suggested path:**
+
+Change the `<option value="points">Point Cloud</option>` label to
+"Vertex Cloud" in the view-mode `<select>`. The `value` attribute should
+stay `"points"` to avoid breaking localStorage-persisted state, URL params,
+and all JS references to `state.viewMode === 'points'`. Only the
+user-facing label changes.
+
+**Tests:**
+
+- Manual: view mode dropdown shows "Vertex Cloud" instead of "Point Cloud"
+- Manual: saved view mode from before the rename still loads correctly
