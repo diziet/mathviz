@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 
 SamplingMode = Literal["default", "post_transform", "resolution_scaled", "edge"]
 
-MAX_DENSE_SAMPLES = 200_000
-MAX_RESOLUTION_SCALED_SAMPLES = 500_000
+MAX_DENSE_SAMPLES = 5_000_000
+MAX_RESOLUTION_SCALED_SAMPLES = 5_000_000
 _DENSE_SURFACE_DENSITY = 100.0
 _DENSE_SEED = 42
 _MIN_SAMPLES = 10
