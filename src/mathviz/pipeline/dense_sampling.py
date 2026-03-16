@@ -3,7 +3,7 @@
 import logging
 import threading
 from dataclasses import replace
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import trimesh
@@ -12,6 +12,8 @@ from mathviz.core.math_object import MathObject, PointCloud
 from mathviz.pipeline.representation_handlers import extract_unique_edges
 
 logger = logging.getLogger(__name__)
+
+SamplingMode = Literal["default", "post_transform", "resolution_scaled", "edge"]
 
 MAX_DENSE_SAMPLES = 200_000
 MAX_RESOLUTION_SCALED_SAMPLES = 500_000

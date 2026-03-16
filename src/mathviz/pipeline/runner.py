@@ -15,6 +15,7 @@ from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.core.validator import ValidationResult, validate_engraving, validate_mesh
 from mathviz.pipeline import representation_strategy, sampler, transformer
 from mathviz.pipeline.dense_sampling import (
+    SamplingMode,
     apply_edge_sampling,
     apply_post_transform_sampling,
     apply_resolution_scaled_sampling,
@@ -67,6 +68,35 @@ def _check_cancelled(cancel_event: threading.Event | None) -> None:
         raise CancelledError("Generation cancelled")
 
 
+def _apply_sampling(
+    obj: MathObject,
+    mode: SamplingMode,
+    timer: PipelineTimer,
+    *,
+    max_samples: int | None,
+    resolution_kwargs: dict[str, Any] | None,
+    gen_instance: GeneratorBase,
+) -> MathObject:
+    """Run the appropriate post-transform sampling and validate."""
+    kwargs: dict[str, Any] = {}
+    if max_samples is not None:
+        kwargs["max_samples"] = max_samples
+
+    if mode == "resolution_scaled":
+        kwargs["resolution_kwargs"] = resolution_kwargs or {}
+        kwargs["default_resolution"] = gen_instance.get_default_resolution()
+        sample_fn = apply_resolution_scaled_sampling
+    elif mode == "edge":
+        sample_fn = apply_edge_sampling
+    else:
+        sample_fn = apply_post_transform_sampling
+
+    with timer.stage("dense_sample"):
+        obj = sample_fn(obj, **kwargs)
+    obj.validate_or_raise()
+    return obj
+
+
 def run(
     generator: str | GeneratorBase,
     *,
@@ -80,9 +110,7 @@ def run(
     engraving_profile: EngravingProfile | None = None,
     export_config: ExportConfig | None = None,
     cancel_event: threading.Event | None = None,
-    post_transform_sampling: bool = False,
-    resolution_scaled_sampling: bool = False,
-    edge_sampling: bool = False,
+    sampling_mode: SamplingMode = "default",
     max_samples: int | None = None,
 ) -> PipelineResult:
     """Execute the full or partial pipeline.
@@ -94,16 +122,11 @@ def run(
     is cooperative: a long-running stage (e.g. generate) will not be interrupted
     mid-execution — the event is only checked at stage boundaries.
 
-    When *post_transform_sampling* is True, the represent stage uses
-    SURFACE_SHELL (to preserve the mesh) and a dense sampling step runs
-    after the transform combining surface and edge samples.
-
-    When *edge_sampling* is True, the represent stage uses SURFACE_SHELL
-    and only edge samples are produced (wireframe-like skeleton).
-
-    When *resolution_scaled_sampling* is True, the density is scaled by
-    (resolution / default_resolution)² so higher-resolution meshes produce
-    proportionally denser point clouds.
+    The *sampling_mode* parameter selects the post-transform sampling strategy:
+    - ``"default"``: no post-transform sampling
+    - ``"post_transform"``: dense surface + edge combined sampling
+    - ``"edge"``: edge-only wireframe skeleton
+    - ``"resolution_scaled"``: density scaled by (resolution / default)²
     """
     timer = PipelineTimer()
 
@@ -124,19 +147,14 @@ def run(
 
     # --- Represent ---
     _check_cancelled(cancel_event)
-    _needs_mesh = post_transform_sampling or resolution_scaled_sampling or edge_sampling
-    _sampling_mode = (
-        "resolution_scaled_sampling" if resolution_scaled_sampling
-        else "edge_sampling" if edge_sampling
-        else "post_transform_sampling"
-    )
+    _needs_mesh = sampling_mode != "default"
     with timer.stage("represent"):
         if _needs_mesh and obj.mesh is not None:
             if representation_config is not None:
                 logger.warning(
                     "%s overrides representation_config "
                     "(%s) with SURFACE_SHELL",
-                    _sampling_mode,
+                    sampling_mode,
                     representation_config.type.value,
                 )
             rep_config = RepresentationConfig(
@@ -165,35 +183,15 @@ def run(
         obj = transformer.fit(obj, container, placement)
     # transformer.fit already calls validate_or_raise internally
 
-    # --- Post-transform sampling (dense cloud / resolution-scaled mode) ---
-    if resolution_scaled_sampling and obj.mesh is not None:
+    # --- Post-transform sampling (dense / edge / resolution-scaled) ---
+    if sampling_mode != "default" and obj.mesh is not None:
         _check_cancelled(cancel_event)
-        default_res = gen_instance.get_default_resolution()
-        sample_kwargs: dict[str, Any] = {
-            "resolution_kwargs": resolution_kwargs or {},
-            "default_resolution": default_res,
-        }
-        if max_samples is not None:
-            sample_kwargs["max_samples"] = max_samples
-        with timer.stage("dense_sample"):
-            obj = apply_resolution_scaled_sampling(obj, **sample_kwargs)
-        obj.validate_or_raise()
-    elif edge_sampling and obj.mesh is not None:
-        _check_cancelled(cancel_event)
-        edge_kwargs: dict[str, Any] = {}
-        if max_samples is not None:
-            edge_kwargs["max_samples"] = max_samples
-        with timer.stage("dense_sample"):
-            obj = apply_edge_sampling(obj, **edge_kwargs)
-        obj.validate_or_raise()
-    elif post_transform_sampling and obj.mesh is not None:
-        _check_cancelled(cancel_event)
-        dense_kwargs: dict[str, Any] = {}
-        if max_samples is not None:
-            dense_kwargs["max_samples"] = max_samples
-        with timer.stage("dense_sample"):
-            obj = apply_post_transform_sampling(obj, **dense_kwargs)
-        obj.validate_or_raise()
+        obj = _apply_sampling(
+            obj, sampling_mode, timer,
+            max_samples=max_samples,
+            resolution_kwargs=resolution_kwargs,
+            gen_instance=gen_instance,
+        )
 
     # --- Sample (optional) ---
     if sampler_config is not None:
