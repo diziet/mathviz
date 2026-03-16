@@ -106,7 +106,7 @@ def run(
     gen_instance = _resolve_generator(generator)
 
     # --- Validate param keys ---
-    gen_instance.validate_param_keys(params, resolution_kwargs)
+    gen_instance.validate_param_keys(params)
 
     # --- Generate ---
     _check_cancelled(cancel_event)

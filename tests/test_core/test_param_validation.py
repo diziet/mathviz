@@ -156,13 +156,16 @@ def _collect_generator_classes() -> list[type[GeneratorBase]]:
 
     import mathviz.generators as gen_pkg
 
+    failures: list[tuple[str, Exception]] = []
     for _importer, modname, _is_pkg in pkgutil.walk_packages(
         gen_pkg.__path__, prefix="mathviz.generators."
     ):
         try:
             importlib.import_module(modname)
-        except Exception:
-            pass
+        except Exception as exc:
+            failures.append((modname, exc))
+
+    assert not failures, f"Failed to import generator modules: {failures}"
 
     # Collect all concrete subclasses with a name
     result: list[type[GeneratorBase]] = []

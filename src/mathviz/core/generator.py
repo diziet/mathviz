@@ -76,7 +76,6 @@ class GeneratorBase(ABC):
     def validate_param_keys(
         self,
         params: dict[str, Any] | None,
-        resolution_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """Validate that user-supplied param keys are recognized.
 
