@@ -23,20 +23,17 @@ _MIN_SAMPLES = 10
 _rng_lock = threading.Lock()
 
 
-def apply_post_transform_sampling(
+def _sample_mesh_surface(
     obj: MathObject,
-    *,
-    max_samples: int = MAX_DENSE_SAMPLES,
-    surface_density: float = _DENSE_SURFACE_DENSITY,
-) -> MathObject:
-    """Sample the mesh surface in physical space, capping at max_samples.
+    surface_density: float,
+    max_samples: int,
+) -> tuple[PointCloud, float]:
+    """Sample mesh surface, returning (cloud, total_area).
 
-    This produces a much denser cloud than pre-transform sampling because
-    the mesh area in physical space (mm^2) is typically much larger than
-    in abstract space (unit^2).
+    Builds a trimesh, computes sample count from area × density (capped),
+    and uses deterministic RNG-locked sampling.
     """
-    if obj.mesh is None:
-        raise ValueError("Post-transform sampling requires a mesh")
+    assert obj.mesh is not None  # caller must check  # noqa: S101
 
     tm = trimesh.Trimesh(
         vertices=obj.mesh.vertices,
@@ -57,6 +54,20 @@ def apply_post_transform_sampling(
         points=np.asarray(points, dtype=np.float64),
         normals=np.asarray(normals, dtype=np.float64),
     )
+    return cloud, total_area
+
+
+def apply_post_transform_sampling(
+    obj: MathObject,
+    *,
+    max_samples: int = MAX_DENSE_SAMPLES,
+    surface_density: float = _DENSE_SURFACE_DENSITY,
+) -> MathObject:
+    """Sample the mesh surface in physical space, capping at max_samples."""
+    if obj.mesh is None:
+        raise ValueError("Post-transform sampling requires a mesh")
+
+    cloud, total_area = _sample_mesh_surface(obj, surface_density, max_samples)
 
     logger.info(
         "Dense sampling: %d points from %.1f mm² surface (cap=%d)",
@@ -77,6 +88,11 @@ def _compute_resolution_scale(
     Finds the first matching numeric resolution parameter between the two
     dicts and returns (requested / default)².  Returns 1.0 when no match
     is found or when the default is zero.
+
+    Generators typically expose a single resolution parameter (e.g.
+    ``voxel_resolution`` or ``grid_resolution``).  If a generator has
+    multiple numeric resolution keys and the caller supplies more than one,
+    only the first iteration-order match is used.
     """
     for key, default_val in default_resolution.items():
         if key not in resolution_kwargs:
@@ -110,25 +126,7 @@ def apply_resolution_scaled_sampling(
     scale = _compute_resolution_scale(resolution_kwargs, default_resolution)
     surface_density = base_density * scale
 
-    tm = trimesh.Trimesh(
-        vertices=obj.mesh.vertices,
-        faces=obj.mesh.faces,
-        process=False,
-    )
-
-    total_area = float(tm.area)
-    sample_count = max(_MIN_SAMPLES, int(total_area * surface_density))
-    sample_count = min(sample_count, max_samples)
-
-    with _rng_lock:
-        np.random.seed(_DENSE_SEED)
-        points, face_indices = tm.sample(sample_count, return_index=True)
-    normals = tm.face_normals[face_indices]
-
-    cloud = PointCloud(
-        points=np.asarray(points, dtype=np.float64),
-        normals=np.asarray(normals, dtype=np.float64),
-    )
+    cloud, total_area = _sample_mesh_surface(obj, surface_density, max_samples)
 
     logger.info(
         "Resolution-scaled sampling: %d points from %.1f mm² surface "

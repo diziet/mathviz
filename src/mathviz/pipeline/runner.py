@@ -118,12 +118,17 @@ def run(
     # --- Represent ---
     _check_cancelled(cancel_event)
     _needs_mesh = post_transform_sampling or resolution_scaled_sampling
+    _sampling_mode = (
+        "resolution_scaled_sampling" if resolution_scaled_sampling
+        else "post_transform_sampling"
+    )
     with timer.stage("represent"):
         if _needs_mesh and obj.mesh is not None:
             if representation_config is not None:
                 logger.warning(
-                    "post_transform_sampling overrides representation_config "
+                    "%s overrides representation_config "
                     "(%s) with SURFACE_SHELL",
+                    _sampling_mode,
                     representation_config.type.value,
                 )
             rep_config = RepresentationConfig(
@@ -131,8 +136,9 @@ def run(
             )
         elif _needs_mesh and obj.mesh is None:
             logger.warning(
-                "post_transform_sampling requested but %s has no mesh; "
+                "%s requested but %s has no mesh; "
                 "falling back to normal pipeline",
+                _sampling_mode,
                 obj.generator_name or "object",
             )
             rep_config = representation_config or representation_strategy.get_default(

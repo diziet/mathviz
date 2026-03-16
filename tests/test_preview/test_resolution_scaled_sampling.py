@@ -75,57 +75,34 @@ def _small_mesh() -> Mesh:
     return Mesh(vertices=vertices, faces=faces)
 
 
+def _sample_small_mesh(voxel_resolution: int = 128, **kwargs: Any) -> MathObject:
+    """Apply resolution-scaled sampling to a small mesh at given resolution."""
+    obj = MathObject(generator_name="test", mesh=_small_mesh())
+    return apply_resolution_scaled_sampling(
+        obj,
+        resolution_kwargs={"voxel_resolution": voxel_resolution},
+        default_resolution={"voxel_resolution": 128},
+        max_samples=500_000,
+        **kwargs,
+    )
+
+
 class TestResolutionScaling:
     """Doubling voxel resolution roughly quadruples point count."""
 
     def test_double_resolution_quadruples_points(self) -> None:
         """At 2x resolution, point count should be roughly 4x."""
-        mesh = _small_mesh()
-        obj = MathObject(generator_name="test", mesh=mesh)
+        count_default = len(_sample_small_mesh(128).point_cloud.points)
+        count_double = len(_sample_small_mesh(256).point_cloud.points)
 
-        # Default resolution (scale = 1.0)
-        result_default = apply_resolution_scaled_sampling(
-            obj,
-            resolution_kwargs={"voxel_resolution": 128},
-            default_resolution={"voxel_resolution": 128},
-            max_samples=500_000,
-        )
-        count_default = len(result_default.point_cloud.points)
-
-        # Double resolution (scale = 4.0)
-        result_double = apply_resolution_scaled_sampling(
-            obj,
-            resolution_kwargs={"voxel_resolution": 256},
-            default_resolution={"voxel_resolution": 128},
-            max_samples=500_000,
-        )
-        count_double = len(result_double.point_cloud.points)
-
-        # 4x expected; allow range 3x-5x for sampling variance
         ratio = count_double / count_default
         assert ratio > 3.0, f"Expected ~4x, got {ratio:.1f}x"
         assert ratio < 5.0, f"Expected ~4x, got {ratio:.1f}x"
 
     def test_quadruple_resolution_16x_points(self) -> None:
         """At 4x resolution, point count should be roughly 16x."""
-        mesh = _small_mesh()
-        obj = MathObject(generator_name="test", mesh=mesh)
-
-        result_default = apply_resolution_scaled_sampling(
-            obj,
-            resolution_kwargs={"voxel_resolution": 128},
-            default_resolution={"voxel_resolution": 128},
-            max_samples=500_000,
-        )
-        count_default = len(result_default.point_cloud.points)
-
-        result_quad = apply_resolution_scaled_sampling(
-            obj,
-            resolution_kwargs={"voxel_resolution": 512},
-            default_resolution={"voxel_resolution": 128},
-            max_samples=500_000,
-        )
-        count_quad = len(result_quad.point_cloud.points)
+        count_default = len(_sample_small_mesh(128).point_cloud.points)
+        count_quad = len(_sample_small_mesh(512).point_cloud.points)
 
         ratio = count_quad / count_default
         assert ratio > 14.0, f"Expected ~16x, got {ratio:.1f}x"
@@ -137,32 +114,21 @@ class TestDefaultResolutionMatchesNormal:
 
     def test_default_resolution_same_density(self) -> None:
         """At default resolution, scale is 1.0 so density equals base."""
-        mesh = _small_mesh()
-        obj = MathObject(generator_name="test", mesh=mesh)
+        obj = MathObject(generator_name="test", mesh=_small_mesh())
 
-        # Resolution-scaled at default → scale 1.0
-        result_scaled = apply_resolution_scaled_sampling(
-            obj,
-            resolution_kwargs={"voxel_resolution": 128},
-            default_resolution={"voxel_resolution": 128},
-            max_samples=500_000,
-        )
+        result_scaled = _sample_small_mesh(128)
 
-        # Dense sampling at base density (same density as scale=1.0)
         from mathviz.pipeline.dense_sampling import apply_post_transform_sampling
 
         result_dense = apply_post_transform_sampling(obj)
 
-        # Both should produce the same count (same density, same area)
         assert len(result_scaled.point_cloud.points) == len(
             result_dense.point_cloud.points
         )
 
     def test_no_resolution_kwarg_uses_scale_1(self) -> None:
         """When resolution_kwargs is empty, scale defaults to 1.0."""
-        mesh = _small_mesh()
-        obj = MathObject(generator_name="test", mesh=mesh)
-
+        obj = MathObject(generator_name="test", mesh=_small_mesh())
         result = apply_resolution_scaled_sampling(
             obj,
             resolution_kwargs={},

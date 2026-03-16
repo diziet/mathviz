@@ -175,7 +175,7 @@ class UiState(BaseModel):
     camera: CameraState = Field(default_factory=CameraState)
     # "dense" maps to GenerateRequest.sampling="post_transform" at request time.
     # "hd_cloud" maps to GenerateRequest.sampling="resolution_scaled".
-    view_mode: Literal["points", "shaded", "wireframe", "crystal", "dense", "hd_cloud"] = "points"
+    view_mode: Literal["points", "shaded", "wireframe", "crystal", "dense", "hd_cloud", "colormap"] = "points"
     stretch: StretchState = Field(default_factory=StretchState)
     camera_lock: Literal["off", "render", "full"] = "render"
     show_bbox: bool = True
