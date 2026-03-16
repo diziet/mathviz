@@ -28,6 +28,7 @@ mathviz = "mathviz.cli:main"
 [project.optional-dependencies]
 render = [
     "pyvista>=0.43.0",
+    "Pillow>=10.0.0",
 ]
 dev = [
     "pytest>=8.3.3",
