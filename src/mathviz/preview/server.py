@@ -11,7 +11,7 @@ import trimesh
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import GeneratorMeta, get_generator_meta, list_generators
@@ -182,6 +182,12 @@ class UiState(BaseModel):
     show_axes: bool = False
     light_bg: bool = False
     point_size: float = 0.1
+
+    @field_validator("point_size")
+    @classmethod
+    def clamp_point_size(cls, v: float) -> float:
+        """Clamp point_size to slider range for backwards compat with old snapshots."""
+        return max(0.02, min(0.25, v))
 
 
 class SnapshotRequest(BaseModel):
