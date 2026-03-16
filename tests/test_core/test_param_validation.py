@@ -149,14 +149,40 @@ def test_resolution_param_error_mentions_correct_usage(
 # ---------------------------------------------------------------------------
 
 
+def _collect_generator_classes() -> list[type[GeneratorBase]]:
+    """Import all generator modules and collect concrete subclasses."""
+    import importlib
+    import pkgutil
+
+    import mathviz.generators as gen_pkg
+
+    for _importer, modname, _is_pkg in pkgutil.walk_packages(
+        gen_pkg.__path__, prefix="mathviz.generators."
+    ):
+        try:
+            importlib.import_module(modname)
+        except Exception:
+            pass
+
+    # Collect all concrete subclasses with a name
+    result: list[type[GeneratorBase]] = []
+    queue = [GeneratorBase]
+    while queue:
+        parent = queue.pop()
+        for child in parent.__subclasses__():
+            queue.append(child)
+            if child.name and not child.__abstractmethods__:
+                result.append(child)
+    return result
+
+
 def test_all_generators_pass_validation_with_defaults() -> None:
     """Every registered generator's default params pass validation."""
-    clear_registry(suppress_discovery=False)
-    generators = list_generators()
-    assert len(generators) > 0, "No generators discovered"
+    classes = _collect_generator_classes()
+    assert len(classes) > 0, "No generators discovered"
 
-    for meta in generators:
-        gen_instance = meta.generator_class()
+    for gen_cls in classes:
+        gen_instance = gen_cls()
         defaults = gen_instance.get_default_params()
         # Should not raise
         gen_instance.validate_param_keys(defaults)
