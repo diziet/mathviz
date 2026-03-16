@@ -684,6 +684,7 @@ import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 /* ── Constants ── */
 const DEFAULT_MAX_SAMPLES = 500000;
+const MAX_ALLOWED_SAMPLES = 5000000;
 const VIEW_MODE_TO_SAMPLING = {dense: 'post_transform', surface: 'resolution_scaled', edge_cloud: 'edge'};
 
 /* ── State ── */
@@ -2024,7 +2025,8 @@ try {
 /* 2× and ÷2 buttons for max points */
 function setMaxPoints(value) {
   const input = document.getElementById('max-points-input');
-  input.value = value;
+  const min = parseInt(input.min, 10) || 1000;
+  input.value = Math.min(MAX_ALLOWED_SAMPLES, Math.max(min, Math.floor(value)));
   input.dispatchEvent(new Event('change'));
 }
 document.getElementById('max-points-double').addEventListener('click', () => {
@@ -2033,7 +2035,7 @@ document.getElementById('max-points-double').addEventListener('click', () => {
 });
 document.getElementById('max-points-half').addEventListener('click', () => {
   const current = parseInt(document.getElementById('max-points-input').value, 10) || DEFAULT_MAX_SAMPLES;
-  setMaxPoints(Math.max(1000, Math.floor(current / 2)));
+  setMaxPoints(current / 2);
 });
 
 document.getElementById('colormap-metric').addEventListener('change', (e) => {
