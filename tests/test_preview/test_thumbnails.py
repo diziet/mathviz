@@ -19,6 +19,7 @@ from mathviz.preview.server import app
 from mathviz.preview.thumbnails import (
     THUMBNAIL_SIZE,
     THUMBNAILS_DIR_ENV_VAR,
+    generate_thumbnail_subprocess,
     get_thumbnail_path,
     get_thumbnails_dir,
 )
@@ -72,20 +73,23 @@ def client() -> TestClient:
     return TestClient(app)
 
 
+def _fake_generate_subprocess(name: str, view_mode: str = "points", timeout: int = 60) -> Path:
+    """Write a valid WebP at the expected cache path, simulating subprocess."""
+    path = get_thumbnail_path(name, view_mode)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    img = Image.new("RGB", (THUMBNAIL_SIZE, THUMBNAIL_SIZE), color=(128, 128, 128))
+    img.save(path, "webp")
+    return path
+
+
 @pytest.fixture
 def _mock_rendering() -> Generator[MagicMock, None, None]:
-    """Stub out pipeline + renderer for thumbnail tests."""
-    with (
-        patch(
-            "mathviz.preview.thumbnails.run_pipeline",
-            return_value=_mock_pipeline_result(),
-        ) as mock_run,
-        patch(
-            "mathviz.preview.thumbnails.render_to_png",
-            side_effect=_fake_render_to_png,
-        ),
-    ):
-        yield mock_run
+    """Stub out subprocess-based thumbnail generation."""
+    with patch(
+        "mathviz.preview.thumbnails.generate_thumbnail_subprocess",
+        side_effect=_fake_generate_subprocess,
+    ) as mock_gen:
+        yield mock_gen
 
 
 def _fetch_torus_thumbnail(client: TestClient) -> httpx.Response:
@@ -166,7 +170,7 @@ class TestThumbnailEndpoint:
     def test_thumbnail_missing_pyvista_returns_501(self, client: TestClient) -> None:
         """When render unavailable, endpoint returns 501 not 500."""
         with patch(
-            "mathviz.preview.thumbnails.run_pipeline",
+            "mathviz.preview.thumbnails.generate_thumbnail_subprocess",
             side_effect=ImportError("No module named 'pyvista'"),
         ):
             resp = client.get("/api/generators/torus/thumbnail")
