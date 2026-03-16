@@ -183,7 +183,7 @@ class UiState(BaseModel):
 
     @field_validator("view_mode", mode="before")
     @classmethod
-    def migrate_points_to_vertex(cls, v: str) -> str:
+    def migrate_legacy_view_mode(cls, v: str) -> str:
         """Migrate legacy view mode values."""
         if v == "points":
             return "vertex"

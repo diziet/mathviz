@@ -285,3 +285,21 @@ class TestComputeResolutionScale:
             {"grid_resolution": 256}, {"grid_resolution": 128},
         )
         assert scale == pytest.approx(4.0)
+
+
+class TestLegacyViewModeMigration:
+    """UiState migrates legacy 'hd_cloud' to 'surface'."""
+
+    def test_hd_cloud_migrates_to_surface(self) -> None:
+        """Legacy hd_cloud value is accepted and migrated to surface."""
+        from mathviz.preview.server import UiState
+
+        ui = UiState(view_mode="hd_cloud")
+        assert ui.view_mode == "surface"
+
+    def test_surface_accepted_directly(self) -> None:
+        """The new 'surface' value is accepted without migration."""
+        from mathviz.preview.server import UiState
+
+        ui = UiState(view_mode="surface")
+        assert ui.view_mode == "surface"
