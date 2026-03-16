@@ -250,7 +250,8 @@ canvas{display:block}
 .snap-actions .snap-delete:hover{background:rgba(220,50,50,0.4)}
 
 .param-hint{font-size:10px;opacity:0.5;margin-top:2px}
-.param-range-row{display:flex;gap:4px;align-items:center;margin-top:2px}
+.param-range-row{display:none;gap:4px;align-items:center;margin-top:2px}
+.param-range-row.visible{display:flex}
 .param-range-row span{font-size:10px;opacity:0.6;flex:0 0 auto}
 .param-range-row input{flex:1;width:0;min-width:0;font-size:11px;padding:1px 3px;
   background:rgba(255,255,255,0.08);border:1px solid rgba(128,128,128,0.3);
@@ -467,6 +468,7 @@ canvas{display:block}
         <button id="param-apply-btn">Apply</button>
         <button id="param-reset-btn">Reset</button>
         <button id="param-randomize-btn" title="Randomize parameters (R)">&#x1F3B2;</button>
+        <button id="param-ranges-toggle" title="Show/hide randomize ranges">&#x2194;</button>
       </div>
     </div>
   </div>
@@ -3650,6 +3652,10 @@ async function randomizeParams() {
 }
 
 document.getElementById('param-randomize-btn').addEventListener('click', randomizeParams);
+
+document.getElementById('param-ranges-toggle').addEventListener('click', () => {
+  document.querySelectorAll('.param-range-row').forEach(row => row.classList.toggle('visible'));
+});
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'r' || e.key === 'R') {
