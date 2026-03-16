@@ -1,12 +1,13 @@
 """Thumbnail generation and persistent disk caching for generator previews.
 
-Generates 256x256 PNG thumbnails using PyVista server-side rendering.
-Thumbnails are cached at ~/.mathviz/thumbnails/<view_mode>/<generator_name>.png.
+Generates 472x472 WebP thumbnails (retina 2x for 236 CSS px) using PyVista
+server-side rendering. Thumbnails are cached at
+~/.mathviz/thumbnails/<view_mode>/<generator_name>.webp.
 """
 
 import logging
 import os
-import shutil
+import tempfile
 from pathlib import Path
 from typing import Literal
 
@@ -17,7 +18,8 @@ from mathviz.preview.renderer import RenderConfig, render_to_png
 
 logger = logging.getLogger(__name__)
 
-THUMBNAIL_SIZE = 256
+THUMBNAIL_SIZE = 472
+WEBP_QUALITY = 85
 DEFAULT_THUMBNAILS_DIR = Path.home() / ".mathviz" / "thumbnails"
 THUMBNAILS_DIR_ENV_VAR = "MATHVIZ_THUMBNAILS_DIR"
 
@@ -36,7 +38,7 @@ def get_thumbnails_dir() -> Path:
 
 def get_thumbnail_path(generator_name: str, view_mode: str) -> Path:
     """Return the disk path for a cached thumbnail."""
-    return get_thumbnails_dir() / view_mode / f"{generator_name}.png"
+    return get_thumbnails_dir() / view_mode / f"{generator_name}.webp"
 
 
 def _halve_resolution(resolution: dict) -> dict:
@@ -53,7 +55,9 @@ def _halve_resolution(resolution: dict) -> dict:
 
 
 def generate_thumbnail(generator_name: str, view_mode: str = DEFAULT_VIEW_MODE) -> Path:
-    """Generate a thumbnail PNG for a generator and save it to disk cache."""
+    """Generate a WebP thumbnail for a generator and save it to disk cache."""
+    from PIL import Image
+
     meta = get_generator_meta(generator_name)
     instance = meta.generator_class.create(resolved_name=generator_name)
 
@@ -76,12 +80,22 @@ def generate_thumbnail(generator_name: str, view_mode: str = DEFAULT_VIEW_MODE) 
         point_size=2.0,
     )
 
-    output_path = get_thumbnail_path(meta.name, view_mode)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    webp_path = get_thumbnail_path(meta.name, view_mode)
+    webp_path.parent.mkdir(parents=True, exist_ok=True)
 
-    render_to_png(result.math_object, output_path, config=config, view="front-right-top")
-    logger.info("Generated thumbnail for %s (%s) at %s", generator_name, view_mode, output_path)
-    return output_path
+    # Render to a temporary PNG, then convert to WebP
+    fd, tmp_png = tempfile.mkstemp(suffix=".tmp.png", dir=webp_path.parent)
+    os.close(fd)
+    png_path = Path(tmp_png)
+    render_to_png(result.math_object, png_path, config=config, view="front-right-top")
+
+    try:
+        Image.open(png_path).save(webp_path, "webp", quality=WEBP_QUALITY)
+    finally:
+        png_path.unlink(missing_ok=True)
+
+    logger.info("Generated thumbnail for %s (%s) at %s", generator_name, view_mode, webp_path)
+    return webp_path
 
 
 def get_or_generate_thumbnail(generator_name: str, view_mode: str = DEFAULT_VIEW_MODE) -> Path:
@@ -101,9 +115,10 @@ def clear_all_thumbnails() -> int:
         return 0
 
     count = 0
-    for png_file in thumbnails_dir.rglob("*.png"):
-        png_file.unlink()
-        count += 1
+    for ext in ("*.webp", "*.png"):
+        for thumb_file in thumbnails_dir.rglob(ext):
+            thumb_file.unlink()
+            count += 1
 
     # Clean up empty subdirectories
     for subdir in thumbnails_dir.iterdir():

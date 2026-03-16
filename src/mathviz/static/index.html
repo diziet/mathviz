@@ -3109,7 +3109,8 @@ function appendShortcutBadge(card, idx) {
   card.appendChild(shortcut);
 }
 
-function createThumbImg(generatorName) {
+function createThumbImg(generatorName, cssSize) {
+  const size = cssSize || 236;
   const viewMode = document.getElementById('view-mode').value;
   const img = document.createElement('img');
   const placeholder = document.createElement('div');
@@ -3117,6 +3118,8 @@ function createThumbImg(generatorName) {
   img.src = '/api/generators/' + encodeURIComponent(generatorName) + '/thumbnail?view_mode=' + encodeURIComponent(viewMode);
   img.loading = 'lazy';
   img.alt = generatorName;
+  img.width = size;
+  img.height = size;
   img.style.display = 'none';
   img.addEventListener('load', () => {
     img.className = placeholder.className;
@@ -3124,7 +3127,11 @@ function createThumbImg(generatorName) {
     img.style.display = '';
   });
   img.addEventListener('error', () => {
-    placeholder.innerHTML = '<span style="font-size:10px;opacity:0.4">?</span>';
+    placeholder.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity:0.3">'
+      + '<rect x="3" y="3" width="18" height="18" rx="3" stroke="#888" stroke-width="1.5"/>'
+      + '<circle cx="12" cy="10" r="3" stroke="#888" stroke-width="1.5"/>'
+      + '<path d="M6 20l4-5 3 3 2-2 3 4" stroke="#888" stroke-width="1.5" stroke-linejoin="round"/>'
+      + '</svg>';
   });
   // Start loading in background
   placeholder.appendChild(img);
@@ -3151,7 +3158,7 @@ function renderCategoryGrid() {
     thumbStrip.className = 'category-thumbs';
     const previewGens = cat.generators.slice(0, 3);
     for (const g of previewGens) {
-      thumbStrip.appendChild(createThumbImg(g.name));
+      thumbStrip.appendChild(createThumbImg(g.name, 48));
     }
     card.appendChild(thumbStrip);
     card.addEventListener('click', () => {
@@ -3195,7 +3202,7 @@ function showCategoryGenerators(categoryName) {
     const card = document.createElement('div');
     card.className = 'generator-card';
     if (gen.name === currentGen) card.classList.add('selected');
-    card.appendChild(createThumbImg(gen.name));
+    card.appendChild(createThumbImg(gen.name, 236));
     const name = document.createElement('div');
     name.className = 'generator-card-name';
     name.textContent = gen.name;
@@ -3227,7 +3234,7 @@ function renderSearchResults(query) {
     const card = document.createElement('div');
     card.className = 'search-result-card';
     if (gen.name === currentGen) card.classList.add('selected');
-    const thumb = createThumbImg(gen.name);
+    const thumb = createThumbImg(gen.name, 48);
     thumb.classList.add('search-result-thumb');
     card.appendChild(thumb);
     const info = document.createElement('div');
