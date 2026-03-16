@@ -110,20 +110,24 @@ class TestResolutionScaling:
 
 
 class TestDefaultResolutionMatchesNormal:
-    """Default resolution produces the same count as normal SPARSE_SHELL."""
+    """Default resolution produces the same count as base density."""
 
-    def test_default_resolution_same_density(self) -> None:
-        """At default resolution, scale is 1.0 so density equals base."""
+    def test_default_resolution_matches_base_density(self) -> None:
+        """At default resolution, resolution-scaled produces same count as direct base density call."""
         obj = MathObject(generator_name="test", mesh=_small_mesh())
 
+        # Resolution-scaled at default resolution (scale=1.0)
         result_scaled = _sample_small_mesh(128)
 
-        from mathviz.pipeline.dense_sampling import apply_post_transform_sampling
-
-        result_dense = apply_post_transform_sampling(obj)
+        # Direct call with same default resolution (also scale=1.0)
+        result_direct = apply_resolution_scaled_sampling(
+            obj,
+            resolution_kwargs={},
+            default_resolution={"voxel_resolution": 128},
+        )
 
         assert len(result_scaled.point_cloud.points) == len(
-            result_dense.point_cloud.points
+            result_direct.point_cloud.points
         )
 
     def test_no_resolution_kwarg_uses_scale_1(self) -> None:

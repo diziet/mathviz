@@ -152,7 +152,7 @@ def apply_wireframe(
     sides = config.tube_sides if config.tube_sides is not None else _WIREFRAME_DEFAULT_SIDES
     radius = thickness / 2.0
 
-    edges = _extract_unique_edges(obj.mesh)
+    edges = extract_unique_edges(obj.mesh)
     edge_curves = _edges_to_curves(obj.mesh.vertices, edges)
     meshes = [thicken_curve(c, radius, sides) for c in edge_curves]
     merged = _merge_meshes(meshes)
@@ -164,7 +164,7 @@ def apply_wireframe(
     return replace(obj, mesh=merged)
 
 
-def _extract_unique_edges(mesh: Mesh) -> np.ndarray:
+def extract_unique_edges(mesh: Mesh) -> np.ndarray:
     """Extract unique edges from mesh faces as (E, 2) array."""
     faces = mesh.faces
     edges = np.concatenate([
