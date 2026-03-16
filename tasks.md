@@ -6479,3 +6479,29 @@ class if the duplication is awkward).
 - Manual: click the Stretch header — sliders expand with chevron rotation
 - Manual: click again — collapses back
 - Manual: Dimensions/Margins still works independently
+
+---
+
+## Task 152: Further reduce point size slider range to 0.02–0.25
+
+**Objective:**
+
+Task 143 reduced the point size range but it's still too wide. Change the
+Point Size slider to min=0.02, max=0.25, step=0.01, default=0.1. This
+range should apply in all view modes (Point Cloud, Crystal Preview, Color
+Map, Dense Cloud, HD Cloud — any mode that renders points).
+
+**Suggested path:**
+
+Update the `<input>` element for `point-size` in `index.html`. Check that
+the default point size used in JS (e.g. `material.size`, initial state, and
+`restoreUI` fallback) matches 0.1. If any view mode overrides the point size
+with its own default, ensure those overrides also fall within the new range.
+
+**Tests:**
+
+- Manual: drag Point Size slider fully right — value reads 0.25
+- Manual: drag fully left — value reads 0.02
+- Manual: reload page — default is 0.1
+- Manual: switch to Crystal Preview — point size slider still works within range
+- Manual: switch to Color Map — same
