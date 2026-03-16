@@ -6505,3 +6505,37 @@ with its own default, ensure those overrides also fall within the new range.
 - Manual: reload page — default is 0.1
 - Manual: switch to Crystal Preview — point size slider still works within range
 - Manual: switch to Color Map — same
+
+---
+
+## Task 153: Fix Dense/HD Cloud view modes resetting params to defaults
+
+**Objective:**
+
+Switching to Dense Cloud or HD Cloud silently regenerates with the
+generator's default parameters instead of the user's current params. Steps
+to reproduce: load `hilbert_3d` (defaults: order=4, size=1), change order
+to 2 via the param editor and apply, then switch view mode to Dense Cloud.
+The scene reverts to order=4 but the param editor still shows order=2.
+
+The root cause is that `_doGenerate` (the param editor's generate path) does
+not update `state.generatedWith`. When the view mode change handler triggers
+a re-generate for Dense/HD Cloud, it reads stale params from
+`state.generatedWith` which still holds the values from the initial page
+load or last `loadFromAPI` call.
+
+**Suggested path:**
+
+In `_doGenerate`, after a successful generation, update
+`state.generatedWith` with the current generator name, params, seed,
+resolution, and container — the same fields that `loadFromAPI` stores.
+The resolution field is especially important since Dense/HD Cloud sampling
+depends on it. Also verify that `state.geometryId` is set so that save
+works after a param-editor generate.
+
+**Tests:** `tests/test_preview/test_view_mode_params.py`
+
+- Generate with non-default params via editor, switch to Dense Cloud — params match editor values
+- Generate with non-default params, switch to HD Cloud — same
+- Switch back to Point Cloud — still shows the editor's params, not defaults
+- Generate via editor, then switch Dense→Point Cloud→Dense — no param reset
