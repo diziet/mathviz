@@ -46,6 +46,7 @@ def compute_cache_key(
     resolution_kwargs: dict[str, Any],
     container_kwargs: dict[str, float] | None = None,
     sampling: str = "default",
+    max_samples: int | None = None,
 ) -> str:
     """Compute a deterministic cache key from generation parameters."""
     key_dict: dict[str, Any] = {
@@ -57,6 +58,8 @@ def compute_cache_key(
     }
     if sampling != "default":
         key_dict["sampling"] = sampling
+    if max_samples is not None and sampling != "default":
+        key_dict["max_samples"] = max_samples
     key_data = json.dumps(key_dict, sort_keys=True, default=_serialize_value)
     return hashlib.sha256(key_data.encode()).hexdigest()[:32]
 
