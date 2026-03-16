@@ -6570,3 +6570,33 @@ stays in sync.
 - Manual: select Dense Cloud, change a param and apply — result is dense, not sparse
 - Manual: select HD Cloud, change a param and apply — result is HD, not sparse
 - Manual: select Point Cloud, change a param and apply — result is sparse (unchanged behavior)
+
+---
+
+## Task 155: Configurable max sample count for Dense and HD Cloud modes
+
+**Objective:**
+
+Dense Cloud caps at 200,000 points (`MAX_DENSE_SAMPLES`) and HD Cloud at
+500,000 (`MAX_RESOLUTION_SCALED_SAMPLES`). These limits are hardcoded in
+`src/mathviz/pipeline/dense_sampling.py`. Users should be able to override
+the cap from the preview UI — some forms look better with more points and
+the user is willing to wait longer or accept lower FPS.
+
+**Suggested path:**
+
+Add a "Max Points" number input to the sidebar, visible when Dense Cloud or
+HD Cloud is the active view mode (hide it for other modes). Default to
+200,000. Send the value in the `/api/generate` request body (e.g.
+`"max_samples": 500000`). On the server, pass it through to
+`apply_dense_sampling` / `apply_resolution_scaled_sampling` which already
+accept a `max_samples` parameter. Persist the setting in localStorage.
+No hard upper bound is needed — trust the user to pick a value their
+browser can handle.
+
+**Tests:**
+
+- Manual: select Dense Cloud, set max points to 50,000 — cloud is visibly sparser
+- Manual: set max points to 500,000 — cloud is visibly denser
+- Manual: switch to Point Cloud — max points input is hidden
+- Manual: reload page — max points value persists
