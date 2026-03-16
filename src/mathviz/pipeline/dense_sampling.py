@@ -15,8 +15,12 @@ logger = logging.getLogger(__name__)
 
 SamplingMode = Literal["default", "post_transform", "resolution_scaled", "edge"]
 
-MAX_DENSE_SAMPLES = 200_000
-MAX_RESOLUTION_SCALED_SAMPLES = 500_000
+# Hard ceilings — no request may exceed these, even with an explicit override.
+MAX_DENSE_SAMPLES = 5_000_000
+MAX_RESOLUTION_SCALED_SAMPLES = 5_000_000
+
+# Comfortable default when the client does not specify a value.
+DEFAULT_DENSE_SAMPLES = 500_000
 _DENSE_SURFACE_DENSITY = 100.0
 _DENSE_SEED = 42
 _MIN_SAMPLES = 10
@@ -132,12 +136,13 @@ def _sample_mesh_edges(
 def apply_edge_sampling(
     obj: MathObject,
     *,
-    max_samples: int = MAX_DENSE_SAMPLES,
+    max_samples: int = DEFAULT_DENSE_SAMPLES,
 ) -> MathObject:
     """Sample points along mesh edges only, creating a wireframe-like cloud."""
     if obj.mesh is None:
         raise ValueError("Edge sampling requires a mesh")
 
+    max_samples = min(max_samples, MAX_DENSE_SAMPLES)
     cloud = _sample_mesh_edges(obj, max_samples)
 
     logger.info(
@@ -152,7 +157,7 @@ def apply_edge_sampling(
 def apply_post_transform_sampling(
     obj: MathObject,
     *,
-    max_samples: int = MAX_DENSE_SAMPLES,
+    max_samples: int = DEFAULT_DENSE_SAMPLES,
     surface_density: float = _DENSE_SURFACE_DENSITY,
     edge_fraction: float = _DENSE_EDGE_FRACTION,
 ) -> MathObject:
@@ -164,6 +169,7 @@ def apply_post_transform_sampling(
     if obj.mesh is None:
         raise ValueError("Post-transform sampling requires a mesh")
 
+    max_samples = min(max_samples, MAX_DENSE_SAMPLES)
     edge_budget = int(max_samples * edge_fraction)
     surface_budget = max_samples - edge_budget
 
@@ -229,7 +235,7 @@ def apply_resolution_scaled_sampling(
     *,
     resolution_kwargs: dict[str, Any],
     default_resolution: dict[str, Any],
-    max_samples: int = MAX_RESOLUTION_SCALED_SAMPLES,
+    max_samples: int = DEFAULT_DENSE_SAMPLES,
     base_density: float = _DENSE_SURFACE_DENSITY,
 ) -> MathObject:
     """Sample the mesh surface with density scaled by resolution ratio.
@@ -240,6 +246,7 @@ def apply_resolution_scaled_sampling(
     if obj.mesh is None:
         raise ValueError("Resolution-scaled sampling requires a mesh")
 
+    max_samples = min(max_samples, MAX_RESOLUTION_SCALED_SAMPLES)
     scale = _compute_resolution_scale(resolution_kwargs, default_resolution)
     surface_density = base_density * scale
 

@@ -147,8 +147,8 @@ class TestSampleCountCap:
     """Sample count is capped at the configured maximum."""
 
     def test_cap_value(self) -> None:
-        """The cap is configured at 500,000."""
-        assert MAX_RESOLUTION_SCALED_SAMPLES == 500_000
+        """The hard ceiling is configured at 5,000,000."""
+        assert MAX_RESOLUTION_SCALED_SAMPLES == 5_000_000
 
     def test_cap_applied_in_function(self) -> None:
         """The sampling function respects a custom max_samples cap."""
