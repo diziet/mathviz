@@ -1060,6 +1060,11 @@ async function displayGenerateResult(data, generatorName) {
     displayCloud(points, vertexCount, generatorName);
   }
 
+  /* For mesh-only generators, set up density filtering from mesh vertices */
+  if (hasMesh && !hasCloud) {
+    setupMeshDensity(state.meshGroup);
+  }
+
   if (!hasMesh && !hasCloud) {
     applyViewMode();
     return;
@@ -1430,6 +1435,49 @@ function updatePointSize(size) {
 }
 
 /* ── Density filtering ── */
+
+function setupMeshDensity(meshGroup) {
+  /* Extract vertex positions from mesh points children and set up density filtering. */
+  const posArrays = [];
+  const pointsChildren = [];
+  meshGroup.traverse((child) => {
+    if (child.isPoints && child.name === 'points') {
+      pointsChildren.push(child);
+      const pos = child.geometry.getAttribute('position');
+      posArrays.push(new Float32Array(pos.array));
+    }
+  });
+  if (posArrays.length === 0) return;
+
+  const totalFloats = posArrays.reduce((sum, a) => sum + a.length, 0);
+  const fullPositions = new Float32Array(totalFloats);
+  let offset = 0;
+  for (const arr of posArrays) {
+    fullPositions.set(arr, offset);
+    offset += arr.length;
+  }
+  const vertexCount = totalFloats / 3;
+
+  /* Create a standalone points object with dynamic buffer for density filtering */
+  const geom = new THREE.BufferGeometry();
+  const dynBuf = new THREE.BufferAttribute(new Float32Array(totalFloats), 3);
+  dynBuf.usage = THREE.DynamicDrawUsage;
+  geom.setAttribute('position', dynBuf);
+  const mat = new THREE.PointsMaterial({color: 0x44ccff, size: state.pointSize * 0.01});
+  const cloudPoints = new THREE.Points(geom, mat);
+
+  /* Remove original points children — the standalone cloud handles points view */
+  for (const child of pointsChildren) child.parent.remove(child);
+
+  state.cloudPoints = cloudPoints;
+  state.fullCloudPositions = fullPositions;
+  state.fullCloudCount = vertexCount;
+  scene.add(cloudPoints);
+
+  applyDensityFilter();
+  updateDensitySliderVisibility();
+}
+
 function applyDensityFilter() {
   if (!state.cloudPoints || !state.fullCloudPositions) return;
   const full = state.fullCloudPositions;
@@ -3969,8 +4017,48 @@ async function loadPanelGeometry(panelIndex, data) {
     panel.scene.add(points);
     if (!panel.meshGroup) addBoundingBoxToScene(panel);
   }
+  /* For mesh-only generators, set up density filtering from mesh vertices */
+  if (data.mesh_url && !data.cloud_url) {
+    setupPanelMeshDensity(panel);
+  }
   applyDensityToPanel(panel);
   applyViewModeToPanel(panel);
+}
+
+function setupPanelMeshDensity(panel) {
+  /* Extract vertex positions from panel mesh and set up density filtering. */
+  const posArrays = [];
+  const pointsChildren = [];
+  panel.meshGroup.traverse((child) => {
+    if (child.isPoints && child.name === 'points') {
+      pointsChildren.push(child);
+      const pos = child.geometry.getAttribute('position');
+      posArrays.push(new Float32Array(pos.array));
+    }
+  });
+  if (posArrays.length === 0) return;
+
+  const totalFloats = posArrays.reduce((sum, a) => sum + a.length, 0);
+  const fullPositions = new Float32Array(totalFloats);
+  let offset = 0;
+  for (const arr of posArrays) {
+    fullPositions.set(arr, offset);
+    offset += arr.length;
+  }
+
+  const geom = new THREE.BufferGeometry();
+  const dynBuf = new THREE.BufferAttribute(new Float32Array(totalFloats), 3);
+  dynBuf.usage = THREE.DynamicDrawUsage;
+  geom.setAttribute('position', dynBuf);
+  const mat = new THREE.PointsMaterial({color: 0x44ccff, size: state.pointSize * 0.01});
+  const cloudPoints = new THREE.Points(geom, mat);
+
+  for (const child of pointsChildren) child.parent.remove(child);
+
+  panel.cloudPoints = cloudPoints;
+  panel.fullCloudPositions = fullPositions;
+  panel.fullCloudCount = totalFloats / 3;
+  panel.scene.add(cloudPoints);
 }
 
 function applyDensityToPanel(panel) {
