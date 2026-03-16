@@ -6672,11 +6672,10 @@ Change the `<option value="points">Point Cloud</option>` to
 to `state.viewMode === 'points'` → `'vertex'`, the default `viewMode` in
 state initialization, and any `saveUI`/`restoreUI` logic. Add a migration
 in `restoreUI`: if localStorage has `"points"` as the saved view mode, map
-it to `"vertex"` so existing saved state doesn't break. Same for URL params
-if the view mode is ever read from the URL.
+No need to migrate old localStorage — it's fine if saved state with
+`"points"` is ignored or falls back to the default.
 
 **Tests:**
 
 - Manual: view mode dropdown shows "Vertex Cloud" instead of "Point Cloud"
-- Manual: old localStorage with `"points"` view mode loads as Vertex Cloud
 - Manual: all view mode switches still work correctly
