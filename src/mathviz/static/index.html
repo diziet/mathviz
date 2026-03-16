@@ -3534,52 +3534,25 @@ marginX.addEventListener('input', onMarginInput);
 marginY.addEventListener('input', onMarginInput);
 marginZ.addEventListener('input', onMarginInput);
 
-/* Collapsible container panel toggle */
-const containerPanel = document.getElementById('container-panel');
-const containerToggle = document.getElementById('container-toggle');
-const containerChevron = containerToggle.querySelector('.chevron');
+/* Shared collapsible panel initializer */
+function initCollapsiblePanel(panelId, toggleId, storageKey) {
+  const panel = document.getElementById(panelId);
+  const toggle = document.getElementById(toggleId);
+  const chevron = toggle.querySelector('.chevron');
 
-function setContainerCollapsed(collapsed) {
-  if (collapsed) {
-    containerPanel.classList.add('collapsed');
-    containerChevron.innerHTML = '&#9656;';
-  } else {
-    containerPanel.classList.remove('collapsed');
-    containerChevron.innerHTML = '&#9662;';
+  function setCollapsed(collapsed) {
+    panel.classList.toggle('collapsed', collapsed);
+    chevron.innerHTML = collapsed ? '&#9656;' : '&#9662;';
+    try { localStorage.setItem(storageKey, collapsed ? '1' : '0'); } catch(e) { console.warn('Failed to persist ' + storageKey, e); }
   }
-  try { localStorage.setItem('containerPanelCollapsed', collapsed ? '1' : '0'); } catch(e) { console.warn('Failed to persist panel state', e); }
+
+  const saved = (() => { try { return localStorage.getItem(storageKey); } catch(e) { return null; } })();
+  setCollapsed(saved === '0' ? false : true);
+  toggle.addEventListener('click', () => setCollapsed(!panel.classList.contains('collapsed')));
 }
 
-/* Restore from localStorage (default: collapsed) */
-const savedCollapsed = (() => { try { return localStorage.getItem('containerPanelCollapsed'); } catch(e) { console.warn('Failed to read panel state', e); return null; } })();
-setContainerCollapsed(savedCollapsed === '0' ? false : true);
-
-containerToggle.addEventListener('click', () => {
-  setContainerCollapsed(!containerPanel.classList.contains('collapsed'));
-});
-
-/* Collapsible stretch panel toggle */
-const stretchPanel = document.getElementById('stretch-panel');
-const stretchToggle = document.getElementById('stretch-toggle');
-const stretchChevron = stretchToggle.querySelector('.chevron');
-
-function setStretchCollapsed(collapsed) {
-  if (collapsed) {
-    stretchPanel.classList.add('collapsed');
-    stretchChevron.innerHTML = '&#9656;';
-  } else {
-    stretchPanel.classList.remove('collapsed');
-    stretchChevron.innerHTML = '&#9662;';
-  }
-  try { localStorage.setItem('stretchPanelCollapsed', collapsed ? '1' : '0'); } catch(e) { console.warn('Failed to persist stretch panel state', e); }
-}
-
-const savedStretchCollapsed = (() => { try { return localStorage.getItem('stretchPanelCollapsed'); } catch(e) { console.warn('Failed to read stretch panel state', e); return null; } })();
-setStretchCollapsed(savedStretchCollapsed === '0' ? false : true);
-
-stretchToggle.addEventListener('click', () => {
-  setStretchCollapsed(!stretchPanel.classList.contains('collapsed'));
-});
+initCollapsiblePanel('container-panel', 'container-toggle', 'containerPanelCollapsed');
+initCollapsiblePanel('stretch-panel', 'stretch-toggle', 'stretchPanelCollapsed');
 
 /* Apply button */
 document.getElementById('container-apply-btn').addEventListener('click', () => {
