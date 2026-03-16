@@ -342,7 +342,7 @@ canvas{display:block}
 }
 .category-card:hover{background:var(--card-hover-bg)}
 .category-card.active{outline:2px solid var(--accent-color)}
-.category-card.browser-focused{box-shadow:0 0 0 2px var(--accent-color),0 0 12px rgba(68,136,204,0.4)}
+.browser-focused{box-shadow:0 0 0 2px var(--accent-color),0 0 12px rgba(68,136,204,0.4)}
 .category-name{font-weight:600;font-size:14px;margin-bottom:4px}
 .category-count{font-size:12px;opacity:0.6;margin-bottom:10px}
 .category-shortcut{
@@ -372,7 +372,7 @@ canvas{display:block}
 }
 .generator-card:hover{background:var(--card-hover-bg)}
 .generator-card.selected{outline:2px solid var(--accent-color)}
-.generator-card.browser-focused{box-shadow:0 0 0 2px var(--accent-color),0 0 12px rgba(68,136,204,0.4)}
+
 .generator-card-thumb{
   width:100%;aspect-ratio:1;border-radius:6px;object-fit:cover;background:#333;
 }
@@ -388,7 +388,7 @@ canvas{display:block}
 }
 .search-result-card:hover{background:var(--card-hover-bg)}
 .search-result-card.selected{outline:2px solid var(--accent-color)}
-.search-result-card.browser-focused{box-shadow:0 0 0 2px var(--accent-color),0 0 12px rgba(68,136,204,0.4)}
+
 .search-result-thumb{
   width:48px;height:48px;border-radius:6px;object-fit:cover;background:#333;flex-shrink:0;
 }
@@ -2051,13 +2051,17 @@ let browserDigitBuffer = '';
 let browserDigitTimer = null;
 const DIGIT_TIMEOUT_MS = 500;
 
+function resetDigitBuffer() {
+  browserDigitBuffer = '';
+  if (browserDigitTimer) { clearTimeout(browserDigitTimer); browserDigitTimer = null; }
+}
+
 function openBrowser() {
   browserOverlay.classList.add('open');
   browserState = 'browsing_categories';
   browserCurrentCategory = null;
   browserFocusedIndex = -1;
-  browserDigitBuffer = '';
-  if (browserDigitTimer) { clearTimeout(browserDigitTimer); browserDigitTimer = null; }
+  resetDigitBuffer();
   browserSearch.value = '';
   browserBack.style.display = 'none';
   renderCategoryGrid();
@@ -2068,12 +2072,15 @@ function closeBrowser() {
   browserOverlay.classList.remove('open');
   browserState = 'closed';
   browserCurrentCategory = null;
+  resetDigitBuffer();
 }
 
 function browserGoBack() {
   if (browserState === 'browsing_generators_in_category') {
     browserState = 'browsing_categories';
     browserCurrentCategory = null;
+    browserFocusedIndex = -1;
+    resetDigitBuffer();
     browserBack.style.display = 'none';
     browserSearch.value = '';
     renderCategoryGrid();
@@ -2099,19 +2106,13 @@ function updateBrowserFocus(newIndex) {
   }
 }
 
-function clearBrowserFocus() {
-  const cards = getBrowserCards();
-  cards.forEach(c => c.classList.remove('browser-focused'));
-  browserFocusedIndex = -1;
-}
-
 function getBrowserGridColumns() {
   const grid = browserContent.querySelector('.browser-grid');
   if (!grid || !grid.children.length) return 1;
   const firstTop = grid.children[0].getBoundingClientRect().top;
   let cols = 0;
   for (const child of grid.children) {
-    if (child.getBoundingClientRect().top === firstTop) cols++;
+    if (Math.abs(child.getBoundingClientRect().top - firstTop) < 1) cols++;
     else break;
   }
   return Math.max(cols, 1);
@@ -2151,21 +2152,19 @@ function handleBrowserDigit(digit) {
   if (browserDigitTimer) clearTimeout(browserDigitTimer);
   if (browserDigitBuffer.length >= 2) {
     const num = parseInt(browserDigitBuffer, 10);
-    browserDigitBuffer = '';
-    browserDigitTimer = null;
+    resetDigitBuffer();
     selectBrowserItemByNumber(num);
   } else {
     browserDigitTimer = setTimeout(() => {
       const num = parseInt(browserDigitBuffer, 10);
-      browserDigitBuffer = '';
-      browserDigitTimer = null;
+      resetDigitBuffer();
       selectBrowserItemByNumber(num);
     }, DIGIT_TIMEOUT_MS);
   }
 }
 
 function selectBrowserItemByNumber(num) {
-  const idx = num === 0 ? 9 : num - 1;
+  const idx = num - 1;
   const cards = getBrowserCards();
   if (idx >= 0 && idx < cards.length) {
     updateBrowserFocus(idx);
@@ -2197,7 +2196,7 @@ function appendShortcutBadge(card, idx) {
   if (idx >= 10) return;
   const shortcut = document.createElement('div');
   shortcut.className = 'category-shortcut';
-  shortcut.textContent = String(idx + 1 > 9 ? 0 : idx + 1);
+  shortcut.textContent = String(idx + 1);
   card.appendChild(shortcut);
 }
 
@@ -2265,6 +2264,7 @@ function showCategoryGenerators(categoryName) {
   browserState = 'browsing_generators_in_category';
   browserCurrentCategory = categoryName;
   browserFocusedIndex = -1;
+  resetDigitBuffer();
   browserBack.style.display = '';
   browserContent.innerHTML = '';
 

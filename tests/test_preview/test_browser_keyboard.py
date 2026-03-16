@@ -65,10 +65,9 @@ class TestNumberKeyCategories:
         assert "parseInt(e.key" in preview_html
 
     def test_select_by_number_function(self, preview_html: str) -> None:
-        """selectBrowserItemByNumber converts number to index."""
+        """selectBrowserItemByNumber converts number to zero-based index."""
         assert "selectBrowserItemByNumber" in preview_html
-        # 0 maps to index 9 (10th item)
-        assert "num === 0 ? 9 : num - 1" in preview_html
+        assert "num - 1" in preview_html
 
 
 class TestNumberKeyGenerators:
@@ -110,6 +109,19 @@ class TestTwoDigitInput:
         assert "setTimeout" in preview_html
         assert "DIGIT_TIMEOUT_MS" in preview_html
 
+    def test_reset_digit_buffer_helper(self, preview_html: str) -> None:
+        """resetDigitBuffer clears buffer and cancels timer."""
+        assert "resetDigitBuffer" in preview_html
+
+    def test_digit_buffer_cleared_on_state_transitions(
+        self, preview_html: str
+    ) -> None:
+        """Digit buffer is reset in closeBrowser, browserGoBack, showCategoryGenerators."""
+        # Count occurrences of resetDigitBuffer - should appear in multiple functions
+        count = preview_html.count("resetDigitBuffer()")
+        # openBrowser, closeBrowser, browserGoBack, showCategoryGenerators, handleBrowserDigit x2
+        assert count >= 5
+
 
 class TestArrowKeyNavigation:
     """Arrow keys move focus through the grid."""
@@ -123,8 +135,9 @@ class TestArrowKeyNavigation:
         assert "ArrowRight" in preview_html
 
     def test_grid_column_detection(self, preview_html: str) -> None:
-        """Grid navigation detects number of columns."""
+        """Grid navigation detects number of columns with float tolerance."""
         assert "getBrowserGridColumns" in preview_html
+        assert "Math.abs" in preview_html
 
     def test_arrow_wrapping(self, preview_html: str) -> None:
         """Arrow navigation wraps at grid edges."""
