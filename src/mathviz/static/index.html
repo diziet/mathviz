@@ -164,6 +164,7 @@ canvas{display:block}
 .turntable-row label{flex:1;display:flex;align-items:center;gap:6px;cursor:pointer}
 #turntable-speed{flex:1;min-width:60px}
 #turntable-speed-label{font-size:11px;opacity:0.8;min-width:24px;text-align:right}
+.slider-value{display:inline-block;width:3em;text-align:right;font-size:12px;opacity:0.7;vertical-align:middle}
 #turntable-export-section{display:none;flex-direction:column;gap:4px}
 #turntable-export-section.visible{display:flex}
 .export-row{display:flex;gap:4px}
@@ -504,10 +505,10 @@ canvas{display:block}
     </select>
 
     <div class="section-title">Point Size</div>
-    <input type="range" id="point-size" min="0.1" max="5" step="0.1" value="1">
+    <input type="range" id="point-size" min="0.1" max="5" step="0.1" value="1" data-label="point-size-value"><span class="slider-value" id="point-size-value">1</span>
 
     <div id="density-control" class="section-title" style="display:none">Density</div>
-    <input type="range" id="density-slider" min="0.01" max="1" step="0.01" value="1" style="display:none">
+    <input type="range" id="density-slider" min="0.01" max="1" step="0.01" value="1" style="display:none" data-label="density-value"><span class="slider-value" id="density-value" style="display:none">1</span>
 
     <div class="section-title">Options</div>
     <label><input type="checkbox" id="show-bbox" checked> Bounding Box</label>
@@ -524,8 +525,8 @@ canvas{display:block}
     <div id="crystal-controls" style="display:none">
       <div class="section-title">Crystal Settings</div>
       <label>Glass Tint <input type="color" id="crystal-glass-tint" value="#ffffff"></label>
-      <label>Bloom <input type="range" id="crystal-bloom" min="0" max="1" step="0.05" value="0.4"></label>
-      <label>Point Brightness <input type="range" id="crystal-brightness" min="0" max="1" step="0.05" value="0.8"></label>
+      <label>Bloom <input type="range" id="crystal-bloom" min="0" max="1" step="0.05" value="0.4" data-label="crystal-bloom-value"><span class="slider-value" id="crystal-bloom-value">0.4</span></label>
+      <label>Point Brightness <input type="range" id="crystal-brightness" min="0" max="1" step="0.05" value="0.8" data-label="crystal-brightness-value"><span class="slider-value" id="crystal-brightness-value">0.8</span></label>
       <label><input type="checkbox" id="crystal-led-base"> LED Base</label>
       <label>LED Color <input type="color" id="crystal-led-color" value="#fff0e0"></label>
     </div>
@@ -1573,6 +1574,7 @@ function updateDensitySliderVisibility() {
   const isPoints = state.viewMode === 'points';
   document.getElementById('density-control').style.display = isPoints ? '' : 'none';
   document.getElementById('density-slider').style.display = isPoints ? '' : 'none';
+  document.getElementById('density-value').style.display = isPoints ? '' : 'none';
 }
 
 /* ── Color Map ── */
@@ -1817,6 +1819,17 @@ function updateFPS() {
     lastFpsTime = now;
   }
 }
+
+/* ── Slider value labels ── */
+function updateSliderLabel(sliderId, value) {
+  const el = document.getElementById(sliderId + '-value');
+  if (el) el.textContent = value;
+}
+document.querySelectorAll('input[type="range"][data-label]').forEach(slider => {
+  slider.addEventListener('input', () => {
+    document.getElementById(slider.dataset.label).textContent = slider.value;
+  });
+});
 
 /* ── Controls wiring ── */
 document.getElementById('view-mode').addEventListener('change', (e) => {
@@ -2689,6 +2702,7 @@ function restoreUiState(ui) {
   /* Point size */
   if (typeof ui.point_size === 'number') {
     document.getElementById('point-size').value = ui.point_size;
+    updateSliderLabel('point-size', ui.point_size);
     updatePointSize(ui.point_size);
   }
 
@@ -2696,6 +2710,7 @@ function restoreUiState(ui) {
   if (typeof ui.density === 'number') {
     state.density = ui.density;
     document.getElementById('density-slider').value = ui.density;
+    updateSliderLabel('density', ui.density);
     applyDensityFilter();
   }
 
