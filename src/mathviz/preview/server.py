@@ -126,7 +126,7 @@ class GenerateRequest(BaseModel):
     # "resolution_scaled" maps to "HD Cloud" — density scales with resolution.
     sampling: Literal["default", "post_transform", "resolution_scaled"] = "default"
     max_samples: int | None = Field(
-        default=None, gt=0, description="Override max sample count for dense/HD cloud",
+        default=None, ge=1000, description="Override max sample count for dense/HD cloud",
     )
 
 

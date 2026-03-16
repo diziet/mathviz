@@ -58,7 +58,7 @@ def compute_cache_key(
     }
     if sampling != "default":
         key_dict["sampling"] = sampling
-    if max_samples is not None:
+    if max_samples is not None and sampling != "default":
         key_dict["max_samples"] = max_samples
     key_data = json.dumps(key_dict, sort_keys=True, default=_serialize_value)
     return hashlib.sha256(key_data.encode()).hexdigest()[:32]

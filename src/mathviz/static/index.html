@@ -669,6 +669,9 @@ import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
 import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
 import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
 
+/* ── Constants ── */
+const DEFAULT_MAX_SAMPLES = 200000;
+
 /* ── State ── */
 const state = {
   meshGroup: null,
@@ -693,7 +696,7 @@ const state = {
   crystalLedLight: null,
   crystalActive: false,
   crystalEnvRT: null,
-  maxSamples: 200000,
+  maxSamples: DEFAULT_MAX_SAMPLES,
   density: 1.0,
   fullCloudPositions: null,
   fullCloudCount: 0,
@@ -1102,8 +1105,7 @@ function displayCloud(points, vertexCount, label) {
   enableResetView();
   updateInfo({generator: label});
   applyDensityFilter();
-  updateDensitySliderVisibility();
-  updateMaxPointsVisibility();
+  updateSidebarVisibility();
 }
 
 /* ── Shared display helper ── */
@@ -1245,9 +1247,7 @@ async function timedGenerate(body, signal) {
 function applySamplingMode(body) {
   if (state.viewMode === 'dense') body.sampling = 'post_transform';
   if (state.viewMode === 'hd_cloud') body.sampling = 'resolution_scaled';
-  if (state.viewMode === 'dense' || state.viewMode === 'hd_cloud') {
-    body.max_samples = state.maxSamples;
-  }
+  if (isDenseOrHdCloud()) body.max_samples = state.maxSamples;
 }
 
 async function loadFromAPI(generator, genParams, seed, force) {
@@ -1506,6 +1506,10 @@ function isPointLikeMode(mode) {
   return mode === 'points' || mode === 'dense' || mode === 'hd_cloud';
 }
 
+function isDenseOrHdCloud() {
+  return state.viewMode === 'dense' || state.viewMode === 'hd_cloud';
+}
+
 function viewModeNeedsMesh() {
   return state.viewMode === 'shaded' || state.viewMode === 'wireframe';
 }
@@ -1602,8 +1606,7 @@ function setupMeshDensity(meshGroup) {
   state.fullCloudPositions = result.fullPositions;
   state.fullCloudCount = result.vertexCount;
   applyDensityFilter();
-  updateDensitySliderVisibility();
-  updateMaxPointsVisibility();
+  updateSidebarVisibility();
 }
 
 function applyDensityFilter() {
@@ -1650,9 +1653,14 @@ function updateDensitySliderVisibility() {
 }
 
 function updateMaxPointsVisibility() {
-  const show = state.viewMode === 'dense' || state.viewMode === 'hd_cloud';
+  const show = isDenseOrHdCloud();
   document.getElementById('max-points-label').style.display = show ? '' : 'none';
   document.getElementById('max-points-input').style.display = show ? '' : 'none';
+}
+
+function updateSidebarVisibility() {
+  updateDensitySliderVisibility();
+  updateMaxPointsVisibility();
 }
 
 /* ── Color Map ── */
@@ -1914,8 +1922,7 @@ document.getElementById('view-mode').addEventListener('change', (e) => {
   const prev = state.viewMode;
   state.viewMode = e.target.value;
   applyViewMode();
-  updateDensitySliderVisibility();
-  updateMaxPointsVisibility();
+  updateSidebarVisibility();
   if (state.compareMode) applyViewModeToAllPanels();
   /* Dense / HD Cloud modes use different server-side pipelines; re-generate when toggling */
   const samplingFor = (m) => m === 'dense' ? 'post_transform' : m === 'hd_cloud' ? 'resolution_scaled' : 'default';
@@ -1928,11 +1935,11 @@ document.getElementById('view-mode').addEventListener('change', (e) => {
 
 const MAX_POINTS_STORAGE_KEY = 'mathviz_max_points';
 document.getElementById('max-points-input').addEventListener('change', (e) => {
-  const val = Math.max(1000, parseInt(e.target.value, 10) || 200000);
+  const val = Math.max(1000, parseInt(e.target.value, 10) || DEFAULT_MAX_SAMPLES);
   e.target.value = val;
   state.maxSamples = val;
   try { localStorage.setItem(MAX_POINTS_STORAGE_KEY, String(val)); } catch (_) { /* ignore */ }
-  if ((state.viewMode === 'dense' || state.viewMode === 'hd_cloud') && state.generatedWith) {
+  if (isDenseOrHdCloud() && state.generatedWith) {
     const gw = state.generatedWith;
     loadFromAPI(gw.generator, gw.params, gw.seed, false);
   }
