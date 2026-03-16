@@ -1,7 +1,7 @@
 """Tests for view mode switching preserving param-editor params.
 
 Verifies that _doGenerate updates state.generatedWith so that switching to
-Dense Cloud or HD Cloud after generating with non-default params via the
+Dense Cloud or Surface Cloud after generating with non-default params via the
 editor does not reset to generator defaults. These are JS source verification
 tests — the bug is client-side state management, not server behavior.
 """
@@ -64,9 +64,9 @@ class TestApplySamplingMode:
         """VIEW_MODE_TO_SAMPLING maps dense to post_transform."""
         assert "dense: 'post_transform'" in preview_html
 
-    def test_helper_handles_hd_cloud(self, preview_html: str) -> None:
-        """VIEW_MODE_TO_SAMPLING maps hd_cloud to resolution_scaled."""
-        assert "hd_cloud: 'resolution_scaled'" in preview_html
+    def test_helper_handles_surface(self, preview_html: str) -> None:
+        """VIEW_MODE_TO_SAMPLING maps surface to resolution_scaled."""
+        assert "surface: 'resolution_scaled'" in preview_html
 
     def test_load_from_api_uses_helper(self, preview_html: str) -> None:
         """loadFromAPI calls applySamplingMode instead of inline checks."""

@@ -1,4 +1,4 @@
-"""Tests for the HD Cloud (resolution-scaled) view mode.
+"""Tests for the Surface Cloud (resolution-scaled) view mode.
 
 Verifies that resolution-scaled sampling scales density with resolution,
 matches normal density at default resolution, respects the sample cap,
@@ -169,7 +169,7 @@ class TestSampleCountCap:
         assert len(result.point_cloud.points) <= 100
 
     def test_server_respects_cap(self, client: TestClient) -> None:
-        """Server-side HD Cloud sampling doesn't exceed the cap."""
+        """Server-side Surface Cloud sampling doesn't exceed the cap."""
         data = _generate(
             client,
             sampling="resolution_scaled",
@@ -183,7 +183,7 @@ class TestSampleCountCap:
 
 
 class TestExistingModesUnaffected:
-    """Existing view modes are unaffected by the HD Cloud addition."""
+    """Existing view modes are unaffected by the Surface Cloud addition."""
 
     def test_default_sampling_unchanged(self, client: TestClient) -> None:
         """Default request (no sampling field) works as before."""
@@ -195,13 +195,13 @@ class TestExistingModesUnaffected:
         data = _generate(client, sampling="post_transform")
         assert "geometry_id" in data
 
-    def test_hd_cloud_option_present_in_html(
+    def test_surface_cloud_option_present_in_html(
         self, client: TestClient
     ) -> None:
-        """The HD Cloud option is present in the dropdown."""
+        """The Surface Cloud option is present in the dropdown."""
         resp = client.get("/")
         assert resp.status_code == 200
-        assert '<option value="hd_cloud">HD Cloud</option>' in resp.text
+        assert '<option value="surface">Surface Cloud</option>' in resp.text
 
     def test_all_original_options_present(
         self, client: TestClient
@@ -237,7 +237,7 @@ class TestResolutionScaledCacheKey:
         assert key_dense != key_hd
 
     def test_server_caches_separately(self, client: TestClient) -> None:
-        """Server stores default, dense, and hd_cloud under different keys."""
+        """Server stores default, dense, and surface under different keys."""
         default_data = _generate(client)
         dense_data = _generate(client, sampling="post_transform")
         hd_data = _generate(client, sampling="resolution_scaled")
@@ -285,3 +285,21 @@ class TestComputeResolutionScale:
             {"grid_resolution": 256}, {"grid_resolution": 128},
         )
         assert scale == pytest.approx(4.0)
+
+
+class TestLegacyViewModeMigration:
+    """UiState migrates legacy 'hd_cloud' to 'surface'."""
+
+    def test_hd_cloud_migrates_to_surface(self) -> None:
+        """Legacy hd_cloud value is accepted and migrated to surface."""
+        from mathviz.preview.server import UiState
+
+        ui = UiState(view_mode="hd_cloud")
+        assert ui.view_mode == "surface"
+
+    def test_surface_accepted_directly(self) -> None:
+        """The new 'surface' value is accepted without migration."""
+        from mathviz.preview.server import UiState
+
+        ui = UiState(view_mode="surface")
+        assert ui.view_mode == "surface"
