@@ -43,23 +43,24 @@ def edge_lengths(mesh_obj):
     return np.linalg.norm(v1 - v0, axis=1)
 
 
-def _compute_face_areas(verts: np.ndarray, faces: np.ndarray) -> np.ndarray:
-    """Compute triangle areas for all faces."""
+def _compute_face_normals(verts: np.ndarray, faces: np.ndarray) -> np.ndarray:
+    """Compute unnormalized face normals via cross product."""
     v0 = verts[faces[:, 0]]
     v1 = verts[faces[:, 1]]
     v2 = verts[faces[:, 2]]
-    cross = np.cross(v1 - v0, v2 - v0)
-    return 0.5 * np.linalg.norm(cross, axis=1)
+    return np.cross(v1 - v0, v2 - v0)
+
+
+def _compute_face_areas(verts: np.ndarray, faces: np.ndarray) -> np.ndarray:
+    """Compute triangle areas for all faces."""
+    return 0.5 * np.linalg.norm(_compute_face_normals(verts, faces), axis=1)
 
 
 def _compute_vertex_normals(
     verts: np.ndarray, faces: np.ndarray,
 ) -> np.ndarray:
     """Compute per-vertex normals by averaging adjacent face normals."""
-    v0 = verts[faces[:, 0]]
-    v1 = verts[faces[:, 1]]
-    v2 = verts[faces[:, 2]]
-    face_normals = np.cross(v1 - v0, v2 - v0)
+    face_normals = _compute_face_normals(verts, faces)
 
     vertex_normals = np.zeros_like(verts)
     for col in range(3):
@@ -73,16 +74,8 @@ def _compute_vertex_normals(
 # ---------------------------------------------------------------------------
 
 
-def test_no_seam_edge_exceeds_3x_median(edge_lengths) -> None:
-    """No seam edge > 3x median edge length (eliminates >< artifact)."""
-    median_len = np.median(edge_lengths)
-    assert np.all(edge_lengths <= 3.0 * median_len), (
-        f"Max edge {edge_lengths.max():.4f} > 3x median {median_len:.4f}"
-    )
-
-
 def test_max_edge_under_3x_median(edge_lengths) -> None:
-    """Max edge length < 3x median across entire mesh."""
+    """No edge exceeds 3x median length (eliminates >< artifact)."""
     median_len = np.median(edge_lengths)
     max_len = edge_lengths.max()
     assert max_len < 3.0 * median_len, (

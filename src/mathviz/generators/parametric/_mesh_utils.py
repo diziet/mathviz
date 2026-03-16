@@ -203,18 +203,7 @@ def build_mobius_wrapped_faces(n_u: int, n_v: int) -> np.ndarray:
 
 def build_open_grid_faces(n_u: int, n_v: int) -> np.ndarray:
     """Build triangle faces for an open grid (no wrapping)."""
-    rows = np.arange(n_u - 1)
-    cols = np.arange(n_v - 1)
-    rr, cc = np.meshgrid(rows, cols, indexing="ij")
-    rr, cc = rr.ravel(), cc.ravel()
-
-    i00 = rr * n_v + cc
-    i10 = (rr + 1) * n_v + cc
-    i01 = rr * n_v + (cc + 1)
-    i11 = (rr + 1) * n_v + (cc + 1)
-
-    tri1 = np.stack([i00, i10, i11], axis=-1)
-    tri2 = np.stack([i00, i11, i01], axis=-1)
+    tri1, tri2 = _build_open_v_interior_faces(n_u - 1, n_v)
     return np.concatenate([tri1, tri2], axis=0).astype(np.int64)
 
 
