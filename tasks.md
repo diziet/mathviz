@@ -5703,6 +5703,60 @@ slider handler calls `applyDensityFilter()` which early-returns when
 - Manual: density slider still works for cloud-only generators (sacks_spiral)
 - Manual: density percentage label updates correctly
 
+## Task 135: Fix initial camera zoom — restoreCameraIfSaved overrides fitCamera on first load
+
+**Objective:**
+
+Fix the preview server so the initial view shows the full object at a reasonable
+zoom level instead of being zoomed in way too far.
+
+**Root cause:**
+
+On the very first geometry load, `displayGenerateResult` calls
+`saveCameraIfLocked()` which saves the initial camera position `(2, 1.5, 3)`
+because `state.cameraLocked` is `'render'` (the default — not `'off'`). Then
+`displayMesh` → `setupCameraForObject` → `fitCamera` correctly positions the
+camera at distance ~162 for a 90mm mesh. But then `restoreCameraIfSaved(savedCamera)`
+overwrites the fitCamera result, putting the camera back at `(2, 1.5, 3)` —
+distance 3.9 from an object that spans ~90mm. With FOV 50°, visible height at
+that distance is ~3.6mm, so the user sees about 4% of the mesh.
+
+The `_firstRender` guard in `setupCameraForObject` (Task 118) was designed to
+ensure `fitCamera` runs on first load even with render lock. But
+`restoreCameraIfSaved` in `displayGenerateResult` (Task 121) undoes it by
+restoring the pre-geometry initial camera position.
+
+**Suggested path:**
+
+Make `saveCameraIfLocked` return null on the first render, so there's nothing
+to restore. The simplest fix:
+
+```javascript
+function saveCameraIfLocked() {
+  if (state.cameraLocked === 'off') return null;
+  if (_firstRender) return null;  // nothing meaningful to preserve yet
+  return {
+    target: controls.target.clone(),
+    position: camera.position.clone(),
+  };
+}
+```
+
+This ensures the first `fitCamera` result is kept. Subsequent loads with
+render lock will save/restore correctly because `_firstRender` is false after
+the first `setupCameraForObject` call.
+
+**Files:**
+
+- `src/mathviz/static/index.html` (saveCameraIfLocked)
+
+**Tests:**
+
+- Manual: start preview server with torus — object fills the viewport at a comfortable zoom
+- Manual: switch generator — camera stays locked (render lock behavior preserved)
+- Manual: switch to Free camera mode, regenerate — camera re-fits each time
+- Manual: switch to Render Lock, regenerate — camera stays locked as expected
+
 ## Task 134: Fix Crystal Preview rendering — glass block occludes points
 
 **Objective:**

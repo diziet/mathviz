@@ -941,6 +941,7 @@ function setupCameraForObject(object3d) {
 /* Save camera state before clearScene when lock is active */
 function saveCameraIfLocked() {
   if (state.cameraLocked === 'off') return null;
+  if (_firstRender) return null;
   return {
     target: controls.target.clone(),
     position: camera.position.clone(),
