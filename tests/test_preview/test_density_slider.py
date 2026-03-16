@@ -183,10 +183,10 @@ class TestDensitySliderHiddenWhenNotPoints:
     def test_visibility_function_checks_points_mode(
         self, client: TestClient,
     ) -> None:
-        """updateDensitySliderVisibility checks if viewMode is 'points'."""
+        """updateDensitySliderVisibility checks if viewMode is point-like."""
         html = _get_html(client)
         body = _extract_js_function(html, "updateDensitySliderVisibility")
-        assert "state.viewMode === 'points'" in body
+        assert "isPointLikeMode(state.viewMode)" in body
         assert "density-slider" in body
         assert "density-control" in body
 

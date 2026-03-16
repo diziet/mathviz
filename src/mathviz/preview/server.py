@@ -121,6 +121,9 @@ class GenerateRequest(BaseModel):
     container: ContainerParams | None = None
     force: bool = False
     timeout: int | None = Field(default=None, gt=0, le=MAX_TIMEOUT_SECONDS, description="Per-request timeout in seconds")
+    # Maps to UI view_mode "dense" — JS sends sampling="post_transform"
+    # when the user selects the Dense Cloud view mode.
+    sampling: Literal["default", "post_transform"] = "default"
 
 
 class GenerateResponse(BaseModel):
@@ -169,7 +172,8 @@ class UiState(BaseModel):
     """Display and control state saved with a snapshot."""
 
     camera: CameraState = Field(default_factory=CameraState)
-    view_mode: Literal["points", "shaded", "wireframe", "crystal"] = "points"
+    # "dense" maps to GenerateRequest.sampling="post_transform" at request time.
+    view_mode: Literal["points", "shaded", "wireframe", "crystal", "dense"] = "points"
     stretch: StretchState = Field(default_factory=StretchState)
     camera_lock: Literal["off", "render", "full"] = "render"
     show_bbox: bool = True
@@ -345,6 +349,7 @@ def generate_geometry(req: GenerateRequest) -> Response:
         req.seed,
         resolution or {},
         container_kwargs=_container_cache_dict(req.container),
+        sampling=req.sampling,
     )
     cache = get_cache()
     disk_cache = get_disk_cache()
@@ -354,7 +359,11 @@ def generate_geometry(req: GenerateRequest) -> Response:
         cache_key, req.force, cache, disk_cache,
     )
     if entry is None:
-        entry = _run_generation(req, params, resolution, container)
+        is_post_transform = req.sampling == "post_transform"
+        entry = _run_generation(
+            req, params, resolution, container,
+            post_transform_sampling=is_post_transform,
+        )
         cache.put(cache_key, entry)
         store_to_disk(cache_key, entry, disk_cache, container_kwargs=container_dict)
         cache_status = "MISS"
@@ -403,6 +412,8 @@ def _run_generation(
     params: dict[str, Any] | None,
     resolution: dict[str, Any] | None,
     container: Container,
+    *,
+    post_transform_sampling: bool = False,
 ) -> CacheEntry:
     """Execute the pipeline and return a CacheEntry."""
     timeout = req.timeout if req.timeout is not None else get_timeout_seconds()
@@ -415,6 +426,7 @@ def _run_generation(
             container=container,
             placement=PlacementPolicy(),
             timeout_override=timeout,
+            post_transform_sampling=post_transform_sampling,
         )
     except KeyError:
         raise _generator_not_found(req.generator)

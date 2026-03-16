@@ -500,6 +500,7 @@ canvas{display:block}
       <option value="shaded">Shaded Mesh</option>
       <option value="wireframe">Wireframe</option>
       <option value="points" selected>Point Cloud</option>
+      <option value="dense">Dense Cloud</option>
       <option value="crystal">Crystal Preview</option>
       <option value="colormap">Color Map</option>
     </select>
@@ -1234,6 +1235,7 @@ async function loadFromAPI(generator, genParams, seed, force) {
   try {
     const body = {generator, params: genParams, seed, container: getContainerParams(), timeout: getTimeoutSeconds()};
     if (force) body.force = true;
+    if (state.viewMode === 'dense') body.sampling = 'post_transform';
     const resp = await timedGenerate(body, _cancelController.signal);
     const data = await resp.json();
     state.geometryId = data.geometry_id;
@@ -1478,6 +1480,10 @@ function removeCrystalLedLight() {
 }
 
 /* ── View mode ── */
+function isPointLikeMode(mode) {
+  return mode === 'points' || mode === 'dense';
+}
+
 function viewModeNeedsMesh() {
   return state.viewMode === 'shaded' || state.viewMode === 'wireframe';
 }
@@ -1486,15 +1492,16 @@ function applyViewModeTo(meshGroup, cloudPoints) {
   const mode = state.viewMode;
   if (mode === 'crystal') return; /* crystal mode handles its own visibility */
   if (mode === 'colormap') return; /* color map mode handles its own visibility */
+  const pointLike = isPointLikeMode(mode);
   if (meshGroup) {
     meshGroup.traverse((child) => {
       if (child.name === 'shaded') child.visible = (mode === 'shaded');
       if (child.name === 'wireframe') child.visible = (mode === 'wireframe');
-      if (child.name === 'points') child.visible = (mode === 'points');
+      if (child.name === 'points') child.visible = pointLike;
     });
   }
   if (cloudPoints) {
-    cloudPoints.visible = (mode === 'points') || !meshGroup;
+    cloudPoints.visible = pointLike || !meshGroup;
   }
 }
 
@@ -1613,10 +1620,10 @@ function updateDensityInfo(displayed, total) {
 }
 
 function updateDensitySliderVisibility() {
-  const isPoints = state.viewMode === 'points';
-  document.getElementById('density-control').style.display = isPoints ? '' : 'none';
-  document.getElementById('density-slider').style.display = isPoints ? '' : 'none';
-  document.getElementById('density-value').style.display = isPoints ? '' : 'none';
+  const show = isPointLikeMode(state.viewMode);
+  document.getElementById('density-control').style.display = show ? '' : 'none';
+  document.getElementById('density-slider').style.display = show ? '' : 'none';
+  document.getElementById('density-value').style.display = show ? '' : 'none';
 }
 
 /* ── Color Map ── */
@@ -1875,10 +1882,17 @@ document.querySelectorAll('input[type="range"][data-label]').forEach(slider => {
 
 /* ── Controls wiring ── */
 document.getElementById('view-mode').addEventListener('change', (e) => {
+  const prev = state.viewMode;
   state.viewMode = e.target.value;
   applyViewMode();
   updateDensitySliderVisibility();
   if (state.compareMode) applyViewModeToAllPanels();
+  /* Dense mode uses a different server-side pipeline; re-generate when toggling */
+  const denseChanged = (prev === 'dense') !== (state.viewMode === 'dense');
+  if (denseChanged && state.generatedWith) {
+    const gw = state.generatedWith;
+    loadFromAPI(gw.generator, gw.params, gw.seed, false);
+  }
 });
 
 document.getElementById('colormap-metric').addEventListener('change', (e) => {

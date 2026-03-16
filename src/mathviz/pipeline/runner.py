@@ -11,9 +11,10 @@ from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.engraving import EngravingProfile
 from mathviz.core.generator import GeneratorBase, get_generator
 from mathviz.core.math_object import MathObject
-from mathviz.core.representation import RepresentationConfig
+from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.core.validator import ValidationResult, validate_engraving, validate_mesh
 from mathviz.pipeline import representation_strategy, sampler, transformer
+from mathviz.pipeline.dense_sampling import apply_post_transform_sampling
 from mathviz.pipeline.mesh_exporter import export_mesh
 from mathviz.pipeline.point_cloud_exporter import export_point_cloud
 from mathviz.pipeline.sampler import SamplerConfig
@@ -75,6 +76,7 @@ def run(
     engraving_profile: EngravingProfile | None = None,
     export_config: ExportConfig | None = None,
     cancel_event: threading.Event | None = None,
+    post_transform_sampling: bool = False,
 ) -> PipelineResult:
     """Execute the full or partial pipeline.
 
@@ -84,6 +86,12 @@ def run(
     If *cancel_event* is provided, it is checked between stages. Cancellation
     is cooperative: a long-running stage (e.g. generate) will not be interrupted
     mid-execution — the event is only checked at stage boundaries.
+
+    When *post_transform_sampling* is True, the represent stage uses
+    SURFACE_SHELL (to preserve the mesh) and a dense sampling step runs
+    after the transform. Any caller-supplied *representation_config* is
+    overridden with a warning. If the generator produces no mesh, the
+    flag is ignored with a warning and the normal pipeline runs instead.
     """
     timer = PipelineTimer()
 
@@ -102,9 +110,29 @@ def run(
     # --- Represent ---
     _check_cancelled(cancel_event)
     with timer.stage("represent"):
-        rep_config = representation_config or representation_strategy.get_default(
-            obj.generator_name, obj=obj
-        )
+        if post_transform_sampling and obj.mesh is not None:
+            if representation_config is not None:
+                logger.warning(
+                    "post_transform_sampling overrides representation_config "
+                    "(%s) with SURFACE_SHELL",
+                    representation_config.type.value,
+                )
+            rep_config = RepresentationConfig(
+                type=RepresentationType.SURFACE_SHELL,
+            )
+        elif post_transform_sampling and obj.mesh is None:
+            logger.warning(
+                "post_transform_sampling requested but %s has no mesh; "
+                "falling back to normal pipeline",
+                obj.generator_name or "object",
+            )
+            rep_config = representation_config or representation_strategy.get_default(
+                obj.generator_name, obj=obj
+            )
+        else:
+            rep_config = representation_config or representation_strategy.get_default(
+                obj.generator_name, obj=obj
+            )
         obj = representation_strategy.apply(obj, rep_config)
     obj.validate_or_raise()
 
@@ -113,6 +141,13 @@ def run(
     with timer.stage("transform"):
         obj = transformer.fit(obj, container, placement)
     # transformer.fit already calls validate_or_raise internally
+
+    # --- Post-transform sampling (dense cloud mode) ---
+    if post_transform_sampling and obj.mesh is not None:
+        _check_cancelled(cancel_event)
+        with timer.stage("dense_sample"):
+            obj = apply_post_transform_sampling(obj)
+        obj.validate_or_raise()
 
     # --- Sample (optional) ---
     if sampler_config is not None:
