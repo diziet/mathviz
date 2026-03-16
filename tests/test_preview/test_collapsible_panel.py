@@ -1,4 +1,4 @@
-"""Tests for the collapsible Dimensions/Margins panel in the preview UI."""
+"""Tests for collapsible panels (Dimensions/Margins, Stretch) in the preview UI."""
 
 from typing import Generator
 
@@ -54,23 +54,18 @@ class TestCollapsiblePanelHTML:
     def test_html_panel_has_collapsed_class_by_default(self, preview_html: str) -> None:
         """Panel element starts with the collapsed class in markup."""
         assert 'id="container-panel" class="collapsed"' in preview_html
-        assert "setContainerCollapsed(savedCollapsed" in preview_html
+        assert "initCollapsiblePanel('container-panel'" in preview_html
 
-    def test_html_contains_toggle_listener(self, preview_html: str) -> None:
-        """HTML contains JS that registers a click listener on the toggle."""
-        assert "containerToggle.addEventListener" in preview_html
-        assert "setContainerCollapsed(!containerPanel.classList.contains" in preview_html
-
-    def test_html_contains_collapse_class_management(self, preview_html: str) -> None:
-        """HTML contains JS that adds and removes the collapsed class."""
+    def test_html_contains_shared_collapsible_initializer(self, preview_html: str) -> None:
+        """HTML contains the shared initCollapsiblePanel function."""
+        assert "function initCollapsiblePanel(" in preview_html
+        assert "classList.toggle('collapsed'" in preview_html
         assert "classList.contains('collapsed')" in preview_html
-        assert "classList.add('collapsed')" in preview_html
-        assert "classList.remove('collapsed')" in preview_html
 
     def test_html_uses_display_none_for_collapsed_body(self, preview_html: str) -> None:
         """Collapsed body uses display:none, preserving input values in DOM."""
-        assert '#container-panel.collapsed #container-body{display:none}' in preview_html
-        assert 'id="container-body"' in preview_html
+        assert '.collapsed .collapsible-body{display:none}' in preview_html
+        assert 'class="collapsible-body"' in preview_html
         assert 'id="dim-w"' in preview_html
         assert 'id="margin-x"' in preview_html
 
@@ -82,5 +77,30 @@ class TestCollapsiblePanelHTML:
 
     def test_html_contains_localstorage_persistence(self, preview_html: str) -> None:
         """HTML contains JS for saving/loading collapsed state via localStorage."""
-        assert "localStorage.setItem('containerPanelCollapsed'" in preview_html
-        assert "localStorage.getItem('containerPanelCollapsed')" in preview_html
+        assert "'containerPanelCollapsed'" in preview_html
+        assert "localStorage.setItem(storageKey" in preview_html
+        assert "localStorage.getItem(storageKey)" in preview_html
+
+
+class TestStretchCollapsiblePanel:
+    """Tests that the Stretch section is collapsible and collapsed by default."""
+
+    def test_stretch_panel_has_collapsed_class_by_default(self, preview_html: str) -> None:
+        """Stretch panel element starts with the collapsed class in markup."""
+        assert 'id="stretch-panel" class="collapsed"' in preview_html
+
+    def test_stretch_panel_has_toggle_button(self, preview_html: str) -> None:
+        """Stretch panel has a clickable toggle header with chevron."""
+        assert 'id="stretch-toggle"' in preview_html
+        assert "collapsible-toggle" in preview_html
+
+    def test_stretch_panel_has_collapsible_body(self, preview_html: str) -> None:
+        """Stretch sliders are inside a collapsible body."""
+        assert 'id="stretch-body"' in preview_html
+        assert 'id="stretch-x"' in preview_html
+        assert 'id="stretch-y"' in preview_html
+        assert 'id="stretch-z"' in preview_html
+
+    def test_stretch_panel_initialized_via_shared_function(self, preview_html: str) -> None:
+        """Stretch panel is initialized via the shared initCollapsiblePanel function."""
+        assert "initCollapsiblePanel('stretch-panel', 'stretch-toggle', 'stretchPanelCollapsed')" in preview_html
