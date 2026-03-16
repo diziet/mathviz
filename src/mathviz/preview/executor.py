@@ -22,6 +22,7 @@ from mathviz.pipeline.runner import run as run_pipeline
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_SECONDS = 300
+MAX_TIMEOUT_SECONDS = 3600
 BATCH_TIMEOUT_ERROR = "Batch timed out"
 _ENV_VAR = "MATHVIZ_GENERATION_TIMEOUT"
 
@@ -116,7 +117,7 @@ class GenerationExecutor:
         timeout_override: int | None = None,
     ) -> PipelineResult:
         """Run the pipeline with timeout. Raises TimeoutError or CancelledError."""
-        timeout = timeout_override if timeout_override and timeout_override > 0 else get_timeout_seconds()
+        timeout = timeout_override if timeout_override is not None and timeout_override > 0 else get_timeout_seconds()
 
         with self._lock:
             pool = self._ensure_pool()

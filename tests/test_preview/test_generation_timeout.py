@@ -4,6 +4,7 @@ import os
 import pickle
 import time
 import threading
+from collections.abc import Iterator
 from typing import Any
 from unittest.mock import patch, MagicMock
 
@@ -43,6 +44,20 @@ def _setup() -> None:
 def client() -> TestClient:
     """Return a FastAPI test client."""
     return TestClient(app)
+
+
+@pytest.fixture
+def captured_submit_kwargs() -> Iterator[dict[str, Any]]:
+    """Spy on _executor.submit() kwargs, forwarding to the real implementation."""
+    captured: dict[str, Any] = {}
+    original = server_mod._executor.submit
+
+    def spy(*args: Any, **kwargs: Any) -> Any:
+        captured.update(kwargs)
+        return original(*args, **kwargs)
+
+    with patch.object(server_mod._executor, "submit", side_effect=spy):
+        yield captured
 
 
 # --- Timeout returns HTTP 504 ---
@@ -95,41 +110,23 @@ class TestGenerationTimeout:
         with patch.dict(os.environ, {"MATHVIZ_GENERATION_TIMEOUT": "abc"}):
             assert get_timeout_seconds() == DEFAULT_TIMEOUT_SECONDS
 
-    def test_custom_timeout_passed_to_executor(self, client: TestClient) -> None:
+    def test_custom_timeout_passed_to_executor(self, client: TestClient, captured_submit_kwargs: dict[str, Any]) -> None:
         """Request with custom timeout passes that value to the executor."""
-        captured_kwargs: dict[str, Any] = {}
-
-        original_submit = server_mod._executor.submit
-
-        def capturing_submit(*args: Any, **kwargs: Any) -> Any:
-            captured_kwargs.update(kwargs)
-            return original_submit(*args, **kwargs)
-
-        with patch.object(server_mod._executor, "submit", side_effect=capturing_submit):
-            resp = client.post(
-                "/api/generate",
-                json={"generator": "torus", "seed": 42, "timeout": 60},
-            )
+        resp = client.post(
+            "/api/generate",
+            json={"generator": "torus", "seed": 42, "timeout": 60},
+        )
         assert resp.status_code == 200
-        assert captured_kwargs.get("timeout_override") == 60
+        assert captured_submit_kwargs.get("timeout_override") == 60
 
-    def test_no_timeout_field_falls_back_to_default(self, client: TestClient) -> None:
+    def test_no_timeout_field_falls_back_to_default(self, client: TestClient, captured_submit_kwargs: dict[str, Any]) -> None:
         """Request without timeout field falls back to env var / 300s default."""
-        captured_kwargs: dict[str, Any] = {}
-
-        original_submit = server_mod._executor.submit
-
-        def capturing_submit(*args: Any, **kwargs: Any) -> Any:
-            captured_kwargs.update(kwargs)
-            return original_submit(*args, **kwargs)
-
-        with patch.object(server_mod._executor, "submit", side_effect=capturing_submit):
-            resp = client.post(
-                "/api/generate",
-                json={"generator": "torus", "seed": 42},
-            )
+        resp = client.post(
+            "/api/generate",
+            json={"generator": "torus", "seed": 42},
+        )
         assert resp.status_code == 200
-        assert captured_kwargs.get("timeout_override") is None
+        assert captured_submit_kwargs.get("timeout_override") == DEFAULT_TIMEOUT_SECONDS
 
     def test_custom_timeout_in_504_error_message(self, client: TestClient) -> None:
         """504 error message reflects the custom timeout, not the server default."""
