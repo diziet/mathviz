@@ -6667,13 +6667,16 @@ edges).
 
 **Suggested path:**
 
-Change the `<option value="points">Point Cloud</option>` label to
-"Vertex Cloud" in the view-mode `<select>`. The `value` attribute should
-stay `"points"` to avoid breaking localStorage-persisted state, URL params,
-and all JS references to `state.viewMode === 'points'`. Only the
-user-facing label changes.
+Change the `<option value="points">Point Cloud</option>` to
+`<option value="vertex">Vertex Cloud</option>`. Update every JS reference
+to `state.viewMode === 'points'` → `'vertex'`, the default `viewMode` in
+state initialization, and any `saveUI`/`restoreUI` logic. Add a migration
+in `restoreUI`: if localStorage has `"points"` as the saved view mode, map
+it to `"vertex"` so existing saved state doesn't break. Same for URL params
+if the view mode is ever read from the URL.
 
 **Tests:**
 
 - Manual: view mode dropdown shows "Vertex Cloud" instead of "Point Cloud"
-- Manual: saved view mode from before the rename still loads correctly
+- Manual: old localStorage with `"points"` view mode loads as Vertex Cloud
+- Manual: all view mode switches still work correctly
