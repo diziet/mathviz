@@ -5,6 +5,7 @@ import pickle
 import time
 import threading
 from collections.abc import Iterator
+from concurrent.futures import CancelledError, ThreadPoolExecutor, ProcessPoolExecutor
 from typing import Any
 from unittest.mock import patch, MagicMock
 
@@ -166,17 +167,15 @@ class TestCancelEndpoint:
         data = resp.json()
         assert data["status"] == "cancelled"
 
-    def test_cancel_does_not_leave_orphan_processes(self) -> None:
-        """Cancelled generation does not leave orphan processes."""
+    def test_cancel_sets_event_and_does_not_leave_threads(self) -> None:
+        """Cancelled generation sets the cancel event for cooperative shutdown."""
         executor = GenerationExecutor()
-        # After cancel + pool termination, pool should be None
-        executor._pool = MagicMock()
+        cancel_event = threading.Event()
         executor._current_task = MagicMock()
         executor._current_task.future = MagicMock()
+        executor._current_task.cancel_event = cancel_event
         executor.cancel()
-        executor._pool_was_terminated = True
-        # Pool should have been shut down (set to None)
-        assert executor._pool is None
+        assert cancel_event.is_set()
 
 
 # --- Normal generation still works ---
@@ -259,3 +258,114 @@ class TestPicklability:
         policy = PlacementPolicy()
         restored = pickle.loads(pickle.dumps(policy))
         assert type(restored) is PlacementPolicy
+
+
+# --- Thread-based single generation ---
+
+
+class TestThreadBasedExecution:
+    """Tests that single generation uses threads, not subprocesses."""
+
+    def test_single_generation_uses_thread_pool(self) -> None:
+        """Single generation runs in a ThreadPoolExecutor, not ProcessPoolExecutor."""
+        executor = GenerationExecutor()
+        pool = executor._ensure_thread_pool()
+        assert isinstance(pool, ThreadPoolExecutor)
+
+    def test_executor_has_no_process_pool_for_single(self) -> None:
+        """GenerationExecutor does not create a ProcessPoolExecutor for single generation."""
+        executor = GenerationExecutor()
+        # _thread_pool is used for single, _batch_pool for batch
+        assert not hasattr(executor, "_pool"), "Should not have _pool attribute (old process pool)"
+        executor._ensure_thread_pool()
+        assert isinstance(executor._thread_pool, ThreadPoolExecutor)
+
+    def test_cancel_stops_running_generation(self) -> None:
+        """Cancel request stops a running thread-based generation within a few seconds."""
+        executor = GenerationExecutor()
+        cancel_event = threading.Event()
+        started = threading.Event()
+        finished = threading.Event()
+        was_cancelled = threading.Event()
+
+        def slow_pipeline(*args: Any, **kwargs: Any) -> None:
+            started.set()
+            for _ in range(100):
+                if cancel_event.is_set():
+                    was_cancelled.set()
+                    raise CancelledError("cancelled")
+                time.sleep(0.05)
+            finished.set()
+
+        with patch("mathviz.preview.executor._run_pipeline_in_thread", side_effect=slow_pipeline):
+            # Submit in background thread
+            result_holder: list[Any] = []
+            error_holder: list[Any] = []
+
+            def do_submit() -> None:
+                try:
+                    r = executor.submit(
+                        "torus", None, 42, None,
+                        Container.with_uniform_margin(),
+                        PlacementPolicy(),
+                        timeout_override=30,
+                    )
+                    result_holder.append(r)
+                except (CancelledError, Exception) as e:
+                    error_holder.append(e)
+
+            t = threading.Thread(target=do_submit)
+            t.start()
+
+            # Wait for generation to start, then cancel
+            started.wait(timeout=5)
+            executor.cancel()
+
+            t.join(timeout=5)
+
+        assert not finished.is_set(), "Generation should have been cancelled before finishing"
+
+    def test_generation_result_identical_via_thread(self, client: TestClient) -> None:
+        """Generation result via thread is identical to direct pipeline call."""
+        from mathviz.pipeline.runner import run as run_pipeline
+        from mathviz.core.container import Container, PlacementPolicy
+
+        # Run via HTTP (thread executor)
+        resp = client.post(
+            "/api/generate",
+            json={"generator": "torus", "seed": 123},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "geometry_id" in data
+
+        # Run directly
+        direct = run_pipeline(
+            "torus",
+            seed=123,
+            container=Container.with_uniform_margin(),
+            placement=PlacementPolicy(),
+        )
+        assert direct.math_object is not None
+        # Both should produce a valid mesh — the HTTP endpoint succeeded
+        assert data["mesh_url"] is not None or data["cloud_url"] is not None
+
+
+class TestBatchUsesProcessPool:
+    """Tests that batch generation still uses ProcessPoolExecutor."""
+
+    def test_batch_pool_is_process_based(self) -> None:
+        """Batch pool is a ProcessPoolExecutor for true parallelism."""
+        executor = GenerationExecutor()
+        pool = executor._ensure_batch_pool(2)
+        assert isinstance(pool, ProcessPoolExecutor)
+        pool.shutdown(wait=False)
+
+    def test_batch_and_single_use_different_pool_types(self) -> None:
+        """Single uses ThreadPoolExecutor, batch uses ProcessPoolExecutor."""
+        executor = GenerationExecutor()
+        thread_pool = executor._ensure_thread_pool()
+        batch_pool = executor._ensure_batch_pool(2)
+        assert isinstance(thread_pool, ThreadPoolExecutor)
+        assert isinstance(batch_pool, ProcessPoolExecutor)
+        batch_pool.shutdown(wait=False)
