@@ -304,6 +304,36 @@ mathviz render-all --views top --workers 1
 mathviz render-all --output-dir gallery/ --style shaded
 ```
 
+## render-thumbnail
+
+Generate a WebP thumbnail for a generator (or all generators). Thumbnails are
+cached at `~/.mathviz/thumbnails/<view_mode>/<name>.webp`. The preview server
+spawns this command as a subprocess to avoid VTK main-thread crashes on macOS.
+
+```bash
+mathviz render-thumbnail [NAME] [OPTIONS]
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `--view-mode` | string | points | View mode: points, shaded, wireframe |
+| `--all` | flag | | Generate thumbnails for all generators |
+| `--verbose` | flag | | Enable debug logging |
+| `--quiet` | flag | | Suppress non-error output |
+
+Examples:
+
+```bash
+# Generate thumbnail for a single generator
+mathviz render-thumbnail torus
+
+# Pre-generate all thumbnails
+mathviz render-thumbnail --all
+
+# Generate shaded-style thumbnails
+mathviz render-thumbnail --all --view-mode shaded
+```
+
 ## convert
 
 Convert geometry between file formats. Supports STL, OBJ, PLY, XYZ, and PCD.
