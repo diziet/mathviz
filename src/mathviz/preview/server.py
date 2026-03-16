@@ -154,13 +154,23 @@ class CameraState(BaseModel):
     zoom: float = 1.0
 
 
+class StretchState(BaseModel):
+    """Per-axis scale factors."""
+
+    x: float = 1.0
+    y: float = 1.0
+    z: float = 1.0
+
+
 class UiState(BaseModel):
     """Display and control state saved with a snapshot."""
 
     camera: CameraState = Field(default_factory=CameraState)
     view_mode: Literal["points", "shaded", "wireframe", "crystal"] = "points"
+    stretch: StretchState = Field(default_factory=StretchState)
     camera_lock: Literal["off", "render", "full"] = "render"
     show_bbox: bool = True
+    show_axes: bool = False
     light_bg: bool = False
     point_size: float = 2.0
 

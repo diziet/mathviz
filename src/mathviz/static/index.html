@@ -372,8 +372,14 @@ canvas{display:block}
 
     <div class="section-title">Options</div>
     <label><input type="checkbox" id="show-bbox" checked> Bounding Box</label>
+    <label><input type="checkbox" id="show-axes"> Axes</label>
     <label><input type="checkbox" id="toggle-bg"> Light Background</label>
     <button id="lock-camera" data-mode="render" title="Camera: Locked (movable)">&#x1f512; Render Lock</button>
+
+    <div class="section-title">Stretch</div>
+    <div class="editor-row dim-row"><label>X</label><input type="range" id="stretch-x" min="0.1" max="3" step="0.1" value="1"></div>
+    <div class="editor-row dim-row"><label>Y</label><input type="range" id="stretch-y" min="0.1" max="3" step="0.1" value="1"></div>
+    <div class="editor-row dim-row"><label>Z</label><input type="range" id="stretch-z" min="0.1" max="3" step="0.1" value="1"></div>
 
     <div id="crystal-controls" style="display:none">
       <div class="section-title">Crystal Settings</div>
@@ -444,10 +450,12 @@ const state = {
   meshGroup: null,
   cloudPoints: null,
   bboxHelper: null,
+  axesHelper: null,
   viewMode: 'points',
   pointSize: 2,
   darkBg: true,
   cameraLocked: 'render',
+  stretch: {x: 1, y: 1, z: 1},
   generationId: 0,
   autoApply: false,
   geometryId: null,
@@ -608,6 +616,7 @@ function clearScene() {
   if (state.meshGroup) {scene.remove(state.meshGroup); state.meshGroup = null;}
   if (state.cloudPoints) {scene.remove(state.cloudPoints); state.cloudPoints = null;}
   if (state.bboxHelper) {scene.remove(state.bboxHelper); state.bboxHelper = null;}
+  if (state.axesHelper) {scene.remove(state.axesHelper); state.axesHelper = null;}
   resetViewBtn.disabled = true;
 }
 
@@ -1185,6 +1194,34 @@ document.getElementById('show-bbox').addEventListener('change', (e) => {
   if (state.compareMode) updatePanelBBoxVisibility(e.target.checked);
 });
 
+document.getElementById('show-axes').addEventListener('change', (e) => {
+  if (e.target.checked) {
+    if (!state.axesHelper) {
+      const cp = getContainerParams();
+      const axisLen = Math.max(cp.width_mm, cp.height_mm, cp.depth_mm) * 0.6;
+      state.axesHelper = new THREE.AxesHelper(axisLen);
+      scene.add(state.axesHelper);
+    }
+    state.axesHelper.visible = true;
+  } else if (state.axesHelper) {
+    state.axesHelper.visible = false;
+  }
+});
+
+function applyStretch() {
+  const s = state.stretch;
+  if (state.meshGroup) state.meshGroup.scale.set(s.x, s.y, s.z);
+  if (state.cloudPoints) state.cloudPoints.scale.set(s.x, s.y, s.z);
+}
+
+['stretch-x', 'stretch-y', 'stretch-z'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', (e) => {
+    const axis = id.split('-')[1];
+    state.stretch[axis] = parseFloat(e.target.value);
+    applyStretch();
+  });
+});
+
 document.getElementById('toggle-bg').addEventListener('change', (e) => {
   const isLight = e.target.checked;
   state.darkBg = !isLight;
@@ -1325,8 +1362,10 @@ function captureUiState() {
       zoom: camera.zoom,
     },
     view_mode: state.viewMode,
+    stretch: {x: state.stretch.x, y: state.stretch.y, z: state.stretch.z},
     camera_lock: state.cameraLocked,
     show_bbox: document.getElementById('show-bbox').checked,
+    show_axes: document.getElementById('show-axes').checked,
     light_bg: document.getElementById('toggle-bg').checked,
     point_size: state.pointSize,
   };
@@ -1549,6 +1588,28 @@ function restoreUiState(ui) {
     document.getElementById('info-panel').classList.toggle('light-bg', isLight);
     document.getElementById('container-panel').classList.toggle('light-bg', isLight);
     document.getElementById('param-panel').classList.toggle('light-bg', isLight);
+  }
+
+  /* Show axes toggle */
+  if (typeof ui.show_axes === 'boolean') {
+    document.getElementById('show-axes').checked = ui.show_axes;
+    if (ui.show_axes && !state.axesHelper) {
+      const cp = getContainerParams();
+      const axisLen = Math.max(cp.width_mm, cp.height_mm, cp.depth_mm) * 0.6;
+      state.axesHelper = new THREE.AxesHelper(axisLen);
+      scene.add(state.axesHelper);
+    }
+    if (state.axesHelper) state.axesHelper.visible = ui.show_axes;
+  }
+
+  /* Stretch (per-axis scale) */
+  if (ui.stretch) {
+    const s = ui.stretch;
+    state.stretch = {x: s.x ?? 1, y: s.y ?? 1, z: s.z ?? 1};
+    document.getElementById('stretch-x').value = state.stretch.x;
+    document.getElementById('stretch-y').value = state.stretch.y;
+    document.getElementById('stretch-z').value = state.stretch.z;
+    applyStretch();
   }
 
   /* Point size */

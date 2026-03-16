@@ -77,8 +77,10 @@ SAMPLE_UI_STATE: dict[str, Any] = {
         "zoom": 1.0,
     },
     "view_mode": "shaded",
+    "stretch": {"x": 1.5, "y": 0.8, "z": 2.0},
     "camera_lock": "render",
     "show_bbox": True,
+    "show_axes": True,
     "light_bg": False,
     "point_size": 3.5,
 }
@@ -149,8 +151,10 @@ class TestSnapshotUiState:
         assert "ui_state" in metadata
         ui = metadata["ui_state"]
         assert ui["view_mode"] == "shaded"
+        assert ui["stretch"] == {"x": 1.5, "y": 0.8, "z": 2.0}
         assert ui["camera_lock"] == "render"
         assert ui["show_bbox"] is True
+        assert ui["show_axes"] is True
         assert ui["light_bg"] is False
         assert ui["point_size"] == 3.5
         assert ui["camera"]["position"]["x"] == 1.5
@@ -179,8 +183,10 @@ class TestSnapshotUiState:
 
         assert loaded_ui["camera"] == SAMPLE_UI_STATE["camera"]
         assert loaded_ui["view_mode"] == SAMPLE_UI_STATE["view_mode"]
+        assert loaded_ui["stretch"] == SAMPLE_UI_STATE["stretch"]
         assert loaded_ui["camera_lock"] == SAMPLE_UI_STATE["camera_lock"]
         assert loaded_ui["show_bbox"] == SAMPLE_UI_STATE["show_bbox"]
+        assert loaded_ui["show_axes"] == SAMPLE_UI_STATE["show_axes"]
         assert loaded_ui["light_bg"] == SAMPLE_UI_STATE["light_bg"]
         assert loaded_ui["point_size"] == SAMPLE_UI_STATE["point_size"]
 
@@ -269,3 +275,26 @@ class TestRestoreUiStateHtml:
         """loadSnapshot preserves geometry_id from snapshot for save."""
         assert "snap.geometry_id" in preview_html
         assert "state.geometryId = snap.geometry_id" in preview_html
+
+    def test_html_has_stretch_controls(self, preview_html: str) -> None:
+        """HTML contains per-axis stretch range sliders."""
+        assert 'id="stretch-x"' in preview_html
+        assert 'id="stretch-y"' in preview_html
+        assert 'id="stretch-z"' in preview_html
+
+    def test_html_has_show_axes_toggle(self, preview_html: str) -> None:
+        """HTML contains show-axes checkbox."""
+        assert 'id="show-axes"' in preview_html
+
+    def test_capture_includes_stretch(self, preview_html: str) -> None:
+        """captureUiState includes stretch values."""
+        assert "stretch:" in preview_html
+        assert "state.stretch.x" in preview_html
+
+    def test_capture_includes_show_axes(self, preview_html: str) -> None:
+        """captureUiState includes show_axes value."""
+        assert "show_axes:" in preview_html
+
+    def test_restore_applies_stretch(self, preview_html: str) -> None:
+        """restoreUiState applies stretch to geometry."""
+        assert "applyStretch()" in preview_html
