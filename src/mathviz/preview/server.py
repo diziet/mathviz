@@ -121,6 +121,8 @@ class GenerateRequest(BaseModel):
     container: ContainerParams | None = None
     force: bool = False
     timeout: int | None = Field(default=None, gt=0, le=MAX_TIMEOUT_SECONDS, description="Per-request timeout in seconds")
+    # Maps to UI view_mode "dense" — JS sends sampling="post_transform"
+    # when the user selects the Dense Cloud view mode.
     sampling: Literal["default", "post_transform"] = "default"
 
 
@@ -170,6 +172,7 @@ class UiState(BaseModel):
     """Display and control state saved with a snapshot."""
 
     camera: CameraState = Field(default_factory=CameraState)
+    # "dense" maps to GenerateRequest.sampling="post_transform" at request time.
     view_mode: Literal["points", "shaded", "wireframe", "crystal", "dense"] = "points"
     stretch: StretchState = Field(default_factory=StretchState)
     camera_lock: Literal["off", "render", "full"] = "render"

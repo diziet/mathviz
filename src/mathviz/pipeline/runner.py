@@ -86,6 +86,12 @@ def run(
     If *cancel_event* is provided, it is checked between stages. Cancellation
     is cooperative: a long-running stage (e.g. generate) will not be interrupted
     mid-execution — the event is only checked at stage boundaries.
+
+    When *post_transform_sampling* is True, the represent stage uses
+    SURFACE_SHELL (to preserve the mesh) and a dense sampling step runs
+    after the transform. Any caller-supplied *representation_config* is
+    overridden with a warning. If the generator produces no mesh, the
+    flag is ignored with a warning and the normal pipeline runs instead.
     """
     timer = PipelineTimer()
 
@@ -105,8 +111,23 @@ def run(
     _check_cancelled(cancel_event)
     with timer.stage("represent"):
         if post_transform_sampling and obj.mesh is not None:
+            if representation_config is not None:
+                logger.warning(
+                    "post_transform_sampling overrides representation_config "
+                    "(%s) with SURFACE_SHELL",
+                    representation_config.type.value,
+                )
             rep_config = RepresentationConfig(
                 type=RepresentationType.SURFACE_SHELL,
+            )
+        elif post_transform_sampling and obj.mesh is None:
+            logger.warning(
+                "post_transform_sampling requested but %s has no mesh; "
+                "falling back to normal pipeline",
+                obj.generator_name or "object",
+            )
+            rep_config = representation_config or representation_strategy.get_default(
+                obj.generator_name, obj=obj
             )
         else:
             rep_config = representation_config or representation_strategy.get_default(

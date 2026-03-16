@@ -1480,6 +1480,10 @@ function removeCrystalLedLight() {
 }
 
 /* ── View mode ── */
+function isPointLikeMode(mode) {
+  return mode === 'points' || mode === 'dense';
+}
+
 function viewModeNeedsMesh() {
   return state.viewMode === 'shaded' || state.viewMode === 'wireframe';
 }
@@ -1488,16 +1492,16 @@ function applyViewModeTo(meshGroup, cloudPoints) {
   const mode = state.viewMode;
   if (mode === 'crystal') return; /* crystal mode handles its own visibility */
   if (mode === 'colormap') return; /* color map mode handles its own visibility */
-  const isPointLike = (mode === 'points' || mode === 'dense');
+  const pointLike = isPointLikeMode(mode);
   if (meshGroup) {
     meshGroup.traverse((child) => {
       if (child.name === 'shaded') child.visible = (mode === 'shaded');
       if (child.name === 'wireframe') child.visible = (mode === 'wireframe');
-      if (child.name === 'points') child.visible = isPointLike;
+      if (child.name === 'points') child.visible = pointLike;
     });
   }
   if (cloudPoints) {
-    cloudPoints.visible = isPointLike || !meshGroup;
+    cloudPoints.visible = pointLike || !meshGroup;
   }
 }
 
@@ -1616,10 +1620,10 @@ function updateDensityInfo(displayed, total) {
 }
 
 function updateDensitySliderVisibility() {
-  const isPoints = state.viewMode === 'points' || state.viewMode === 'dense';
-  document.getElementById('density-control').style.display = isPoints ? '' : 'none';
-  document.getElementById('density-slider').style.display = isPoints ? '' : 'none';
-  document.getElementById('density-value').style.display = isPoints ? '' : 'none';
+  const show = isPointLikeMode(state.viewMode);
+  document.getElementById('density-control').style.display = show ? '' : 'none';
+  document.getElementById('density-slider').style.display = show ? '' : 'none';
+  document.getElementById('density-value').style.display = show ? '' : 'none';
 }
 
 /* ── Color Map ── */

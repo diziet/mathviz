@@ -1,6 +1,7 @@
 """Post-transform dense sampling: sample mesh surface after physical-space scaling."""
 
 import logging
+import threading
 from dataclasses import replace
 
 import numpy as np
@@ -14,6 +15,10 @@ MAX_DENSE_SAMPLES = 200_000
 _DENSE_SURFACE_DENSITY = 100.0
 _DENSE_SEED = 42
 _MIN_SAMPLES = 10
+
+# trimesh.sample relies on numpy's legacy global RNG.  Protect the
+# seed-then-sample sequence so concurrent threads don't interleave.
+_rng_lock = threading.Lock()
 
 
 def apply_post_transform_sampling(
@@ -41,8 +46,9 @@ def apply_post_transform_sampling(
     sample_count = max(_MIN_SAMPLES, int(total_area * surface_density))
     sample_count = min(sample_count, max_samples)
 
-    np.random.seed(_DENSE_SEED)
-    points, face_indices = tm.sample(sample_count, return_index=True)
+    with _rng_lock:
+        np.random.seed(_DENSE_SEED)
+        points, face_indices = tm.sample(sample_count, return_index=True)
     normals = tm.face_normals[face_indices]
 
     cloud = PointCloud(
