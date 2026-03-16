@@ -5703,7 +5703,7 @@ slider handler calls `applyDensityFilter()` which early-returns when
 - Manual: density slider still works for cloud-only generators (sacks_spiral)
 - Manual: density percentage label updates correctly
 
-## Task 136: Recalibrate point size slider range and default after adaptive sizing
+## Task 134: Recalibrate point size slider range and default after adaptive sizing
 
 **Objective:**
 
@@ -5768,6 +5768,7 @@ Problems:
 
 ## Task 135: Fix initial camera zoom — restoreCameraIfSaved overrides fitCamera on first load
 
+
 **Objective:**
 
 Fix the preview server so the initial view shows the full object at a reasonable
@@ -5820,7 +5821,7 @@ the first `setupCameraForObject` call.
 - Manual: switch to Free camera mode, regenerate — camera re-fits each time
 - Manual: switch to Render Lock, regenerate — camera stays locked as expected
 
-## Task 134: Fix Crystal Preview rendering — glass block occludes points
+## Task 136: Fix Crystal Preview rendering — glass block occludes points
 
 **Objective:**
 
@@ -5888,3 +5889,47 @@ faintly visible glass block outline with no internal points).
 - Manual: adjust Bloom slider — glow effect changes
 - Manual: toggle LED Base — light appears below glass
 - Manual: exit Crystal Preview — returns to normal shaded view without artifacts
+
+## Task 137: Add cancel button for GIF/WebM turntable export
+
+**Objective:**
+
+Add a cancel button to the turntable export progress UI so users can abort a
+GIF or WebM export mid-capture. Currently once export starts, there is no way
+to stop it — the frame capture loop runs to completion, which can take a long
+time for high-resolution or slow-speed exports.
+
+**Root cause:**
+
+`exportGIF` and `exportWebM` both run a `for` loop over `totalFrames` with
+`await` between frames to yield to the event loop. But neither checks for a
+cancel flag, and the progress bar UI has no cancel button. The only way to
+abort is to reload the page.
+
+**Suggested path:**
+
+1. **Add cancel flag**: Add `state.exportCancelled = false` to state. Set it
+   to `false` at the start of `exportTurntable`, check it each iteration of
+   the frame loop in both `exportGIF` and `exportWebM`. If true, break out
+   of the loop early.
+
+2. **Add cancel button to progress UI**: Add a cancel button next to the
+   progress bar in `#export-progress`. Wire it to set
+   `state.exportCancelled = true`.
+
+3. **Clean up on cancel**: In `exportGIF`, skip the `gifEncoder.finish()` and
+   download steps. In `exportWebM`, call `recorder.stop()` but skip the
+   download. The `finally` block in `exportTurntable` already restores the
+   camera, renderer size, and `state.exporting` flag.
+
+**Files:**
+
+- `src/mathviz/static/index.html` (exportGIF, exportWebM, exportTurntable,
+  export-progress HTML section)
+
+**Tests:**
+
+- Manual: start GIF export, click cancel mid-capture — export stops, UI resets
+- Manual: start WebM export, click cancel — export stops, UI resets
+- Manual: after cancelling, can start a new export without issues
+- Manual: completing export without cancel still works as before
