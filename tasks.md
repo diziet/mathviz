@@ -6679,3 +6679,50 @@ No need to migrate old localStorage — it's fine if saved state with
 
 - Manual: view mode dropdown shows "Vertex Cloud" instead of "Point Cloud"
 - Manual: all view mode switches still work correctly
+
+---
+
+## Task 158: Rename "HD Cloud" to "Surface Cloud"
+
+**Objective:**
+
+"HD Cloud" is unclear — it's really a resolution-scaled surface sampling
+mode. Rename the dropdown label to "Surface Cloud" to match the naming
+pattern: Vertex Cloud, Surface Cloud, Edge Cloud, Dense Cloud. Change both
+the label and the `value` attribute from `hd_cloud` to `surface`. Update all
+JS references (`state.viewMode === 'hd_cloud'` → `'surface'`,
+`VIEW_MODE_TO_SAMPLING` entry, etc.). No localStorage migration needed.
+
+**Tests:**
+
+- Manual: dropdown shows "Surface Cloud" instead of "HD Cloud"
+- Manual: Surface Cloud mode generates with resolution-scaled sampling
+- Manual: all other view modes still work
+
+---
+
+## Task 159: Raise max sample cap to 5 million and default to 500K
+
+**Objective:**
+
+The max sample count for Dense/Surface/Edge Cloud modes defaults to 200K
+with the UI input allowing arbitrary values. Raise the default to 500,000
+and increase the hardcoded caps in `dense_sampling.py`
+(`MAX_DENSE_SAMPLES` and `MAX_RESOLUTION_SCALED_SAMPLES`) to 5,000,000.
+The UI default should also change to 500,000. Users can still set lower
+values for faster iteration.
+
+**Suggested path:**
+
+Update `MAX_DENSE_SAMPLES` and `MAX_RESOLUTION_SCALED_SAMPLES` in
+`src/mathviz/pipeline/dense_sampling.py` to 5,000,000. Change
+`DEFAULT_MAX_SAMPLES` in `index.html` to 500,000 and update the
+`<input>` default value to match. The server-side caps are only used
+when `max_samples` is None (no client override), so raising them just
+increases the ceiling.
+
+**Tests:** `tests/test_pipeline/test_dense_sampling.py`
+
+- Default cap is 5,000,000 when no max_samples override is provided
+- Client-specified max_samples below 5M is respected
+- Manual: UI input defaults to 500,000 on fresh load
