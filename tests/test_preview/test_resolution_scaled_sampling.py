@@ -113,17 +113,17 @@ class TestDefaultResolutionMatchesNormal:
     """Default resolution produces the same count as normal SPARSE_SHELL."""
 
     def test_default_resolution_same_density(self) -> None:
-        """At default resolution, scale is 1.0 so density equals base."""
+        """At default resolution, scale is 1.0 so density equals base surface density."""
         obj = MathObject(generator_name="test", mesh=_small_mesh())
 
         result_scaled = _sample_small_mesh(128)
 
-        from mathviz.pipeline.dense_sampling import apply_post_transform_sampling
+        from mathviz.pipeline.dense_sampling import _sample_mesh_surface, _DENSE_SURFACE_DENSITY, MAX_DENSE_SAMPLES
 
-        result_dense = apply_post_transform_sampling(obj)
+        surface_cloud, _ = _sample_mesh_surface(obj, _DENSE_SURFACE_DENSITY, MAX_DENSE_SAMPLES)
 
         assert len(result_scaled.point_cloud.points) == len(
-            result_dense.point_cloud.points
+            surface_cloud.points
         )
 
     def test_no_resolution_kwarg_uses_scale_1(self) -> None:
