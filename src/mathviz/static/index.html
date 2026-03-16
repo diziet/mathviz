@@ -342,6 +342,7 @@ canvas{display:block}
 }
 .category-card:hover{background:var(--card-hover-bg)}
 .category-card.active{outline:2px solid var(--accent-color)}
+.category-card.browser-focused{box-shadow:0 0 0 2px var(--accent-color),0 0 12px rgba(68,136,204,0.4)}
 .category-name{font-weight:600;font-size:14px;margin-bottom:4px}
 .category-count{font-size:12px;opacity:0.6;margin-bottom:10px}
 .category-shortcut{
@@ -371,6 +372,7 @@ canvas{display:block}
 }
 .generator-card:hover{background:var(--card-hover-bg)}
 .generator-card.selected{outline:2px solid var(--accent-color)}
+.generator-card.browser-focused{box-shadow:0 0 0 2px var(--accent-color),0 0 12px rgba(68,136,204,0.4)}
 .generator-card-thumb{
   width:100%;aspect-ratio:1;border-radius:6px;object-fit:cover;background:#333;
 }
@@ -386,6 +388,7 @@ canvas{display:block}
 }
 .search-result-card:hover{background:var(--card-hover-bg)}
 .search-result-card.selected{outline:2px solid var(--accent-color)}
+.search-result-card.browser-focused{box-shadow:0 0 0 2px var(--accent-color),0 0 12px rgba(68,136,204,0.4)}
 .search-result-thumb{
   width:48px;height:48px;border-radius:6px;object-fit:cover;background:#333;flex-shrink:0;
 }
@@ -2043,11 +2046,18 @@ const browserClose = document.getElementById('browser-close');
 
 let browserState = 'closed'; // 'closed' | 'browsing_categories' | 'browsing_generators_in_category'
 let browserCurrentCategory = null;
+let browserFocusedIndex = -1;
+let browserDigitBuffer = '';
+let browserDigitTimer = null;
+const DIGIT_TIMEOUT_MS = 500;
 
 function openBrowser() {
   browserOverlay.classList.add('open');
   browserState = 'browsing_categories';
   browserCurrentCategory = null;
+  browserFocusedIndex = -1;
+  browserDigitBuffer = '';
+  if (browserDigitTimer) { clearTimeout(browserDigitTimer); browserDigitTimer = null; }
   browserSearch.value = '';
   browserBack.style.display = 'none';
   renderCategoryGrid();
@@ -2068,6 +2078,98 @@ function browserGoBack() {
     browserSearch.value = '';
     renderCategoryGrid();
     browserSearch.focus();
+  }
+}
+
+function getBrowserCards() {
+  const grid = browserContent.querySelector('.browser-grid');
+  if (!grid) return [];
+  return Array.from(grid.children);
+}
+
+function updateBrowserFocus(newIndex) {
+  const cards = getBrowserCards();
+  if (cards.length === 0) { browserFocusedIndex = -1; return; }
+  cards.forEach(c => c.classList.remove('browser-focused'));
+  browserFocusedIndex = Math.max(0, Math.min(newIndex, cards.length - 1));
+  const card = cards[browserFocusedIndex];
+  if (card) {
+    card.classList.add('browser-focused');
+    card.scrollIntoView({block: 'nearest'});
+  }
+}
+
+function clearBrowserFocus() {
+  const cards = getBrowserCards();
+  cards.forEach(c => c.classList.remove('browser-focused'));
+  browserFocusedIndex = -1;
+}
+
+function getBrowserGridColumns() {
+  const grid = browserContent.querySelector('.browser-grid');
+  if (!grid || !grid.children.length) return 1;
+  const firstTop = grid.children[0].getBoundingClientRect().top;
+  let cols = 0;
+  for (const child of grid.children) {
+    if (child.getBoundingClientRect().top === firstTop) cols++;
+    else break;
+  }
+  return Math.max(cols, 1);
+}
+
+function handleBrowserArrowKey(key) {
+  const cards = getBrowserCards();
+  if (cards.length === 0) return;
+  const cols = getBrowserGridColumns();
+  let idx = browserFocusedIndex;
+  if (idx < 0) { updateBrowserFocus(0); return; }
+  const row = Math.floor(idx / cols);
+  const col = idx % cols;
+  const totalRows = Math.ceil(cards.length / cols);
+  if (key === 'ArrowRight') {
+    idx = (idx + 1) % cards.length;
+  } else if (key === 'ArrowLeft') {
+    idx = (idx - 1 + cards.length) % cards.length;
+  } else if (key === 'ArrowDown') {
+    const newRow = (row + 1) % totalRows;
+    idx = Math.min(newRow * cols + col, cards.length - 1);
+  } else if (key === 'ArrowUp') {
+    const newRow = (row - 1 + totalRows) % totalRows;
+    idx = Math.min(newRow * cols + col, cards.length - 1);
+  }
+  updateBrowserFocus(idx);
+}
+
+function activateBrowserItem(index) {
+  const cards = getBrowserCards();
+  if (index < 0 || index >= cards.length) return;
+  cards[index].click();
+}
+
+function handleBrowserDigit(digit) {
+  browserDigitBuffer += String(digit);
+  if (browserDigitTimer) clearTimeout(browserDigitTimer);
+  if (browserDigitBuffer.length >= 2) {
+    const num = parseInt(browserDigitBuffer, 10);
+    browserDigitBuffer = '';
+    browserDigitTimer = null;
+    selectBrowserItemByNumber(num);
+  } else {
+    browserDigitTimer = setTimeout(() => {
+      const num = parseInt(browserDigitBuffer, 10);
+      browserDigitBuffer = '';
+      browserDigitTimer = null;
+      selectBrowserItemByNumber(num);
+    }, DIGIT_TIMEOUT_MS);
+  }
+}
+
+function selectBrowserItemByNumber(num) {
+  const idx = num === 0 ? 9 : num - 1;
+  const cards = getBrowserCards();
+  if (idx >= 0 && idx < cards.length) {
+    updateBrowserFocus(idx);
+    activateBrowserItem(idx);
   }
 }
 
@@ -2144,7 +2246,10 @@ function renderCategoryGrid() {
       thumbStrip.appendChild(createThumbImg(g.name));
     }
     card.appendChild(thumbStrip);
-    card.addEventListener('click', () => showCategoryGenerators(cat.name));
+    card.addEventListener('click', () => {
+      browserFocusedIndex = idx;
+      showCategoryGenerators(cat.name);
+    });
     grid.appendChild(card);
   });
   browserContent.appendChild(grid);
@@ -2159,6 +2264,7 @@ function escapeHtml(str) {
 function showCategoryGenerators(categoryName) {
   browserState = 'browsing_generators_in_category';
   browserCurrentCategory = categoryName;
+  browserFocusedIndex = -1;
   browserBack.style.display = '';
   browserContent.innerHTML = '';
 
@@ -2187,6 +2293,7 @@ function showCategoryGenerators(categoryName) {
     card.appendChild(name);
     appendShortcutBadge(card, idx);
     card.addEventListener('click', () => {
+      browserFocusedIndex = idx;
       closeBrowser();
       selectGenerator(gen.name);
     });
@@ -2290,27 +2397,29 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
-  // Number shortcuts for categories/generators
-  if (browserState !== 'closed' && !browserSearch.value.trim()
-      && document.activeElement !== browserSearch) {
+  // Skip shortcuts when search input is focused
+  if (document.activeElement === browserSearch) return;
+
+  // Arrow key grid navigation
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+    e.preventDefault();
+    handleBrowserArrowKey(e.key);
+    return;
+  }
+
+  // Enter activates focused item
+  if (e.key === 'Enter' && browserFocusedIndex >= 0) {
+    e.preventDefault();
+    activateBrowserItem(browserFocusedIndex);
+    return;
+  }
+
+  // Number shortcuts for categories/generators (with two-digit support)
+  if (browserState !== 'closed' && !browserSearch.value.trim()) {
     const num = parseInt(e.key, 10);
     if (!Number.isNaN(num)) {
-      const idx = num === 0 ? 9 : num - 1;
-      if (browserState === 'browsing_categories') {
-        const categories = getGroupedGenerators();
-        if (idx < categories.length && idx < 10) {
-          e.preventDefault();
-          showCategoryGenerators(categories[idx].name);
-        }
-      } else if (browserState === 'browsing_generators_in_category') {
-        const categories = getGroupedGenerators();
-        const cat = categories.find(c => c.name === browserCurrentCategory);
-        if (cat && idx < cat.generators.length && idx < 10) {
-          e.preventDefault();
-          closeBrowser();
-          selectGenerator(cat.generators[idx].name);
-        }
-      }
+      e.preventDefault();
+      handleBrowserDigit(num);
     }
   }
 });
