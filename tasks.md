@@ -6736,7 +6736,7 @@ increases the ceiling.
 The preview UI currently only supports OrbitControls (mouse drag to rotate,
 scroll to zoom). Add keyboard WASD controls so the user can move the camera
 viewpoint: W moves forward, S moves backward, A strafes left, D strafes
-right. Q and E can optionally move down/up. This gives a first-person-style
+right. Space moves the camera up. This gives a first-person-style
 navigation that complements the existing orbit controls, making it easier to
 inspect geometry from specific angles. The controls should work whenever the
 canvas has focus and should not conflict with text inputs (param editor,
@@ -6748,7 +6748,8 @@ Add a `keydown`/`keyup` event listener on `document` that tracks which WASD
 keys are currently pressed. In the existing animation loop (`animate()`),
 check the pressed-key state and translate the camera along its local axes
 accordingly. Use `camera.translateZ(-speed)` for W, `camera.translateZ(speed)`
-for S, `camera.translateX(-speed)` for A, `camera.translateX(speed)` for D.
+for S, `camera.translateX(-speed)` for A, `camera.translateX(speed)` for D,
+and `camera.translateY(speed)` for Space (move up).
 Ignore key events when `document.activeElement` is an `input`, `select`, or
 `textarea` to avoid interfering with form fields. Movement speed should be
 proportional to the current camera distance from the orbit target so it
