@@ -42,6 +42,49 @@ def do_generate_body(preview_html: str) -> str:
     return match.group(0)
 
 
+@pytest.fixture
+def apply_sampling_body(preview_html: str) -> str:
+    """Extract the applySamplingMode function body from preview HTML."""
+    fn_match = re.search(
+        r"function applySamplingMode\(body\)\s*\{([^}]+)\}",
+        preview_html,
+    )
+    assert fn_match is not None, "applySamplingMode function not found in HTML"
+    return fn_match.group(1)
+
+
+class TestApplySamplingMode:
+    """Verify applySamplingMode helper exists and is used by both code paths."""
+
+    def test_helper_exists(self, preview_html: str) -> None:
+        """applySamplingMode helper function is defined."""
+        assert "function applySamplingMode(body)" in preview_html
+
+    def test_helper_handles_dense(self, apply_sampling_body: str) -> None:
+        """applySamplingMode sets post_transform for dense mode."""
+        assert "post_transform" in apply_sampling_body
+        assert "dense" in apply_sampling_body
+
+    def test_helper_handles_hd_cloud(self, apply_sampling_body: str) -> None:
+        """applySamplingMode sets resolution_scaled for hd_cloud mode."""
+        assert "resolution_scaled" in apply_sampling_body
+        assert "hd_cloud" in apply_sampling_body
+
+    def test_load_from_api_uses_helper(self, preview_html: str) -> None:
+        """loadFromAPI calls applySamplingMode instead of inline checks."""
+        load_match = re.search(
+            r"async function loadFromAPI\b.*?^\}",
+            preview_html,
+            re.DOTALL | re.MULTILINE,
+        )
+        assert load_match is not None
+        assert "applySamplingMode(body)" in load_match.group(0)
+
+    def test_do_generate_uses_helper(self, do_generate_body: str) -> None:
+        """_doGenerate calls applySamplingMode to respect current view mode."""
+        assert "applySamplingMode(body)" in do_generate_body
+
+
 class TestDoGenerateUpdatesState:
     """Verify _doGenerate sets state.generatedWith after success."""
 
