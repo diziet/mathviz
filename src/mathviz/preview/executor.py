@@ -8,6 +8,7 @@ from concurrent.futures import (
     CancelledError,
     Future,
     ProcessPoolExecutor,
+    ThreadPoolExecutor,
     TimeoutError,
     as_completed,
 )
@@ -41,6 +42,27 @@ def get_timeout_seconds() -> int:
     return DEFAULT_TIMEOUT_SECONDS
 
 
+def _run_pipeline_in_thread(
+    generator: str,
+    params: dict[str, Any] | None,
+    seed: int,
+    resolution_kwargs: dict[str, Any] | None,
+    container: Container,
+    placement: PlacementPolicy,
+    cancel_event: threading.Event,
+) -> PipelineResult:
+    """Target function executed in the thread pool."""
+    return run_pipeline(
+        generator,
+        params=params,
+        seed=seed,
+        resolution_kwargs=resolution_kwargs,
+        container=container,
+        placement=placement,
+        cancel_event=cancel_event,
+    )
+
+
 def _run_pipeline_in_process(
     generator: str,
     params: dict[str, Any] | None,
@@ -49,7 +71,7 @@ def _run_pipeline_in_process(
     container: Container,
     placement: PlacementPolicy,
 ) -> PipelineResult:
-    """Target function executed in the subprocess."""
+    """Target function executed in the subprocess (batch only)."""
     return run_pipeline(
         generator,
         params=params,
@@ -65,6 +87,7 @@ class GenerationTask:
     """Tracks a running generation for timeout and cancellation."""
 
     future: Future
+    cancel_event: threading.Event
     cancelled: bool = False
 
 
@@ -85,20 +108,31 @@ class BatchResult:
     timed_out: bool = False
 
 
+_CANCEL_GRACE_SECONDS = 2
+
+
 class GenerationExecutor:
-    """Manages pipeline generation with timeout and cancel support."""
+    """Manages pipeline generation with timeout and cancel support.
+
+    Single generations run in a ThreadPoolExecutor to avoid subprocess
+    pickle/import overhead. The numba JIT kernel releases the GIL, so
+    CPU-bound compute does not block the event loop. Cancellation is
+    cooperative via a threading.Event checked between pipeline stages.
+    If a thread does not exit within the grace period after cancellation,
+    the pool is recreated as a last resort.
+    """
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._current_task: GenerationTask | None = None
-        self._pool: ProcessPoolExecutor | None = None
+        self._thread_pool: ThreadPoolExecutor | None = None
         self._batch_pool: ProcessPoolExecutor | None = None
 
-    def _ensure_pool(self) -> ProcessPoolExecutor:
-        """Create the process pool if needed. Must be called under self._lock."""
-        if self._pool is None:
-            self._pool = ProcessPoolExecutor(max_workers=1)
-        return self._pool
+    def _ensure_thread_pool(self) -> ThreadPoolExecutor:
+        """Create the thread pool if needed. Must be called under self._lock."""
+        if self._thread_pool is None:
+            self._thread_pool = ThreadPoolExecutor(max_workers=1)
+        return self._thread_pool
 
     def _ensure_batch_pool(self, worker_count: int) -> ProcessPoolExecutor:
         """Create the batch pool if needed. Must be called under self._lock."""
@@ -118,26 +152,31 @@ class GenerationExecutor:
     ) -> PipelineResult:
         """Run the pipeline with timeout. Raises TimeoutError or CancelledError."""
         timeout = timeout_override if timeout_override is not None and timeout_override > 0 else get_timeout_seconds()
+        cancel_event = threading.Event()
 
         with self._lock:
-            pool = self._ensure_pool()
+            pool = self._ensure_thread_pool()
             future = pool.submit(
-                _run_pipeline_in_process,
+                _run_pipeline_in_thread,
                 generator,
                 params,
                 seed,
                 resolution_kwargs,
                 container,
                 placement,
+                cancel_event,
             )
-            task = GenerationTask(future=future)
+            task = GenerationTask(future=future, cancel_event=cancel_event)
             self._current_task = task
 
         try:
             result = future.result(timeout=timeout)
         except TimeoutError:
+            cancel_event.set()
             future.cancel()
-            self._terminate_pool()
+            self._wait_or_recreate_pool(future)
+            raise
+        except CancelledError:
             raise
         finally:
             with self._lock:
@@ -178,7 +217,6 @@ class GenerationExecutor:
             )
             future_to_idx[future] = i
 
-        deadline = time.monotonic() + timeout
         result = BatchResult()
         result.panels = [BatchPanelResult(index=i) for i in range(len(jobs))]
 
@@ -207,6 +245,26 @@ class GenerationExecutor:
 
         return result
 
+    def _wait_or_recreate_pool(self, future: Future) -> None:
+        """Wait briefly for the thread to exit; recreate the pool if it doesn't."""
+        try:
+            future.result(timeout=_CANCEL_GRACE_SECONDS)
+        except (TimeoutError, CancelledError, KeyError, ValueError):
+            pass
+        except Exception:
+            pass
+
+        if not future.done():
+            logger.warning(
+                "Generation thread did not exit within %ds grace period; "
+                "recreating thread pool",
+                _CANCEL_GRACE_SECONDS,
+            )
+            with self._lock:
+                if self._thread_pool is not None:
+                    self._thread_pool.shutdown(wait=False, cancel_futures=True)
+                    self._thread_pool = None
+
     def cancel(self) -> bool:
         """Cancel the running generation. Returns True if cancelled."""
         with self._lock:
@@ -214,9 +272,10 @@ class GenerationExecutor:
             if task is None:
                 return False
             task.cancelled = True
+            task.cancel_event.set()
             task.future.cancel()
 
-        self._terminate_pool()
+        self._wait_or_recreate_pool(task.future)
         return True
 
     def is_running(self) -> bool:
@@ -224,19 +283,12 @@ class GenerationExecutor:
         with self._lock:
             return self._current_task is not None
 
-    def _terminate_pool(self) -> None:
-        """Kill the pool and recreate it to ensure the process is dead."""
-        with self._lock:
-            if self._pool is not None:
-                self._pool.shutdown(wait=False, cancel_futures=True)
-                self._pool = None
-
     def shutdown(self) -> None:
         """Shut down the executor cleanly."""
         with self._lock:
-            if self._pool is not None:
-                self._pool.shutdown(wait=True)
-                self._pool = None
+            if self._thread_pool is not None:
+                self._thread_pool.shutdown(wait=True)
+                self._thread_pool = None
             if self._batch_pool is not None:
                 self._batch_pool.shutdown(wait=True)
                 self._batch_pool = None

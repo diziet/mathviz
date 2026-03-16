@@ -1,6 +1,8 @@
 """Pipeline runner: chains stages with timing and validation at every boundary."""
 
 import logging
+import threading
+from concurrent.futures import CancelledError
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -54,6 +56,12 @@ class PipelineResult:
     export_path: Path | None = None
 
 
+def _check_cancelled(cancel_event: threading.Event | None) -> None:
+    """Raise CancelledError if the cancel event is set."""
+    if cancel_event is not None and cancel_event.is_set():
+        raise CancelledError("Generation cancelled")
+
+
 def run(
     generator: str | GeneratorBase,
     *,
@@ -66,17 +74,23 @@ def run(
     sampler_config: SamplerConfig | None = None,
     engraving_profile: EngravingProfile | None = None,
     export_config: ExportConfig | None = None,
+    cancel_event: threading.Event | None = None,
 ) -> PipelineResult:
     """Execute the full or partial pipeline.
 
     Chains: generate -> represent -> transform -> sample -> validate -> export.
     Calls validate_or_raise() at every stage boundary.
+
+    If *cancel_event* is provided, it is checked between stages. Cancellation
+    is cooperative: a long-running stage (e.g. generate) will not be interrupted
+    mid-execution — the event is only checked at stage boundaries.
     """
     timer = PipelineTimer()
 
     gen_instance = _resolve_generator(generator)
 
     # --- Generate ---
+    _check_cancelled(cancel_event)
     with timer.stage("generate"):
         obj = gen_instance.generate(
             params=params,
@@ -86,6 +100,7 @@ def run(
     obj.validate_or_raise()
 
     # --- Represent ---
+    _check_cancelled(cancel_event)
     with timer.stage("represent"):
         rep_config = representation_config or representation_strategy.get_default(
             obj.generator_name, obj=obj
@@ -94,23 +109,27 @@ def run(
     obj.validate_or_raise()
 
     # --- Transform ---
+    _check_cancelled(cancel_event)
     with timer.stage("transform"):
         obj = transformer.fit(obj, container, placement)
     # transformer.fit already calls validate_or_raise internally
 
     # --- Sample (optional) ---
     if sampler_config is not None:
+        _check_cancelled(cancel_event)
         with timer.stage("sample"):
             obj = sampler.sample(obj, sampler_config)
         obj.validate_or_raise()
 
     # --- Validate ---
+    _check_cancelled(cancel_event)
     with timer.stage("validate"):
         validation = _run_validation(obj, container, engraving_profile)
 
     # --- Export (optional) ---
     export_path: Path | None = None
     if export_config is not None:
+        _check_cancelled(cancel_event)
         with timer.stage("export"):
             export_path = _run_export(obj, export_config)
 
