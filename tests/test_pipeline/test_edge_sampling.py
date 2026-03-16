@@ -18,6 +18,7 @@ from mathviz.pipeline.dense_sampling import (
     apply_edge_sampling,
     apply_post_transform_sampling,
 )
+from mathviz.pipeline.representation_handlers import extract_unique_edges
 from mathviz.preview.cache import compute_cache_key
 from mathviz.preview.server import app, get_cache, reset_cache
 
@@ -69,12 +70,7 @@ class TestEdgeSamplingPointsOnEdges:
         cloud = _sample_mesh_edges(obj, max_samples=500)
 
         verts = mesh.vertices
-        faces = mesh.faces
-        raw_edges = np.concatenate([
-            faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]],
-        ], axis=0)
-        raw_edges = np.sort(raw_edges, axis=1)
-        edges = np.unique(raw_edges, axis=0)
+        edges = extract_unique_edges(mesh)
 
         for point in cloud.points:
             min_dist = _min_distance_to_edges(point, verts, edges)
