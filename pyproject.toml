@@ -53,4 +53,7 @@ select = ["E", "F", "I", "W"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = "-n auto --dist loadscope"
+addopts = "-n auto --dist loadscope -m 'not slow'"
+markers = [
+    "slow: full-pipeline smoke tests (run with pytest -m slow)",
+]
