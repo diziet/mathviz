@@ -295,6 +295,103 @@ canvas{display:block}
   background:transparent;color:inherit;cursor:pointer;font-size:12px;
 }
 #regenerate-btn:hover{background:rgba(128,128,128,0.3)}
+
+/* Generator browser modal */
+#generator-browser{
+  --card-bg:rgba(255,255,255,0.06);
+  --card-hover-bg:rgba(68,136,204,0.2);
+  --accent-color:#4488cc;
+  display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.75);z-index:300;
+  justify-content:center;align-items:center;
+  backdrop-filter:blur(4px);
+}
+#generator-browser.open{display:flex}
+#browser-panel{
+  background:#1e1e2e;color:#eee;border-radius:14px;
+  width:95%;height:95%;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+#browser-header{
+  display:flex;align-items:center;gap:12px;
+  padding:16px 20px;border-bottom:1px solid #333;flex-shrink:0;
+}
+#browser-search{
+  flex:1;padding:8px 12px;border:1px solid #555;border-radius:8px;
+  background:rgba(0,0,0,0.3);color:#eee;font-size:15px;outline:none;
+}
+#browser-search:focus{border-color:#4488cc}
+#browser-search::placeholder{color:#888}
+#browser-back{
+  display:none;background:none;border:1px solid #555;border-radius:6px;
+  color:#eee;cursor:pointer;font-size:13px;padding:6px 12px;white-space:nowrap;
+}
+#browser-back:hover{background:rgba(128,128,128,0.3)}
+#browser-close{background:none;border:none;color:#eee;font-size:24px;cursor:pointer;padding:4px 8px}
+#browser-close:hover{color:#ff6b6b}
+#browser-content{flex:1;overflow-y:auto;padding:20px}
+
+/* Category grid */
+.browser-grid{
+  display:grid;gap:16px;
+  grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));
+}
+.category-card{
+  background:var(--card-bg);border-radius:10px;padding:16px;
+  cursor:pointer;transition:background 0.15s;position:relative;
+}
+.category-card:hover{background:var(--card-hover-bg)}
+.category-card.active{outline:2px solid var(--accent-color)}
+.category-name{font-weight:600;font-size:14px;margin-bottom:4px}
+.category-count{font-size:12px;opacity:0.6;margin-bottom:10px}
+.category-shortcut{
+  position:absolute;top:8px;right:10px;font-size:11px;opacity:0.4;
+  background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:4px;
+}
+.category-thumbs{display:flex;gap:4px;height:48px}
+.category-thumbs img{
+  width:48px;height:48px;border-radius:4px;object-fit:cover;background:#333;
+}
+.thumb-placeholder{
+  width:48px;height:48px;border-radius:4px;background:#333;
+  display:flex;align-items:center;justify-content:center;
+}
+.thumb-placeholder::after{
+  content:'';width:16px;height:16px;border:2px solid #555;
+  border-top-color:transparent;border-radius:50%;
+  animation:thumb-spin 0.8s linear infinite;
+}
+@keyframes thumb-spin{to{transform:rotate(360deg)}}
+
+/* Generator cards within a category */
+.generator-card{
+  background:var(--card-bg);border-radius:10px;padding:12px;
+  cursor:pointer;transition:background 0.15s;position:relative;
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+}
+.generator-card:hover{background:var(--card-hover-bg)}
+.generator-card.selected{outline:2px solid var(--accent-color)}
+.generator-card-thumb{
+  width:100%;aspect-ratio:1;border-radius:6px;object-fit:cover;background:#333;
+}
+.generator-card-name{font-size:13px;font-weight:500;text-align:center;word-break:break-word}
+.generator-card .category-shortcut{top:6px;right:8px}
+.generator-card .thumb-placeholder{width:100%;aspect-ratio:1;height:auto;border-radius:6px}
+
+/* Search results */
+.search-result-card{
+  display:flex;gap:12px;align-items:center;padding:10px 14px;
+  background:var(--card-bg);border-radius:8px;cursor:pointer;
+  transition:background 0.15s;
+}
+.search-result-card:hover{background:var(--card-hover-bg)}
+.search-result-card.selected{outline:2px solid var(--accent-color)}
+.search-result-thumb{
+  width:48px;height:48px;border-radius:6px;object-fit:cover;background:#333;flex-shrink:0;
+}
+.search-result-info{flex:1;min-width:0}
+.search-result-name{font-size:13px;font-weight:600}
+.search-result-category{font-size:11px;opacity:0.6}
 </style>
 </head>
 <body>
@@ -428,6 +525,17 @@ canvas{display:block}
     <div id="gallery-list">
       <div id="gallery-empty">No saved snapshots yet.</div>
     </div>
+  </div>
+</div>
+
+<div id="generator-browser">
+  <div id="browser-panel">
+    <div id="browser-header">
+      <button id="browser-back">&larr; Back to categories</button>
+      <input type="text" id="browser-search" placeholder="Search generators..." autocomplete="off">
+      <button id="browser-close">&times;</button>
+    </div>
+    <div id="browser-content"></div>
   </div>
 </div>
 
@@ -1921,10 +2029,290 @@ function showFilteredDropdown() {
 }
 
 searchInput.addEventListener('input', showFilteredDropdown);
-searchInput.addEventListener('focus', showFilteredDropdown);
 
 searchInput.addEventListener('blur', () => {
   setTimeout(() => { dropdown.style.display = 'none'; }, 150);
+});
+
+/* ── Generator browser modal ── */
+const browserOverlay = document.getElementById('generator-browser');
+const browserContent = document.getElementById('browser-content');
+const browserSearch = document.getElementById('browser-search');
+const browserBack = document.getElementById('browser-back');
+const browserClose = document.getElementById('browser-close');
+
+let browserState = 'closed'; // 'closed' | 'browsing_categories' | 'browsing_generators_in_category'
+let browserCurrentCategory = null;
+
+function openBrowser() {
+  browserOverlay.classList.add('open');
+  browserState = 'browsing_categories';
+  browserCurrentCategory = null;
+  browserSearch.value = '';
+  browserBack.style.display = 'none';
+  renderCategoryGrid();
+  setTimeout(() => browserSearch.focus(), 50);
+}
+
+function closeBrowser() {
+  browserOverlay.classList.remove('open');
+  browserState = 'closed';
+  browserCurrentCategory = null;
+}
+
+function browserGoBack() {
+  if (browserState === 'browsing_generators_in_category') {
+    browserState = 'browsing_categories';
+    browserCurrentCategory = null;
+    browserBack.style.display = 'none';
+    browserSearch.value = '';
+    renderCategoryGrid();
+    browserSearch.focus();
+  }
+}
+
+let cachedGrouped = null;
+let cachedGroupedFor = null;
+
+function getGroupedGenerators() {
+  if (cachedGroupedFor === allGenerators && cachedGrouped) return cachedGrouped;
+  const groups = {};
+  for (const gen of allGenerators) {
+    if (!groups[gen.category]) groups[gen.category] = [];
+    groups[gen.category].push(gen);
+  }
+  const sorted = Object.keys(groups).sort();
+  cachedGrouped = sorted.map(cat => ({ name: cat, generators: groups[cat] }));
+  cachedGroupedFor = allGenerators;
+  return cachedGrouped;
+}
+
+function getCurrentGeneratorName() {
+  return searchInput.value;
+}
+
+function appendShortcutBadge(card, idx) {
+  if (idx >= 10) return;
+  const shortcut = document.createElement('div');
+  shortcut.className = 'category-shortcut';
+  shortcut.textContent = String(idx + 1 > 9 ? 0 : idx + 1);
+  card.appendChild(shortcut);
+}
+
+function createThumbImg(generatorName) {
+  const viewMode = document.getElementById('view-mode').value;
+  const img = document.createElement('img');
+  const placeholder = document.createElement('div');
+  placeholder.className = 'thumb-placeholder';
+  img.src = '/api/generators/' + encodeURIComponent(generatorName) + '/thumbnail?view_mode=' + encodeURIComponent(viewMode);
+  img.loading = 'lazy';
+  img.alt = generatorName;
+  img.style.display = 'none';
+  img.addEventListener('load', () => {
+    img.className = placeholder.className;
+    placeholder.replaceWith(img);
+    img.style.display = '';
+  });
+  img.addEventListener('error', () => {
+    placeholder.innerHTML = '<span style="font-size:10px;opacity:0.4">?</span>';
+  });
+  // Start loading in background
+  placeholder.appendChild(img);
+  return placeholder;
+}
+
+function renderCategoryGrid() {
+  browserContent.innerHTML = '';
+  const categories = getGroupedGenerators();
+  const grid = document.createElement('div');
+  grid.className = 'browser-grid';
+  const currentGen = getCurrentGeneratorName();
+
+  categories.forEach((cat, idx) => {
+    const card = document.createElement('div');
+    card.className = 'category-card';
+    if (cat.generators.some(g => g.name === currentGen)) {
+      card.classList.add('active');
+    }
+    card.innerHTML = '<div class="category-name">' + escapeHtml(cat.name) + '</div>'
+      + '<div class="category-count">' + cat.generators.length + ' generator' + (cat.generators.length !== 1 ? 's' : '') + '</div>';
+    appendShortcutBadge(card, idx);
+    const thumbStrip = document.createElement('div');
+    thumbStrip.className = 'category-thumbs';
+    const previewGens = cat.generators.slice(0, 3);
+    for (const g of previewGens) {
+      thumbStrip.appendChild(createThumbImg(g.name));
+    }
+    card.appendChild(thumbStrip);
+    card.addEventListener('click', () => showCategoryGenerators(cat.name));
+    grid.appendChild(card);
+  });
+  browserContent.appendChild(grid);
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function showCategoryGenerators(categoryName) {
+  browserState = 'browsing_generators_in_category';
+  browserCurrentCategory = categoryName;
+  browserBack.style.display = '';
+  browserContent.innerHTML = '';
+
+  const categories = getGroupedGenerators();
+  const cat = categories.find(c => c.name === categoryName);
+  if (!cat) return;
+
+  const heading = document.createElement('div');
+  heading.style.cssText = 'font-size:16px;font-weight:600;margin-bottom:16px';
+  heading.textContent = cat.name + ' (' + cat.generators.length + ')';
+  browserContent.appendChild(heading);
+
+  const grid = document.createElement('div');
+  grid.className = 'browser-grid';
+  grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(150px, 1fr))';
+  const currentGen = getCurrentGeneratorName();
+
+  cat.generators.forEach((gen, idx) => {
+    const card = document.createElement('div');
+    card.className = 'generator-card';
+    if (gen.name === currentGen) card.classList.add('selected');
+    card.appendChild(createThumbImg(gen.name));
+    const name = document.createElement('div');
+    name.className = 'generator-card-name';
+    name.textContent = gen.name;
+    card.appendChild(name);
+    appendShortcutBadge(card, idx);
+    card.addEventListener('click', () => {
+      closeBrowser();
+      selectGenerator(gen.name);
+    });
+    grid.appendChild(card);
+  });
+  browserContent.appendChild(grid);
+}
+
+const MAX_SEARCH_RESULTS = 50;
+
+function renderSearchResults(query) {
+  browserContent.innerHTML = '';
+  const filtered = filterGenerators(query).slice(0, MAX_SEARCH_RESULTS);
+  if (filtered.length === 0) {
+    browserContent.innerHTML = '<div style="text-align:center;padding:40px;opacity:0.5">No generators match "' + escapeHtml(query) + '"</div>';
+    return;
+  }
+  const list = document.createElement('div');
+  list.style.cssText = 'display:flex;flex-direction:column;gap:8px';
+  const currentGen = getCurrentGeneratorName();
+  for (const gen of filtered) {
+    const card = document.createElement('div');
+    card.className = 'search-result-card';
+    if (gen.name === currentGen) card.classList.add('selected');
+    const thumb = createThumbImg(gen.name);
+    thumb.classList.add('search-result-thumb');
+    card.appendChild(thumb);
+    const info = document.createElement('div');
+    info.className = 'search-result-info';
+    info.innerHTML = '<div class="search-result-name">' + escapeHtml(gen.name) + '</div>'
+      + '<div class="search-result-category">' + escapeHtml(gen.category) + '</div>';
+    card.appendChild(info);
+    card.addEventListener('click', () => {
+      closeBrowser();
+      selectGenerator(gen.name);
+    });
+    list.appendChild(card);
+  }
+  browserContent.appendChild(list);
+}
+
+browserSearch.addEventListener('input', () => {
+  const q = browserSearch.value.trim();
+  if (q) {
+    browserBack.style.display = 'none';
+    browserCurrentCategory = null;
+    renderSearchResults(q);
+  } else if (browserState !== 'closed') {
+    browserState = 'browsing_categories';
+    browserBack.style.display = 'none';
+    renderCategoryGrid();
+  }
+});
+
+browserClose.addEventListener('click', closeBrowser);
+browserBack.addEventListener('click', browserGoBack);
+browserOverlay.addEventListener('click', (e) => {
+  if (e.target === browserOverlay) closeBrowser();
+});
+
+// Open browser on clicking the generator search input
+searchInput.addEventListener('focus', (e) => {
+  if (browserState === 'closed' && allGenerators.length > 0) {
+    e.target.blur();
+    openBrowser();
+  } else if (allGenerators.length === 0) {
+    showFilteredDropdown();
+  }
+});
+
+// Cmd+K / Ctrl+K opens the browser
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    if (browserState === 'closed') {
+      if (allGenerators.length > 0) openBrowser();
+    } else {
+      closeBrowser();
+    }
+    return;
+  }
+  if (browserState === 'closed') return;
+
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    if (browserSearch.value.trim()) {
+      browserSearch.value = '';
+      browserSearch.dispatchEvent(new Event('input'));
+    } else if (browserState === 'browsing_generators_in_category') {
+      browserGoBack();
+    } else {
+      closeBrowser();
+    }
+    return;
+  }
+
+  if (e.key === 'Backspace' && browserState === 'browsing_generators_in_category'
+      && document.activeElement !== browserSearch) {
+    e.preventDefault();
+    browserGoBack();
+    return;
+  }
+
+  // Number shortcuts for categories/generators
+  if (browserState !== 'closed' && !browserSearch.value.trim()
+      && document.activeElement !== browserSearch) {
+    const num = parseInt(e.key, 10);
+    if (!Number.isNaN(num)) {
+      const idx = num === 0 ? 9 : num - 1;
+      if (browserState === 'browsing_categories') {
+        const categories = getGroupedGenerators();
+        if (idx < categories.length && idx < 10) {
+          e.preventDefault();
+          showCategoryGenerators(categories[idx].name);
+        }
+      } else if (browserState === 'browsing_generators_in_category') {
+        const categories = getGroupedGenerators();
+        const cat = categories.find(c => c.name === browserCurrentCategory);
+        if (cat && idx < cat.generators.length && idx < 10) {
+          e.preventDefault();
+          closeBrowser();
+          selectGenerator(cat.generators[idx].name);
+        }
+      }
+    }
+  }
 });
 
 /* ── Seed control ── */
