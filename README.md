@@ -147,6 +147,7 @@ See [docs/cli.md](docs/cli.md) for full flag reference and examples.
 - [Configuration](docs/configuration.md) — config file format, precedence rules, sampling profiles
 - [Representation Strategies](docs/representation.md) — how raw geometry is realized for engraving
 - [Preview UI](docs/preview.md) — interactive 3D preview with comparison mode, snapshots, and keyboard shortcuts
+- [Preview UI Reference](docs/preview-ui.md) — comprehensive guide to every preview control, view mode, and shortcut
 - [Rendering](docs/rendering.md) — `render`, `render-2d`, and `render-all` commands, optional dependencies
 - [Grid Layout](docs/grid.md) — grid manifest format and grid CLI
 - [Python API](docs/api.md) — using MathViz as a Python library
