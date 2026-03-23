@@ -6792,3 +6792,39 @@ compact and visually consistent with the existing UI controls.
 - Manual: clicking "÷2" halves the value (rounded down)
 - Manual: "÷2" does not go below the minimum floor (e.g. 1,000)
 - Manual: changing max points via buttons triggers regeneration in sampling modes
+
+---
+
+## Task 162: Use saved snapshot thumbnails as generator preview icons
+
+**Objective:**
+
+When the generator browser (Cmd+K) displays generator icons, it currently
+shows auto-generated thumbnails. If the user has saved one or more snapshots
+for a generator, the browser should use the thumbnail from the earliest saved
+snapshot as that generator's preview icon instead. This gives the user a
+preview that reflects their own saved work rather than a generic render.
+Clicking a generator icon that is showing a snapshot-based thumbnail should
+load the corresponding snapshot (the earliest one for that generator) rather
+than just selecting the generator with default parameters.
+
+**Suggested path:**
+
+The snapshot list endpoint already returns metadata including generator name
+and creation timestamp. Fetch the snapshot list when the browser opens and
+build a lookup from generator name to the earliest snapshot for that
+generator. When rendering generator cards (in both category grid and search
+results), check the lookup — if a snapshot exists, use its thumbnail URL
+(`/api/snapshots/{id}/thumbnail`) instead of the auto-generated one
+(`/api/generators/{name}/thumbnail`). Attach a click handler that loads the
+snapshot (the same flow as clicking "Load" in the snapshot gallery) instead
+of the default generator-selection flow. Generators without saved snapshots
+should continue using the existing auto-generated thumbnails and default
+click behavior.
+
+**Tests:**
+
+- Manual: generator with a saved snapshot shows the snapshot thumbnail in the browser
+- Manual: generator without snapshots still shows the auto-generated thumbnail
+- Manual: clicking a snapshot-thumbnail generator loads the snapshot (restores params, geometry, camera)
+- Manual: if multiple snapshots exist for a generator, the earliest one is used for the preview
