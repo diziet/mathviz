@@ -3157,6 +3157,22 @@ function resetDigitBuffer() {
 /* Map from generator name to its earliest snapshot (with thumbnail). */
 let snapshotByGenerator = {};
 
+/** Return the snapshot thumbnail URL for a generator, or null. */
+function getSnapshotThumbUrl(generatorName) {
+  const snap = snapshotByGenerator[generatorName];
+  return snap ? snap.thumbnail_url : null;
+}
+
+/** Load snapshot if one exists for this generator, otherwise select the generator. */
+function activateGenerator(generatorName) {
+  const snap = snapshotByGenerator[generatorName];
+  if (snap) {
+    loadSnapshot(snap);
+  } else {
+    selectGenerator(generatorName);
+  }
+}
+
 async function fetchSnapshotLookup() {
   try {
     const resp = await fetch('/api/snapshots');
@@ -3166,7 +3182,7 @@ async function fetchSnapshotLookup() {
     for (const snap of snapshots) {
       if (!snap.has_thumbnail || !snap.thumbnail_url) continue;
       const gen = snap.generator;
-      if (!lookup[gen] || snap.created_at < lookup[gen].created_at) {
+      if (!lookup[gen] || new Date(snap.created_at) < new Date(lookup[gen].created_at)) {
         lookup[gen] = snap;
       }
     }
@@ -3184,10 +3200,19 @@ function openBrowser() {
   resetDigitBuffer();
   browserSearch.value = '';
   browserBack.style.display = 'none';
-  fetchSnapshotLookup().then(() => {
-    if (browserState !== 'closed') renderCategoryGrid();
-  });
   renderCategoryGrid();
+  fetchSnapshotLookup().then(() => {
+    if (browserState === 'closed') return;
+    /* Re-render whichever view is currently active after snapshot data arrives. */
+    const q = browserSearch.value.trim();
+    if (q) {
+      renderSearchResults(q);
+    } else if (browserState === 'browsing_generators_in_category' && browserCurrentCategory) {
+      showCategoryGenerators(browserCurrentCategory);
+    } else if (browserState === 'browsing_categories') {
+      renderCategoryGrid();
+    }
+  });
   setTimeout(() => browserSearch.focus(), 50);
 }
 
@@ -3373,9 +3398,7 @@ function renderCategoryGrid() {
     thumbStrip.className = 'category-thumbs';
     const previewGens = cat.generators.slice(0, 3);
     for (const g of previewGens) {
-      const snap = snapshotByGenerator[g.name];
-      const thumbUrl = snap ? snap.thumbnail_url : null;
-      thumbStrip.appendChild(createThumbImg(g.name, 48, thumbUrl));
+      thumbStrip.appendChild(createThumbImg(g.name, 48, getSnapshotThumbUrl(g.name)));
     }
     card.appendChild(thumbStrip);
     card.addEventListener('click', () => {
@@ -3419,9 +3442,7 @@ function showCategoryGenerators(categoryName) {
     const card = document.createElement('div');
     card.className = 'generator-card';
     if (gen.name === currentGen) card.classList.add('selected');
-    const snap = snapshotByGenerator[gen.name];
-    const thumbUrl = snap ? snap.thumbnail_url : null;
-    card.appendChild(createThumbImg(gen.name, 236, thumbUrl));
+    card.appendChild(createThumbImg(gen.name, 236, getSnapshotThumbUrl(gen.name)));
     const name = document.createElement('div');
     name.className = 'generator-card-name';
     name.textContent = gen.name;
@@ -3430,11 +3451,7 @@ function showCategoryGenerators(categoryName) {
     card.addEventListener('click', () => {
       browserFocusedIndex = idx;
       closeBrowser();
-      if (snap) {
-        loadSnapshot(snap);
-      } else {
-        selectGenerator(gen.name);
-      }
+      activateGenerator(gen.name);
     });
     grid.appendChild(card);
   });
@@ -3457,9 +3474,7 @@ function renderSearchResults(query) {
     const card = document.createElement('div');
     card.className = 'search-result-card';
     if (gen.name === currentGen) card.classList.add('selected');
-    const snap = snapshotByGenerator[gen.name];
-    const thumbUrl = snap ? snap.thumbnail_url : null;
-    const thumb = createThumbImg(gen.name, 48, thumbUrl);
+    const thumb = createThumbImg(gen.name, 48, getSnapshotThumbUrl(gen.name));
     thumb.classList.add('search-result-thumb');
     card.appendChild(thumb);
     const info = document.createElement('div');
@@ -3469,11 +3484,7 @@ function renderSearchResults(query) {
     card.appendChild(info);
     card.addEventListener('click', () => {
       closeBrowser();
-      if (snap) {
-        loadSnapshot(snap);
-      } else {
-        selectGenerator(gen.name);
-      }
+      activateGenerator(gen.name);
     });
     list.appendChild(card);
   }
