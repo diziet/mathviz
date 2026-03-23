@@ -3230,18 +3230,8 @@ function openBrowser() {
   browserSearch.value = '';
   browserBack.style.display = 'none';
   renderCategoryGrid();
-  fetchSnapshotLookup().then(() => {
-    if (browserState === 'closed') return;
-    /* Re-render whichever view is currently active after snapshot data arrives. */
-    const q = browserSearch.value.trim();
-    if (q) {
-      renderSearchResults(q);
-    } else if (browserState === 'browsing_generators_in_category' && browserCurrentCategory) {
-      showCategoryGenerators(browserCurrentCategory);
-    } else if (browserState === 'browsing_categories') {
-      renderCategoryGrid();
-    }
-  });
+  /* Refresh snapshot lookup in background for any snapshots saved this session */
+  fetchSnapshotLookup();
   setTimeout(() => browserSearch.focus(), 50);
 }
 
@@ -4684,6 +4674,7 @@ fetchGenerators().then(() => {
     fetchAndPopulateParams(qp.generator);
   }
 });
+fetchSnapshotLookup();
 
 if (qp.file) {
   loadFromFile(qp.file);
