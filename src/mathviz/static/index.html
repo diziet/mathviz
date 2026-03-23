@@ -3183,6 +3183,44 @@ function resetDigitBuffer() {
   if (browserDigitTimer) { clearTimeout(browserDigitTimer); browserDigitTimer = null; }
 }
 
+/* Map from generator name to its earliest snapshot (with thumbnail). */
+let snapshotByGenerator = {};
+
+/** Return the snapshot thumbnail URL for a generator, or null. */
+function getSnapshotThumbUrl(generatorName) {
+  const snap = snapshotByGenerator[generatorName];
+  return snap ? snap.thumbnail_url : null;
+}
+
+/** Load snapshot if one exists for this generator, otherwise select the generator. */
+function activateGenerator(generatorName) {
+  const snap = snapshotByGenerator[generatorName];
+  if (snap) {
+    loadSnapshot(snap);
+  } else {
+    selectGenerator(generatorName);
+  }
+}
+
+async function fetchSnapshotLookup() {
+  try {
+    const resp = await fetch('/api/snapshots');
+    if (!resp.ok) return;
+    const snapshots = await resp.json();
+    const lookup = {};
+    for (const snap of snapshots) {
+      if (!snap.has_thumbnail || !snap.thumbnail_url) continue;
+      const gen = snap.generator;
+      if (!lookup[gen] || new Date(snap.created_at) < new Date(lookup[gen].created_at)) {
+        lookup[gen] = snap;
+      }
+    }
+    snapshotByGenerator = lookup;
+  } catch (err) {
+    console.error('Failed to fetch snapshot lookup:', err);
+  }
+}
+
 function openBrowser() {
   browserOverlay.classList.add('open');
   browserState = 'browsing_categories';
@@ -3192,6 +3230,18 @@ function openBrowser() {
   browserSearch.value = '';
   browserBack.style.display = 'none';
   renderCategoryGrid();
+  fetchSnapshotLookup().then(() => {
+    if (browserState === 'closed') return;
+    /* Re-render whichever view is currently active after snapshot data arrives. */
+    const q = browserSearch.value.trim();
+    if (q) {
+      renderSearchResults(q);
+    } else if (browserState === 'browsing_generators_in_category' && browserCurrentCategory) {
+      showCategoryGenerators(browserCurrentCategory);
+    } else if (browserState === 'browsing_categories') {
+      renderCategoryGrid();
+    }
+  });
   setTimeout(() => browserSearch.focus(), 50);
 }
 
@@ -3327,13 +3377,13 @@ function appendShortcutBadge(card, idx) {
   card.appendChild(shortcut);
 }
 
-function createThumbImg(generatorName, cssSize) {
+function createThumbImg(generatorName, cssSize, overrideUrl) {
   const size = cssSize || 236;
   const viewMode = document.getElementById('view-mode').value;
   const img = document.createElement('img');
   const placeholder = document.createElement('div');
   placeholder.className = 'thumb-placeholder';
-  img.src = '/api/generators/' + encodeURIComponent(generatorName) + '/thumbnail?view_mode=' + encodeURIComponent(viewMode);
+  img.src = overrideUrl || '/api/generators/' + encodeURIComponent(generatorName) + '/thumbnail?view_mode=' + encodeURIComponent(viewMode);
   img.alt = generatorName;
   img.width = size;
   img.height = size;
@@ -3377,7 +3427,7 @@ function renderCategoryGrid() {
     thumbStrip.className = 'category-thumbs';
     const previewGens = cat.generators.slice(0, 3);
     for (const g of previewGens) {
-      thumbStrip.appendChild(createThumbImg(g.name, 48));
+      thumbStrip.appendChild(createThumbImg(g.name, 48, getSnapshotThumbUrl(g.name)));
     }
     card.appendChild(thumbStrip);
     card.addEventListener('click', () => {
@@ -3421,7 +3471,7 @@ function showCategoryGenerators(categoryName) {
     const card = document.createElement('div');
     card.className = 'generator-card';
     if (gen.name === currentGen) card.classList.add('selected');
-    card.appendChild(createThumbImg(gen.name, 236));
+    card.appendChild(createThumbImg(gen.name, 236, getSnapshotThumbUrl(gen.name)));
     const name = document.createElement('div');
     name.className = 'generator-card-name';
     name.textContent = gen.name;
@@ -3430,7 +3480,7 @@ function showCategoryGenerators(categoryName) {
     card.addEventListener('click', () => {
       browserFocusedIndex = idx;
       closeBrowser();
-      selectGenerator(gen.name);
+      activateGenerator(gen.name);
     });
     grid.appendChild(card);
   });
@@ -3453,7 +3503,7 @@ function renderSearchResults(query) {
     const card = document.createElement('div');
     card.className = 'search-result-card';
     if (gen.name === currentGen) card.classList.add('selected');
-    const thumb = createThumbImg(gen.name, 48);
+    const thumb = createThumbImg(gen.name, 48, getSnapshotThumbUrl(gen.name));
     thumb.classList.add('search-result-thumb');
     card.appendChild(thumb);
     const info = document.createElement('div');
@@ -3463,7 +3513,7 @@ function renderSearchResults(query) {
     card.appendChild(info);
     card.addEventListener('click', () => {
       closeBrowser();
-      selectGenerator(gen.name);
+      activateGenerator(gen.name);
     });
     list.appendChild(card);
   }
