@@ -3154,6 +3154,28 @@ function resetDigitBuffer() {
   if (browserDigitTimer) { clearTimeout(browserDigitTimer); browserDigitTimer = null; }
 }
 
+/* Map from generator name to its earliest snapshot (with thumbnail). */
+let snapshotByGenerator = {};
+
+async function fetchSnapshotLookup() {
+  try {
+    const resp = await fetch('/api/snapshots');
+    if (!resp.ok) return;
+    const snapshots = await resp.json();
+    const lookup = {};
+    for (const snap of snapshots) {
+      if (!snap.has_thumbnail || !snap.thumbnail_url) continue;
+      const gen = snap.generator;
+      if (!lookup[gen] || snap.created_at < lookup[gen].created_at) {
+        lookup[gen] = snap;
+      }
+    }
+    snapshotByGenerator = lookup;
+  } catch (err) {
+    console.error('Failed to fetch snapshot lookup:', err);
+  }
+}
+
 function openBrowser() {
   browserOverlay.classList.add('open');
   browserState = 'browsing_categories';
@@ -3162,6 +3184,9 @@ function openBrowser() {
   resetDigitBuffer();
   browserSearch.value = '';
   browserBack.style.display = 'none';
+  fetchSnapshotLookup().then(() => {
+    if (browserState !== 'closed') renderCategoryGrid();
+  });
   renderCategoryGrid();
   setTimeout(() => browserSearch.focus(), 50);
 }
@@ -3298,13 +3323,13 @@ function appendShortcutBadge(card, idx) {
   card.appendChild(shortcut);
 }
 
-function createThumbImg(generatorName, cssSize) {
+function createThumbImg(generatorName, cssSize, overrideUrl) {
   const size = cssSize || 236;
   const viewMode = document.getElementById('view-mode').value;
   const img = document.createElement('img');
   const placeholder = document.createElement('div');
   placeholder.className = 'thumb-placeholder';
-  img.src = '/api/generators/' + encodeURIComponent(generatorName) + '/thumbnail?view_mode=' + encodeURIComponent(viewMode);
+  img.src = overrideUrl || '/api/generators/' + encodeURIComponent(generatorName) + '/thumbnail?view_mode=' + encodeURIComponent(viewMode);
   img.alt = generatorName;
   img.width = size;
   img.height = size;
@@ -3348,7 +3373,9 @@ function renderCategoryGrid() {
     thumbStrip.className = 'category-thumbs';
     const previewGens = cat.generators.slice(0, 3);
     for (const g of previewGens) {
-      thumbStrip.appendChild(createThumbImg(g.name, 48));
+      const snap = snapshotByGenerator[g.name];
+      const thumbUrl = snap ? snap.thumbnail_url : null;
+      thumbStrip.appendChild(createThumbImg(g.name, 48, thumbUrl));
     }
     card.appendChild(thumbStrip);
     card.addEventListener('click', () => {
@@ -3392,7 +3419,9 @@ function showCategoryGenerators(categoryName) {
     const card = document.createElement('div');
     card.className = 'generator-card';
     if (gen.name === currentGen) card.classList.add('selected');
-    card.appendChild(createThumbImg(gen.name, 236));
+    const snap = snapshotByGenerator[gen.name];
+    const thumbUrl = snap ? snap.thumbnail_url : null;
+    card.appendChild(createThumbImg(gen.name, 236, thumbUrl));
     const name = document.createElement('div');
     name.className = 'generator-card-name';
     name.textContent = gen.name;
@@ -3401,7 +3430,11 @@ function showCategoryGenerators(categoryName) {
     card.addEventListener('click', () => {
       browserFocusedIndex = idx;
       closeBrowser();
-      selectGenerator(gen.name);
+      if (snap) {
+        loadSnapshot(snap);
+      } else {
+        selectGenerator(gen.name);
+      }
     });
     grid.appendChild(card);
   });
@@ -3424,7 +3457,9 @@ function renderSearchResults(query) {
     const card = document.createElement('div');
     card.className = 'search-result-card';
     if (gen.name === currentGen) card.classList.add('selected');
-    const thumb = createThumbImg(gen.name, 48);
+    const snap = snapshotByGenerator[gen.name];
+    const thumbUrl = snap ? snap.thumbnail_url : null;
+    const thumb = createThumbImg(gen.name, 48, thumbUrl);
     thumb.classList.add('search-result-thumb');
     card.appendChild(thumb);
     const info = document.createElement('div');
@@ -3434,7 +3469,11 @@ function renderSearchResults(query) {
     card.appendChild(info);
     card.addEventListener('click', () => {
       closeBrowser();
-      selectGenerator(gen.name);
+      if (snap) {
+        loadSnapshot(snap);
+      } else {
+        selectGenerator(gen.name);
+      }
     });
     list.appendChild(card);
   }
