@@ -441,9 +441,28 @@ canvas{display:block}
 .search-result-info{flex:1;min-width:0}
 .search-result-name{font-size:13px;font-weight:600}
 .search-result-category{font-size:11px;opacity:0.6}
+
+/* BuildBanner */
+#build-banner{
+  position:fixed;top:0;left:0;right:0;z-index:9999;
+  display:flex;align-items:center;justify-content:center;gap:16px;
+  background:rgba(20,20,20,0.92);color:#aaa;
+  font-size:12px;font-family:monospace;padding:4px 12px;
+  backdrop-filter:blur(4px);border-bottom:1px solid rgba(255,255,255,0.08);
+}
+#build-banner span{opacity:0.6}
+#build-banner .bb-value{color:#ddd;opacity:1}
+#build-banner .bb-dismiss{
+  position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:#666;cursor:pointer;font-size:14px;
+  padding:2px 6px;line-height:1;
+}
+#build-banner .bb-dismiss:hover{color:#ccc}
+#build-banner.bb-hidden{display:none}
 </style>
 </head>
 <body>
+<div id="build-banner" class="bb-hidden"></div>
 <div id="canvas-container">
   <div id="loading">
     <div id="loading-text">Generating...</div>
@@ -4684,6 +4703,32 @@ if (qp.file) {
 
 /* Compute usable volume after all inputs are initialized */
 updateUsableVolume();
+</script>
+<script>
+(function(){
+  var STORAGE_KEY = "buildbanner_dismissed";
+  if (sessionStorage.getItem(STORAGE_KEY)) return;
+  fetch("/buildbanner.json")
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){
+      if (!d) return;
+      var el = document.getElementById("build-banner");
+      if (!el) return;
+      var parts = [];
+      if (d.branch) parts.push("<span>branch</span> <span class='bb-value'>" + d.branch + "</span>");
+      if (d.commit) parts.push("<span>commit</span> <span class='bb-value'>" + d.commit + "</span>");
+      if (d.uptime) parts.push("<span>uptime</span> <span class='bb-value'>" + d.uptime + "</span>");
+      if (d.generators != null) parts.push("<span>generators</span> <span class='bb-value'>" + d.generators + "</span>");
+      el.innerHTML = parts.join(" &middot; ") +
+        "<button class='bb-dismiss' title='Dismiss'>&times;</button>";
+      el.classList.remove("bb-hidden");
+      el.querySelector(".bb-dismiss").addEventListener("click", function(){
+        el.classList.add("bb-hidden");
+        sessionStorage.setItem(STORAGE_KEY, "1");
+      });
+    })
+    .catch(function(){});
+})();
 </script>
 </body>
 </html>
