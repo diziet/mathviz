@@ -52,5 +52,8 @@ class TestCustomBuildBannerRemoved:
 
     def test_custom_module_deleted(self) -> None:
         """Custom build_banner.py is deleted."""
-        custom_path = Path(__file__).parent.parent.parent / "src" / "mathviz" / "preview" / "build_banner.py"
-        assert not custom_path.exists(), f"Custom build_banner.py still exists at {custom_path}"
+        custom_path = (
+            Path(__file__).parent.parent.parent
+            / "src" / "mathviz" / "preview" / "build_banner.py"
+        )
+        assert not custom_path.exists()
