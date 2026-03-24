@@ -1,3 +1,5 @@
+// buildbanner.js — vendored from buildbanner v0.1.0
+// Source: https://github.com/diziet/buildbanner
 (() => {
   var __defProp = Object.defineProperty;
   var __defProps = Object.defineProperties;

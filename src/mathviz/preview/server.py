@@ -68,13 +68,15 @@ def set_disk_cache(dc: DiskCache) -> None:
 
 
 app = FastAPI(title="MathViz Preview", version="0.1.0")
+_generator_count = len(list_generators())
 app.add_middleware(BuildBannerMiddleware, extras=lambda: {
     "app_name": "MathViz",
-    "generators": len(list_generators()),
+    "generators": _generator_count,
 })
 app.include_router(batch_router)
 app.include_router(snapshot_router)
 app.include_router(thumbnail_router)
+
 _STATIC_DIR = importlib.resources.files("mathviz").joinpath("static")
 _STATIC_PATH = Path(str(_STATIC_DIR))
 if _STATIC_PATH.is_dir():

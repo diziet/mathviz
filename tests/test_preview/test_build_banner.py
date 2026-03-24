@@ -1,6 +1,6 @@
 """Tests for the buildbanner middleware integration."""
 
-from pathlib import Path
+import importlib
 
 import pytest
 from fastapi.testclient import TestClient
@@ -50,10 +50,25 @@ class TestBuildBannerMiddleware:
 class TestCustomBuildBannerRemoved:
     """Verify the custom build_banner.py module no longer exists."""
 
-    def test_custom_module_deleted(self) -> None:
-        """Custom build_banner.py is deleted."""
-        custom_path = (
-            Path(__file__).parent.parent.parent
-            / "src" / "mathviz" / "preview" / "build_banner.py"
-        )
-        assert not custom_path.exists()
+    def test_custom_module_not_importable(self) -> None:
+        """Custom build_banner.py cannot be imported."""
+        with pytest.raises(ImportError):
+            importlib.import_module("mathviz.preview.build_banner")
+
+
+class TestBannerRendersInBrowser:
+    """Verify the HTML page includes the buildbanner script tag."""
+
+    def test_index_includes_buildbanner_script(self, client: TestClient) -> None:
+        """The viewer page includes a script tag for buildbanner.js with the JSON endpoint."""
+        resp = client.get("/")
+        assert resp.status_code == 200
+        html = resp.text
+        assert 'src="/static/buildbanner.js"' in html
+        assert 'data-endpoint="/buildbanner.json"' in html
+
+    def test_buildbanner_json_has_repo_url_for_link(self, client: TestClient) -> None:
+        """The JSON endpoint returns a repo_url that the banner uses as the GitHub link."""
+        data = client.get("/buildbanner.json").json()
+        assert "repo_url" in data
+        assert isinstance(data["repo_url"], str)
