@@ -28,7 +28,7 @@ from mathviz.preview.lod import (
 from mathviz.preview.batch_routes import router as batch_router
 from mathviz.preview.snapshot_routes import router as snapshot_router
 from mathviz.preview.thumbnail_routes import router as thumbnail_router
-from mathviz.preview.build_banner import router as build_banner_router
+from buildbanner import BuildBannerMiddleware
 from mathviz.preview.snapshots import save_snapshot
 
 logger = logging.getLogger(__name__)
@@ -68,11 +68,13 @@ def set_disk_cache(dc: DiskCache) -> None:
 
 
 app = FastAPI(title="MathViz Preview", version="0.1.0")
+app.add_middleware(BuildBannerMiddleware, extras=lambda: {
+    "app_name": "MathViz",
+    "generators": len(list_generators()),
+})
 app.include_router(batch_router)
 app.include_router(snapshot_router)
 app.include_router(thumbnail_router)
-app.include_router(build_banner_router)
-
 _STATIC_DIR = importlib.resources.files("mathviz").joinpath("static")
 _STATIC_PATH = Path(str(_STATIC_DIR))
 if _STATIC_PATH.is_dir():
