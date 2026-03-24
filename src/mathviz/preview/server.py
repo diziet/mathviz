@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import trimesh
+from buildbanner import BuildBannerMiddleware
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -15,21 +16,20 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import GeneratorMeta, get_generator_meta, list_generators
+from mathviz.preview.batch_routes import router as batch_router
 from mathviz.preview.cache import CacheEntry, GeometryCache, compute_cache_key
 from mathviz.preview.cache_integration import load_from_disk, store_to_disk
 from mathviz.preview.disk_cache import DiskCache
-from mathviz.preview.executor import GenerationExecutor, MAX_TIMEOUT_SECONDS, get_timeout_seconds
+from mathviz.preview.executor import MAX_TIMEOUT_SECONDS, GenerationExecutor, get_timeout_seconds
 from mathviz.preview.lod import (
     cloud_to_binary_ply,
     decimate_mesh,
     mesh_to_glb,
     subsample_cloud,
 )
-from mathviz.preview.batch_routes import router as batch_router
 from mathviz.preview.snapshot_routes import router as snapshot_router
-from mathviz.preview.thumbnail_routes import router as thumbnail_router
-from mathviz.preview.build_banner import router as build_banner_router
 from mathviz.preview.snapshots import save_snapshot
+from mathviz.preview.thumbnail_routes import router as thumbnail_router
 
 logger = logging.getLogger(__name__)
 
@@ -68,10 +68,14 @@ def set_disk_cache(dc: DiskCache) -> None:
 
 
 app = FastAPI(title="MathViz Preview", version="0.1.0")
+_generator_count = len(list_generators())
+app.add_middleware(BuildBannerMiddleware, extras=lambda: {
+    "app_name": "MathViz",
+    "generators": _generator_count,
+})
 app.include_router(batch_router)
 app.include_router(snapshot_router)
 app.include_router(thumbnail_router)
-app.include_router(build_banner_router)
 
 _STATIC_DIR = importlib.resources.files("mathviz").joinpath("static")
 _STATIC_PATH = Path(str(_STATIC_DIR))

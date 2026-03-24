@@ -1,6 +1,6 @@
-"""Tests for the /buildbanner.json endpoint."""
+"""Tests for the buildbanner middleware integration."""
 
-from unittest.mock import patch
+import importlib
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,8 +14,8 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-class TestBuildBannerEndpoint:
-    """Tests for GET /buildbanner.json."""
+class TestBuildBannerMiddleware:
+    """Tests for GET /buildbanner.json via BuildBannerMiddleware."""
 
     def test_returns_200(self, client: TestClient) -> None:
         """Endpoint returns 200 OK."""
@@ -23,62 +23,52 @@ class TestBuildBannerEndpoint:
         assert resp.status_code == 200
 
     def test_returns_json_with_required_fields(self, client: TestClient) -> None:
-        """Response contains branch, commit, uptime, and generators."""
+        """Response contains sha, branch, server_started, repo_url."""
         data = client.get("/buildbanner.json").json()
+        assert "sha" in data
         assert "branch" in data
-        assert "commit" in data
-        assert "uptime" in data
-        assert "generators" in data
+        assert "server_started" in data
+        assert "repo_url" in data
 
-    def test_generators_is_integer(self, client: TestClient) -> None:
-        """Generator count is a non-negative integer."""
+    def test_extras_include_app_name(self, client: TestClient) -> None:
+        """Extras callback adds app_name field."""
         data = client.get("/buildbanner.json").json()
-        assert isinstance(data["generators"], int)
+        assert data.get("app_name") == "MathViz"
+
+    def test_extras_include_generators(self, client: TestClient) -> None:
+        """Extras callback adds generators count."""
+        data = client.get("/buildbanner.json").json()
+        assert isinstance(data.get("generators"), int)
         assert data["generators"] >= 0
 
-    def test_uptime_is_string(self, client: TestClient) -> None:
-        """Uptime is a human-readable string."""
+    def test_content_type_is_json(self, client: TestClient) -> None:
+        """Response Content-Type is application/json."""
+        resp = client.get("/buildbanner.json")
+        assert "application/json" in resp.headers["content-type"]
+
+
+class TestCustomBuildBannerRemoved:
+    """Verify the custom build_banner.py module no longer exists."""
+
+    def test_custom_module_not_importable(self) -> None:
+        """Custom build_banner.py cannot be imported."""
+        with pytest.raises(ImportError):
+            importlib.import_module("mathviz.preview.build_banner")
+
+
+class TestBannerRendersInBrowser:
+    """Verify the HTML page includes the buildbanner script tag."""
+
+    def test_index_includes_buildbanner_script(self, client: TestClient) -> None:
+        """The viewer page includes a script tag for buildbanner.js with the JSON endpoint."""
+        resp = client.get("/")
+        assert resp.status_code == 200
+        html = resp.text
+        assert 'src="/static/buildbanner.js"' in html
+        assert 'data-endpoint="/buildbanner.json"' in html
+
+    def test_buildbanner_json_has_repo_url_for_link(self, client: TestClient) -> None:
+        """The JSON endpoint returns a repo_url that the banner uses as the GitHub link."""
         data = client.get("/buildbanner.json").json()
-        assert isinstance(data["uptime"], str)
-        assert len(data["uptime"]) > 0
-
-    @patch("mathviz.preview.build_banner._cached_commit", "")
-    @patch("mathviz.preview.build_banner._cached_branch", "")
-    def test_handles_missing_git(self, client: TestClient) -> None:
-        """Returns empty strings when git is unavailable."""
-        data = client.get("/buildbanner.json").json()
-        assert data["branch"] == ""
-        assert data["commit"] == ""
-
-    @patch("mathviz.preview.build_banner._cached_branch", "main")
-    @patch("mathviz.preview.build_banner._cached_commit", "abc1234")
-    def test_returns_mocked_git_values(
-        self,
-        client: TestClient,
-    ) -> None:
-        """Returns git values from the cached module-level constants."""
-        data = client.get("/buildbanner.json").json()
-        assert data["branch"] == "main"
-        assert data["commit"] == "abc1234"
-
-
-class TestFormatUptime:
-    """Tests for the _format_uptime helper."""
-
-    def test_seconds_only(self) -> None:
-        """Formats durations under a minute."""
-        from mathviz.preview.build_banner import _format_uptime
-
-        assert _format_uptime(45) == "45s"
-
-    def test_minutes_and_seconds(self) -> None:
-        """Formats durations under an hour."""
-        from mathviz.preview.build_banner import _format_uptime
-
-        assert _format_uptime(125) == "2m 5s"
-
-    def test_hours_minutes_seconds(self) -> None:
-        """Formats durations with hours."""
-        from mathviz.preview.build_banner import _format_uptime
-
-        assert _format_uptime(3661) == "1h 1m 1s"
+        assert "repo_url" in data
+        assert isinstance(data["repo_url"], str)
