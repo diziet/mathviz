@@ -39,6 +39,12 @@ def _get_git_commit() -> str:
     return _run_git(["rev-parse", "--short", "HEAD"])
 
 
+# Cache git metadata at module load — branch and commit don't change while the server runs
+_cached_branch = _get_git_branch()
+_cached_commit = _get_git_commit()
+_cached_generator_count = len(list_generators())
+
+
 def _format_uptime(seconds: float) -> str:
     """Format seconds as a human-readable uptime string."""
     minutes, secs = divmod(int(seconds), 60)
@@ -54,11 +60,10 @@ def _format_uptime(seconds: float) -> str:
 def get_build_banner() -> dict:
     """Return build metadata for the BuildBanner client."""
     uptime_seconds = time.time() - _server_start_time
-    generator_count = len(list_generators())
 
     return {
-        "branch": _get_git_branch(),
-        "commit": _get_git_commit(),
+        "branch": _cached_branch,
+        "commit": _cached_commit,
         "uptime": _format_uptime(uptime_seconds),
-        "generators": generator_count,
+        "generators": _cached_generator_count,
     }

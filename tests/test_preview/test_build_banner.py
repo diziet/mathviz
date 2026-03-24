@@ -42,27 +42,21 @@ class TestBuildBannerEndpoint:
         assert isinstance(data["uptime"], str)
         assert len(data["uptime"]) > 0
 
-    @patch("mathviz.preview.build_banner._run_git", return_value="")
-    def test_handles_missing_git(
-        self, mock_git: object, client: TestClient
-    ) -> None:
+    @patch("mathviz.preview.build_banner._cached_commit", "")
+    @patch("mathviz.preview.build_banner._cached_branch", "")
+    def test_handles_missing_git(self, client: TestClient) -> None:
         """Returns empty strings when git is unavailable."""
         data = client.get("/buildbanner.json").json()
         assert data["branch"] == ""
         assert data["commit"] == ""
 
-    @patch("mathviz.preview.build_banner._get_git_branch", return_value="main")
-    @patch(
-        "mathviz.preview.build_banner._get_git_commit",
-        return_value="abc1234",
-    )
+    @patch("mathviz.preview.build_banner._cached_branch", "main")
+    @patch("mathviz.preview.build_banner._cached_commit", "abc1234")
     def test_returns_mocked_git_values(
         self,
-        mock_commit: object,
-        mock_branch: object,
         client: TestClient,
     ) -> None:
-        """Returns git values from the mocked helpers."""
+        """Returns git values from the cached module-level constants."""
         data = client.get("/buildbanner.json").json()
         assert data["branch"] == "main"
         assert data["commit"] == "abc1234"

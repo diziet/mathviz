@@ -4714,11 +4714,12 @@ updateUsableVolume();
       if (!d) return;
       var el = document.getElementById("build-banner");
       if (!el) return;
+      function esc(s) { var t = document.createElement("span"); t.textContent = s; return t.innerHTML; }
       var parts = [];
-      if (d.branch) parts.push("<span>branch</span> <span class='bb-value'>" + d.branch + "</span>");
-      if (d.commit) parts.push("<span>commit</span> <span class='bb-value'>" + d.commit + "</span>");
-      if (d.uptime) parts.push("<span>uptime</span> <span class='bb-value'>" + d.uptime + "</span>");
-      if (d.generators != null) parts.push("<span>generators</span> <span class='bb-value'>" + d.generators + "</span>");
+      if (d.branch) parts.push("<span>branch</span> <span class='bb-value'>" + esc(d.branch) + "</span>");
+      if (d.commit) parts.push("<span>commit</span> <span class='bb-value'>" + esc(d.commit) + "</span>");
+      if (d.uptime) parts.push("<span>uptime</span> <span class='bb-value'>" + esc(d.uptime) + "</span>");
+      if (d.generators != null) parts.push("<span>generators</span> <span class='bb-value'>" + esc(String(d.generators)) + "</span>");
       el.innerHTML = parts.join(" &middot; ") +
         "<button class='bb-dismiss' title='Dismiss'>&times;</button>";
       el.classList.remove("bb-hidden");
@@ -4727,7 +4728,7 @@ updateUsableVolume();
         sessionStorage.setItem(STORAGE_KEY, "1");
       });
     })
-    .catch(function(){});
+    .catch(function(e){ console.debug("BuildBanner fetch failed:", e); });
 })();
 </script>
 </body>
