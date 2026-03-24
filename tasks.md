@@ -6828,3 +6828,32 @@ click behavior.
 - Manual: generator without snapshots still shows the auto-generated thumbnail
 - Manual: clicking a snapshot-thumbnail generator loads the snapshot (restores params, geometry, camera)
 - Manual: if multiple snapshots exist for a generator, the earliest one is used for the preview
+
+---
+
+## Task 163: Integrate BuildBanner for dev build info display
+
+**Objective:**
+
+Add a BuildBanner strip to the preview UI so the developer can see the
+current git branch, commit SHA, and server uptime at a glance. This helps
+during development and debugging by making the running version immediately
+visible without checking the terminal. The banner should appear at the top
+of the page and be dismissible. It should serve the BuildBanner JSON
+endpoint from the existing FastAPI server and include the BuildBanner
+client script in the preview HTML.
+
+**Suggested path:**
+
+Use the BuildBanner FastAPI server helper to register a `/buildbanner.json`
+endpoint on the existing app. Add the BuildBanner client script to
+`index.html` via a script tag pointing at the local static copy or CDN.
+The dark theme is a natural fit since the preview UI already has a dark
+background. Include the generator count or any other useful app-specific
+info as custom fields in the JSON response.
+
+**Tests:**
+
+- Manual: banner appears at top of preview page showing branch and commit SHA
+- Manual: banner is dismissible and does not reappear until next session
+- Manual: `/buildbanner.json` endpoint returns valid JSON with git metadata
