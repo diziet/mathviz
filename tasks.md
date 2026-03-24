@@ -6857,3 +6857,56 @@ info as custom fields in the JSON response.
 - Manual: banner appears at top of preview page showing branch and commit SHA
 - Manual: banner is dismissible and does not reappear until next session
 - Manual: `/buildbanner.json` endpoint returns valid JSON with git metadata
+
+## Task 164: Replace custom build banner with buildbanner package
+
+**Status:** Pending
+
+### Context
+
+Task 163 rolled a custom build banner instead of using the actual buildbanner library from https://github.com/diziet/buildbanner. The library provides a FastAPI middleware, client-side JS, GitHub commit links, uptime tracking, port display, and more — all as a drop-in. Remove the custom implementation and use the real package.
+
+### Changes
+
+1. **Install the Python package** — the buildbanner Python package is at `~/projects/buildbanner/python/`. Install it: `pip install ~/projects/buildbanner/python/` or add to requirements. The package provides `buildbanner.BuildBannerMiddleware` for FastAPI/Starlette.
+
+2. **Add the FastAPI middleware** in `src/mathviz/preview/server.py`:
+   ```python
+   from buildbanner import BuildBannerMiddleware
+   app.add_middleware(BuildBannerMiddleware, extras=lambda: {
+       "app_name": "MathViz",
+       "generators": len(list_generators()),
+   })
+   ```
+   This auto-serves `GET /buildbanner.json` with git SHA, branch, commit date, uptime, repo URL, port — all extracted automatically from git. The `extras` callback adds app-specific fields.
+
+3. **Add the client JS** — copy `~/projects/buildbanner/client/buildbanner.js` to `src/mathviz/static/buildbanner.js`. Add a `<script>` tag to `index.html`:
+   ```html
+   <script src="/static/buildbanner.js" data-endpoint="/buildbanner.json"></script>
+   ```
+   The client fetches the JSON endpoint and renders a banner strip with GitHub-linked commit SHA, branch, uptime, and port.
+
+4. **Remove the custom implementation** — delete:
+   - `src/mathviz/preview/build_banner.py` — the entire custom module
+   - The `build_banner_router` import and `app.include_router(build_banner_router)` in `server.py`
+   - The custom banner HTML/CSS/JS in `index.html` (the fetch call, the banner div, the dismiss logic)
+   - `tests/test_preview/test_build_banner.py` — custom tests (buildbanner has its own tests)
+
+5. **DO NOT roll a custom implementation** — use the actual package. The package handles git info extraction, token stripping, uptime calculation, GitHub URL generation, and the JSON contract.
+
+### Files
+
+- `requirements.txt` — add buildbanner
+- `src/mathviz/preview/server.py` — add middleware, remove custom router
+- `src/mathviz/static/buildbanner.js` — copy from buildbanner repo
+- `src/mathviz/static/index.html` — replace custom banner with script tag
+- Delete `src/mathviz/preview/build_banner.py`
+- Delete `tests/test_preview/test_build_banner.py`
+
+### Tests
+
+- `GET /buildbanner.json` returns valid JSON with sha, branch, server_started, repo_url.
+- Banner renders in the browser with clickable GitHub link.
+- Custom build_banner.py is deleted.
+
+---
