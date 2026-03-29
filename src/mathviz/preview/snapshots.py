@@ -5,6 +5,7 @@ for later comparison or re-use. Supports listing, loading, and deleting
 saved snapshots.
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -145,16 +146,25 @@ class SnapshotInfo:
     ui_state: dict[str, Any] | None = None
 
 
+_metadata_cache: dict[str, dict[str, Any]] = {}
+
+
 def _read_snapshot_metadata(snapshot_dir: Path) -> dict[str, Any] | None:
-    """Read and parse metadata.json from a snapshot directory."""
+    """Read and parse metadata.json from a snapshot directory, with caching."""
+    snapshot_id = snapshot_dir.name
+    cached = _metadata_cache.get(snapshot_id)
+    if cached is not None:
+        return cached
     meta_path = snapshot_dir / "metadata.json"
     if not meta_path.is_file():
         return None
     try:
-        return json.loads(meta_path.read_text(encoding="utf-8"))
+        metadata = json.loads(meta_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
         logger.warning("Could not read metadata from %s: %s", meta_path, exc)
         return None
+    _metadata_cache[snapshot_id] = metadata
+    return metadata
 
 
 _REQUIRED_METADATA_KEYS = {"generator", "params", "seed", "container", "created_at", "geometry_id"}
@@ -174,7 +184,6 @@ def _snapshot_info_from_dir(snapshot_dir: Path) -> SnapshotInfo | None:
     snapshot_id = snapshot_dir.name
     has_thumb = (snapshot_dir / "thumbnail.png").is_file()
     thumb_url = f"/api/snapshots/{snapshot_id}/thumbnail" if has_thumb else None
-    geo_files = [f.name for f in snapshot_dir.iterdir() if f.name in GEOMETRY_FILES]
 
     return SnapshotInfo(
         snapshot_id=snapshot_id,
@@ -185,7 +194,7 @@ def _snapshot_info_from_dir(snapshot_dir: Path) -> SnapshotInfo | None:
         created_at=metadata["created_at"],
         has_thumbnail=has_thumb,
         thumbnail_url=thumb_url,
-        geometry_files=geo_files,
+        geometry_files=sorted(GEOMETRY_FILES),
         geometry_id=metadata["geometry_id"],
         ui_state=metadata.get("ui_state"),
     )
@@ -205,6 +214,25 @@ def list_snapshots() -> list[SnapshotInfo]:
         if info is not None:
             results.append(info)
 
+    results.sort(key=lambda s: s.created_at, reverse=True)
+    return results
+
+
+async def list_snapshots_async() -> list[SnapshotInfo]:
+    """Return all saved snapshots with parallel metadata reads."""
+    snapshots_dir = get_snapshots_dir()
+    if not snapshots_dir.is_dir():
+        return []
+
+    dirs = [
+        entry for entry in snapshots_dir.iterdir() if entry.is_dir()
+    ]
+
+    infos = await asyncio.gather(
+        *(asyncio.to_thread(_snapshot_info_from_dir, d) for d in dirs)
+    )
+
+    results = [info for info in infos if info is not None]
     results.sort(key=lambda s: s.created_at, reverse=True)
     return results
 
@@ -229,5 +257,6 @@ def delete_snapshot(snapshot_id: str) -> bool:
     if snapshot_dir is None:
         return False
     shutil.rmtree(snapshot_dir)
+    _metadata_cache.pop(snapshot_id, None)
     logger.info("Deleted snapshot %s", snapshot_id)
     return True

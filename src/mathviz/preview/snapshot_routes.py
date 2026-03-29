@@ -10,7 +10,7 @@ from mathviz.preview.snapshots import (
     GEOMETRY_FILES,
     delete_snapshot,
     get_snapshot_dir,
-    list_snapshots,
+    list_snapshots_async,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,9 +43,9 @@ def _snapshot_to_dict(s: Any) -> dict[str, Any]:
 
 
 @router.get("")
-def list_all_snapshots() -> list[dict]:
+async def list_all_snapshots() -> list[dict]:
     """Return all saved snapshots, sorted newest first."""
-    return [_snapshot_to_dict(s) for s in list_snapshots()]
+    return [_snapshot_to_dict(s) for s in await list_snapshots_async()]
 
 
 @router.get("/{snapshot_id}/thumbnail")
