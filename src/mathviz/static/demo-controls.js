@@ -71,6 +71,7 @@ export function wireControls(ctx) {
     applyLightIntensities(!isLight);
     document.getElementById('controls').classList.toggle('light-bg', isLight);
     document.getElementById('info-panel').classList.toggle('light-bg', isLight);
+    document.getElementById('gallery-panel').classList.toggle('light-bg', isLight);
   });
 
   /* Camera lock */
@@ -99,7 +100,11 @@ export function wireControls(ctx) {
   document.getElementById('viz-selector').addEventListener('change', (e) => {
     const selected = e.target.selectedOptions[0];
     if (!selected) return;
-    loadVisualization(selected.value, selected.dataset.path);
+    loadVisualization(
+      selected.textContent,
+      selected.dataset.mesh || (selected.dataset.path + '/mesh.glb'),
+      selected.dataset.cloud || (selected.dataset.path + '/cloud.ply'),
+    );
   });
 }
 
