@@ -42,10 +42,14 @@ export function parseBinaryPLY(buffer) {
   let vertexCount = 0;
   const properties = [];
 
+  let inVertexElement = false;
   for (const line of lines) {
     if (line.startsWith('element vertex')) {
       vertexCount = parseInt(line.split(/\s+/)[2], 10);
-    } else if (line.startsWith('property') && !line.includes('list')) {
+      inVertexElement = true;
+    } else if (line.startsWith('element ')) {
+      inVertexElement = false;
+    } else if (inVertexElement && line.startsWith('property') && !line.includes('list')) {
       const parts = line.split(/\s+/);
       properties.push({type: parts[1], name: parts[2]});
     }
@@ -113,7 +117,6 @@ export function loadMeshFromGLB(url, state) {
       const unionSize = new THREE.Vector3();
       unionBox.getSize(unionSize);
       const meshExtent = Math.max(unionSize.x, unionSize.y, unionSize.z, 1);
-      state.sceneExtent = meshExtent;
 
       gltf.scene.traverse((child) => {
         if (!child.isMesh) return;
@@ -144,24 +147,26 @@ export function loadMeshFromGLB(url, state) {
         group.add(shadedMesh, wireMesh, pts);
       });
 
-      resolve({group, totalVertices: Math.round(totalVertices), totalFaces: Math.round(totalFaces)});
+      resolve({group, extent: meshExtent, totalVertices: Math.round(totalVertices), totalFaces: Math.round(totalFaces)});
     }, undefined, reject);
   });
 }
 
 /** Load a PLY file and return {points, vertexCount}. */
 export function loadCloudFromPLY(url, state) {
-  return fetch(url).then(r => r.arrayBuffer()).then(buf => {
+  return fetch(url).then(r => {
+    if (!r.ok) throw Object.assign(new Error('HTTP ' + r.status), {status: r.status});
+    return r.arrayBuffer();
+  }).then(buf => {
     const parsed = parseBinaryPLY(buf);
     if (!parsed) throw new Error('Failed to parse PLY');
     const geom = new THREE.BufferGeometry();
     geom.setAttribute('position', new THREE.BufferAttribute(parsed.positions, 3));
     const cloudExtent = getGeometryExtent(geom);
-    state.sceneExtent = cloudExtent;
     const ptSize = computeAdaptivePointSize(state.pointSize, cloudExtent);
     const mat = new THREE.PointsMaterial({color: 0x44ccff, size: ptSize});
     const points = new THREE.Points(geom, mat);
-    return {points, vertexCount: parsed.vertexCount};
+    return {points, extent: cloudExtent, vertexCount: parsed.vertexCount};
   });
 }
 

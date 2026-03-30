@@ -224,12 +224,13 @@ export function createDisplayManager(ctx) {
 
   /* ── Display helpers ── */
   async function displayMesh(url, label) {
-    const {group, totalVertices, totalFaces} = await loadMeshFromGLB(url, state);
+    const {group, extent, totalVertices, totalFaces} = await loadMeshFromGLB(url, state);
     state.meshGroup = group;
     scene.add(group);
     setupCameraForObject(group);
     document.getElementById('reset-view-btn').disabled = false;
     updateInfo({generator: label, vertices: totalVertices, faces: totalFaces});
+    return extent;
   }
 
   function displayCloud(points, vertexCount, label) {
@@ -273,16 +274,27 @@ export function createDisplayManager(ctx) {
       clearScene();
 
       let hasMesh = false;
-      try { await displayMesh(basePath + '/mesh.glb', name); hasMesh = true; }
-      catch (_) { /* no mesh available */ }
+      let meshExtent = 0;
+      try {
+        meshExtent = await displayMesh(basePath + '/mesh.glb', name);
+        hasMesh = true;
+      } catch (err) {
+        if (!_isNotFoundError(err)) console.warn('Failed to load mesh:', err);
+      }
 
       let hasCloud = false;
+      let cloudExtent = 0;
       try {
-        const {points, vertexCount} = await loadCloudFromPLY(basePath + '/cloud.ply', state);
+        const {points, extent, vertexCount} = await loadCloudFromPLY(basePath + '/cloud.ply', state);
         displayCloud(points, vertexCount, name);
+        cloudExtent = extent;
         hasCloud = true;
-      } catch (_) { /* no cloud available */ }
+      } catch (err) {
+        if (!_isNotFoundError(err)) console.warn('Failed to load cloud:', err);
+      }
 
+      state.sceneExtent = Math.max(meshExtent, cloudExtent, 1);
+      if (hasMesh || hasCloud) _reapplyPointSizing();
       if (hasMesh && !hasCloud) _setupMeshDensity(state.meshGroup);
       if (!hasMesh && !hasCloud) updateInfo({generator: name + ' (no geometry found)'});
       if (viewModeNeedsMesh() && !hasMesh) {
@@ -309,6 +321,20 @@ export function createDisplayManager(ctx) {
     camera.position.copy(saved.pos);
     controls.target.copy(saved.target);
     controls.update();
+  }
+
+  function _isNotFoundError(err) {
+    if (err && err.message && err.message.includes('404')) return true;
+    if (err && err.status === 404) return true;
+    if (err instanceof Response && err.status === 404) return true;
+    return false;
+  }
+
+  function _reapplyPointSizing() {
+    const matSize = computeAdaptivePointSize(state.pointSize, state.sceneExtent);
+    scene.traverse((child) => {
+      if (child.isPoints && child.material) child.material.size = matSize;
+    });
   }
 
   return {

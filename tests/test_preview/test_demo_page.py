@@ -5,6 +5,15 @@ from pathlib import Path
 
 import pytest
 
+DEMO_JS_MODULES = [
+    "demo-scene.js",
+    "demo-display.js",
+    "demo-controls.js",
+    "demo-render.js",
+    "demo-crystal.js",
+    "demo-export.js",
+]
+
 
 @pytest.fixture()
 def demo_html() -> str:
@@ -17,16 +26,8 @@ def demo_html() -> str:
 def demo_js_files() -> dict[str, str]:
     """Read all demo JS module contents."""
     static = importlib.resources.files("mathviz").joinpath("static")
-    names = [
-        "demo-scene.js",
-        "demo-display.js",
-        "demo-controls.js",
-        "demo-render.js",
-        "demo-crystal.js",
-        "demo-export.js",
-    ]
     result = {}
-    for name in names:
+    for name in DEMO_JS_MODULES:
         result[name] = static.joinpath(name).read_text(encoding="utf-8")
     return result
 
@@ -40,31 +41,14 @@ def test_demo_html_exists() -> None:
     assert "<!DOCTYPE html>" in content
 
 
-def test_demo_no_api_generate_references(
-    demo_html: str, demo_js_files: dict[str, str]
+@pytest.mark.parametrize("api_path", ["/api/generate", "/api/generators", "/api/snapshots"])
+def test_demo_no_api_references(
+    demo_html: str, demo_js_files: dict[str, str], api_path: str
 ) -> None:
-    """demo.html and JS modules contain no references to /api/generate."""
-    assert "/api/generate" not in demo_html
+    """demo.html and JS modules contain no references to backend API paths."""
+    assert api_path not in demo_html
     for name, content in demo_js_files.items():
-        assert "/api/generate" not in content, f"{name} contains /api/generate"
-
-
-def test_demo_no_api_generators_references(
-    demo_html: str, demo_js_files: dict[str, str]
-) -> None:
-    """demo.html and JS modules contain no references to /api/generators."""
-    assert "/api/generators" not in demo_html
-    for name, content in demo_js_files.items():
-        assert "/api/generators" not in content, f"{name} contains /api/generators"
-
-
-def test_demo_no_api_snapshots_references(
-    demo_html: str, demo_js_files: dict[str, str]
-) -> None:
-    """demo.html and JS modules contain no references to /api/snapshots."""
-    assert "/api/snapshots" not in demo_html
-    for name, content in demo_js_files.items():
-        assert "/api/snapshots" not in content, f"{name} contains /api/snapshots"
+        assert api_path not in content, f"{name} contains {api_path}"
 
 
 def test_demo_contains_threejs_import(demo_html: str) -> None:
@@ -139,9 +123,6 @@ def test_demo_retains_client_side_features(demo_html: str) -> None:
 def test_demo_js_modules_exist() -> None:
     """All required JS modules for demo.html exist."""
     static = importlib.resources.files("mathviz").joinpath("static")
-    for name in [
-        "demo-scene.js", "demo-display.js", "demo-controls.js",
-        "demo-render.js", "demo-crystal.js", "demo-export.js",
-    ]:
+    for name in DEMO_JS_MODULES:
         content = static.joinpath(name).read_text(encoding="utf-8")
         assert len(content) > 0, f"{name} is empty"

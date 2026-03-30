@@ -188,15 +188,24 @@ async function init() {
     }
 
     for (const item of items) {
+      if (!item.name) {
+        console.warn('Skipping manifest entry missing "name" field:', item);
+        continue;
+      }
+      const resolvedPath = item.path || ('./data/' + item.name);
       const opt = document.createElement('option');
       opt.value = item.name;
       opt.textContent = item.name;
-      opt.dataset.path = item.path || ('./data/' + item.name);
+      opt.dataset.path = resolvedPath;
       selector.appendChild(opt);
     }
 
-    const first = items[0];
-    display.loadVisualization(first.name, first.path || ('./data/' + first.name));
+    if (selector.options.length === 0) {
+      _addDisabledOption(selector, 'No valid visualizations');
+      return;
+    }
+    const firstOpt = selector.options[0];
+    display.loadVisualization(firstOpt.value, firstOpt.dataset.path);
   } catch (err) {
     console.warn('Could not load manifest.json:', err.message);
     _addDisabledOption(selector, 'No manifest.json found');
