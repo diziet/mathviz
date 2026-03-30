@@ -7,6 +7,7 @@ resolve generators, run pipeline, export assets, write manifest.
 import json
 import logging
 import shutil
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -25,11 +26,26 @@ THUMBNAIL_VIEW_MODE = "vertex"
 _ROOT_ASSETS = ("buildbanner.js", "favicon.ico")
 
 
+@dataclass
+class DemoBuildResult:
+    """Result of a demo site build."""
+
+    succeeded: int = 0
+    skipped: list[str] = field(default_factory=list)
+    is_manifest_written: bool = False
+
+
 def resolve_generator_names(spec: str) -> list[str]:
     """Resolve generator spec to a sorted list of canonical names."""
     if spec.strip().lower() == "all":
         return sorted(m.name for m in list_generators())
     return [name.strip() for name in spec.split(",") if name.strip()]
+
+
+def validate_generator_names(names: list[str]) -> list[str]:
+    """Validate generator names against the registry, returning unknown names."""
+    known = {m.name for m in list_generators()}
+    return [n for n in names if n not in known]
 
 
 def _build_resolved_config(profile_name: str) -> Any:
@@ -64,7 +80,10 @@ def _export_generator(
         (data_dir / "cloud.ply").write_bytes(cloud_to_binary_ply(obj.point_cloud))
 
     webp_path = generate_thumbnail(name, THUMBNAIL_VIEW_MODE)
-    Image.open(webp_path).save(data_dir / "thumbnail.png", "PNG")
+    if webp_path is not None and Path(webp_path).is_file():
+        Image.open(webp_path).save(data_dir / "thumbnail.png", "PNG")
+    else:
+        logger.warning("Thumbnail not generated for %s", name)
 
     return _build_manifest_entry(meta, data_dir)
 
@@ -76,8 +95,11 @@ def _build_manifest_entry(meta: GeneratorMeta, data_dir: Path) -> dict[str, Any]
         "category": meta.category,
         "display_name": meta.name.replace("_", " ").title(),
         "description": meta.description,
-        "thumbnail": f"./data/{meta.name}/thumbnail.png",
     }
+    if (data_dir / "thumbnail.png").is_file():
+        entry["thumbnail"] = f"./data/{meta.name}/thumbnail.png"
+    else:
+        logger.warning("No thumbnail.png produced for %s", meta.name)
     if (data_dir / "mesh.glb").is_file():
         entry["mesh"] = f"./data/{meta.name}/mesh.glb"
     else:
@@ -102,7 +124,9 @@ def _copy_static_assets(output_dir: Path) -> None:
     if demo_src.is_file():
         shutil.copy2(demo_src, output_dir / "index.html")
     else:
-        logger.warning("demo.html not found at %s", demo_src)
+        raise FileNotFoundError(
+            f"Required demo.html not found at {demo_src}; cannot build demo site"
+        )
 
     for asset_name in _ROOT_ASSETS:
         src = STATIC_DIR / asset_name
@@ -123,38 +147,55 @@ def _write_manifest(entries: list[dict[str, Any]], output_dir: Path) -> None:
     )
 
 
-def build_demo(generator_spec: str, output_dir: Path, profile: str) -> int:
-    """Build the full demo site. Returns count of successful generators."""
+def build_demo(generator_spec: str, output_dir: Path, profile: str) -> DemoBuildResult:
+    """Build the full demo site. Returns a DemoBuildResult with outcome details."""
     output_dir.mkdir(parents=True, exist_ok=True)
     names = resolve_generator_names(generator_spec)
+
+    unknown = validate_generator_names(names)
+    if unknown:
+        raise ValueError(
+            f"Unknown generator(s): {', '.join(unknown)}. "
+            f"Use 'all' or check available generators."
+        )
+
     resolved = _build_resolved_config(profile)
 
     logger.info("Building demo for %d generators into %s", len(names), output_dir)
 
     entries: list[dict[str, Any]] = []
-    succeeded = 0
+    result = DemoBuildResult()
 
     for name in names:
         try:
             logger.info("Processing generator: %s", name)
             entry = _export_generator(name, output_dir, resolved)
             entries.append(entry)
-            succeeded += 1
+            result.succeeded += 1
             logger.info("Completed: %s", name)
-        except (RuntimeError, ValueError, OSError, IOError, ImportError):
+        except Exception:
             logger.warning("Skipping generator %s due to error", name, exc_info=True)
+            result.skipped.append(name)
             _cleanup_partial_data(output_dir / "data" / name)
 
     if entries:
         _write_manifest(entries, output_dir)
         _copy_static_assets(output_dir)
+        result.is_manifest_written = True
     else:
         logger.warning("No generators succeeded; skipping manifest and assets")
 
+    if result.skipped:
+        logger.warning(
+            "Skipped %d generator(s): %s",
+            len(result.skipped),
+            ", ".join(result.skipped),
+        )
+
     logger.info(
         "Demo build complete: %d/%d generators exported to %s",
-        succeeded,
+        result.succeeded,
         len(names),
         output_dir,
     )
-    return succeeded
+    return result

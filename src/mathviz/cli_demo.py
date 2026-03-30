@@ -67,13 +67,19 @@ def register_export_demo_command(
                 f"[bold]Building demo site[/bold] → {output}"
             )
 
-        succeeded = build_demo(generators, output, profile)
+        result = build_demo(generators, output, profile)
 
-        if succeeded == 0:
+        if result.succeeded == 0:
             output_console.print("[red]No generators exported successfully[/red]")
             raise typer.Exit(code=1)
 
+        if result.skipped and not quiet:
+            output_console.print(
+                f"[yellow]Skipped {len(result.skipped)} generator(s): "
+                f"{', '.join(result.skipped)}[/yellow]"
+            )
+
         if not quiet:
             output_console.print(
-                f"[green]Demo built: {succeeded} generator(s) → {output}[/green]"
+                f"[green]Demo built: {result.succeeded} generator(s) → {output}[/green]"
             )
