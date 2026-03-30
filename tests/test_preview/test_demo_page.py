@@ -12,6 +12,7 @@ DEMO_JS_MODULES = [
     "demo-render.js",
     "demo-crystal.js",
     "demo-export.js",
+    "demo-gallery.js",
 ]
 
 
