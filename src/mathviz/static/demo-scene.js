@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {createDisplayManager} from './demo-display.js';
 import {wireControls} from './demo-controls.js';
+import {buildGallery, getQueryParamName, resolveItemPaths} from './demo-gallery.js';
 
 /* ── Constants ── */
 const DARK_COLOR = 0x1a1a2e;
@@ -176,36 +177,60 @@ animate();
 /* ── Load manifest and init ── */
 async function init() {
   const selector = document.getElementById('viz-selector');
+  const galleryPanel = document.getElementById('gallery-panel');
+  const galleryToggle = document.getElementById('gallery-toggle');
+
+  /* Wire gallery toggle/close buttons */
+  galleryToggle.addEventListener('click', () => {
+    galleryPanel.classList.remove('collapsed');
+    galleryToggle.classList.add('hidden');
+  });
+  document.getElementById('gallery-close').addEventListener('click', () => {
+    galleryPanel.classList.add('collapsed');
+    galleryToggle.classList.remove('hidden');
+  });
+
   try {
     const resp = await fetch('./manifest.json');
     if (!resp.ok) throw new Error('manifest.json not found');
     const manifest = await resp.json();
-    const items = manifest.visualizations || manifest;
+    const items = (manifest.visualizations || manifest)
+      .filter((item) => {
+        if (!item.name) {
+          console.warn('Skipping manifest entry missing "name" field:', item);
+          return false;
+        }
+        return true;
+      });
 
-    if (!Array.isArray(items) || items.length === 0) {
+    if (items.length === 0) {
       _addDisabledOption(selector, 'No visualizations available');
       return;
     }
 
+    /* Populate dropdown selector (kept for keyboard/programmatic use) */
     for (const item of items) {
-      if (!item.name) {
-        console.warn('Skipping manifest entry missing "name" field:', item);
-        continue;
-      }
-      const resolvedPath = item.path || ('./data/' + item.name);
+      const paths = resolveItemPaths(item);
       const opt = document.createElement('option');
       opt.value = item.name;
-      opt.textContent = item.name;
-      opt.dataset.path = resolvedPath;
+      opt.textContent = item.display_name || item.name;
+      opt.dataset.mesh = paths.mesh;
+      opt.dataset.cloud = paths.cloud;
       selector.appendChild(opt);
     }
 
-    if (selector.options.length === 0) {
-      _addDisabledOption(selector, 'No valid visualizations');
-      return;
+    /* Build gallery UI */
+    const gallery = buildGallery(galleryPanel, items, (item) => {
+      const paths = resolveItemPaths(item);
+      selector.value = item.name;
+      display.loadVisualization(item.display_name || item.name, paths.mesh, paths.cloud);
+    });
+
+    /* Deep-link via ?name= query param, or select first item */
+    const queryName = getQueryParamName();
+    if (!queryName || !gallery.selectByName(queryName)) {
+      gallery.selectByName(items[0].name);
     }
-    const firstOpt = selector.options[0];
-    display.loadVisualization(firstOpt.value, firstOpt.dataset.path);
   } catch (err) {
     console.warn('Could not load manifest.json:', err.message);
     _addDisabledOption(selector, 'No manifest.json found');

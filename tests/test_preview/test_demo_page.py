@@ -12,6 +12,7 @@ DEMO_JS_MODULES = [
     "demo-render.js",
     "demo-crystal.js",
     "demo-export.js",
+    "demo-gallery.js",
 ]
 
 
@@ -79,10 +80,10 @@ def test_demo_has_manifest_loading(demo_js_files: dict[str, str]) -> None:
 def test_demo_loads_glb_from_relative_paths(
     demo_js_files: dict[str, str],
 ) -> None:
-    """Display module loads geometry from relative paths like ./data/{name}/mesh.glb."""
-    display_js = demo_js_files["demo-display.js"]
-    assert "/mesh.glb" in display_js
-    assert "/cloud.ply" in display_js
+    """Gallery module resolves geometry from relative paths like ./data/{name}/mesh.glb."""
+    gallery_js = demo_js_files["demo-gallery.js"]
+    assert "/mesh.glb" in gallery_js
+    assert "/cloud.ply" in gallery_js
 
 
 def test_demo_has_no_backend_ui_elements(demo_html: str) -> None:

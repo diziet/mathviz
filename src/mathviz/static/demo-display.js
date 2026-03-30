@@ -264,7 +264,7 @@ export function createDisplayManager(ctx) {
   }
 
   /* ── Load a visualization by name ── */
-  async function loadVisualization(name, basePath) {
+  async function loadVisualization(name, meshUrl, cloudUrl) {
     const loadingEl = document.getElementById('loading');
     loadingEl.style.display = 'block';
     document.getElementById('loading-text').textContent = 'Loading ' + name + '...';
@@ -276,7 +276,7 @@ export function createDisplayManager(ctx) {
       let hasMesh = false;
       let meshExtent = 0;
       try {
-        meshExtent = await displayMesh(basePath + '/mesh.glb', name);
+        meshExtent = await displayMesh(meshUrl, name);
         hasMesh = true;
       } catch (err) {
         if (!_isNotFoundError(err)) console.warn('Failed to load mesh:', err);
@@ -285,7 +285,7 @@ export function createDisplayManager(ctx) {
       let hasCloud = false;
       let cloudExtent = 0;
       try {
-        const {points, extent, vertexCount} = await loadCloudFromPLY(basePath + '/cloud.ply', state);
+        const {points, extent, vertexCount} = await loadCloudFromPLY(cloudUrl, state);
         displayCloud(points, vertexCount, name);
         cloudExtent = extent;
         hasCloud = true;
