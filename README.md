@@ -135,6 +135,7 @@ See [docs/generators.md](docs/generators.md) for full parameter tables and examp
 | `mathviz grid status` | Show or update block status |
 | `mathviz grid neighbors` | Show surrounding blocks |
 | `mathviz grid summary` | Show counts by status |
+| `mathviz export-demo` | Build a static demo site for deployment |
 | `mathviz grid export-all` | Batch export all assigned blocks |
 
 See [docs/cli.md](docs/cli.md) for full flag reference and examples.
@@ -149,6 +150,7 @@ See [docs/cli.md](docs/cli.md) for full flag reference and examples.
 - [Preview UI](docs/preview.md) — interactive 3D preview with comparison mode, snapshots, and keyboard shortcuts
 - [Preview UI Reference](docs/preview-ui.md) — comprehensive guide to every preview control, view mode, and shortcut
 - [Rendering](docs/rendering.md) — `render`, `render-2d`, and `render-all` commands, optional dependencies
+- [Demo Site](docs/demo.md) — building, previewing, and deploying the static demo gallery
 - [Grid Layout](docs/grid.md) — grid manifest format and grid CLI
 - [Python API](docs/api.md) — using MathViz as a Python library
 
