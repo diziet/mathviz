@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MathViz Demo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;font-family:system-ui,-apple-system,sans-serif}
+#canvas-container{width:100%;height:100%;position:relative}
+canvas{display:block}
+
+#controls{
+  position:absolute;top:12px;right:12px;
+  background:rgba(30,30,30,0.85);color:#eee;
+  padding:12px 14px;border-radius:8px;font-size:13px;
+  display:flex;flex-direction:column;gap:8px;min-width:180px;
+  backdrop-filter:blur(6px);
+}
+#controls.light-bg{background:rgba(240,240,240,0.9);color:#222}
+#controls label{display:flex;align-items:center;gap:6px;cursor:pointer}
+#controls select,#controls input[type=range]{width:100%}
+#controls button{
+  padding:4px 10px;border:1px solid #666;border-radius:4px;
+  background:transparent;color:inherit;cursor:pointer;font-size:12px;
+}
+#controls button:hover{background:rgba(128,128,128,0.3)}
+#controls button:disabled{opacity:0.4;cursor:default}
+#controls button:disabled:hover{background:transparent}
+#controls .section-title{font-weight:600;font-size:11px;text-transform:uppercase;
+  letter-spacing:0.5px;opacity:0.7;margin-top:2px}
+
+/* Collapsible panel toggle (shared) */
+.collapsible-toggle{
+  display:flex;align-items:center;gap:6px;cursor:pointer;
+  font-weight:600;font-size:11px;text-transform:uppercase;
+  letter-spacing:0.5px;opacity:0.7;user-select:none;
+  background:none;border:none;color:inherit;padding:0;width:100%;
+}
+.collapsible-toggle .chevron{font-size:10px;transition:transform 0.15s}
+.collapsible-body{display:flex;flex-direction:column;gap:8px}
+.collapsed .collapsible-body{display:none}
+
+/* Stretch collapsible panel */
+#stretch-panel{margin-top:2px}
+#stretch-panel button{margin-top:2px}
+
+/* Shared editor row layout */
+.editor-row{display:flex;gap:4px;align-items:center}
+.editor-row label{flex:0 0 auto;font-size:11px;opacity:0.8}
+.editor-row input{flex:1;width:0;min-width:0}
+.dim-row label{min-width:28px}
+.stretch-num{width:50px!important;flex:0 0 50px!important}
+
+/* Shared input style */
+.control-input{
+  padding:4px 8px;border:1px solid #555;border-radius:4px;
+  background:rgba(0,0,0,0.3);color:inherit;font-size:12px;outline:none;
+}
+.control-input:focus{border-color:#4488cc}
+#controls.light-bg .control-input{background:rgba(255,255,255,0.5);border-color:#aaa}
+
+.slider-value{display:inline-block;width:3em;text-align:right;font-size:12px;opacity:0.7;vertical-align:middle}
+
+/* Turntable controls */
+.turntable-row{display:flex;align-items:center;gap:6px}
+.turntable-row label{flex:1;display:flex;align-items:center;gap:6px;cursor:pointer}
+#turntable-speed{flex:1;min-width:60px}
+#turntable-speed-label{font-size:11px;opacity:0.8;min-width:24px;text-align:right}
+#turntable-export-section{display:none;flex-direction:column;gap:4px}
+#turntable-export-section.visible{display:flex}
+.export-row{display:flex;gap:4px}
+.export-row select{flex:1}
+#export-progress{
+  display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:rgba(30,30,30,0.92);color:#eee;padding:20px 28px;border-radius:10px;
+  font-size:14px;text-align:center;backdrop-filter:blur(8px);z-index:300;
+  min-width:240px;
+}
+#export-progress.visible{display:block}
+#export-progress-bar{
+  width:100%;height:6px;background:rgba(255,255,255,0.15);border-radius:3px;
+  margin-top:10px;overflow:hidden;
+}
+#export-progress-fill{
+  height:100%;background:#4488cc;border-radius:3px;width:0%;transition:width 0.1s;
+}
+#export-cancel-btn{
+  margin-top:12px;padding:6px 20px;border:1px solid rgba(255,255,255,0.3);
+  background:rgba(255,255,255,0.1);color:#eee;border-radius:5px;cursor:pointer;
+  font-size:13px;
+}
+#export-cancel-btn:hover{background:rgba(255,80,80,0.4);border-color:rgba(255,80,80,0.6)}
+
+#info-panel{
+  position:absolute;bottom:12px;left:12px;
+  background:rgba(30,30,30,0.85);color:#eee;
+  padding:10px 14px;border-radius:8px;font-size:12px;
+  backdrop-filter:blur(6px);min-width:200px;
+}
+#info-panel.light-bg{background:rgba(240,240,240,0.9);color:#222}
+#info-panel div{margin:2px 0}
+
+#loading{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  color:#aaa;font-size:16px;display:none;
+  text-align:center;
+}
+</style>
+</head>
+<body>
+<div id="canvas-container">
+  <div id="loading">
+    <div id="loading-text">Loading...</div>
+  </div>
+
+  <div id="controls">
+    <div class="section-title">Visualization</div>
+    <select id="viz-selector"></select>
+
+    <div class="section-title">View Mode</div>
+    <select id="view-mode">
+      <option value="shaded">Shaded Mesh</option>
+      <option value="wireframe">Wireframe</option>
+      <option value="vertex" selected>Vertex Cloud</option>
+      <option value="dense">Dense Cloud</option>
+      <option value="edge_cloud">Edge Cloud</option>
+      <option value="surface">Surface Cloud</option>
+      <option value="crystal">Crystal Preview</option>
+      <option value="colormap">Color Map</option>
+    </select>
+
+    <div class="section-title">Point Size</div>
+    <input type="range" id="point-size" min="0.02" max="0.25" step="0.01" value="0.1" data-label="point-size-value"><span class="slider-value" id="point-size-value">0.1</span>
+
+    <div id="density-control" class="section-title" style="display:none">Density</div>
+    <input type="range" id="density-slider" min="0.01" max="1" step="0.01" value="1" style="display:none" data-label="density-value"><span class="slider-value" id="density-value" style="display:none">1</span>
+
+    <div class="section-title">Options</div>
+    <label><input type="checkbox" id="show-bbox" checked> Bounding Box</label>
+    <label><input type="checkbox" id="show-axes"> Axes</label>
+    <label><input type="checkbox" id="toggle-bg"> Light Background</label>
+    <button id="lock-camera" data-mode="render" title="Camera: Locked (movable)">&#x1f512; Render Lock</button>
+
+    <div id="stretch-panel" class="collapsed">
+      <button type="button" id="stretch-toggle" class="collapsible-toggle"><span class="chevron">&#9656;</span> Stretch</button>
+      <div id="stretch-body" class="collapsible-body">
+        <div class="editor-row dim-row"><label>X</label><input type="range" id="stretch-x" min="0.1" max="3" step="0.1" value="1"><input type="number" id="stretch-x-num" class="control-input stretch-num" min="0.1" max="3" step="0.1" value="1.0"></div>
+        <div class="editor-row dim-row"><label>Y</label><input type="range" id="stretch-y" min="0.1" max="3" step="0.1" value="1"><input type="number" id="stretch-y-num" class="control-input stretch-num" min="0.1" max="3" step="0.1" value="1.0"></div>
+        <div class="editor-row dim-row"><label>Z</label><input type="range" id="stretch-z" min="0.1" max="3" step="0.1" value="1"><input type="number" id="stretch-z-num" class="control-input stretch-num" min="0.1" max="3" step="0.1" value="1.0"></div>
+        <button id="reset-scale-btn">Reset Scale</button>
+      </div>
+    </div>
+
+    <div id="crystal-controls" style="display:none">
+      <div class="section-title">Crystal Settings</div>
+      <label>Glass Tint <input type="color" id="crystal-glass-tint" value="#ffffff"></label>
+      <label>Bloom <input type="range" id="crystal-bloom" min="0" max="1" step="0.05" value="0.4" data-label="crystal-bloom-value"><span class="slider-value" id="crystal-bloom-value">0.4</span></label>
+      <label>Point Brightness <input type="range" id="crystal-brightness" min="0" max="1" step="0.05" value="0.8" data-label="crystal-brightness-value"><span class="slider-value" id="crystal-brightness-value">0.8</span></label>
+      <label><input type="checkbox" id="crystal-led-base"> LED Base</label>
+      <label>LED Color <input type="color" id="crystal-led-color" value="#fff0e0"></label>
+    </div>
+
+    <div id="colormap-controls" style="display:none">
+      <div class="section-title">Color Map Settings</div>
+      <label>Metric
+        <select id="colormap-metric">
+          <option value="height">Height (Z)</option>
+          <option value="distance">Distance from Center</option>
+          <option value="curvature">Curvature (curves)</option>
+          <option value="velocity">Velocity (curves)</option>
+        </select>
+      </label>
+      <label>Gradient
+        <select id="colormap-gradient">
+          <option value="viridis">Viridis</option>
+          <option value="inferno">Inferno</option>
+          <option value="coolwarm">Coolwarm</option>
+          <option value="rainbow">Rainbow</option>
+          <option value="custom">Custom</option>
+        </select>
+      </label>
+      <div id="colormap-custom-colors" style="display:none">
+        <label>Start <input type="color" id="colormap-start-color" value="#0000ff"></label>
+        <label>End <input type="color" id="colormap-end-color" value="#ff0000"></label>
+      </div>
+    </div>
+
+    <button id="reset-view-btn" disabled>Reset View</button>
+    <button id="screenshot-btn">Screenshot</button>
+
+    <div class="section-title">Turntable</div>
+    <div class="turntable-row">
+      <label><input type="checkbox" id="turntable-toggle"> Auto-Rotate</label>
+    </div>
+    <div class="turntable-row">
+      <input type="range" id="turntable-speed" min="0.5" max="5" step="0.5" value="1" disabled>
+      <span id="turntable-speed-label">1x</span>
+    </div>
+    <div id="turntable-export-section">
+      <div class="export-row">
+        <select id="export-format">
+          <option value="gif">GIF</option>
+          <option value="webm">WebM</option>
+        </select>
+        <select id="export-resolution">
+          <option value="1">1x</option>
+          <option value="2">2x</option>
+        </select>
+        <button id="export-btn">Export</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="info-panel">
+    <div id="info-generator">Generator: —</div>
+    <div id="info-vertices">Vertices: —</div>
+    <div id="info-faces">Faces: —</div>
+    <div id="info-points">Points: —</div>
+    <div id="info-fps">FPS: —</div>
+  </div>
+
+  <div id="export-progress">
+    <div id="export-progress-text">Capturing frame 0/360...</div>
+    <div id="export-progress-bar"><div id="export-progress-fill"></div></div>
+    <button id="export-cancel-btn" onclick="window._demoState.exportCancelled = true">Cancel</button>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module" src="./demo-scene.js"></script>
+</body>
+</html>
