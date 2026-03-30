@@ -6910,3 +6910,93 @@ Task 163 rolled a custom build banner instead of using the actual buildbanner li
 - Custom build_banner.py is deleted.
 
 ---
+
+## Task 165: Static demo page — strip index.html into demo.html
+
+**Objective:**
+
+Create `src/mathviz/static/demo.html` as a standalone, backend-free fork of `index.html`. This page must render pre-baked GLB/PLY geometry using Three.js with zero API calls. It will be the foundation for a static demo site deployed to `*.pages.dev`.
+
+**Suggested path:**
+
+Copy `index.html` to `demo.html`. Remove all backend-dependent features: the POST `/api/generate` call, parameter editing panel, seed input, generator dropdown that triggers generation, comparison/batch mode, snapshot save/load, cache clear button, and the `/api/generators` fetch. Remove the container editor (dimensions are baked). Remove the resolution controls. Keep all client-side rendering: Three.js scene, all 8 view modes (vertex, shaded, wireframe, dense, surface, edge_cloud, crystal, colormap), orbit controls, point size slider, density slider, bounding box/axes toggles, turntable, screenshot capture, camera lock, and stretch controls. The page should read a `manifest.json` from a relative path to discover available visualizations, and load geometry from relative file paths like `./data/{name}/mesh.glb`.
+
+**Tests:**
+
+- `demo.html` contains no references to `/api/generate`, `/api/generators`, or `/api/snapshots`.
+- `demo.html` loads without errors when served from a static file server (no backend).
+- Three.js scene initializes and renders geometry from a local GLB file.
+
+---
+
+## Task 166: Static demo page — gallery UI and manifest loader
+
+**Objective:**
+
+Add a visual gallery/selector to `demo.html` that lets visitors browse and switch between pre-baked visualizations. The gallery reads from `manifest.json` and displays thumbnail cards grouped by category. Selecting a card loads the corresponding geometry.
+
+**Suggested path:**
+
+Define the `manifest.json` schema: an array of objects with `name`, `category`, `display_name`, `thumbnail` (relative path to PNG), `mesh` (relative path to GLB), `cloud` (relative path to PLY), and optional `description`. On page load, fetch `manifest.json`, build a gallery grid in the left panel (or a modal triggered by a browse button). Each card shows the thumbnail, display name, and category badge. Clicking a card fetches the GLB and PLY from the manifest paths and loads them into the Three.js scene. Pre-select the first item on load, or accept a `?name=lorenz` query param to deep-link. Add a category filter bar above the gallery grid.
+
+**Tests:**
+
+- Gallery renders cards from a sample `manifest.json` with 3+ entries.
+- Clicking a card loads the correct geometry files.
+- `?name=lorenz` query param auto-selects the matching entry on load.
+- Category filter shows only matching cards.
+
+---
+
+## Task 167: Demo export script — build_demo.py
+
+**Objective:**
+
+Create `scripts/build_demo.py` that generates a self-contained, deployable directory with `demo.html`, geometry files, thumbnails, and `manifest.json`. The output directory can be deployed directly to Cloudflare Pages (or any static host) with no further processing.
+
+**Suggested path:**
+
+The script accepts `--generators` (comma-separated list or `all`), `--output` (directory path, default `dist/`), and `--profile` (sampling profile, default `preview`). For each generator: run the pipeline with default params and seed 42, export `mesh.glb` and `cloud.ply` to `data/{name}/`, render a thumbnail PNG to `data/{name}/thumbnail.png` (use the existing `render` command logic or a headless screenshot). After all generators are processed, write `manifest.json` at the output root. Copy `demo.html`, `buildbanner.js`, and favicon assets into the output root. Log progress as each generator completes. Skip generators that fail with a warning rather than aborting the entire build. The output structure:
+
+```
+dist/
+  index.html          (renamed from demo.html for Pages)
+  manifest.json
+  buildbanner.js
+  favicon.ico
+  data/
+    lorenz/
+      mesh.glb
+      cloud.ply
+      thumbnail.png
+    gyroid/
+      ...
+```
+
+**Tests:**
+
+- Script produces `dist/index.html`, `dist/manifest.json`, and at least one `dist/data/{name}/` directory.
+- `manifest.json` contains valid JSON matching the schema from Task 166.
+- Each generator directory contains `mesh.glb`, `cloud.ply`, and `thumbnail.png`.
+- `--generators lorenz,gyroid` produces exactly 2 data directories.
+- A failing generator is skipped with a warning; other generators still export.
+
+---
+
+## Task 168: Demo export CLI subcommand and deployment docs
+
+**Objective:**
+
+Wire `scripts/build_demo.py` into the CLI as `mathviz export-demo` and document the static demo site workflow.
+
+**Suggested path:**
+
+Add an `export-demo` subcommand to the CLI (`src/mathviz/cli.py` or a new `cli_demo.py` module) that delegates to the build script logic. Flags: `--generators` (default: curated list of ~15 visually impressive generators), `--output` (default `dist/`), `--profile` (default `preview`). Add a `docs/demo.md` page documenting: what the demo site is, how to build it (`mathviz export-demo`), how to preview locally (`cd dist && python -m http.server`), how to deploy to Cloudflare Pages (`npx wrangler pages deploy dist/`), and how to customize the generator list. Update `README.md` with a one-liner linking to `docs/demo.md`.
+
+**Tests:**
+
+- `mathviz export-demo --generators lorenz --output /tmp/test-demo` runs without error.
+- Output directory matches the expected structure.
+- `mathviz export-demo --help` shows all flags with descriptions.
+
+---
