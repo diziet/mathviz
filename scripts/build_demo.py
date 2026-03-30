@@ -24,6 +24,7 @@ from mathviz.core.generator import GeneratorMeta, get_generator_meta, list_gener
 from mathviz.pipeline.runner import run as run_pipeline
 from mathviz.preview.lod import cloud_to_binary_ply, mesh_to_glb
 from mathviz.preview.thumbnails import generate_thumbnail
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
@@ -118,24 +119,36 @@ def _export_ply(obj: Any, data_dir: Path) -> None:
 
 def _export_thumbnail(name: str, data_dir: Path) -> None:
     """Generate and copy thumbnail PNG into data directory."""
-    from PIL import Image
-
     webp_path = generate_thumbnail(name, THUMBNAIL_VIEW_MODE)
     png_path = data_dir / "thumbnail.png"
     Image.open(webp_path).save(png_path, "PNG")
 
 
 def _build_manifest_entry(meta: GeneratorMeta, data_dir: Path) -> dict[str, Any]:
-    """Build a manifest entry dict for a generator."""
-    return {
+    """Build a manifest entry dict for a generator, omitting missing assets."""
+    entry: dict[str, Any] = {
         "name": meta.name,
         "category": meta.category,
         "display_name": meta.name.replace("_", " ").title(),
         "description": meta.description,
         "thumbnail": f"./data/{meta.name}/thumbnail.png",
-        "mesh": f"./data/{meta.name}/mesh.glb",
-        "cloud": f"./data/{meta.name}/cloud.ply",
     }
+    if (data_dir / "mesh.glb").is_file():
+        entry["mesh"] = f"./data/{meta.name}/mesh.glb"
+    else:
+        logger.warning("No mesh.glb produced for %s", meta.name)
+    if (data_dir / "cloud.ply").is_file():
+        entry["cloud"] = f"./data/{meta.name}/cloud.ply"
+    else:
+        logger.warning("No cloud.ply produced for %s", meta.name)
+    return entry
+
+
+def _cleanup_partial_data(data_dir: Path) -> None:
+    """Remove a partially-created generator data directory."""
+    if data_dir.is_dir():
+        shutil.rmtree(data_dir)
+        logger.info("Cleaned up partial data directory: %s", data_dir)
 
 
 def copy_static_assets(output_dir: Path) -> None:
@@ -193,11 +206,15 @@ def build_demo(
             entries.append(entry)
             succeeded += 1
             logger.info("Completed: %s", name)
-        except Exception:
+        except (RuntimeError, ValueError, OSError, IOError, ImportError):
             logger.warning("Skipping generator %s due to error", name, exc_info=True)
+            _cleanup_partial_data(output_dir / "data" / name)
 
-    write_manifest(entries, output_dir)
-    copy_static_assets(output_dir)
+    if entries:
+        write_manifest(entries, output_dir)
+        copy_static_assets(output_dir)
+    else:
+        logger.warning("No generators succeeded; skipping manifest and assets")
 
     logger.info(
         "Demo build complete: %d/%d generators exported to %s",

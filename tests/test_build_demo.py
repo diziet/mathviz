@@ -1,6 +1,5 @@
 """Tests for scripts/build_demo.py — static demo site builder (Task 167)."""
 
-import importlib
 import json
 import sys
 from pathlib import Path
@@ -21,8 +20,9 @@ import build_demo
 
 
 # ---------------------------------------------------------------------------
-# Fixtures
+# Shared helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_math_object(name: str = "lorenz") -> MagicMock:
     """Create a mock MathObject with mesh and point cloud."""
@@ -57,6 +57,23 @@ def _make_generator_meta(name: str, category: str = "attractors") -> GeneratorMe
     )
 
 
+def _make_resolved_config() -> MagicMock:
+    """Create a mock resolved config matching pipeline expectations."""
+    return MagicMock(
+        container=MagicMock(), placement=MagicMock(), sampler_config=None
+    )
+
+
+def _fake_export_thumb(name: str, data_dir: Path) -> None:
+    """Write a fake thumbnail PNG into data_dir."""
+    (data_dir / "thumbnail.png").write_bytes(b"fake-png")
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
 @pytest.fixture()
 def output_dir(tmp_path: Path) -> Path:
     """Return a temporary output directory."""
@@ -65,27 +82,32 @@ def output_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture()
 def _mock_pipeline():
-    """Patch pipeline, thumbnail, and generator functions for all tests."""
+    """Patch pipeline and export functions for all tests."""
     with (
         patch.object(build_demo, "run_pipeline") as mock_run,
-        patch.object(build_demo, "generate_thumbnail") as mock_thumb,
-        patch.object(build_demo, "mesh_to_glb", return_value=b"fake-glb") as _mock_glb,
-        patch.object(
-            build_demo, "cloud_to_binary_ply", return_value=b"fake-ply"
-        ) as _mock_ply,
+        patch.object(build_demo, "mesh_to_glb", return_value=b"fake-glb"),
+        patch.object(build_demo, "cloud_to_binary_ply", return_value=b"fake-ply"),
         patch("build_demo._export_thumbnail") as mock_export_thumb,
     ):
         mock_run.side_effect = lambda name, **kw: _make_pipeline_result(name)
-        # Make _export_thumbnail create a dummy PNG file
-        def _fake_export_thumb(name: str, data_dir: Path) -> None:
-            (data_dir / "thumbnail.png").write_bytes(b"fake-png")
-
         mock_export_thumb.side_effect = _fake_export_thumb
         yield {
             "run_pipeline": mock_run,
-            "generate_thumbnail": mock_thumb,
             "export_thumbnail": mock_export_thumb,
         }
+
+
+def _mock_generators_fixture(metas: dict[str, GeneratorMeta]):
+    """Create patch context for list_generators, get_generator_meta, and config."""
+    return (
+        patch.object(
+            build_demo, "list_generators", return_value=list(metas.values())
+        ),
+        patch.object(
+            build_demo, "get_generator_meta", side_effect=lambda n: metas[n]
+        ),
+        patch.object(build_demo, "_build_resolved_config", return_value=_make_resolved_config()),
+    )
 
 
 @pytest.fixture()
@@ -95,18 +117,8 @@ def _mock_generators_two():
         "lorenz": _make_generator_meta("lorenz", "attractors"),
         "gyroid": _make_generator_meta("gyroid", "geometry"),
     }
-    with (
-        patch.object(
-            build_demo, "list_generators", return_value=list(metas.values())
-        ),
-        patch.object(
-            build_demo, "get_generator_meta", side_effect=lambda n: metas[n]
-        ),
-        patch.object(build_demo, "_build_resolved_config") as mock_cfg,
-    ):
-        mock_cfg.return_value = MagicMock(
-            container=MagicMock(), placement=MagicMock(), sampler_config=None
-        )
+    patches = _mock_generators_fixture(metas)
+    with patches[0], patches[1], patches[2]:
         yield metas
 
 
@@ -165,7 +177,10 @@ class TestManifestSchema:
         build_demo.build_demo("all", output_dir, "preview")
         manifest = json.loads((output_dir / "manifest.json").read_text())
 
-        required_fields = {"name", "category", "display_name", "thumbnail", "mesh", "cloud"}
+        required_fields = {
+            "name", "category", "display_name", "description",
+            "thumbnail", "mesh", "cloud",
+        }
         for entry in manifest:
             missing = required_fields - set(entry.keys())
             assert not missing, f"Entry {entry.get('name')} missing fields: {missing}"
@@ -210,25 +225,17 @@ class TestFailureHandling:
                 raise RuntimeError("Simulated failure")
             return _make_pipeline_result(name)
 
+        gen_patches = _mock_generators_fixture(metas)
         with (
-            patch.object(
-                build_demo, "list_generators", return_value=list(metas.values())
-            ),
-            patch.object(
-                build_demo, "get_generator_meta", side_effect=lambda n: metas[n]
-            ),
-            patch.object(build_demo, "_build_resolved_config") as mock_cfg,
+            gen_patches[0],
+            gen_patches[1],
+            gen_patches[2],
             patch.object(build_demo, "run_pipeline", side_effect=_fake_run),
             patch.object(build_demo, "mesh_to_glb", return_value=b"fake-glb"),
             patch.object(build_demo, "cloud_to_binary_ply", return_value=b"fake-ply"),
             patch("build_demo._export_thumbnail") as mock_thumb,
         ):
-            mock_cfg.return_value = MagicMock(
-                container=MagicMock(), placement=MagicMock(), sampler_config=None
-            )
-            mock_thumb.side_effect = lambda n, d: (d / "thumbnail.png").write_bytes(
-                b"fake"
-            )
+            mock_thumb.side_effect = _fake_export_thumb
 
             count = build_demo.build_demo("lorenz,broken", output_dir, "preview")
 
@@ -240,6 +247,54 @@ class TestFailureHandling:
         names = [e["name"] for e in manifest]
         assert "lorenz" in names
         assert "broken" not in names
+
+    def test_partial_directory_cleaned_on_export_failure(
+        self, output_dir: Path
+    ) -> None:
+        """If export fails after data_dir is created, the directory is cleaned up."""
+        meta = _make_generator_meta("failing", "attractors")
+        metas = {"failing": meta}
+
+        def _failing_thumb(name: str, data_dir: Path) -> None:
+            raise OSError("Thumbnail generation failed")
+
+        gen_patches = _mock_generators_fixture(metas)
+        with (
+            gen_patches[0],
+            gen_patches[1],
+            gen_patches[2],
+            patch.object(
+                build_demo, "run_pipeline",
+                side_effect=lambda name, **kw: _make_pipeline_result(name),
+            ),
+            patch.object(build_demo, "mesh_to_glb", return_value=b"fake-glb"),
+            patch.object(build_demo, "cloud_to_binary_ply", return_value=b"fake-ply"),
+            patch("build_demo._export_thumbnail", side_effect=_failing_thumb),
+        ):
+            count = build_demo.build_demo("failing", output_dir, "preview")
+
+        assert count == 0
+        assert not (output_dir / "data" / "failing").is_dir()
+
+    def test_all_generators_fail_no_manifest(self, output_dir: Path) -> None:
+        """When all generators fail, no manifest.json is written."""
+        meta = _make_generator_meta("broken", "attractors")
+        metas = {"broken": meta}
+
+        def _fail_run(name: str, **kwargs: Any) -> MagicMock:
+            raise RuntimeError("Simulated failure")
+
+        gen_patches = _mock_generators_fixture(metas)
+        with (
+            gen_patches[0],
+            gen_patches[1],
+            gen_patches[2],
+            patch.object(build_demo, "run_pipeline", side_effect=_fail_run),
+        ):
+            count = build_demo.build_demo("broken", output_dir, "preview")
+
+        assert count == 0
+        assert not (output_dir / "manifest.json").is_file()
 
 
 class TestParseArgs:
