@@ -20,6 +20,7 @@ from mathviz.cli_output import (
 )
 from mathviz.cli_benchmark import register_benchmark_command
 from mathviz.cli_cache import register_cache_commands
+from mathviz.cli_demo import register_export_demo_command
 from mathviz.cli_preview import register_preview_command
 from mathviz.cli_render import register_render_commands
 from mathviz.cli_render_batch import register_render_all_command
@@ -395,6 +396,7 @@ def validate(
 
 register_benchmark_command(app, _configure_logging, console)
 register_cache_commands(app, _configure_logging, console)
+register_export_demo_command(app, _configure_logging, console)
 register_preview_command(app, _parse_params, _configure_logging, console)
 register_render_commands(app, _parse_params, _configure_logging, _run_pipeline, console)
 register_render_all_command(app, _configure_logging, console)

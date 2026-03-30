@@ -126,6 +126,42 @@ mathviz benchmark --runs 1 --output results.html
 mathviz benchmark --workers 2
 ```
 
+## export-demo
+
+Build a self-contained static demo site from generator pipeline output. The
+site includes GLB meshes, PLY point clouds, PNG thumbnails, and an interactive
+gallery viewer.
+
+```bash
+mathviz export-demo [OPTIONS]
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `--generators` | string | curated list of ~15 | Comma-separated generator names, or 'all' |
+| `--output` | path | dist/ | Output directory for the demo site |
+| `--profile` | string | preview | Sampling profile name (e.g. preview, production) |
+| `--verbose` | flag | | Enable debug logging |
+| `--quiet` | flag | | Suppress non-error output |
+
+Examples:
+
+```bash
+# Build demo with default curated generators
+mathviz export-demo
+
+# Build demo with specific generators
+mathviz export-demo --generators lorenz,gyroid,mandelbulb
+
+# Custom output directory and production quality
+mathviz export-demo --output build/ --profile production
+
+# Build all generators
+mathviz export-demo --generators all
+```
+
+See [demo.md](demo.md) for deployment and customization details.
+
 ## cache clear
 
 Remove all cached generation results from the disk cache. The cache
