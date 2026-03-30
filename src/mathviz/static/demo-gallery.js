@@ -43,6 +43,7 @@ export function buildGallery(galleryContainer, items, onSelect) {
     const card = e.target.closest('.gallery-card');
     if (!card) return;
     const name = card.dataset.name;
+    if (name === selectedName) return;
     const item = items.find((it) => it.name === name);
     if (!item) return;
     _highlightCard(grid, name);

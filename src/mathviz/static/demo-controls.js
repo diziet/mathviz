@@ -102,8 +102,8 @@ export function wireControls(ctx) {
     if (!selected) return;
     loadVisualization(
       selected.textContent,
-      selected.dataset.mesh || (selected.dataset.path + '/mesh.glb'),
-      selected.dataset.cloud || (selected.dataset.path + '/cloud.ply'),
+      selected.dataset.mesh,
+      selected.dataset.cloud,
     );
   });
 }

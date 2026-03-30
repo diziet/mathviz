@@ -265,12 +265,6 @@ export function createDisplayManager(ctx) {
 
   /* ── Load a visualization by name ── */
   async function loadVisualization(name, meshUrl, cloudUrl) {
-    /* Support legacy 2-arg call: loadVisualization(name, basePath) */
-    if (cloudUrl === undefined) {
-      const basePath = meshUrl;
-      meshUrl = basePath + '/mesh.glb';
-      cloudUrl = basePath + '/cloud.ply';
-    }
     const loadingEl = document.getElementById('loading');
     loadingEl.style.display = 'block';
     document.getElementById('loading-text').textContent = 'Loading ' + name + '...';

@@ -180,10 +180,14 @@ async function init() {
   const galleryPanel = document.getElementById('gallery-panel');
   const galleryToggle = document.getElementById('gallery-toggle');
 
-  /* Wire gallery toggle button */
+  /* Wire gallery toggle/close buttons */
   galleryToggle.addEventListener('click', () => {
     galleryPanel.classList.remove('collapsed');
-    galleryToggle.style.display = 'none';
+    galleryToggle.classList.add('hidden');
+  });
+  document.getElementById('gallery-close').addEventListener('click', () => {
+    galleryPanel.classList.add('collapsed');
+    galleryToggle.classList.remove('hidden');
   });
 
   try {
@@ -224,9 +228,7 @@ async function init() {
 
     /* Deep-link via ?name= query param, or select first item */
     const queryName = getQueryParamName();
-    if (queryName && gallery.selectByName(queryName)) {
-      /* selectByName triggers onSelect callback */
-    } else {
+    if (!queryName || !gallery.selectByName(queryName)) {
       gallery.selectByName(items[0].name);
     }
   } catch (err) {
