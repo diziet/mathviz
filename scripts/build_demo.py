@@ -81,8 +81,6 @@ def export_generator(
 ) -> dict[str, Any]:
     """Run pipeline and export mesh.glb, cloud.ply, thumbnail.png for one generator."""
     meta: GeneratorMeta = get_generator_meta(name)
-    data_dir = output_dir / "data" / meta.name
-    data_dir.mkdir(parents=True, exist_ok=True)
 
     result = run_pipeline(
         meta.name,
@@ -93,6 +91,9 @@ def export_generator(
         sampler_config=resolved.sampler_config,
     )
     obj = result.math_object
+
+    data_dir = output_dir / "data" / meta.name
+    data_dir.mkdir(parents=True, exist_ok=True)
 
     _export_glb(obj, data_dir)
     _export_ply(obj, data_dir)
