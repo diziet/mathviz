@@ -258,13 +258,15 @@ export function createDisplayManager(ctx) {
   }
 
   /* ── Load a visualization by name ── */
+  let _firstLoad = true;
   async function loadVisualization(name, meshUrl, cloudUrl) {
     const loadingEl = document.getElementById('loading');
     loadingEl.style.display = 'block';
     document.getElementById('loading-text').textContent = 'Loading ' + name + '...';
 
     try {
-      const savedCamera = _saveCameraIfLocked();
+      const savedCamera = _firstLoad ? null : _saveCameraIfLocked();
+      _firstLoad = false;
       clearScene();
 
       let hasMesh = false;
