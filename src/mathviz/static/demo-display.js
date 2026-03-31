@@ -26,7 +26,7 @@ export function createDisplayManager(ctx) {
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
-    const dist = maxDim * 3.0;
+    const dist = maxDim * 4.0;
     camera.position.set(center.x + dist * 0.6, center.y + dist * 0.4, center.z + dist * 0.7);
     camera.near = dist * 0.01;
     camera.far = dist * 10;
