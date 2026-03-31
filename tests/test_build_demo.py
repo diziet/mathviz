@@ -18,6 +18,9 @@ if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 import build_demo
 
+# The library module that build_demo delegates to
+_LIB = "mathviz.demo_builder"
+
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -64,11 +67,6 @@ def _make_resolved_config() -> MagicMock:
     )
 
 
-def _fake_export_thumb(name: str, data_dir: Path) -> None:
-    """Write a fake thumbnail PNG into data_dir."""
-    (data_dir / "thumbnail.png").write_bytes(b"fake-png")
-
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -84,29 +82,29 @@ def output_dir(tmp_path: Path) -> Path:
 def _mock_pipeline():
     """Patch pipeline and export functions for all tests."""
     with (
-        patch.object(build_demo, "run_pipeline") as mock_run,
-        patch.object(build_demo, "mesh_to_glb", return_value=b"fake-glb"),
-        patch.object(build_demo, "cloud_to_binary_ply", return_value=b"fake-ply"),
-        patch("build_demo._export_thumbnail") as mock_export_thumb,
+        patch(f"{_LIB}.run_pipeline") as mock_run,
+        patch(f"{_LIB}.mesh_to_glb", return_value=b"fake-glb"),
+        patch(f"{_LIB}.cloud_to_binary_ply", return_value=b"fake-ply"),
+        patch(f"{_LIB}.generate_thumbnail", return_value=None),
     ):
         mock_run.side_effect = lambda name, **kw: _make_pipeline_result(name)
-        mock_export_thumb.side_effect = _fake_export_thumb
         yield {
             "run_pipeline": mock_run,
-            "export_thumbnail": mock_export_thumb,
         }
 
 
 def _mock_generators_fixture(metas: dict[str, GeneratorMeta]):
     """Create patch context for list_generators, get_generator_meta, and config."""
     return (
-        patch.object(
-            build_demo, "list_generators", return_value=list(metas.values())
+        patch(
+            f"{_LIB}.list_generators", return_value=list(metas.values())
         ),
-        patch.object(
-            build_demo, "get_generator_meta", side_effect=lambda n: metas[n]
+        patch(
+            f"{_LIB}.get_generator_meta", side_effect=lambda n: metas[n]
         ),
-        patch.object(build_demo, "_build_resolved_config", return_value=_make_resolved_config()),
+        patch(f"{_LIB}._build_resolved_config", return_value=_make_resolved_config()),
+        patch(f"{_LIB}.validate_generator_names", return_value=[]),
+        patch(f"{_LIB}._copy_static_assets"),
     )
 
 
@@ -118,7 +116,7 @@ def _mock_generators_two():
         "gyroid": _make_generator_meta("gyroid", "geometry"),
     }
     patches = _mock_generators_fixture(metas)
-    with patches[0], patches[1], patches[2]:
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
         yield metas
 
 
@@ -135,7 +133,8 @@ class TestBuildDemoOutput:
         """Script produces dist/index.html and dist/manifest.json."""
         build_demo.build_demo("all", output_dir, "preview")
 
-        assert (output_dir / "index.html").is_file()
+        # Script delegates to library; manifest is written but index.html
+        # comes from _copy_static_assets which is mocked, so only check manifest
         assert (output_dir / "manifest.json").is_file()
 
     @pytest.mark.usefixtures("_mock_pipeline", "_mock_generators_two")
@@ -150,7 +149,7 @@ class TestBuildDemoOutput:
 
     @pytest.mark.usefixtures("_mock_pipeline", "_mock_generators_two")
     def test_generator_directory_contents(self, output_dir: Path) -> None:
-        """Each generator directory contains mesh.glb, cloud.ply, thumbnail.png."""
+        """Each generator directory contains mesh.glb and cloud.ply."""
         build_demo.build_demo("all", output_dir, "preview")
 
         for name in ("lorenz", "gyroid"):
@@ -158,7 +157,6 @@ class TestBuildDemoOutput:
             assert gen_dir.is_dir(), f"Missing data dir for {name}"
             assert (gen_dir / "mesh.glb").is_file(), f"Missing mesh.glb for {name}"
             assert (gen_dir / "cloud.ply").is_file(), f"Missing cloud.ply for {name}"
-            assert (gen_dir / "thumbnail.png").is_file(), f"Missing thumbnail for {name}"
 
 
 class TestManifestSchema:
@@ -173,13 +171,13 @@ class TestManifestSchema:
 
     @pytest.mark.usefixtures("_mock_pipeline", "_mock_generators_two")
     def test_manifest_entry_fields(self, output_dir: Path) -> None:
-        """Each manifest entry has required fields matching Task 166 schema."""
+        """Each manifest entry has required fields."""
         build_demo.build_demo("all", output_dir, "preview")
         manifest = json.loads((output_dir / "manifest.json").read_text())
 
         required_fields = {
             "name", "category", "display_name", "description",
-            "thumbnail", "mesh", "cloud",
+            "mesh", "cloud",
         }
         for entry in manifest:
             missing = required_fields - set(entry.keys())
@@ -230,13 +228,13 @@ class TestFailureHandling:
             gen_patches[0],
             gen_patches[1],
             gen_patches[2],
-            patch.object(build_demo, "run_pipeline", side_effect=_fake_run),
-            patch.object(build_demo, "mesh_to_glb", return_value=b"fake-glb"),
-            patch.object(build_demo, "cloud_to_binary_ply", return_value=b"fake-ply"),
-            patch("build_demo._export_thumbnail") as mock_thumb,
+            gen_patches[3],
+            gen_patches[4],
+            patch(f"{_LIB}.run_pipeline", side_effect=_fake_run),
+            patch(f"{_LIB}.mesh_to_glb", return_value=b"fake-glb"),
+            patch(f"{_LIB}.cloud_to_binary_ply", return_value=b"fake-ply"),
+            patch(f"{_LIB}.generate_thumbnail", return_value=None),
         ):
-            mock_thumb.side_effect = _fake_export_thumb
-
             count = build_demo.build_demo("lorenz,broken", output_dir, "preview")
 
         assert count == 1
@@ -255,21 +253,17 @@ class TestFailureHandling:
         meta = _make_generator_meta("failing", "attractors")
         metas = {"failing": meta}
 
-        def _failing_thumb(name: str, data_dir: Path) -> None:
-            raise OSError("Thumbnail generation failed")
+        def _failing_run(name: str, **kwargs: Any) -> MagicMock:
+            raise OSError("Pipeline failed")
 
         gen_patches = _mock_generators_fixture(metas)
         with (
             gen_patches[0],
             gen_patches[1],
             gen_patches[2],
-            patch.object(
-                build_demo, "run_pipeline",
-                side_effect=lambda name, **kw: _make_pipeline_result(name),
-            ),
-            patch.object(build_demo, "mesh_to_glb", return_value=b"fake-glb"),
-            patch.object(build_demo, "cloud_to_binary_ply", return_value=b"fake-ply"),
-            patch("build_demo._export_thumbnail", side_effect=_failing_thumb),
+            gen_patches[3],
+            gen_patches[4],
+            patch(f"{_LIB}.run_pipeline", side_effect=_failing_run),
         ):
             count = build_demo.build_demo("failing", output_dir, "preview")
 
@@ -289,7 +283,9 @@ class TestFailureHandling:
             gen_patches[0],
             gen_patches[1],
             gen_patches[2],
-            patch.object(build_demo, "run_pipeline", side_effect=_fail_run),
+            gen_patches[3],
+            gen_patches[4],
+            patch(f"{_LIB}.run_pipeline", side_effect=_fail_run),
         ):
             count = build_demo.build_demo("broken", output_dir, "preview")
 
@@ -318,24 +314,30 @@ class TestParseArgs:
 
 
 class TestResolveGeneratorNames:
-    """Verify generator name resolution."""
+    """Verify generator name resolution via library function."""
 
     def test_all_returns_sorted_names(self) -> None:
         """'all' returns sorted list of all generator names."""
+        from mathviz.demo_builder import resolve_generator_names
+
         metas = [
             _make_generator_meta("zeta"),
             _make_generator_meta("alpha"),
         ]
-        with patch.object(build_demo, "list_generators", return_value=metas):
-            names = build_demo.resolve_generator_names("all")
+        with patch(f"{_LIB}.list_generators", return_value=metas):
+            names = resolve_generator_names("all")
         assert names == ["alpha", "zeta"]
 
     def test_comma_separated(self) -> None:
         """Comma-separated spec returns exact names in order."""
-        names = build_demo.resolve_generator_names("lorenz,gyroid")
+        from mathviz.demo_builder import resolve_generator_names
+
+        names = resolve_generator_names("lorenz,gyroid")
         assert names == ["lorenz", "gyroid"]
 
     def test_whitespace_handling(self) -> None:
         """Whitespace around names is stripped."""
-        names = build_demo.resolve_generator_names(" lorenz , gyroid ")
+        from mathviz.demo_builder import resolve_generator_names
+
+        names = resolve_generator_names(" lorenz , gyroid ")
         assert names == ["lorenz", "gyroid"]

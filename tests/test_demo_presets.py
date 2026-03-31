@@ -3,7 +3,10 @@
 import json
 import sys
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from mathviz.demo_builder import (
     DEFAULT_SEED,
@@ -103,116 +106,63 @@ class TestResolveDemoPreset:
 # ---------------------------------------------------------------------------
 
 
+def _run_build_with_presets(
+    presets_return: dict[str, Any], tmp_path: Path
+) -> list[dict[str, Any]]:
+    """Run build_demo with mocked internals and return manifest entries."""
+    from mathviz.core.generator import GeneratorMeta
+    from mathviz.demo_builder import build_demo
+
+    meta = GeneratorMeta(
+        name="lorenz",
+        category="attractors",
+        aliases=[],
+        description="Test",
+        resolution_params={},
+        generator_class=MagicMock(),
+    )
+
+    obj = MagicMock()
+    obj.mesh = MagicMock()
+    obj.point_cloud = MagicMock()
+    pipeline_result = MagicMock()
+    pipeline_result.math_object = obj
+
+    with (
+        patch("mathviz.demo_builder._newest_snapshot_for", return_value=None),
+        patch("mathviz.demo_builder.load_presets_file", return_value=presets_return),
+        patch("mathviz.demo_builder.get_generator_meta", return_value=meta),
+        patch("mathviz.demo_builder._build_resolved_config", return_value=MagicMock()),
+        patch("mathviz.demo_builder.run_pipeline", return_value=pipeline_result),
+        patch("mathviz.demo_builder.mesh_to_glb", return_value=b"fake-glb"),
+        patch("mathviz.demo_builder.cloud_to_binary_ply", return_value=b"fake-ply"),
+        patch("mathviz.demo_builder.generate_thumbnail", return_value=None),
+        patch("mathviz.demo_builder.validate_generator_names", return_value=[]),
+        patch("mathviz.demo_builder._copy_static_assets"),
+    ):
+        out = tmp_path / "demo-out"
+        build_demo("lorenz", out, "preview")
+        return json.loads((out / "manifest.json").read_text())
+
+
 class TestManifestParamsAndSeed:
     """Test that manifest entries contain params and seed fields."""
 
-    @patch("mathviz.demo_builder._copy_static_assets")
-    @patch("mathviz.demo_builder.validate_generator_names", return_value=[])
-    @patch("mathviz.demo_builder.generate_thumbnail", return_value=None)
-    @patch("mathviz.demo_builder.cloud_to_binary_ply", return_value=b"fake-ply")
-    @patch("mathviz.demo_builder.mesh_to_glb", return_value=b"fake-glb")
-    @patch("mathviz.demo_builder.run_pipeline")
-    @patch("mathviz.demo_builder._build_resolved_config")
-    @patch("mathviz.demo_builder.get_generator_meta")
-    @patch("mathviz.demo_builder.load_presets_file")
-    @patch("mathviz.demo_builder._newest_snapshot_for", return_value=None)
     def test_manifest_entries_include_params_and_seed(
-        self,
-        mock_snap: object,
-        mock_presets: object,
-        mock_meta: object,
-        mock_config: object,
-        mock_run: object,
-        mock_glb: object,
-        mock_ply: object,
-        mock_thumb: object,
-        mock_validate: object,
-        mock_static: object,
-        tmp_path: Path,
+        self, tmp_path: Path
     ) -> None:
         """Manifest entries have params and seed fields."""
-
-        from mathviz.core.generator import GeneratorMeta
-        from mathviz.demo_builder import build_demo
-
-        meta = GeneratorMeta(
-            name="lorenz",
-            category="attractors",
-            aliases=[],
-            description="Test",
-            resolution_params={},
-            generator_class=MagicMock(),
-        )
-        mock_meta.return_value = meta
-        mock_config.return_value = MagicMock()
-        mock_presets.return_value = {"lorenz": {"params": {"sigma": 12}, "seed": 7}}
-
-        obj = MagicMock()
-        obj.mesh = MagicMock()
-        obj.point_cloud = MagicMock()
-        pipeline_result = MagicMock()
-        pipeline_result.math_object = obj
-        mock_run.return_value = pipeline_result
-
-        out = tmp_path / "demo-out"
-        build_demo("lorenz", out, "preview")
-
-        manifest = json.loads((out / "manifest.json").read_text())
+        presets = {"lorenz": {"params": {"sigma": 12}, "seed": 7}}
+        manifest = _run_build_with_presets(presets, tmp_path)
         assert len(manifest) == 1
         assert manifest[0]["params"] == {"sigma": 12}
         assert manifest[0]["seed"] == 7
 
-    @patch("mathviz.demo_builder._copy_static_assets")
-    @patch("mathviz.demo_builder.validate_generator_names", return_value=[])
-    @patch("mathviz.demo_builder.generate_thumbnail", return_value=None)
-    @patch("mathviz.demo_builder.cloud_to_binary_ply", return_value=b"fake-ply")
-    @patch("mathviz.demo_builder.mesh_to_glb", return_value=b"fake-glb")
-    @patch("mathviz.demo_builder.run_pipeline")
-    @patch("mathviz.demo_builder._build_resolved_config")
-    @patch("mathviz.demo_builder.get_generator_meta")
-    @patch("mathviz.demo_builder.load_presets_file")
-    @patch("mathviz.demo_builder._newest_snapshot_for", return_value=None)
     def test_manifest_default_params_when_no_presets(
-        self,
-        mock_snap: object,
-        mock_presets: object,
-        mock_meta: object,
-        mock_config: object,
-        mock_run: object,
-        mock_glb: object,
-        mock_ply: object,
-        mock_thumb: object,
-        mock_validate: object,
-        mock_static: object,
-        tmp_path: Path,
+        self, tmp_path: Path
     ) -> None:
         """With no presets, manifest shows empty params and seed 42."""
-        from mathviz.core.generator import GeneratorMeta
-        from mathviz.demo_builder import build_demo
-
-        meta = GeneratorMeta(
-            name="lorenz",
-            category="attractors",
-            aliases=[],
-            description="Test",
-            resolution_params={},
-            generator_class=MagicMock(),
-        )
-        mock_meta.return_value = meta
-        mock_config.return_value = MagicMock()
-        mock_presets.return_value = {}
-
-        obj = MagicMock()
-        obj.mesh = MagicMock()
-        obj.point_cloud = MagicMock()
-        pipeline_result = MagicMock()
-        pipeline_result.math_object = obj
-        mock_run.return_value = pipeline_result
-
-        out = tmp_path / "demo-out"
-        build_demo("lorenz", out, "preview")
-
-        manifest = json.loads((out / "manifest.json").read_text())
+        manifest = _run_build_with_presets({}, tmp_path)
         assert manifest[0]["params"] == {}
         assert manifest[0]["seed"] == DEFAULT_SEED
 
@@ -298,11 +248,15 @@ class TestNoPresetsFlag:
 class TestExportPresetsScript:
     """Test scripts/export_presets.py reads snapshots and writes valid JSON."""
 
+    @pytest.fixture(autouse=True)
+    def _add_scripts_to_path(self) -> None:
+        """Ensure scripts/ is on sys.path for import."""
+        scripts_dir = str(Path(__file__).resolve().parent.parent / "scripts")
+        if scripts_dir not in sys.path:
+            sys.path.insert(0, scripts_dir)
+
     def test_writes_valid_presets_from_snapshots(self, tmp_path: Path) -> None:
         """export_presets reads snapshots and writes demo_presets.json."""
-        _scripts_dir = str(Path(__file__).resolve().parent.parent / "scripts")
-        if _scripts_dir not in sys.path:
-            sys.path.insert(0, _scripts_dir)
         import export_presets
 
         snap1 = MagicMock()
@@ -332,9 +286,6 @@ class TestExportPresetsScript:
 
     def test_picks_newest_snapshot_per_generator(self, tmp_path: Path) -> None:
         """When multiple snapshots exist for a generator, picks the newest."""
-        _scripts_dir = str(Path(__file__).resolve().parent.parent / "scripts")
-        if _scripts_dir not in sys.path:
-            sys.path.insert(0, _scripts_dir)
         import export_presets
 
         # list_snapshots returns newest first
@@ -358,9 +309,6 @@ class TestExportPresetsScript:
 
     def test_empty_snapshots_writes_empty_file(self, tmp_path: Path) -> None:
         """No snapshots produces an empty presets dict."""
-        _scripts_dir = str(Path(__file__).resolve().parent.parent / "scripts")
-        if _scripts_dir not in sys.path:
-            sys.path.insert(0, _scripts_dir)
         import export_presets
 
         output_file = tmp_path / "presets.json"
