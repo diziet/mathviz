@@ -25,7 +25,7 @@ const LIGHT_INTENSITIES = {
 const state = {
   meshGroup: null, cloudPoints: null, bboxHelper: null,
   axesHelper: null, axisLabels: [],
-  viewMode: 'vertex', pointSize: 0.1, sceneExtent: 1, darkBg: true,
+  viewMode: 'vertex', pointSize: 0.05, sceneExtent: 1, darkBg: true,
   cameraLocked: 'render', stretch: {x: 1, y: 1, z: 1},
   crystalGlassBlock: null, crystalComposer: null, crystalLedLight: null,
   crystalActive: false, crystalEnvRT: null, crystalTemplateMat: null,
