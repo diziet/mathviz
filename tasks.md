@@ -7000,3 +7000,35 @@ Add an `export-demo` subcommand to the CLI (`src/mathviz/cli.py` or a new `cli_d
 - `mathviz export-demo --help` shows all flags with descriptions.
 
 ---
+
+## Task 169: Demo export — use snapshot params/seeds and commit presets
+
+**Objective:**
+
+The demo builder should use curated parameter/seed combinations instead of hardcoded defaults. When snapshots exist for a generator, use the snapshot's params and seed. Commit a `demo_presets.json` file to the repo so the curated settings are version-controlled and available without a local snapshots directory (e.g. in CI).
+
+**Suggested path:**
+
+1. **Create `demo_presets.json`** at the repo root (or `src/mathviz/data/demo_presets.json`). Structure: a dict keyed by generator name, each value containing `params` (dict) and `seed` (int). Populate it by reading the current snapshots from `~/.mathviz/snapshots/` — for each generator, pick the most recent snapshot's params and seed. Write a one-time script (`scripts/export_presets.py`) that reads all snapshots and writes this file, preferring the newest snapshot per generator.
+
+2. **Update `demo_builder.py`** to load presets at build time with this precedence:
+   - Snapshot on disk (`~/.mathviz/snapshots/`) — newest snapshot for the generator wins
+   - `demo_presets.json` in the repo — fallback when no local snapshot exists
+   - Generator defaults with seed 42 — final fallback when neither source has the generator
+
+   Extract the preset lookup into a function like `resolve_demo_preset(name) -> (params, seed)` that checks each source in order.
+
+3. **Add `--no-presets` flag** to `export-demo` CLI to force generator defaults (useful for testing or clean builds).
+
+4. **Include params and seed in `manifest.json`** entries so the demo page can display what parameters produced each visualization.
+
+**Tests:**
+
+- With a `demo_presets.json` containing `{"lorenz": {"params": {"sigma": 12}, "seed": 7}}`, the builder uses sigma=12 and seed=7 for lorenz.
+- With no presets file and no snapshots, falls back to default params and seed 42.
+- Snapshot on disk takes precedence over `demo_presets.json`.
+- `--no-presets` flag ignores both snapshots and presets file, uses defaults.
+- `scripts/export_presets.py` reads snapshots and writes valid `demo_presets.json`.
+- `manifest.json` entries include `params` and `seed` fields.
+
+---
