@@ -65,7 +65,7 @@ class TestExportDemoRun:
             app,
             ["export-demo", "--generators", "lorenz,gyroid", "--output", str(out)],
         )
-        mock_build.assert_called_once_with("lorenz,gyroid", out, "preview")
+        mock_build.assert_called_once_with("lorenz,gyroid", out, "preview", use_presets=True)
 
     @patch("mathviz.cli_demo.build_demo", return_value=_OK_RESULT)
     def test_passes_profile_to_build(
@@ -82,7 +82,7 @@ class TestExportDemoRun:
                 "--profile", "production",
             ],
         )
-        mock_build.assert_called_once_with("lorenz", out, "production")
+        mock_build.assert_called_once_with("lorenz", out, "production", use_presets=True)
 
     @patch("mathviz.cli_demo.build_demo", return_value=_OK_RESULT)
     def test_default_generators(self, mock_build: object, tmp_path: Path) -> None:
