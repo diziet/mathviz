@@ -8,6 +8,7 @@ Usage:
     python scripts/build_demo.py                         # all generators
     python scripts/build_demo.py --generators lorenz,gyroid
     python scripts/build_demo.py --output build/ --profile preview
+    python scripts/build_demo.py --no-presets             # ignore presets
 """
 
 import argparse
@@ -21,6 +22,7 @@ from typing import Any
 from mathviz.core.config import load_sampling_profile, resolve_config
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import GeneratorMeta, get_generator_meta, list_generators
+from mathviz.demo_builder import load_presets_file, resolve_demo_preset
 from mathviz.pipeline.runner import run as run_pipeline
 from mathviz.preview.lod import cloud_to_binary_ply, mesh_to_glb
 from mathviz.preview.thumbnails import generate_thumbnail
@@ -59,6 +61,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=DEFAULT_PROFILE,
         help=f"Sampling profile name (default: {DEFAULT_PROFILE})",
     )
+    parser.add_argument(
+        "--no-presets",
+        action="store_true",
+        default=False,
+        help="Ignore snapshots and presets file; use generator defaults",
+    )
     return parser.parse_args(argv)
 
 
@@ -79,14 +87,16 @@ def export_generator(
     name: str,
     output_dir: Path,
     resolved: Any,
+    params: dict[str, Any] | None = None,
+    seed: int = DEFAULT_SEED,
 ) -> dict[str, Any]:
     """Run pipeline and export mesh.glb, cloud.ply, thumbnail.png for one generator."""
     meta: GeneratorMeta = get_generator_meta(name)
 
     result = run_pipeline(
         meta.name,
-        params=None,
-        seed=DEFAULT_SEED,
+        params=params,
+        seed=seed,
         container=resolved.container,
         placement=resolved.placement,
         sampler_config=resolved.sampler_config,
@@ -100,7 +110,7 @@ def export_generator(
     _export_ply(obj, data_dir)
     _export_thumbnail(meta.name, data_dir)
 
-    return _build_manifest_entry(meta, data_dir)
+    return _build_manifest_entry(meta, data_dir, params, seed)
 
 
 def _export_glb(obj: Any, data_dir: Path) -> None:
@@ -124,13 +134,20 @@ def _export_thumbnail(name: str, data_dir: Path) -> None:
     Image.open(webp_path).save(png_path, "PNG")
 
 
-def _build_manifest_entry(meta: GeneratorMeta, data_dir: Path) -> dict[str, Any]:
+def _build_manifest_entry(
+    meta: GeneratorMeta,
+    data_dir: Path,
+    params: dict[str, Any] | None = None,
+    seed: int = DEFAULT_SEED,
+) -> dict[str, Any]:
     """Build a manifest entry dict for a generator, omitting missing assets."""
     entry: dict[str, Any] = {
         "name": meta.name,
         "category": meta.category,
         "display_name": meta.name.replace("_", " ").title(),
         "description": meta.description,
+        "params": params if params is not None else {},
+        "seed": seed,
         "thumbnail": f"./data/{meta.name}/thumbnail.png",
     }
     if (data_dir / "mesh.glb").is_file():
@@ -188,11 +205,13 @@ def build_demo(
     generator_spec: str,
     output_dir: Path,
     profile: str,
+    use_presets: bool = True,
 ) -> int:
     """Build the full demo site. Returns count of successful generators."""
     output_dir.mkdir(parents=True, exist_ok=True)
     names = resolve_generator_names(generator_spec)
     resolved = _build_resolved_config(profile)
+    presets = load_presets_file() if use_presets else {}
 
     logger.info("Building demo for %d generators into %s", len(names), output_dir)
 
@@ -202,7 +221,8 @@ def build_demo(
     for name in names:
         try:
             logger.info("Processing generator: %s", name)
-            entry = export_generator(name, output_dir, resolved)
+            params, seed = resolve_demo_preset(name, presets, use_presets)
+            entry = export_generator(name, output_dir, resolved, params, seed)
             entries.append(entry)
             succeeded += 1
             logger.info("Completed: %s", name)
@@ -232,7 +252,10 @@ def main(argv: list[str] | None = None) -> None:
         format="%(levelname)s: %(message)s",
     )
     args = parse_args(argv)
-    succeeded = build_demo(args.generators, args.output, args.profile)
+    succeeded = build_demo(
+        args.generators, args.output, args.profile,
+        use_presets=not args.no_presets,
+    )
     if succeeded == 0:
         logger.error("No generators exported successfully")
         sys.exit(1)

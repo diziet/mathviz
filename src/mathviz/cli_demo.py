@@ -56,6 +56,9 @@ def register_export_demo_command(
             "--profile",
             help="Sampling profile name (e.g. preview, production)",
         ),
+        no_presets: bool = typer.Option(
+            False, "--no-presets", help="Ignore snapshots and presets file; use generator defaults",
+        ),
         verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
         quiet: bool = typer.Option(False, "--quiet", help="Suppress non-error output"),
     ) -> None:
@@ -67,7 +70,7 @@ def register_export_demo_command(
                 f"[bold]Building demo site[/bold] → {output}"
             )
 
-        result = build_demo(generators, output, profile)
+        result = build_demo(generators, output, profile, use_presets=not no_presets)
 
         if result.succeeded == 0:
             output_console.print("[red]No generators exported successfully[/red]")
