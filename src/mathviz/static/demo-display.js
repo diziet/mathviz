@@ -302,6 +302,7 @@ export function createDisplayManager(ctx) {
       refreshAxesIfVisible();
     } finally {
       loadingEl.style.display = 'none';
+      renderer.domElement.style.opacity = '1';
     }
   }
 

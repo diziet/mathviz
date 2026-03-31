@@ -46,6 +46,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
+renderer.domElement.style.opacity = '0';
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
