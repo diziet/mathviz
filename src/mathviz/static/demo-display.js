@@ -23,27 +23,21 @@ export function createDisplayManager(ctx) {
 
   function fitCamera(object3d) {
     const box = new THREE.Box3().setFromObject(object3d);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    const center = new THREE.Vector3();
-    box.getCenter(center);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
     const dist = maxDim * 1.8;
+    camera.position.set(center.x + dist * 0.6, center.y + dist * 0.4, center.z + dist * 0.7);
+    camera.near = dist * 0.01;
+    camera.far = dist * 10;
+    camera.updateProjectionMatrix();
     controls.target.copy(center);
-    camera.position.set(center.x + dist * 0.6, center.y + dist * 0.4, center.z + dist * 0.8);
-    camera.lookAt(center);
     controls.update();
   }
 
   function setupCameraForObject(object3d) {
     addBoundingBox(object3d);
     fitCamera(object3d);
-    const box = new THREE.Box3().setFromObject(object3d);
-    camera.near = 0.001;
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    camera.far = Math.max(size.x, size.y, size.z) * 20 + 100;
-    camera.updateProjectionMatrix();
   }
 
   /* ── Bounding box ── */
