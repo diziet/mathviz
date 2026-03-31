@@ -143,6 +143,13 @@ function updateFPS() {
   if (now - lastFpsTime >= 1000) {
     document.getElementById('info-fps').textContent =
       'FPS: ' + Math.round(frameCount * 1000 / (now - lastFpsTime));
+    const dist = camera.position.distanceTo(controls.target);
+    document.getElementById('info-zoom').textContent =
+      'Zoom: dist=' + dist.toFixed(2) + ' pos=(' +
+      camera.position.x.toFixed(1) + ',' +
+      camera.position.y.toFixed(1) + ',' +
+      camera.position.z.toFixed(1) + ') near=' +
+      camera.near.toFixed(4) + ' far=' + camera.far.toFixed(1);
     frameCount = 0;
     lastFpsTime = now;
   }
