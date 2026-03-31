@@ -14,14 +14,16 @@ Usage:
 import argparse
 import json
 import logging
-import sys
 from pathlib import Path
 
-from mathviz.preview.snapshots import get_snapshots_dir, list_snapshots
+from mathviz.preview.snapshots import list_snapshots
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_OUTPUT = Path(__file__).resolve().parent.parent / "src" / "mathviz" / "data" / "demo_presets.json"
+DEFAULT_OUTPUT = (
+    Path(__file__).resolve().parent.parent
+    / "src" / "mathviz" / "data" / "demo_presets.json"
+)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

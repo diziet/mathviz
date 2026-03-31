@@ -3,10 +3,7 @@
 import json
 import sys
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from mathviz.demo_builder import (
     DEFAULT_SEED,
@@ -14,7 +11,6 @@ from mathviz.demo_builder import (
     load_presets_file,
     resolve_demo_preset,
 )
-
 
 # ---------------------------------------------------------------------------
 # load_presets_file
@@ -135,9 +131,9 @@ class TestManifestParamsAndSeed:
         tmp_path: Path,
     ) -> None:
         """Manifest entries have params and seed fields."""
+
         from mathviz.core.generator import GeneratorMeta
         from mathviz.demo_builder import build_demo
-        import numpy as np
 
         meta = GeneratorMeta(
             name="lorenz",
@@ -159,7 +155,7 @@ class TestManifestParamsAndSeed:
         mock_run.return_value = pipeline_result
 
         out = tmp_path / "demo-out"
-        result = build_demo("lorenz", out, "preview")
+        build_demo("lorenz", out, "preview")
 
         manifest = json.loads((out / "manifest.json").read_text())
         assert len(manifest) == 1
@@ -232,6 +228,7 @@ class TestNoPresetsFlag:
     def test_help_shows_no_presets_flag(self) -> None:
         """mathviz export-demo --help shows --no-presets."""
         from typer.testing import CliRunner
+
         from mathviz.cli import app
 
         runner = CliRunner()
@@ -245,6 +242,7 @@ class TestNoPresetsFlag:
     ) -> None:
         """--no-presets passes use_presets=False to build_demo."""
         from typer.testing import CliRunner
+
         from mathviz.cli import app
 
         mock_build.return_value = DemoBuildResult(
@@ -271,6 +269,7 @@ class TestNoPresetsFlag:
     ) -> None:
         """Without --no-presets, use_presets=True by default."""
         from typer.testing import CliRunner
+
         from mathviz.cli import app
 
         mock_build.return_value = DemoBuildResult(

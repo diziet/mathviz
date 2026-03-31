@@ -11,12 +11,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from PIL import Image
+
 from mathviz.core.config import load_sampling_profile, resolve_config
 from mathviz.core.generator import GeneratorMeta, get_generator_meta, list_generators
 from mathviz.pipeline.runner import run as run_pipeline
 from mathviz.preview.lod import cloud_to_binary_ply, mesh_to_glb
 from mathviz.preview.thumbnails import generate_thumbnail
-from PIL import Image
 
 logger = logging.getLogger(__name__)
 
