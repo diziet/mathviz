@@ -11,13 +11,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from PIL import Image
-
 from mathviz.core.config import load_sampling_profile, resolve_config
 from mathviz.core.generator import GeneratorMeta, get_generator_meta, list_generators
 from mathviz.pipeline.runner import run as run_pipeline
 from mathviz.preview.lod import cloud_to_binary_ply, mesh_to_glb
-from mathviz.preview.thumbnails import generate_thumbnail
+from mathviz.preview.renderer import RenderConfig, render_to_png
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +23,8 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 PRESETS_PATH = Path(__file__).resolve().parent / "data" / "demo_presets.json"
 DEFAULT_SEED = 42
 THUMBNAIL_VIEW_MODE = "vertex"
+THUMBNAIL_BG_COLOR = "#1a1a2e"
+THUMBNAIL_OBJ_COLOR = "#44ccff"
 _ROOT_ASSETS = ("buildbanner.js", "favicon.ico")
 
 
@@ -143,11 +143,19 @@ def _export_generator(
     if obj.point_cloud is not None:
         (data_dir / "cloud.ply").write_bytes(cloud_to_binary_ply(obj.point_cloud))
 
-    webp_path = generate_thumbnail(name, THUMBNAIL_VIEW_MODE)
-    if webp_path is not None and Path(webp_path).is_file():
-        Image.open(webp_path).save(data_dir / "thumbnail.png", "PNG")
-    else:
-        logger.warning("Thumbnail not generated for %s", name)
+    thumb_path = data_dir / "thumbnail.png"
+    try:
+        thumb_config = RenderConfig(
+            width=472, height=472,
+            style=THUMBNAIL_VIEW_MODE,
+            background_color=THUMBNAIL_BG_COLOR,
+            object_color=THUMBNAIL_OBJ_COLOR,
+            point_size=2.0,
+        )
+        render_to_png(obj, thumb_path, config=thumb_config, view="front-right-top")
+        logger.info("Generated thumbnail for %s", name)
+    except Exception as exc:
+        logger.warning("Thumbnail not generated for %s: %s", name, exc)
 
     return _build_manifest_entry(meta, data_dir, params, seed)
 
