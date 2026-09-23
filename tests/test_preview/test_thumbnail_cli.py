@@ -24,7 +24,7 @@ class TestRenderThumbnailCli:
     """Tests for `mathviz render-thumbnail`."""
 
     def test_render_thumbnail_single(self, runner: CliRunner) -> None:
-        """CLI command generates thumbnail and exits 0."""
+        """With generate_thumbnail stubbed, render-thumbnail torus exits 0."""
         with patch(
             "mathviz.cli_thumbnail.generate_thumbnail",
             side_effect=create_fake_thumbnail,
@@ -34,7 +34,7 @@ class TestRenderThumbnailCli:
         assert "saved" in result.output.lower() or "torus" in result.output.lower()
 
     def test_render_thumbnail_all(self, runner: CliRunner) -> None:
-        """`--all` flag generates thumbnails for all generators."""
+        """`--all` exits 0 and prints generated (generate_thumbnail stubbed)."""
         with patch(
             "mathviz.cli_thumbnail.generate_thumbnail",
             side_effect=create_fake_thumbnail,

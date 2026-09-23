@@ -101,7 +101,7 @@ class TestViewerHTML:
         assert "screenshot" in resp.text.lower()
 
     def test_html_contains_info_display(self, client: TestClient) -> None:
-        """Viewer HTML has an info panel with FPS, gen time, and geometry stats."""
+        """Viewer HTML has an info panel with FPS and generation time fields."""
         resp = client.get("/")
         html = resp.text
         assert "info-panel" in html
@@ -119,7 +119,7 @@ class TestViewerHTML:
         assert "URLSearchParams" in resp.text
 
     def test_html_calls_generate_endpoint(self, client: TestClient) -> None:
-        """Viewer HTML contains fetch call to /api/generate."""
+        """Viewer HTML contains the /api/generate path."""
         resp = client.get("/")
         assert "/api/generate" in resp.text
 
@@ -128,10 +128,10 @@ class TestViewerHTML:
 
 
 class TestQueryParamForwarding:
-    """Tests that URL query params are used to drive generation."""
+    """Tests that the viewer page has the query-param parser."""
 
     def test_generator_param_in_html(self, client: TestClient) -> None:
-        """Viewer parses generator query param from URL."""
+        """With a generator query param, / returns 200 and HTML containing parseQueryParams."""
         resp = client.get("/?generator=torus&major_radius=2.0")
         assert resp.status_code == 200
         assert "parseQueryParams" in resp.text
@@ -194,13 +194,13 @@ class TestPreviewCLI:
             mock_run.assert_called_once()
 
     def test_preview_file_no_open(self, runner: CliRunner, stl_file: Path) -> None:
-        """mathviz preview <stl_file> --no-open serves the file."""
+        """mathviz preview <stl_file> --no-open exits 0."""
         with patch("uvicorn.run"):
             result = runner.invoke(cli_app, ["preview", str(stl_file), "--no-open"])
             assert result.exit_code == 0
 
     def test_preview_with_params(self, runner: CliRunner) -> None:
-        """mathviz preview torus --param major_radius=2.0 passes params."""
+        """mathviz preview torus --param major_radius=2.0 --no-open exits 0."""
         with patch("uvicorn.run"):
             result = runner.invoke(
                 cli_app,
@@ -229,7 +229,7 @@ class TestPreviewCLI:
 
 
 class TestServerShutdown:
-    """Tests for clean server shutdown behavior."""
+    """Tests for the uvicorn.run call of the preview command."""
 
     def test_uvicorn_run_is_called_with_correct_app(self, runner: CliRunner) -> None:
         """Preview command calls uvicorn.run with the correct app string."""

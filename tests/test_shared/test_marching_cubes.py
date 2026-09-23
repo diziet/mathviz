@@ -109,7 +109,7 @@ class TestWatertight:
 
 
 class TestDecimation:
-    """Decimation reduces face count to approximately the target."""
+    """Decimation reduces face count, to at most 1.5 times the target."""
 
     def test_decimation_reduces_faces(self) -> None:
         field = _sphere_field(resolution=40)
@@ -118,7 +118,7 @@ class TestDecimation:
 
         mesh_decimated = extract_mesh(field, UNIT_BOUNDS, target_face_count=target)
 
-        # Should be within 50% of target (decimation is approximate)
+        # At most 50% above target (decimation is approximate)
         assert len(mesh_decimated.faces) < len(mesh_full.faces)
         assert len(mesh_decimated.faces) <= target * 1.5
 

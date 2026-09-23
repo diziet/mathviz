@@ -100,12 +100,12 @@ def _create_snapshot_with_ui_state(
 
 
 class TestSaveAfterLoad:
-    """Save button should be enabled after loading a snapshot."""
+    """Tests for geometry_id in the listing and for a save after a new generate."""
 
     def test_save_enabled_after_load_and_regenerate(
         self, client: TestClient
     ) -> None:
-        """After loading a snapshot and re-generating, save succeeds."""
+        """The listing has geometry_id, and a save after a new generate succeeds."""
         data = _create_snapshot_with_ui_state(client, SAMPLE_UI_STATE)
         sid = data["snapshot_id"]
 
@@ -243,7 +243,7 @@ class TestGalleryParamsDisplay:
     def test_gallery_card_shows_view_mode_from_ui_state(
         self, preview_html: str
     ) -> None:
-        """Gallery card shows view mode when ui_state is present."""
+        """Preview HTML reads snap.ui_state.view_mode."""
         assert "snap.ui_state.view_mode" in preview_html
 
 
@@ -265,11 +265,11 @@ class TestRestoreUiStateHtml:
         assert "ui_state: captureUiState()" in preview_html
 
     def test_load_calls_restore_ui_state(self, preview_html: str) -> None:
-        """loadSnapshot calls restoreUiState after loading geometry."""
+        """Preview HTML calls restoreUiState(snap.ui_state)."""
         assert "restoreUiState(snap.ui_state)" in preview_html
 
     def test_load_preserves_geometry_id(self, preview_html: str) -> None:
-        """loadSnapshot preserves geometry_id from snapshot for save."""
+        """Preview HTML sets state.geometryId = snap.geometry_id."""
         assert "snap.geometry_id" in preview_html
         assert "state.geometryId = snap.geometry_id" in preview_html
 
@@ -284,14 +284,14 @@ class TestRestoreUiStateHtml:
         assert 'id="show-axes"' in preview_html
 
     def test_capture_includes_stretch(self, preview_html: str) -> None:
-        """captureUiState includes stretch values."""
+        """Preview HTML contains stretch: and state.stretch.x."""
         assert "stretch:" in preview_html
         assert "state.stretch.x" in preview_html
 
     def test_capture_includes_show_axes(self, preview_html: str) -> None:
-        """captureUiState includes show_axes value."""
+        """Preview HTML contains a show_axes: key."""
         assert "show_axes:" in preview_html
 
     def test_restore_applies_stretch(self, preview_html: str) -> None:
-        """restoreUiState applies stretch to geometry."""
+        """Preview HTML calls applyStretch()."""
         assert "applyStretch()" in preview_html

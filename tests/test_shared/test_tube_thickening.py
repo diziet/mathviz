@@ -56,7 +56,8 @@ class TestClosedCircleTorus:
         assert tm.is_watertight, "Torus mesh has seam gap (not watertight)"
 
     def test_torus_vertex_positions_are_smooth(self) -> None:
-        """Vertices near the seam should be equally spaced, not bunched."""
+        """The mean gap across the seam is under twice the mean gap
+        between the first two rings."""
         curve = _circle_curve(n=64)
         sides = 16
         mesh = thicken_curve(curve, radius=0.1, sides=sides)

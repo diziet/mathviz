@@ -120,7 +120,7 @@ class TestSnapshotCreation:
     def test_geometry_files_copied_to_snapshot_dir(
         self, torus_snapshot: tuple[dict[str, Any], Path]
     ) -> None:
-        """Geometry files (mesh.glb and/or cloud.ply) are copied to snapshot dir."""
+        """mesh.glb is written to the snapshot dir and starts with glTF."""
         _data, snapshot_dir = torus_snapshot
         mesh_file = snapshot_dir / "mesh.glb"
         assert mesh_file.is_file()
@@ -264,12 +264,12 @@ class TestSnapshotPointCloud:
 
 
 class TestSnapshotNoPyvista:
-    """Tests that snapshot save does not import or call PyVista."""
+    """Tests that the snapshots module does not refer to PyVista."""
 
     def test_save_does_not_import_pyvista(
         self, client: TestClient, tmp_path: Path
     ) -> None:
-        """POST /api/snapshots does not import or call PyVista."""
+        """The snapshots module has no pyvista or render_to_png; a save returns 200."""
         import inspect
 
         from mathviz.preview import snapshots as snap_mod

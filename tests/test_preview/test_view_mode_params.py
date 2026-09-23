@@ -86,13 +86,13 @@ class TestDoGenerateUpdatesState:
     """Verify _doGenerate sets state.generatedWith after success."""
 
     def test_sets_generated_with(self, do_generate_body: str) -> None:
-        """_doGenerate updates state.generatedWith after displayGenerateResult."""
+        """_doGenerate's body refers to state.generatedWith."""
         assert "state.generatedWith" in do_generate_body, (
             "_doGenerate must update state.generatedWith"
         )
 
     def test_sets_geometry_id(self, do_generate_body: str) -> None:
-        """_doGenerate updates state.geometryId after displayGenerateResult."""
+        """_doGenerate's body refers to state.geometryId."""
         assert "state.geometryId" in do_generate_body, (
             "_doGenerate must update state.geometryId"
         )
@@ -144,6 +144,6 @@ class TestDoGenerateUpdatesState:
     def test_view_mode_handler_checks_sampling_change(
         self, preview_html: str,
     ) -> None:
-        """View mode handler only re-generates when sampling pipeline changes."""
+        """The preview HTML contains samplingChanged and samplingFor."""
         assert "samplingChanged" in preview_html
         assert "samplingFor" in preview_html

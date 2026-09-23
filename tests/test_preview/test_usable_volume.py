@@ -103,7 +103,8 @@ class TestUsableVolumeCalculation:
         assert c.usable_volume == (90.0, 90.0, 90.0)
 
     def test_js_formula_matches_python(self, preview_html: str) -> None:
-        """JS updateUsableVolume uses same formula as Python Container."""
+        """The preview HTML has dimension - 2 * margin for each axis,
+        the formula of Python Container."""
         assert "cp.width_mm - 2 * cp.margin_x_mm" in preview_html
         assert "cp.height_mm - 2 * cp.margin_y_mm" in preview_html
         assert "cp.depth_mm - 2 * cp.margin_z_mm" in preview_html
@@ -123,6 +124,7 @@ class TestDepthInputUpdatesVolume:
         assert "addEventListener('input', updateUsableVolume)" in preview_html
 
     def test_margin_input_triggers_update(self, preview_html: str) -> None:
-        """Margin inputs trigger updateUsableVolume via onMarginInput."""
+        """The preview HTML contains onMarginInput and an
+        updateUsableVolume() call."""
         assert "onMarginInput" in preview_html
         assert "updateUsableVolume()" in preview_html

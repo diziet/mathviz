@@ -139,7 +139,7 @@ def test_refuses_when_origin_main_moves_during_the_gate(
 def test_base_is_resolved_after_the_lock_is_acquired(
     pr: MergeFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A merge that reached main while this run queued is gated against, not refused."""
+    """When origin/main moves while the run queues, it exits 0 and calls gh pr merge."""
     moved = False
 
     @contextmanager
