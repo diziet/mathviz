@@ -136,7 +136,7 @@ def _run_build_with_presets(
         patch("mathviz.demo_builder.run_pipeline", return_value=pipeline_result),
         patch("mathviz.demo_builder.mesh_to_glb", return_value=b"fake-glb"),
         patch("mathviz.demo_builder.cloud_to_binary_ply", return_value=b"fake-ply"),
-        patch("mathviz.demo_builder.generate_thumbnail", return_value=None),
+        patch("mathviz.demo_builder.render_to_png"),
         patch("mathviz.demo_builder.validate_generator_names", return_value=[]),
         patch("mathviz.demo_builder._copy_static_assets"),
     ):

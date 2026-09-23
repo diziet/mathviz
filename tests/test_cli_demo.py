@@ -130,7 +130,7 @@ class TestExportDemoOutputStructure:
 
     @patch("mathviz.demo_builder._copy_static_assets")
     @patch("mathviz.demo_builder.validate_generator_names", return_value=[])
-    @patch("mathviz.demo_builder.generate_thumbnail")
+    @patch("mathviz.demo_builder.render_to_png")
     @patch("mathviz.demo_builder.cloud_to_binary_ply", return_value=b"fake-ply")
     @patch("mathviz.demo_builder.mesh_to_glb", return_value=b"fake-glb")
     @patch("mathviz.demo_builder.run_pipeline")
@@ -178,12 +178,13 @@ class TestExportDemoOutputStructure:
         pipeline_result.math_object = obj
         mock_run.return_value = pipeline_result
 
-        # generate_thumbnail returns a path; we create a fake webp
-        fake_webp = tmp_path / "fake.webp"
-        from PIL import Image
-        img = Image.new("RGB", (64, 64), "red")
-        img.save(fake_webp, "WEBP")
-        mock_thumb.return_value = fake_webp
+        # render_to_png writes the thumbnail to the path it is given.
+        def _fake_render(_obj: object, output_path: Path, **_kwargs: object) -> Path:
+            from PIL import Image
+            Image.new("RGB", (64, 64), "red").save(output_path, "PNG")
+            return output_path
+
+        mock_thumb.side_effect = _fake_render
 
         out = tmp_path / "demo-out"
         result = runner.invoke(
