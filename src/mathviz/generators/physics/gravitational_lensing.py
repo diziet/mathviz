@@ -150,8 +150,8 @@ class GravitationalLensingGenerator(GeneratorBase):
     ) -> MathObject:
         """Generate a gravitational lensing grid as curves.
 
-        Note: seed is accepted per GeneratorBase contract but this
-        generator is fully deterministic — seed does not affect output.
+        The seed is accepted per the GeneratorBase contract but does not
+        affect the output.
         """
         merged = self.get_default_params()
         if params:

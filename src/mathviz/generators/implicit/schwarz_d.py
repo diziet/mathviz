@@ -8,7 +8,7 @@ the implicit equation:
 Like the gyroid and Schwarz P, it tiles space; the ``periods`` parameter
 controls how many unit cells are included.
 
-Note: field evaluation is O(N³) where N is voxel_resolution.
+Field evaluation is O(N³), where N is voxel_resolution.
 """
 
 import numpy as np

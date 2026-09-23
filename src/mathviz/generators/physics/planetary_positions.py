@@ -25,7 +25,6 @@ _DEFAULT_TUBE_RADIUS = 0.02
 _J2000_EPOCH = 2451545.0
 _DEFAULT_EPOCH_JD = _J2000_EPOCH
 
-# Degrees to radians
 _DEG2RAD = np.pi / 180.0
 
 
@@ -204,8 +203,8 @@ class PlanetaryPositionsGenerator(GeneratorBase):
     ) -> MathObject:
         """Generate planetary orbits and positions.
 
-        Note: seed is accepted for interface conformance but does not affect
-        output — positions are fully determined by the epoch parameter.
+        The seed is accepted for interface conformance but does not affect
+        the output. The epoch parameter determines the positions.
         """
         merged = self.get_default_params()
         if params:

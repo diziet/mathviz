@@ -1,8 +1,8 @@
 """Shared base class for triply periodic minimal surface (TPMS) generators.
 
 All TPMS generators share the same parameters (periods, voxel_resolution),
-bounds computation, validation, and generate() orchestration.
-Each subclass only needs to supply its unique scalar field evaluation function.
+bounds computation, validation, and generate() steps. Each subclass supplies
+only its scalar field evaluation function.
 """
 
 import logging
@@ -51,8 +51,8 @@ class TPMSGeneratorBase(GeneratorBase):
     """Base class for TPMS generators sharing periods/voxel_resolution.
 
     Subclasses must implement ``evaluate_field`` to provide the scalar field
-    for their specific TPMS equation. All other logic (parameter handling,
-    bounds, validation, marching cubes, metadata) is handled here.
+    for their specific TPMS equation. This base class implements the rest:
+    parameter handling, bounds, validation, marching cubes and metadata.
     """
 
     category = "implicit"

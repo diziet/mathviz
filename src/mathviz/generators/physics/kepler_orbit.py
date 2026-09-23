@@ -103,8 +103,8 @@ class KeplerOrbitGenerator(GeneratorBase):
     ) -> MathObject:
         """Generate a Kepler orbit curve.
 
-        Note: seed is accepted for interface conformance but does not affect
-        output — the orbit is fully determined by the explicit parameters.
+        The seed is accepted for interface conformance but does not affect
+        the output. The explicit parameters determine the orbit.
         """
         merged = self.get_default_params()
         if params:

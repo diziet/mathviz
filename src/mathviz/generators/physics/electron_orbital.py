@@ -2,7 +2,7 @@
 
 Computes probability density isosurfaces |ψ(r,θ,φ)|² for hydrogen atom
 wavefunctions using the radial function R_nl(r) and spherical harmonics
-Y_lm(θ,φ). Different (n,l,m) quantum numbers produce iconic orbital shapes:
+Y_lm(θ,φ). Each (n,l,m) triple gives a known orbital shape:
 (1,0,0) = sphere, (2,1,0) = dumbbell, (3,2,0) = dz² (dumbbell with torus).
 """
 
@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 # Bohr radius (atomic units)
 _BOHR_RADIUS = 1.0
 
-# Default parameters
 _DEFAULT_N = 3
 _DEFAULT_L = 2
 _DEFAULT_M = 0
@@ -32,7 +31,6 @@ _DEFAULT_ISO_LEVEL = 0.01
 # Grid extent scaling factor per principal quantum number
 _EXTENT_SCALE = 6.0
 
-# Minimum voxel resolution
 _MIN_VOXEL_RESOLUTION = 16
 
 
@@ -97,8 +95,8 @@ def _compute_probability_density(
 class ElectronOrbitalGenerator(GeneratorBase):
     """Hydrogen atom electron orbital probability density isosurface.
 
-    Fully deterministic — seed is accepted for interface conformance
-    but does not affect output.
+    The seed is accepted for interface conformance but does not affect
+    the output.
     """
 
     name = "electron_orbital"
@@ -155,8 +153,8 @@ class ElectronOrbitalGenerator(GeneratorBase):
     ) -> MathObject:
         """Generate an electron orbital isosurface mesh.
 
-        Note: seed is accepted for interface conformance but does not affect
-        output — the orbital is fully determined by the quantum numbers.
+        The seed is accepted for interface conformance but does not affect
+        the output. The quantum numbers determine the orbital.
         """
         merged = self.get_default_params()
         if params:
