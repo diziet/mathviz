@@ -36,6 +36,7 @@ dev = [
     "pytest-xdist>=3.5.0",
     "ruff>=0.7.4",
     "httpx>=0.27.0",
+    "pyyaml>=6.0.3",  # scripts/generate_generator_docs.py reads docs/generator_notes.yaml
 ]
 
 [tool.setuptools.packages.find]
