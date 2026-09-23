@@ -114,7 +114,7 @@ class TestGetFallback:
             _get_fallback(obj)
 
     def test_tube_radius_based_on_bbox(self) -> None:
-        """Fallback tube_radius is ~1% of the bounding-box diagonal."""
+        """Fallback tube_radius for a curve with a diagonal near 2.83 is in (0.01, 0.1)."""
         obj = MathObject(curves=[_simple_curve()], generator_name="test")
         config = _get_fallback(obj)
         # Curve spans [-1, 1] in x and y → diagonal ≈ 2.83
@@ -159,7 +159,10 @@ class TestApplySparseShellPointCloud:
     """SPARSE_SHELL works with point-cloud-only inputs (passthrough)."""
 
     def test_sparse_shell_passes_through_cloud(self) -> None:
-        """SPARSE_SHELL with point-cloud-only input passes through."""
+        """SPARSE_SHELL on a point-cloud-only input keeps a point cloud.
+
+        The result's representation is sparse_shell.
+        """
         obj = MathObject(
             point_cloud=_simple_cloud(), generator_name="sacks_spiral"
         )

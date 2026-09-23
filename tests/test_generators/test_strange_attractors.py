@@ -153,7 +153,7 @@ def test_dequan_li_default_representation_tube() -> None:
 
 
 def test_dequan_li_validates_params() -> None:
-    """Dequan Li rejects invalid ODE parameters."""
+    """Dequan Li rejects a negative a with ValueError."""
     gen = DequanLiGenerator()
     with pytest.raises(ValueError, match="a must be positive"):
         gen.generate(params={"a": -1.0}, integration_steps=_TEST_STEPS)
@@ -239,7 +239,7 @@ def test_sprott_no_nan() -> None:
 
 
 def test_sprott_bounded_trajectories() -> None:
-    """Sprott trajectories are bounded (not diverging)."""
+    """Each Sprott trajectory has a finite bounding box."""
     gen = SprottGenerator()
     for variant in SPROTT_VARIANTS:
         obj = gen.generate(

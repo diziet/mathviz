@@ -2,8 +2,8 @@
 
 Verifies that MAX_DENSE_SAMPLES and MAX_RESOLUTION_SCALED_SAMPLES are
 5,000,000 hard ceilings, DEFAULT_DENSE_SAMPLES is 500,000, function
-defaults use the default constant, and enforcement clamps values above
-the ceiling.
+defaults use the default constant, and sampling with max_samples above
+the ceiling returns at most the ceiling.
 """
 
 import inspect
@@ -83,7 +83,7 @@ def test_client_edge_sampling_respects_cap() -> None:
 
 
 def test_hard_cap_enforced_on_post_transform() -> None:
-    """Passing max_samples above the hard cap gets clamped."""
+    """max_samples above MAX_DENSE_SAMPLES gives at most that many points."""
     obj = _make_cube_obj()
     over_cap = MAX_DENSE_SAMPLES + 1_000_000
     result = apply_post_transform_sampling(obj, max_samples=over_cap)
@@ -99,7 +99,8 @@ def test_hard_cap_enforced_on_edge_sampling() -> None:
 
 
 def test_hard_cap_enforced_on_resolution_scaled() -> None:
-    """Resolution-scaled sampling clamps values above the hard cap."""
+    """max_samples above MAX_RESOLUTION_SCALED_SAMPLES gives at most that
+    many points."""
     obj = _make_cube_obj()
     over_cap = MAX_RESOLUTION_SCALED_SAMPLES + 1_000_000
     result = apply_resolution_scaled_sampling(

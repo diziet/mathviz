@@ -174,14 +174,14 @@ class TestExplicitOverride:
     """Explicit export_type='mesh' or 'point_cloud' overrides auto-detection."""
 
     def test_explicit_mesh_forces_mesh(self, tmp_path: Path) -> None:
-        """export_type='mesh' forces mesh export even with cloud present."""
+        """export_type='mesh' on an object with both geometries writes out.stl."""
         obj = _both_obj()
         config = ExportConfig(path=tmp_path / "out.stl", export_type="mesh")
         result = _run_export(obj, config)
         assert result.exists()
 
     def test_explicit_cloud_forces_cloud(self, tmp_path: Path) -> None:
-        """export_type='point_cloud' forces cloud export even with mesh present."""
+        """export_type='point_cloud' on an object with both geometries writes out.xyz."""
         obj = _both_obj()
         config = ExportConfig(path=tmp_path / "out.xyz", export_type="point_cloud")
         result = _run_export(obj, config)
@@ -204,7 +204,7 @@ class TestExplicitOverride:
 
 
 class TestPreviewServerGeometryRouting:
-    """Preview server returns 200 for mesh-only and cloud-only generators."""
+    """Preview server returns 200 for a torus mesh and for a cloud-only result."""
 
     @pytest.fixture(autouse=True)
     def _setup_generators(self) -> None:
@@ -243,7 +243,7 @@ class TestPreviewServerGeometryRouting:
         assert data["mesh_url"] is not None
 
     def test_torus_mesh_url_serves_glb(self, client: TestClient) -> None:
-        """Mesh URL for torus returns valid GLB binary."""
+        """Mesh URL for torus returns 200 with a body that starts with b"glTF"."""
         resp = client.post(
             "/api/generate",
             json={
@@ -258,7 +258,8 @@ class TestPreviewServerGeometryRouting:
         assert mesh_resp.content[:4] == b"glTF"
 
     def test_cloud_only_generator_returns_200(self, client: TestClient) -> None:
-        """POST /api/generate for a cloud-only generator returns 200 with cloud_url."""
+        """With submit patched to return a cloud-only result, POST /api/generate
+        returns 200 with a cloud_url and no mesh_url."""
         from mathviz.core.validator import ValidationResult
         from mathviz.pipeline.runner import PipelineResult
 
@@ -280,7 +281,7 @@ class TestPreviewServerGeometryRouting:
         assert data["mesh_url"] is None
 
     def test_cloud_only_cloud_url_serves_ply(self, client: TestClient) -> None:
-        """Cloud URL for cloud-only generator returns valid PLY data."""
+        """Cloud URL for a cloud-only result returns 200."""
         from mathviz.core.validator import ValidationResult
         from mathviz.pipeline.runner import PipelineResult
 

@@ -46,7 +46,8 @@ def test_produces_nonempty_mesh(knot_type: str) -> None:
 
 
 def test_trefoil_boundary_near_knot() -> None:
-    """Mesh vertices include points close to the trefoil knot curve."""
+    """For 200 trefoil knot samples, the median distance to the nearest
+    vertex is below 0.6."""
     gen = SeifertSurfaceGenerator()
     obj = gen.generate(params={"knot_type": "trefoil"}, grid_resolution=64)
     assert obj.mesh is not None
@@ -58,7 +59,7 @@ def test_trefoil_boundary_near_knot() -> None:
     min_dists = np.array([
         np.min(np.linalg.norm(verts - kp, axis=1)) for kp in knot
     ])
-    # Most knot points should have a nearby mesh vertex
+    # At least half the knot points should have a mesh vertex within 0.6
     # Tolerance accounts for Milnor fiber clamping near boundary
     assert np.median(min_dists) < 0.6, (
         f"Median distance from knot to mesh: {np.median(min_dists):.3f}"

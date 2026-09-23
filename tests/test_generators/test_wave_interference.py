@@ -1,8 +1,8 @@
 """Tests for the wave interference pattern generator.
 
-Verifies that WaveInterferenceGenerator produces valid meshes with
-wave-like structure, that more sources increase complexity, and that
-registration and rendering work correctly.
+Verifies that WaveInterferenceGenerator produces valid meshes, that 5
+sources give more faces than 2, that the generator is registered under
+its name and aliases, and that parameters are validated.
 """
 
 import numpy as np
@@ -33,7 +33,7 @@ def gen() -> WaveInterferenceGenerator:
 
 
 class TestValidMesh:
-    """Produces a valid mesh with wave-like structure."""
+    """Produces a valid mesh with finite vertices."""
 
     def test_produces_valid_mesh(
         self, gen: WaveInterferenceGenerator
@@ -115,7 +115,7 @@ class TestRegistration:
     def test_registers_and_renders(
         self, gen: WaveInterferenceGenerator
     ) -> None:
-        """Generator registers and produces valid renderable output."""
+        """Generator is registered and generates a valid mesh with vertices."""
         gen_cls = get_generator("wave_interference")
         assert gen_cls is WaveInterferenceGenerator
 

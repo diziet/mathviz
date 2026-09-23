@@ -183,7 +183,7 @@ def test_level_exceeds_max_raises() -> None:
 
 
 def test_nonpositive_size_raises() -> None:
-    """Non-positive or too-small size raises ValueError."""
+    """Size 0.0 or -1.0 raises ValueError."""
     gen = SierpinskiTetrahedronGenerator()
     with pytest.raises(ValueError, match="size must be"):
         gen.generate(params={"size": 0.0})
