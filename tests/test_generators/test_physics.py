@@ -105,7 +105,7 @@ class TestKeplerOrbit:
     def test_bounding_box_finite(
         self, kepler: KeplerOrbitGenerator
     ) -> None:
-        """Bounding box is finite and non-degenerate."""
+        """Bounding box exists and has finite corners."""
         obj = kepler.generate(curve_points=_TEST_CURVE_POINTS)
         _assert_bbox_finite(obj)
 
@@ -119,7 +119,7 @@ class TestKeplerOrbit:
     def test_eccentricity_out_of_range_raises(
         self, kepler: KeplerOrbitGenerator
     ) -> None:
-        """Eccentricity >= 1 raises ValueError."""
+        """Eccentricity 1.0 raises ValueError."""
         with pytest.raises(ValueError, match="eccentricity must be in"):
             kepler.generate(params={"eccentricity": 1.0})
 
@@ -154,7 +154,7 @@ class TestNBody:
     def test_two_bodies_produces_orbital_curves(
         self, nbody: NBodyGenerator
     ) -> None:
-        """Two-body simulation produces 2 recognizable curves."""
+        """Two-body simulation produces 2 curves of 1000 points, no NaN."""
         obj = nbody.generate(
             params={"num_bodies": 2},
             integration_steps=_TEST_STEPS,
@@ -299,7 +299,7 @@ class TestPlanetaryPositions:
     def test_bounding_box_finite(
         self, planetary: PlanetaryPositionsGenerator
     ) -> None:
-        """Bounding box is finite and non-degenerate."""
+        """Bounding box exists and has finite corners."""
         obj = planetary.generate(curve_points=_TEST_CURVE_POINTS)
         _assert_bbox_finite(obj)
 

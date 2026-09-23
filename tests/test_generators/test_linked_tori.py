@@ -1,6 +1,7 @@
 """Tests for the linked tori generator.
 
-Covers mesh validity, interlocking geometry, registry integration, and rendering.
+Covers mesh validity, component count and spacing, overlapping bounding
+boxes, registry integration and parameter validation.
 """
 
 import numpy as np
@@ -101,12 +102,12 @@ def test_vertex_count_scales_with_num_tori() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Tori geometrically interlock (bounding boxes overlap)
+# Tori bounding boxes overlap
 # ---------------------------------------------------------------------------
 
 
 def test_component_bounding_boxes_overlap(default_obj) -> None:
-    """Adjacent tori bounding boxes overlap, confirming interlocking."""
+    """The two tori's bounding boxes overlap on every axis."""
     components = _split_into_components(default_obj)
     assert len(components) == 2
 
@@ -139,7 +140,7 @@ def test_tori_centers_are_spaced_along_x() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Registers and renders successfully
+# Registry, default representation and metadata
 # ---------------------------------------------------------------------------
 
 

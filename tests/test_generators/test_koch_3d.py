@@ -27,23 +27,22 @@ def gen() -> Koch3DGenerator:
 
 
 # ---------------------------------------------------------------------------
-# Level 0 produces an equilateral triangle
+# Level 0 has 3 curve points
 # ---------------------------------------------------------------------------
 
 
 def test_level_0_produces_equilateral_triangle(gen: Koch3DGenerator) -> None:
-    """Level 0 extrusion is based on an equilateral triangle (3 curve pts)."""
+    """Level 0 extrusion has 6 vertices (3 curve points) and some faces."""
     obj = gen.generate(params={"level": 0, "mode": "extrude"})
     obj.validate_or_raise()
     assert obj.mesh is not None
     # Level 0: 3 curve points -> 6 vertices (top + bottom rings)
-    # plus side faces and caps
     assert len(obj.mesh.vertices) == 6
     assert len(obj.mesh.faces) > 0
 
 
 def test_level_0_revolve(gen: Koch3DGenerator) -> None:
-    """Level 0 revolve is based on an equilateral triangle."""
+    """Level 0 revolve has 3 curve points x 64 segments = 192 vertices."""
     obj = gen.generate(params={"level": 0, "mode": "revolve"})
     obj.validate_or_raise()
     assert obj.mesh is not None
@@ -57,7 +56,7 @@ def test_level_0_revolve(gen: Koch3DGenerator) -> None:
 
 
 def test_vertex_count_scales_with_level(gen: Koch3DGenerator) -> None:
-    """Each level quadruples the number of curve segments."""
+    """Levels 1 to 3 each have 4x the extruded vertices of the level before."""
     counts = []
     for level in range(4):
         obj = gen.generate(params={"level": level, "mode": "extrude"})
@@ -133,7 +132,7 @@ def test_alias_registered() -> None:
 
 
 def test_full_pipeline_renders(tmp_path: Path) -> None:
-    """Full pipeline with SURFACE_SHELL produces a valid STL."""
+    """Full pipeline with SURFACE_SHELL writes a non-empty STL file."""
     from mathviz.pipeline.runner import ExportConfig, run
 
     out_path = tmp_path / "koch_3d.stl"
@@ -217,7 +216,7 @@ def test_invalid_mode_raises(gen: Koch3DGenerator) -> None:
 
 
 def test_tiny_height_raises_in_extrude(gen: Koch3DGenerator) -> None:
-    """Near-zero height raises ValueError in extrude mode."""
+    """Height 0.0 raises ValueError in extrude mode."""
     with pytest.raises(ValueError, match="height must be"):
         gen.generate(params={"mode": "extrude", "height": 0.0})
 

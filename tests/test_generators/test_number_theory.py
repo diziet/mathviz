@@ -99,12 +99,12 @@ class TestSacksSpiral:
         assert np.all(prime_z > 0.0)
 
     def test_spiral_layout(self) -> None:
-        """Points lie on an Archimedean spiral in the x-y plane."""
+        """After index 0, the points' x-y radii never decrease with index."""
         gen = SacksSpiralGenerator()
         obj = gen.generate(num_points=50, params={"scale": 1.0})
 
         points = obj.point_cloud.points
-        # Radius should increase with index (roughly sqrt(n))
+        # Radius should not decrease with index
         radii = np.sqrt(points[:, 0] ** 2 + points[:, 1] ** 2)
         # Skip index 0 (origin) — radii should be non-decreasing
         assert np.all(np.diff(radii[1:]) >= -1e-10)
@@ -186,7 +186,7 @@ class TestDigitEncoding:
         np.testing.assert_array_almost_equal(z_values, expected_digits)
 
     def test_intensities_proportional_to_digits(self) -> None:
-        """Intensities are proportional to digit values."""
+        """Intensities lie between 0.0 and 1.0."""
         gen = DigitEncodingGenerator()
         obj = gen.generate(
             num_digits=20,
@@ -194,7 +194,6 @@ class TestDigitEncoding:
         )
 
         assert obj.point_cloud.intensities is not None
-        # Digit 9 should have intensity 1.0, digit 0 should have 0.0
         assert np.max(obj.point_cloud.intensities) <= 1.0
         assert np.min(obj.point_cloud.intensities) >= 0.0
 

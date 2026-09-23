@@ -271,7 +271,7 @@ def test_zero_minor_radius_raises(torus: TorusGenerator) -> None:
 def test_self_intersecting_torus_warns(
     torus: TorusGenerator, caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """minor_radius >= major_radius logs a warning but still generates."""
+    """minor_radius equal to major_radius logs a warning but still generates."""
     obj = torus.generate(
         params={"major_radius": 0.5, "minor_radius": 0.5},
         grid_resolution=8,

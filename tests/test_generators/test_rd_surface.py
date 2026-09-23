@@ -163,7 +163,8 @@ def test_base_surface_switch(surface: str) -> None:
 
 
 def test_zero_displacement_matches_base() -> None:
-    """Displacement scale of 0 produces the unmodified base surface."""
+    """With displacement_scale=0, vertices differ from a displacement_scale=5.0
+    run, and normals are set."""
     gen = _make_generator()
     obj = gen.generate(
         params=_default_params(displacement_scale=0.0),
@@ -246,7 +247,7 @@ def test_default_representation() -> None:
 
 
 def test_bounding_box_set() -> None:
-    """Output has a bounding box computed from displaced vertices."""
+    """Output has a bounding box with min below max on every axis."""
     gen = _make_generator()
     obj = gen.generate(
         params=_default_params(), seed=42, grid_resolution=_TEST_RESOLUTION,

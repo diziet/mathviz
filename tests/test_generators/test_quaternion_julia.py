@@ -61,7 +61,8 @@ def test_produces_valid_mesh(qjulia: QuaternionJuliaGenerator) -> None:
 def test_different_c_values_produce_distinct_shapes(
     qjulia: QuaternionJuliaGenerator,
 ) -> None:
-    """Different c constants produce meshes with different vertex counts."""
+    """Different c constants give meshes whose vertex counts or positions
+    differ."""
     obj_a = qjulia.generate(
         params={"c_real": -0.2, "c_i": 0.8, "c_j": 0.0, "c_k": 0.0},
         voxel_resolution=_TEST_VOXEL_RESOLUTION,

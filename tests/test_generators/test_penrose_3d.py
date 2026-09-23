@@ -1,8 +1,8 @@
 """Tests for the 3D Penrose tiling generator.
 
-Verifies that PenroseTiling3D produces valid meshes with aperiodic
-structure, that higher generations produce more tiles, and that
-registration and rendering work correctly.
+Verifies that PenroseTiling3D produces valid meshes with a thin/thick tile
+ratio between 1.2 and 2.1, that more generations produce more faces, and
+the registration, representation, metadata and parameter checks.
 """
 
 from typing import Any
@@ -33,7 +33,7 @@ def gen() -> PenroseTiling3D:
 
 
 class TestValidMesh:
-    """Produces a valid mesh with non-periodic structure."""
+    """Produces a valid mesh with distinct tile heights and a thin/thick ratio."""
 
     def test_produces_valid_mesh(self, gen: PenroseTiling3D) -> None:
         """Default parameters produce a valid mesh."""
@@ -54,7 +54,7 @@ class TestValidMesh:
         assert np.all(np.isfinite(obj.mesh.vertices))
 
     def test_has_two_distinct_heights(self, gen: PenroseTiling3D) -> None:
-        """Mesh has two distinct extrusion heights (thick vs thin tiles)."""
+        """Mesh vertices have at least 3 distinct z values (base, thin and thick tops)."""
         obj = gen.generate(
             params={"generations": _TEST_GENERATIONS, "tile_height_ratio": 0.3},
         )
@@ -64,7 +64,7 @@ class TestValidMesh:
         assert len(unique_z) >= 3
 
     def test_aperiodic_tile_ratio(self, gen: PenroseTiling3D) -> None:
-        """Thick/thin tile ratio approximates golden ratio (aperiodicity)."""
+        """The thin/thick tile ratio is between 1.2 and 2.1 (the golden ratio is 1.618)."""
         obj = gen.generate(params={"generations": 5, "extent": 10.0})
         z_top = obj.mesh.vertices[:, 2]
         # Each prism has 6 vertices; top 3 have z > 0
@@ -118,7 +118,7 @@ class TestRegistration:
         assert cls is PenroseTiling3D
 
     def test_registers_and_renders(self, gen: PenroseTiling3D) -> None:
-        """Generator registers and produces valid renderable output."""
+        """Generator is registered and produces a valid, non-empty mesh."""
         gen_cls = get_generator("penrose_3d")
         assert gen_cls is PenroseTiling3D
 
