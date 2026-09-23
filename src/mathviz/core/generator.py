@@ -92,7 +92,7 @@ class GeneratorBase(ABC):
         if not unknown:
             return
 
-        # Check if any unknown params are actually resolution params
+        # Check if any unknown params are resolution params
         misplaced_resolution = unknown & resolution_keys
         if misplaced_resolution:
             res_names = ", ".join(sorted(misplaced_resolution))

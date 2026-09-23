@@ -1,4 +1,4 @@
-"""Git and gh plumbing for scripts/merge.py: refusals, PR lookup, preview worktree.
+"""Git and gh helpers for scripts/merge.py: refusals, PR lookup, preview worktree.
 
 Every PR runs the full gate. There is no docs-only mode: tests/test_docs reads README.md and
 every docs/*.md, so a Markdown-only change can fail the tests.

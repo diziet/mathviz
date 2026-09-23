@@ -59,7 +59,7 @@ def separate_coincident_vertices(
 ) -> np.ndarray:
     """Offset one vertex in each coincident pair along its face normal.
 
-    Finds truly coincident vertex pairs (distance < COINCIDENCE_THRESHOLD)
+    Finds coincident vertex pairs (distance < COINCIDENCE_THRESHOLD)
     and displaces the higher-indexed vertex by ``epsilon`` along its
     averaged face normal. Returns a copy of *vertices*; *faces* is unchanged.
     """

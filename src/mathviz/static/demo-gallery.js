@@ -57,7 +57,7 @@ export function buildGallery(galleryContainer, items, onSelect) {
     if (!item) return false;
     _highlightCard(grid, name);
     selectedName = name;
-    /* Ensure the card's category is visible */
+    /* If another category's filter hides the card, switch the filter to All */
     if (activeCategory !== ALL_CATEGORY && item.category !== activeCategory) {
       activeCategory = ALL_CATEGORY;
       _updateFilterHighlight(filterBar, activeCategory);

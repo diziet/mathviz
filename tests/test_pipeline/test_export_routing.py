@@ -208,7 +208,7 @@ class TestPreviewServerGeometryRouting:
 
     @pytest.fixture(autouse=True)
     def _setup_generators(self) -> None:
-        """Ensure generators are registered."""
+        """Register torus if missing."""
         import mathviz.core.generator as gen_mod
         from mathviz.generators.parametric.torus import TorusGenerator
 

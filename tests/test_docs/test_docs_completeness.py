@@ -1,4 +1,6 @@
-"""Tests for comprehensive documentation completeness across all features."""
+"""Tests that README.md, docs/preview.md and docs/pipeline.md cover their required topics,
+and that the docs have no empty headings or dead links.
+"""
 
 import re
 

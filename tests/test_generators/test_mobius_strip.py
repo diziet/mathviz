@@ -105,7 +105,7 @@ def test_vertex_normals_at_u0_have_magnitude(mesh_obj) -> None:
     magnitudes = np.linalg.norm(normals, axis=1)
 
     # Row 0 vertices are indices 0..n-1 (exclude boundary corners
-    # at v=0 and v=n-1 which naturally have fewer contributing faces)
+    # at v=0 and v=n-1, which have fewer contributing faces)
     row0_mags = magnitudes[1:n - 1]
     # Interior vertices exclude row 0, last row, and the duplicate row
     interior_mags = magnitudes[n:n * (n - 1)]

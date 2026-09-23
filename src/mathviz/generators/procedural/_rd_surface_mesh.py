@@ -114,7 +114,7 @@ def build_mesh_laplacian(
     adjacency = sparse.coo_matrix(
         (data, (rows, cols)), shape=(num_vertices, num_vertices),
     ).tocsr()
-    # Ensure binary adjacency (no double-counted edges)
+    # tocsr() sums duplicate edges; set every entry to 1 so the adjacency is binary
     adjacency.data[:] = 1.0
 
     degree = np.array(adjacency.sum(axis=1)).flatten()
