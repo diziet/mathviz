@@ -1,8 +1,11 @@
 ## Tasks
 
-Task descriptions include a "Suggested Path" section. This is design direction you can deviate from if you have a good reason — not a specification to implement literally. The Objective defines success; the Suggested Path is one way to get there.
+Most tasks in `tasks.md` have a **Suggested path:** section. It is one way to reach the
+**Objective:**, not a specification to implement literally. Deviate from it when you have a good
+reason. The **Objective:** defines success.
 
-The tests listed in each task are the minimum required scenarios. Add more tests if you discover edge cases during implementation — the listed tests are a floor, not a ceiling.
+The tests listed under **Tests:** are the minimum. Add tests for edge cases you find during
+implementation.
 
 ## Workflow
 
