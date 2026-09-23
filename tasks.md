@@ -1,5 +1,9 @@
 # MathViz — Tasks
 
+Each task names files, commands and flags as planned when the task was written. Completed tasks
+are a historical record: they are not updated when the code changes, and some name files that were
+later moved or removed (checked 2026-09-24). Open tasks can name files that do not exist yet.
+
 ---
 
 ## Task 1: Project scaffold and geometry dataclasses

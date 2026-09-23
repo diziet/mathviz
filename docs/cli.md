@@ -318,7 +318,7 @@ mathviz render-all [OPTIONS]
 | `--views` | string | top,front,side,angle | Comma-separated views to render |
 | `--workers` | int | CPU count | Number of parallel workers |
 | `--generators` | string | all non-data-driven | Comma-separated list of generators |
-| `--style` | string | ~~points~~ vertex (checked 2026-09-23) | Render style: shaded, wireframe, ~~points~~ vertex (checked 2026-09-23) |
+| `--style` | string | <!-- fact:render-all-style-default -->vertex<!-- /fact --> | Render style: <!-- fact:render-styles -->shaded, wireframe, vertex<!-- /fact --> |
 | `--width` | int | 1920 | Image width in pixels |
 | `--height` | int | 1080 | Image height in pixels |
 | `--verbose` | flag | | Enable debug logging |
@@ -354,7 +354,7 @@ mathviz render-thumbnail [NAME] [OPTIONS]
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `--view-mode` | string | ~~points~~ vertex (checked 2026-09-23) | View mode: ~~points~~ vertex, shaded, wireframe. `points` exits with code 2 (checked 2026-09-23). |
+| `--view-mode` | string | <!-- fact:thumbnail-view-mode-default -->vertex<!-- /fact --> | View mode: <!-- fact:thumbnail-view-modes -->vertex, shaded, wireframe<!-- /fact -->. `points` exits with code 2 (checked 2026-09-23). |
 | `--all` | flag | | Generate thumbnails for all generators |
 | `--verbose` | flag | | Enable debug logging |
 | `--quiet` | flag | | Suppress non-error output |

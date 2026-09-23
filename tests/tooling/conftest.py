@@ -106,6 +106,15 @@ def install_tooling(clone: Path) -> None:
 
 
 @pytest.fixture
+def isolated_git_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run git in tests without the caller's GIT_* variables or user config."""
+    for key in [k for k in os.environ if k.startswith("GIT_")]:
+        monkeypatch.delenv(key)
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(tmp_path / "gitconfig"))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+
+
+@pytest.fixture
 def git_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> GitFixture:
     """Bare origin + clone (hooks on, main pushed) + hook-less second clone."""
     env = _isolated_git_env(tmp_path)

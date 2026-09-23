@@ -3,13 +3,22 @@
 from __future__ import annotations
 
 import os
+import shutil
 import stat
+import sys
 from typing import TYPE_CHECKING
 
-from tests.tooling.conftest import NO_HOOKS, REPO_ROOT, GitFixture
+from tests.tooling.conftest import NO_HOOKS, REPO_ROOT, SCRIPTS_DIR, GitFixture
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+DOC_FACTS_REGISTRY = """from doc_facts_sources import Fact, read_text
+
+FACTS = {"version": Fact("VERSION", lambda root: read_text(root, "VERSION").strip())}
+"""
+FACT_DOC = "Version <!-- fact:version -->{}<!-- /fact -->.\n"
 
 
 def _fake_venv_ruff(clone: Path) -> None:
@@ -19,6 +28,63 @@ def _fake_venv_ruff(clone: Path) -> None:
     wrapper = bin_dir / "ruff"
     wrapper.write_text(f'#!/bin/sh\nexec "{REPO_ROOT}/.venv/bin/ruff" "$@"\n')
     wrapper.chmod(wrapper.stat().st_mode | stat.S_IXUSR)
+
+
+def _install_doc_facts(git_repo: GitFixture) -> None:
+    """Commit doc_facts.py and its modules, a one-fact registry and a current doc.
+
+    `.venv/bin/python` is a symlink to the interpreter that runs the tests.
+    """
+    clone = git_repo.clone
+    for name in ("doc_facts.py", "doc_facts_sources.py", "doc_common.py"):
+        shutil.copy(SCRIPTS_DIR / name, clone / "scripts" / name)
+    (clone / "scripts" / "doc_facts_registry.py").write_text(DOC_FACTS_REGISTRY)
+    (clone / ".venv" / "bin").mkdir(parents=True)
+    (clone / ".venv" / "bin" / "python").symlink_to(sys.executable)
+    (clone / "VERSION").write_text("1.0\n")
+    (clone / "README.md").write_text(FACT_DOC.format("1.0"))
+    git_repo.git("switch", "-q", "-c", "feat/facts")
+    git_repo.git("add", "scripts", "VERSION", "README.md")
+    git_repo.git("commit", "-q", "-m", "doc facts")
+
+
+def test_pre_commit_regenerates_and_stages_a_stale_doc_fact(
+    git_repo: GitFixture,
+) -> None:
+    _install_doc_facts(git_repo)
+    (git_repo.clone / "VERSION").write_text("2.0\n")
+    git_repo.git("add", "VERSION")
+    result = git_repo.git("commit", "-q", "-m", "bump", check=False)
+    assert result.returncode == 0, result.stderr
+    assert "regenerated and staged doc facts in README.md" in result.stderr
+    assert git_repo.git("show", "HEAD:README.md").stdout == FACT_DOC.format("2.0")
+
+
+def test_pre_commit_leaves_a_doc_with_unstaged_edits_unstaged(
+    git_repo: GitFixture,
+) -> None:
+    _install_doc_facts(git_repo)
+    (git_repo.clone / "VERSION").write_text("3.0\n")
+    git_repo.git("add", "VERSION")
+    readme = git_repo.clone / "README.md"
+    readme.write_text(readme.read_text() + "Unrelated draft.\n")
+    result = git_repo.git("commit", "-q", "-m", "bump", check=False)
+    assert result.returncode == 0, result.stderr
+    assert "not staged, it has unstaged edits" in result.stderr
+    assert git_repo.git("show", "HEAD:README.md").stdout == FACT_DOC.format("1.0")
+    assert readme.read_text() == FACT_DOC.format("3.0") + "Unrelated draft.\n"
+
+
+def test_pre_commit_does_not_block_when_doc_facts_fails(git_repo: GitFixture) -> None:
+    _install_doc_facts(git_repo)
+    (git_repo.clone / "NOTES.md").write_text(
+        "Say <!-- fact:unknown -->x<!-- /fact -->.\n"
+    )
+    git_repo.git("add", "NOTES.md")
+    result = git_repo.git("commit", "-q", "-m", "notes", check=False)
+    assert result.returncode == 0, result.stderr
+    assert "doc facts not regenerated" in result.stderr
+    assert "unknown fact 'unknown'" in result.stderr
 
 
 def test_pre_commit_refuses_commit_on_main(git_repo: GitFixture) -> None:

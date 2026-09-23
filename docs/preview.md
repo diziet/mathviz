@@ -68,12 +68,11 @@ The random button next to it picks a random seed.
 
 ## View Modes
 
-~~The **View Mode** dropdown switches between three rendering styles:~~ The
-**View Mode** dropdown has eight modes: Shaded Mesh, Wireframe, Vertex Cloud
-(the default, called Point Cloud below), Dense Cloud, Edge Cloud, Surface
-Cloud, Crystal Preview, and Color Map (checked 2026-09-23 in
-`src/mathviz/static/index.html`). [preview-ui.md](preview-ui.md) describes five
-of them. This table describes three:
+The **View Mode** dropdown in `src/mathviz/static/index.html`
+has <!-- fact:preview-view-mode-count -->8<!-- /fact --> modes: <!-- fact:preview-view-modes -->Shaded Mesh, Wireframe, Vertex Cloud, Dense Cloud, Edge Cloud, Surface Cloud, Crystal Preview, Color Map<!-- /fact -->.
+Vertex Cloud is the default, called Point Cloud below.
+[preview-ui.md](preview-ui.md) describes five of the modes. This table describes
+three:
 
 | Mode | Description |
 |---|---|

@@ -11,7 +11,7 @@
 # (measured on 25d2f66, 2026-09-23). Adopting it is its own reviewed change.
 .DEFAULT_GOAL := help
 .PHONY: help install venv doctor hooks-install lint test gate gate-wiring-check worktree sync merge \
-        branches-gc
+        branches-gc doc-refs-check doc-facts doc-facts-check
 
 # ---- Pins (the single source; doctor and install both read these) -----------------------------
 PYTHON_VERSION := 3.11
@@ -58,11 +58,20 @@ lint: ## Blocking gate: ruff check
 test: ## Blocking gate: pytest with the pyproject.toml defaults (xdist, not slow), under the gate lock
 	$(LOCKED) $(BIN)/pytest
 
-gate: ## Blocking gate: gate-wiring-check, lint, test under the gate lock; make merge runs the same stages
+gate: ## Blocking gate: doc-facts-check, doc-refs-check, gate-wiring-check, lint, test under the gate lock; make merge runs the same stages
 	$(LOCKED) bash scripts/gate.sh
 
 gate-wiring-check: ## Blocking gate: every test collected, no orphan script, every Blocking-gate target run by gate
 	$(PY) scripts/check_gate_wiring.py
+
+doc-refs-check: ## Blocking gate, fails closed: paths, make targets and --flags in tracked .md code spans must resolve; stale exemptions in docs/doc-refs-allow.txt fail
+	$(PY) scripts/check_doc_refs.py
+
+doc-facts: ## Sanctioned path: regenerate <!-- fact:NAME --> values in tracked .md files from scripts/doc_facts_registry.py
+	$(PY) scripts/doc_facts.py --write
+
+doc-facts-check: ## Blocking gate: print the diff and fail when a doc fact is stale; rewrites the value first, so the re-run needs only a re-stage
+	$(PY) scripts/doc_facts.py --fix-stale
 
 # ---- Workflow ---------------------------------------------------------------------------------
 worktree: ## Sanctioned path for starting work: make worktree b=feat/name (sibling tree, own venv, hooks)
