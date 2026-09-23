@@ -112,7 +112,8 @@ class TestDefaultResolutionMatchesNormal:
     """Default resolution produces the same count as base density."""
 
     def test_default_resolution_matches_base_density(self) -> None:
-        """At default resolution, resolution-scaled produces same count as direct base density call."""
+        """At default resolution, resolution-scaled produces same count as direct base density call.
+        """
         obj = MathObject(generator_name="test", mesh=_small_mesh())
 
         # Resolution-scaled at default resolution (scale=1.0)

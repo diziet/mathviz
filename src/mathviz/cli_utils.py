@@ -194,7 +194,10 @@ def _run_sample(
     obj = _load_or_exit(input_path, console)
 
     if not has_mesh(obj):
-        console.print("[red]Error: Input file has no mesh geometry. Sampling requires a mesh.[/red]")
+        console.print(
+            "[red]Error: Input file has no mesh geometry. "
+            "Sampling requires a mesh.[/red]"
+        )
         raise typer.Exit(code=EXIT_ERROR)
 
     try:

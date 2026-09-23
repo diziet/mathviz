@@ -126,7 +126,9 @@ class GenerateRequest(BaseModel):
     resolution: dict[str, Any] = Field(default_factory=dict)
     container: ContainerParams | None = None
     force: bool = False
-    timeout: int | None = Field(default=None, gt=0, le=MAX_TIMEOUT_SECONDS, description="Per-request timeout in seconds")
+    timeout: int | None = Field(
+        default=None, gt=0, le=MAX_TIMEOUT_SECONDS, description="Per-request timeout in seconds"
+    )
     # Maps to UI view_mode "dense" — JS sends sampling="post_transform"
     # when the user selects the Dense Cloud view mode.
     # "resolution_scaled" maps to "Surface Cloud" — density scales with resolution.
@@ -185,7 +187,9 @@ class UiState(BaseModel):
     camera: CameraState = Field(default_factory=CameraState)
     # "dense" maps to GenerateRequest.sampling="post_transform" at request time.
     # "surface" maps to GenerateRequest.sampling="resolution_scaled".
-    view_mode: Literal["vertex", "shaded", "wireframe", "crystal", "dense", "surface", "edge_cloud", "colormap"] = "vertex"
+    view_mode: Literal[
+        "vertex", "shaded", "wireframe", "crystal", "dense", "surface", "edge_cloud", "colormap"
+    ] = "vertex"
 
     @field_validator("view_mode", mode="before")
     @classmethod

@@ -23,6 +23,7 @@ from mathviz.preview.snapshots import (
     SNAPSHOTS_DIR_ENV_VAR,
     get_snapshots_dir,
 )
+from tests.test_preview.conftest import make_snapshot_request as _make_snapshot_request
 
 
 def _make_tiny_png() -> bytes:
@@ -74,9 +75,6 @@ def _generate_torus(client: TestClient) -> str:
     )
     assert resp.status_code == 200
     return resp.json()["geometry_id"]
-
-
-from tests.test_preview.conftest import make_snapshot_request as _make_snapshot_request
 
 
 @pytest.fixture

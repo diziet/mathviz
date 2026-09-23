@@ -78,7 +78,10 @@ def mesh_to_glb(mesh: Mesh) -> bytes:
 
 
 def cloud_to_binary_ply(cloud: PointCloud) -> bytes:
-    """Serialize a PointCloud to binary PLY format, centered at the origin, including normals and intensities if present."""
+    """Serialize a PointCloud to binary PLY format, centered at the origin.
+
+    Includes normals and intensities if present.
+    """
     points = cloud.points - _center_offset(cloud.points)
     num_points = len(points)
     has_normals = cloud.normals is not None

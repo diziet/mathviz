@@ -110,7 +110,9 @@ class TestGenerationTimeout:
         with patch.dict(os.environ, {"MATHVIZ_GENERATION_TIMEOUT": "abc"}):
             assert get_timeout_seconds() == DEFAULT_TIMEOUT_SECONDS
 
-    def test_custom_timeout_passed_to_executor(self, client: TestClient, captured_submit_kwargs: dict[str, Any]) -> None:
+    def test_custom_timeout_passed_to_executor(
+        self, client: TestClient, captured_submit_kwargs: dict[str, Any]
+    ) -> None:
         """Request with custom timeout passes that value to the executor."""
         resp = client.post(
             "/api/generate",
@@ -119,7 +121,9 @@ class TestGenerationTimeout:
         assert resp.status_code == 200
         assert captured_submit_kwargs.get("timeout_override") == 60
 
-    def test_no_timeout_field_falls_back_to_default(self, client: TestClient, captured_submit_kwargs: dict[str, Any]) -> None:
+    def test_no_timeout_field_falls_back_to_default(
+        self, client: TestClient, captured_submit_kwargs: dict[str, Any]
+    ) -> None:
         """Request without timeout field falls back to env var / 300s default."""
         resp = client.post(
             "/api/generate",

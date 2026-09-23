@@ -9,6 +9,10 @@ from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.generators.attractors.lorenz import LorenzGenerator
 from mathviz.pipeline.runner import run
 
+# Use smaller step counts for test speed
+from tests.test_generators.conftest import TEST_STEPS_FAST as _TEST_STEPS
+from tests.test_generators.conftest import TEST_TRANSIENT_FAST as _TEST_TRANSIENT
+
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
@@ -24,10 +28,6 @@ def lorenz() -> LorenzGenerator:
     """Return a LorenzGenerator instance."""
     return LorenzGenerator()
 
-
-# Use smaller step counts for test speed
-from tests.test_generators.conftest import TEST_STEPS_FAST as _TEST_STEPS
-from tests.test_generators.conftest import TEST_TRANSIENT_FAST as _TEST_TRANSIENT
 
 # ---------------------------------------------------------------------------
 # Default Lorenz produces a curve with integration_steps - transient_steps points

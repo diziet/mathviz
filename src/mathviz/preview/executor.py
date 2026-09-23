@@ -35,9 +35,13 @@ def get_timeout_seconds() -> int:
             value = int(raw)
             if value > 0:
                 return value
-            logger.warning("%s must be positive, using default %d", _ENV_VAR, DEFAULT_TIMEOUT_SECONDS)
+            logger.warning(
+                "%s must be positive, using default %d", _ENV_VAR, DEFAULT_TIMEOUT_SECONDS
+            )
         except ValueError:
-            logger.warning("Invalid %s=%r, using default %d", _ENV_VAR, raw, DEFAULT_TIMEOUT_SECONDS)
+            logger.warning(
+                "Invalid %s=%r, using default %d", _ENV_VAR, raw, DEFAULT_TIMEOUT_SECONDS
+            )
     return DEFAULT_TIMEOUT_SECONDS
 
 
@@ -156,7 +160,11 @@ class GenerationExecutor:
         max_samples: int | None = None,
     ) -> PipelineResult:
         """Run the pipeline with timeout. Raises TimeoutError or CancelledError."""
-        timeout = timeout_override if timeout_override is not None and timeout_override > 0 else get_timeout_seconds()
+        timeout = (
+            timeout_override
+            if timeout_override is not None and timeout_override > 0
+            else get_timeout_seconds()
+        )
         cancel_event = threading.Event()
 
         with self._lock:

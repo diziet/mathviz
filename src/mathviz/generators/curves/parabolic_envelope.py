@@ -49,9 +49,9 @@ def _build_envelope_mesh(
     # Build face indices with vectorized arange + broadcasting
     i_idx = np.arange(line_count - 1)
     j_idx = np.arange(segments_per_line - 1)
-    I, J = np.meshgrid(i_idx, j_idx, indexing="ij")
-    I_flat = I.ravel()
-    J_flat = J.ravel()
+    i_grid, j_grid = np.meshgrid(i_idx, j_idx, indexing="ij")
+    I_flat = i_grid.ravel()
+    J_flat = j_grid.ravel()
 
     idx00 = I_flat * segments_per_line + J_flat
     idx01 = idx00 + 1

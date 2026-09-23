@@ -36,7 +36,7 @@ _EXTENT_SCALE = 6.0
 _MIN_VOXEL_RESOLUTION = 16
 
 
-def _validate_quantum_numbers(n: int, l: int, m: int) -> None:
+def _validate_quantum_numbers(n: int, l: int, m: int) -> None:  # noqa: E741 - quantum number l
     """Validate hydrogen atom quantum numbers."""
     if n < 1:
         raise ValueError(f"n must be >= 1, got {n}")
@@ -59,7 +59,7 @@ def _validate_grid_params(voxel_resolution: int, iso_level: float) -> None:
         raise ValueError(f"iso_level must be > 0, got {iso_level}")
 
 
-def _compute_radial(n: int, l: int, r: np.ndarray) -> np.ndarray:
+def _compute_radial(n: int, l: int, r: np.ndarray) -> np.ndarray:  # noqa: E741 - quantum number l
     """Compute the radial wavefunction R_nl(r) for hydrogen."""
     rho = 2.0 * r / (n * _BOHR_RADIUS)
     norm_num = (2.0 / (n * _BOHR_RADIUS)) ** 3 * factorial(n - l - 1, exact=True)
@@ -70,7 +70,7 @@ def _compute_radial(n: int, l: int, r: np.ndarray) -> np.ndarray:
 
 
 def _compute_probability_density(
-    n: int, l: int, m: int, grid_extent: float, voxel_resolution: int
+    n: int, l: int, m: int, grid_extent: float, voxel_resolution: int  # noqa: E741
 ) -> tuple[np.ndarray, SpatialBounds]:
     """Evaluate |ψ(r,θ,φ)|² on a 3D Cartesian grid."""
     coords = np.linspace(-grid_extent, grid_extent, voxel_resolution)
@@ -142,7 +142,7 @@ class ElectronOrbitalGenerator(GeneratorBase):
         """Return all valid (n, l, m) tuples up to principal number max_n."""
         combos: list[tuple[int, int, int]] = []
         for n in range(1, max_n + 1):
-            for l in range(n):
+            for l in range(n):  # noqa: E741 - quantum number l
                 for m in range(-l, l + 1):
                     combos.append((n, l, m))
         return combos
@@ -163,7 +163,7 @@ class ElectronOrbitalGenerator(GeneratorBase):
             merged.update(params)
 
         n = int(merged["n"])
-        l = int(merged["l"])
+        l = int(merged["l"])  # noqa: E741 - quantum number l
         m = int(merged["m"])
         iso_level = float(merged["iso_level"])
         voxel_resolution = int(

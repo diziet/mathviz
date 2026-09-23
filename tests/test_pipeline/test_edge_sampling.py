@@ -123,8 +123,6 @@ class TestEdgeSamplingProportional:
 
         verts = mesh.vertices
         # Edge 0-1 is length 10, edge 0-2 is length 0.1, edge 1-2 is ~10
-        long_edge_start = verts[0]
-        long_edge_end = verts[1]
 
         # Count points near the long edge (0→1)
         near_long = 0

@@ -11,10 +11,9 @@ import pytest
 # Trigger initial import of all generator modules so subclasses exist
 import mathviz.core.generator as _gen_module
 from mathviz.core.generator import GeneratorBase
+from tests.test_docs.conftest import GENERATORS_DOC, README_PATH, read_text
 
 _gen_module._ensure_discovered()
-
-from tests.test_docs.conftest import GENERATORS_DOC, README_PATH, read_text
 
 
 def _get_concrete_generators() -> list[type[GeneratorBase]]:

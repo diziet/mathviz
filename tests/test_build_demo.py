@@ -16,7 +16,7 @@ from mathviz.core.math_object import Mesh, PointCloud
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent.parent / "scripts")
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
-import build_demo
+import build_demo  # noqa: E402
 
 # The library module that build_demo delegates to
 _LIB = "mathviz.demo_builder"

@@ -73,11 +73,19 @@ class TestParamEditorSection:
 
     def test_boolean_params_use_checkbox(self, preview_html: str) -> None:
         """Boolean parameters render as checkboxes."""
-        assert "type='checkbox'" in preview_html or 'type = \'checkbox\'' in preview_html or "checkbox" in preview_html
+        assert (
+            "type='checkbox'" in preview_html
+            or 'type = \'checkbox\'' in preview_html
+            or "checkbox" in preview_html
+        )
 
     def test_number_params_use_number_input(self, preview_html: str) -> None:
         """Numeric parameters render as number inputs."""
-        assert "type='number'" in preview_html or "type = 'number'" in preview_html or "'number'" in preview_html
+        assert (
+            "type='number'" in preview_html
+            or "type = 'number'" in preview_html
+            or "'number'" in preview_html
+        )
 
 
 # --- Resolution editor section ---
