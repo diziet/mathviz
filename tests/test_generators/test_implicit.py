@@ -120,7 +120,6 @@ def test_low_resolution_valid(gyroid: GyroidGenerator) -> None:
     assert len(obj.mesh.vertices) > 0
     assert len(obj.mesh.faces) > 0
 
-    # Vertices should have valid float64 coordinates
     assert obj.mesh.vertices.dtype == np.float64
     assert not np.any(np.isnan(obj.mesh.vertices))
 
@@ -149,7 +148,6 @@ def test_full_pipeline_stl_roundtrip(tmp_path: Path) -> None:
     assert out_path.exists()
     assert out_path.stat().st_size > 0
 
-    # Reimport and validate
     reimported = trimesh.load(str(out_path), file_type="stl")
     assert len(reimported.faces) > 0
     assert len(reimported.vertices) > 0

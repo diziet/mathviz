@@ -44,7 +44,7 @@ def _get_geometry(obj, attr: str):
 
 
 def test_soundwave_demo_generates_successfully() -> None:
-    """Soundwave generates successfully with no input_file parameter."""
+    """Soundwave without input_file returns an object that passes validate_or_raise()."""
     gen = SoundwaveGenerator()
     obj = gen.generate(num_samples=64)
     obj.validate_or_raise()
@@ -72,7 +72,7 @@ def test_soundwave_demo_produces_valid_curve() -> None:
 
 
 def test_heightmap_demo_generates_successfully() -> None:
-    """Heightmap generates successfully with no input_file parameter."""
+    """Heightmap without input_file returns an object that passes validate_or_raise()."""
     gen = HeightmapGenerator()
     obj = gen.generate()
     obj.validate_or_raise()
@@ -97,7 +97,7 @@ def test_heightmap_demo_produces_valid_field() -> None:
 
 
 def test_building_extrude_demo_generates_successfully() -> None:
-    """Building_extrude generates successfully with no input_file parameter."""
+    """Building_extrude without input_file returns an object that passes validate_or_raise()."""
     gen = BuildingExtrudeGenerator()
     obj = gen.generate()
     obj.validate_or_raise()
@@ -114,7 +114,7 @@ def test_building_extrude_demo_produces_valid_mesh() -> None:
     assert obj.mesh.vertices.dtype == np.float64
     assert obj.bounding_box is not None
 
-    # Should have multiple buildings (6 default)
+    # The demo data has 6 buildings.
     # Each building has 8 vertices (4 bottom + 4 top)
     assert len(obj.mesh.vertices) >= 8
 
@@ -215,7 +215,7 @@ def test_geojson(tmp_path: Path) -> Path:
 
 
 def test_soundwave_with_input_file_still_works(test_wav: Path) -> None:
-    """Providing an input_file still works as before (no regression)."""
+    """With input_file, soundwave returns valid curves and records no demo_mode."""
     gen = SoundwaveGenerator()
     obj = gen.generate(params={"input_file": str(test_wav)}, num_samples=32)
     obj.validate_or_raise()
@@ -224,7 +224,7 @@ def test_soundwave_with_input_file_still_works(test_wav: Path) -> None:
 
 
 def test_heightmap_with_input_file_still_works(test_png: Path) -> None:
-    """Providing an input_file still works as before (no regression)."""
+    """With input_file, heightmap returns a valid scalar field and records no demo_mode."""
     gen = HeightmapGenerator()
     obj = gen.generate(params={"input_file": str(test_png)})
     obj.validate_or_raise()
@@ -233,7 +233,7 @@ def test_heightmap_with_input_file_still_works(test_png: Path) -> None:
 
 
 def test_building_extrude_with_input_file_still_works(test_geojson: Path) -> None:
-    """Providing an input_file still works as before (no regression)."""
+    """With input_file, building_extrude returns a valid mesh and records no demo_mode."""
     gen = BuildingExtrudeGenerator()
     obj = gen.generate(params={"input_file": str(test_geojson)})
     obj.validate_or_raise()

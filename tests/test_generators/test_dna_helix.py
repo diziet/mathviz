@@ -113,7 +113,7 @@ class TestDNAHelixRegistration:
         assert rep.type == RepresentationType.TUBE
 
     def test_metadata_recorded(self, gen: DNAHelixGenerator) -> None:
-        """Generator metadata is recorded correctly."""
+        """The object records the generator's name and category."""
         obj = gen.generate(curve_points=_TEST_CURVE_POINTS)
         assert obj.generator_name == "dna_helix"
         assert obj.category == "parametric"

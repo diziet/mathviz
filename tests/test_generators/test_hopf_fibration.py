@@ -83,7 +83,6 @@ class TestHopfFibrationStructure:
             fiber_points=_TEST_FIBER_POINTS,
         )
         assert obj_a.curves is not None and obj_b.curves is not None
-        # Different number of curves
         assert len(obj_a.curves) != len(obj_b.curves)
 
         # Bounding boxes differ — fibers at different latitudes produce
@@ -125,7 +124,7 @@ class TestHopfFibrationRegistration:
     def test_metadata_recorded(
         self, gen: HopfFibrationGenerator,
     ) -> None:
-        """Generator metadata is recorded correctly."""
+        """The object records the generator's name and category."""
         obj = gen.generate(fiber_points=_TEST_FIBER_POINTS)
         assert obj.generator_name == "hopf_fibration"
         assert obj.category == "parametric"

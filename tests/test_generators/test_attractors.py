@@ -64,7 +64,6 @@ def test_bounding_box_finite_and_nondegenerate(
     min_c = np.array(obj.bounding_box.min_corner)
     max_c = np.array(obj.bounding_box.max_corner)
 
-    # No NaN or inf
     assert np.all(np.isfinite(min_c))
     assert np.all(np.isfinite(max_c))
 
@@ -72,7 +71,7 @@ def test_bounding_box_finite_and_nondegenerate(
     extents = max_c - min_c
     assert np.all(extents > 0), f"Degenerate bounding box: extents={extents}"
 
-    # Lorenz attractor should span reasonable range (not collapsed)
+    # Extents above 1.0 show that the trajectory did not collapse.
     assert np.all(extents > 1.0), (
         f"Bounding box suspiciously small: extents={extents}"
     )
@@ -151,7 +150,6 @@ def test_full_pipeline_raw_point_cloud() -> None:
     assert len(obj.point_cloud.points) == _TEST_STEPS - _TEST_TRANSIENT
     assert obj.point_cloud.points.dtype == np.float64
 
-    # Points should be finite
     assert np.all(np.isfinite(obj.point_cloud.points))
 
 

@@ -94,20 +94,17 @@ def test_generator_full_pipeline(generator_name: str) -> None:
         f"{generator_name} produced no geometry (no mesh, point_cloud, or curves)"
     )
 
-    # Validate mesh if present
     if obj.mesh is not None:
         assert obj.mesh.vertices.shape[0] > 0, f"{generator_name}: mesh has no vertices"
         assert obj.mesh.faces.shape[0] > 0, f"{generator_name}: mesh has no faces"
         _check_no_nan_inf(obj.mesh.vertices, f"{generator_name} mesh vertices")
 
-    # Validate point cloud if present
     if obj.point_cloud is not None:
         assert obj.point_cloud.points.shape[0] > 0, (
             f"{generator_name}: point_cloud has no points"
         )
         _check_no_nan_inf(obj.point_cloud.points, f"{generator_name} point_cloud points")
 
-    # Validate curves if present
     if obj.curves:
         for i, curve in enumerate(obj.curves):
             assert curve.points.shape[0] > 0, (
@@ -115,10 +112,8 @@ def test_generator_full_pipeline(generator_name: str) -> None:
             )
             _check_no_nan_inf(curve.points, f"{generator_name} curve[{i}] points")
 
-    # validate_or_raise must pass
     obj.validate_or_raise()
 
-    # Coordinate space must be PHYSICAL after transform
     assert obj.coord_space == CoordSpace.PHYSICAL, (
         f"{generator_name}: expected PHYSICAL coord_space after transform, "
         f"got {obj.coord_space}"
@@ -138,13 +133,13 @@ def test_generator_default_params_consistency(generator_name: str) -> None:
     if not default_params:
         return  # No params to check
 
-    # Monkey-patch get_default_params to return a tracking dict.
-    # Generators do `merged = self.get_default_params()` then read from merged,
-    # so we must intercept at this level, not via the params argument.
-    # Each call returns a fresh copy (some generators pop() keys from merged)
-    # but all copies share a single accessed_keys set.
-    # Note: generate() doesn't receive container/placement — those are
-    # pipeline-level concerns — so this only covers generation-stage params.
+    # Replace get_default_params with one that returns a tracking dict. Generators
+    # call `merged = self.get_default_params()` and read from `merged`, so the
+    # tracking must happen here, not through the params argument. Each call returns
+    # a fresh copy, because some generators pop() keys from `merged`; all copies
+    # share one accessed_keys set. generate() does not receive container or
+    # placement, which belong to the pipeline, so only generation parameters are
+    # covered.
     shared_keys: set[str] = set()
 
     def _tracking_defaults() -> _AccessTrackingDict:

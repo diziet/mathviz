@@ -59,7 +59,6 @@ def test_different_n_values_produce_distinct_surfaces() -> None:
     assert obj_n3.mesh is not None
     assert obj_n5.mesh is not None
 
-    # Vertices should differ between different n values
     assert not np.allclose(obj_n2.mesh.vertices, obj_n3.mesh.vertices)
     assert not np.allclose(obj_n3.mesh.vertices, obj_n5.mesh.vertices)
 

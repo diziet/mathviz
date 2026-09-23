@@ -161,7 +161,7 @@ class TestMetadata:
     def test_metadata_recorded(
         self, gen: GravitationalLensingGenerator
     ) -> None:
-        """Generator metadata is recorded correctly."""
+        """The object records the generator's name and category."""
         obj = gen.generate(grid_points=_TEST_GRID_POINTS)
         assert obj.generator_name == "gravitational_lensing"
         assert obj.category == "physics"
