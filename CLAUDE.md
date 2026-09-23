@@ -1,3 +1,8 @@
+# MathViz
+
+MathViz generates 3D mathematical forms, such as strange attractors, fractals, knots and
+minimal surfaces, and prepares them for subsurface laser engraving in crystal glass blocks.
+
 ## Tasks
 
 Most tasks in `tasks.md` have a **Suggested path:** section. It is one way to reach the
