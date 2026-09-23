@@ -26,7 +26,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> Generator[None, None, None]:
-    """Ensure generators are registered and state is clean."""
+    """Register torus if missing; reset the cache and the served file before and after the test."""
     _ensure_torus_registered()
     reset_cache()
     set_served_file(None)
@@ -157,7 +157,6 @@ class TestExportButtonVisibility:
         """Export section is not visible when turntable is off."""
         html = _get_html(client)
         tag = _extract_element(html, "turntable-export-section")
-        # The CSS class 'visible' should not be present in the HTML default
         assert 'class="visible"' not in tag
 
     def test_export_button_exists(self, client: TestClient) -> None:
@@ -222,7 +221,7 @@ class TestTurntableWithViewModes:
         """Turntable uses OrbitControls.autoRotate (view-mode agnostic)."""
         html = _get_html(client)
         body = _extract_js_function(html, "setTurntable")
-        # autoRotate is built into OrbitControls — works for all view modes
+        # autoRotate belongs to OrbitControls, so it applies in every view mode.
         assert "controls.autoRotate" in body
 
     def test_animate_calls_controls_update(self, client: TestClient) -> None:

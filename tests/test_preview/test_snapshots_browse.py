@@ -27,7 +27,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> None:
-    """Ensure real generators are registered and cache is clean."""
+    """Register torus if missing; reset the cache before the test."""
     _ensure_torus_registered()
     reset_cache()
 
@@ -243,7 +243,7 @@ class TestLoadSnapshotRestoresState:
         # Reset the cache so geometry is not available for regeneration
         reset_cache()
 
-        # We can still serve geometry directly from snapshot files
+        # The endpoint serves the geometry from the snapshot files.
         resp = client.get(f"/api/snapshots/{sid}/geometry/mesh.glb")
         assert resp.status_code == 200
         assert resp.content[:4] == b"glTF"

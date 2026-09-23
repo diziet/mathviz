@@ -123,7 +123,7 @@ class TestThumbnailEndpoint:
 
         resp2 = client.get("/api/generators/torus/thumbnail")
         assert resp2.status_code == 200
-        # Pipeline should NOT be called again — served from disk cache
+        # The disk cache serves the second request, so rendering does not run again.
         assert _mock_rendering.call_count == 1
 
     def test_different_view_modes_produce_different_files(

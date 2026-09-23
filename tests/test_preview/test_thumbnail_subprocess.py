@@ -83,7 +83,7 @@ class TestThumbnailSubprocessFailure:
 
 
 class TestThumbnailSubprocessTimeout:
-    """Test that subprocess timeout is handled gracefully."""
+    """A thumbnail subprocess timeout raises ThumbnailTimeoutError."""
 
     def test_subprocess_timeout_raises(self) -> None:
         """Long-running generation is killed after timeout."""
