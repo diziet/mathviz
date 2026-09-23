@@ -64,3 +64,16 @@ def test_failure_message_is_never_empty(git_repo: GitFixture) -> None:
     result = subprocess.CompletedProcess(["git", "merge"], 128, "", "")
     message = merge_gate.describe_failed_merge(git_repo.clone, result)
     assert message == "preview merge failed: git merge exited 128 with no output"
+
+
+def test_preview_tree_is_on_a_throwaway_branch_removed_on_exit(
+    git_repo: GitFixture,
+) -> None:
+    """buildbanner omits "branch" for a detached HEAD, and test_build_banner asserts it."""
+    with merge_gate.temp_worktree(git_repo.clone, git_repo.head()) as tree:
+        branch = git_repo.git("symbolic-ref", "--quiet", "--short", "HEAD", cwd=tree)
+        name = branch.stdout.strip()
+        assert name == f"merge-preview/{tree.name}"
+    assert not tree.exists()
+    listed = git_repo.git("branch", "--list", "merge-preview/*").stdout
+    assert listed.strip() == ""

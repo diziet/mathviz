@@ -130,14 +130,22 @@ def ensure_object(cwd: Path, sha: str, pr_number: int) -> None:
 
 @contextmanager
 def temp_worktree(repo: Path, base_sha: str) -> Iterator[Path]:
-    """Detached worktree at `base_sha` under $TMPDIR, always removed on exit."""
+    """Worktree at `base_sha` under $TMPDIR on a throwaway branch; both removed on exit.
+
+    The tree is on a branch, not a detached HEAD: buildbanner omits "branch" from
+    /buildbanner.json for a detached HEAD, and tests/test_preview/test_build_banner.py
+    asserts that the key is present.
+    """
     tree = Path(tempfile.mkdtemp(prefix="mathviz-merge-"))
+    branch = f"merge-preview/{tree.name}"
     try:
-        git(repo, "worktree", "add", "--detach", "-q", str(tree), base_sha)
+        git(repo, "worktree", "add", "-q", "-b", branch, str(tree), base_sha)
         yield tree
     finally:
         run(["git", "worktree", "remove", "--force", str(tree)], repo, check=False)
         run(["git", "worktree", "prune"], repo, check=False)
+        # The branch holds only the preview merge commit, so -D loses nothing.
+        run(["git", "branch", "-D", branch], repo, check=False)
 
 
 def preview_merge(tree: Path, head_sha: str) -> None:
