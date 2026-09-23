@@ -9,11 +9,11 @@
 
 ## 1. Project Context
 
-A wall-mounted installation of 100–256 crystal glass blocks, each containing a unique three-dimensional mathematical form rendered through subsurface laser engraving. The blocks are arranged in a grid (nominally 10×10), where adjacent blocks show related forms — knot complexity increasing across one region, fractal zoom depth varying in another, prime spirals changing density elsewhere.
+The project is a wall-mounted installation of 100–256 crystal glass blocks. Each block contains a different three-dimensional mathematical form, made by subsurface laser engraving. The blocks are arranged in a grid, nominally 10×10, and adjacent blocks show related forms. For example, knot complexity increases across one region, fractal zoom depth varies in another, and prime spirals change density elsewhere.
 
-Each block is a separate sub-project. This system generates one object at a time with configurable parameters. The operator (human) manages the mapping of objects to grid positions externally.
+Each block is a separate sub-project. This system generates one object at a time, with configurable parameters. The human operator maps objects to grid positions outside the system.
 
-Subsurface laser engraving works by focusing a laser at discrete (x, y, z) coordinates inside glass, creating micro-fractures. The visual result is a monochrome point cloud of glowing fracture points illuminated by backlighting. The system must produce both surface meshes (STL) and point clouds, since engraver software may accept either format but the physical output is always a point cloud.
+Subsurface laser engraving focuses a laser at discrete (x, y, z) coordinates inside the glass, which creates micro-fractures. Under backlighting, the result is a monochrome point cloud of glowing fracture points. The system must produce both surface meshes (STL) and point clouds. Engraver software may accept either format, but the physical output is always a point cloud.
 
 ---
 
@@ -29,23 +29,23 @@ Generator ──▶ MathObject(raw) ──▶ RepresentationStrategy ──▶ T
 
 ### Pipeline Stages
 
-1. **Generate** — A `Generator` evaluates a mathematical definition with given parameters and a deterministic seed, producing a `MathObject` containing raw geometry in abstract coordinate space.
+1. **Generate** — A `Generator` evaluates a mathematical definition with the given parameters and a deterministic seed. It produces a `MathObject` that contains raw geometry in abstract coordinate space.
 
-2. **Representation** — A `RepresentationStrategy` decides how the raw geometry should be physically realized for engraving. This is a fabrication policy, not a generator concern. Examples: keep a Lorenz trajectory as a raw point cloud; thicken a torus knot curve into a tube mesh; convert a gyroid implicit field into a surface shell clipped to a slab; render a Mandelbulb as a sparse shell rather than a solid fill. The strategy produces one or more candidate representations as new MathObjects. The operator selects which to use (or the default is applied automatically).
+2. **Representation** — A `RepresentationStrategy` decides which physical form the raw geometry takes when engraved. This is a fabrication policy, and generators do not make this decision. Examples: keep a Lorenz trajectory as a raw point cloud; thicken a torus knot curve into a tube mesh; convert a gyroid implicit field into a surface shell clipped to a slab; render a Mandelbulb as a sparse shell rather than a solid fill. The strategy produces one or more candidate representations as new MathObjects. The operator selects which one to use, or the default is applied automatically.
 
-3. **Transform** — The `Transformer` scales, centers, and fits the geometry into a physical container (defined in millimeters) according to a `PlacementPolicy`. Preserves aspect ratio by default, with optional depth bias, anchor mode, and perceptual corrections for the glass block.
+3. **Transform** — The `Transformer` scales and centers the geometry and fits it into a physical container, defined in millimeters, according to a `PlacementPolicy`. It preserves aspect ratio by default. Depth bias, anchor mode, and perceptual corrections for the glass block are optional.
 
-4. **Sample** — The `Sampler` converts surface meshes or volumes into point clouds at a specified density. This stage is skipped if the object is already a point cloud and no resampling is requested.
+4. **Sample** — The `Sampler` converts surface meshes or volumes into point clouds at a specified density. The stage is skipped when the object is already a point cloud and no resampling is requested.
 
-5. **Engraving Optimization** — Post-sampling adjustments specific to the engraving medium: volumetric occlusion thinning (so dense objects don't become opaque white bricks), depth-dependent density compensation (deeper points are less visible), and point budget enforcement.
+5. **Engraving Optimization** — Adjustments after sampling that are specific to the engraving medium: volumetric occlusion thinning, so that a dense object does not engrave as an opaque white volume; depth-dependent density compensation, because deeper points are less visible; and point budget enforcement.
 
-6. **Validate** — Check mesh properties (watertight, manifold, no degenerate faces, bounding box within container) AND engraving properties (point count within budget, density distribution, no degenerate clusters, visibility estimate).
+6. **Validate** — Check mesh properties (watertight, manifold, no degenerate faces, bounding box within container) and engraving properties (point count within budget, density distribution, no degenerate clusters, visibility estimate).
 
-7. **Export** — Write to disk in requested format(s). Export requires the requested representation to exist on the MathObject; no silent conversion. Pass `--auto-sample` to permit implicit conversion.
+7. **Export** — Write to disk in the requested format or formats. Export requires the requested representation to exist on the MathObject and never converts silently. Pass `--auto-sample` to permit implicit conversion.
 
-8. **Preview** — Launch an interactive browser-based 3D viewer with level-of-detail management for responsive interaction.
+8. **Preview** — Launch an interactive 3D viewer in the browser. It manages level of detail so that interaction stays responsive.
 
-Each stage is independently callable. The pipeline is composable, not monolithic.
+Each stage can be called on its own. The pipeline is composable, not monolithic.
 
 ---
 
@@ -53,13 +53,13 @@ Each stage is independently callable. The pipeline is composable, not monolithic
 
 ### Validation Strategy: Pydantic for Config, Dataclasses for Geometry
 
-The system uses two different data modeling approaches, chosen to match what each model actually contains:
+The system uses two data-modeling approaches, chosen by what each model contains:
 
-**Pydantic `BaseModel`** for configuration, metadata, and API boundaries: Container, PlacementPolicy, EngravingProfile, RepresentationConfig, Preset, all CLI/API request/response models. These are the models where Pydantic's automatic validation, JSON serialization, and schema generation provide real value — they contain scalar fields (floats, ints, strings, enums) that Pydantic can fully validate.
+**Pydantic `BaseModel`** for configuration, metadata, and API boundaries: Container, PlacementPolicy, EngravingProfile, RepresentationConfig, Preset, all CLI/API request/response models. For these models, Pydantic's automatic validation, JSON serialization, and schema generation are useful, because they contain scalar fields (floats, ints, strings, enums) that Pydantic can fully validate.
 
-**Plain `@dataclass`** for geometry containers: Mesh, PointCloud, Curve, MathObject. These carry `np.ndarray` fields where Pydantic's `arbitrary_types_allowed` would disable validation for the fields that matter most. Instead, these dataclasses have explicit `validate()` methods that check the things we actually care about: array shape, dtype, NaN presence, and dimensional consistency. The validation is called explicitly at construction boundaries (generator output, pipeline stage transitions) rather than implicitly via Pydantic.
+**Plain `@dataclass`** for geometry containers: Mesh, PointCloud, Curve, MathObject. These carry `np.ndarray` fields. Pydantic's `arbitrary_types_allowed` would disable validation for those fields, which matter most. Instead, these dataclasses have explicit `validate()` methods that check array shape, dtype, NaN presence, and dimensional consistency. Code calls the validation explicitly at construction boundaries (generator output, pipeline stage transitions), not implicitly through Pydantic.
 
-This avoids the worst-of-both-worlds trap: Pydantic model construction overhead on million-point arrays with zero validation benefit.
+This avoids paying Pydantic's model construction overhead on million-point arrays without getting any validation from it.
 
 ### 3.1 Geometry Containers
 
@@ -197,7 +197,7 @@ class MathObject:
 - The Transformer accepts ABSTRACT and returns PHYSICAL
 - Exporters check `coord_space == CoordSpace.PHYSICAL` and raise if not
 
-This is a runtime check on a simple enum field rather than a generic type parameter. The generic approach (`MathObject[CoordSpace.ABSTRACT]`) added complexity without real benefit — mypy can't enforce it on dataclasses meaningfully, and the runtime check is trivially reliable. Agents get a clear error message: "Cannot export: MathObject is in abstract coordinate space, run the transformer first."
+This is a runtime check on an enum field, not a generic type parameter. The generic approach (`MathObject[CoordSpace.ABSTRACT]`) added complexity without benefit: mypy cannot enforce it on dataclasses in a useful way, and the runtime check is simple and reliable. Agents get this error message: "Cannot export: MathObject is in abstract coordinate space, run the transformer first."
 
 **Validation call sites:** `validate_or_raise()` is called at every pipeline stage boundary:
 - After `Generator.generate()` returns
@@ -205,7 +205,7 @@ This is a runtime check on a simple enum field rather than a generic type parame
 - After `Transformer.fit()` returns
 - Before any exporter writes to disk
 
-This catches malformed geometry immediately at the source rather than letting it propagate.
+Malformed geometry fails at the stage that produced it, instead of in a later stage.
 
 ### 3.3 Container and PlacementPolicy
 
@@ -253,13 +253,13 @@ class PlacementPolicy(BaseModel):
     rotation_degrees: tuple[float, float, float] = (0.0, 0.0, 0.0)
 ```
 
-Margins are always per-axis. The convenience constructor `Container.with_uniform_margin()` covers the common case. No dual-path None-check logic.
+Margins are always per-axis. The convenience constructor `Container.with_uniform_margin()` covers the common case of equal margins. No code path checks for None to choose between a uniform margin and per-axis margins.
 
 Default: 100×100×100mm block with 5mm margins → 90×90×90mm usable volume.
 
 ### 3.3 RepresentationStrategy
 
-This is the key architectural insert between generation and transformation. It separates the mathematical definition (what the object *is*) from the fabrication decision (how it should *look* when engraved in glass).
+This is the architectural layer between generation and transformation. It separates the mathematical definition (what the object *is*) from the fabrication decision (how it should *look* when engraved in glass).
 
 ```python
 class RepresentationType(str, Enum):
@@ -308,13 +308,13 @@ class RepresentationStrategy:
         ...
 ```
 
-**Why this matters:** Without this layer, each generator accumulates fabrication-specific hacks. The Lorenz generator shouldn't know about tube thickening; the gyroid generator shouldn't know about slab clipping. The generator produces pure math; the representation strategy makes it physical.
+**Why this matters:** Without this layer, each generator would collect its own fabrication-specific workarounds. The Lorenz generator should not know about tube thickening, and the gyroid generator should not know about slab clipping. The generator produces the mathematical geometry. The representation strategy turns it into physical geometry for engraving.
 
-The operator can override the default representation per object via CLI `--representation surface_shell` or in the config file. The system also supports `--representation candidates` which outputs multiple representations for visual comparison in the preview.
+The operator can override the default representation per object with the CLI flag `--representation surface_shell` or in the config file. `--representation candidates` outputs several representations to compare visually in the preview.
 
 ### 3.4 EngravingOptimizer
 
-Post-sampling adjustments specific to the laser engraving medium.
+Adjustments after sampling that are specific to the laser engraving medium.
 
 ```python
 class EngravingProfile(BaseModel):
@@ -402,15 +402,15 @@ class GeneratorBase(ABC):
 | `curve_points` | Number of points along a curve | O(N) | Knots, Lissajous curves, spirals |
 | `iteration_depth` | Max iterations for escape-time fractals | O(1) per point | Mandelbulb, Julia, Mandelbrot |
 
-A generator might use multiple resolution types (e.g., Mandelbulb uses both `voxel_resolution` and `iteration_depth`). Each has independent defaults and the CLI exposes them as separate flags.
+A generator may use several resolution types. For example, Mandelbulb uses both `voxel_resolution` and `iteration_depth`. Each type has its own default, and the CLI exposes each as a separate flag.
 
-**Deterministic seeding:** Every generator that uses randomness (Voronoi seed points, noise fields, reaction-diffusion initial conditions, n-body with chaotic sensitivity) must accept a `seed` parameter and use `numpy.random.default_rng(seed)` exclusively. No global `np.random.seed()`. The seed is recorded in `MathObject.seed` and in the sidecar metadata, guaranteeing exact reproducibility.
+**Deterministic seeding:** Every generator that uses randomness (Voronoi seed points, noise fields, reaction-diffusion initial conditions, n-body with chaotic sensitivity) must accept a `seed` parameter and use only `numpy.random.default_rng(seed)`. It must never call the global `np.random.seed()`. The seed is recorded in `MathObject.seed` and in the sidecar metadata, so the object can be reproduced exactly.
 
-For deterministic generators (parametric surfaces, knots, pure-math fractals), the seed parameter is accepted but unused. It still appears in the metadata for pipeline consistency.
+Deterministic generators (parametric surfaces, knots, pure-math fractals) accept the seed parameter but do not use it. The seed still appears in their metadata, for consistency across the pipeline.
 
 ### 3.6 Exporters
 
-Split into separate classes. No silent conversion. Export fails unless the requested representation exists on the MathObject, unless `--auto-sample` is passed.
+Exporters are split into separate classes and never convert silently. Export fails when the requested representation does not exist on the MathObject, unless `--auto-sample` is passed.
 
 ```python
 class MeshExporter:
@@ -449,7 +449,7 @@ class MetadataExporter:
         ...
 ```
 
-STL is always binary — there is no `binary` parameter. The sidecar `.meta.json` is written automatically alongside every geometry export.
+STL is always binary, so `to_stl` has no `binary` parameter. Every geometry export also writes a sidecar `.meta.json`.
 
 ---
 
@@ -457,9 +457,9 @@ STL is always binary — there is no `binary` parameter. The sidecar `.meta.json
 
 ### Canonical Homes and Aliases
 
-Each generator has exactly one canonical location in the directory tree. Generators that could logically belong to multiple categories live in the category that best matches their primary mathematical identity. The registry supports aliases so they can be invoked by alternate names.
+Each generator has exactly one canonical location in the directory tree. A generator that could belong to several categories lives in the category that best matches its primary mathematical identity. The registry supports aliases, so a generator can be called by another name.
 
-**Alias resolution rule:** The registry maps all names (canonical + aliases) to the same generator class. `mathviz generate torus_knot` and `mathviz generate trefoil` resolve to the same generator with different default parameters.
+**Alias resolution rule:** The registry maps every name, canonical or alias, to the same generator class. `mathviz generate torus_knot` and `mathviz generate trefoil` resolve to the same generator with different default parameters.
 
 | Generator | Canonical Category | Aliases |
 |-----------|-------------------|---------|
@@ -469,7 +469,7 @@ Each generator has exactly one canonical location in the directory tree. Generat
 | `lissajous_surface` | `parametric/` | — |
 | `double_pendulum` | `attractors/` | — |
 
-The canonical home is determined by: what is the object's mathematical identity? A torus knot is a knot that happens to be defined parametrically. A Lissajous surface is a surface that happens to share a naming convention with Lissajous curves.
+The object's mathematical identity decides its canonical home. A torus knot is a knot that is defined parametrically, so it lives in `knots/`. A Lissajous surface is a surface that shares a name with Lissajous curves, so it lives in `parametric/`.
 
 ### 4.1 Parametric Surfaces
 
@@ -494,13 +494,13 @@ The canonical home is determined by: what is the object's mathematical identity?
 | `spherical_harmonics` | l, m (degree, order) or coefficient vector | Deformation of a sphere |
 | `lissajous_surface` | a, b, c (frequencies), δ₁, δ₂ (phases) | Extension of Lissajous curves to surfaces |
 | `boy_surface` | — | Immersion of real projective plane |
-| `enneper_surface` | order | Minimal surface with increasing complexity |
+| `enneper_surface` | order | Minimal surface; complexity increases with order |
 
 ### 4.2 Implicit Surfaces
 
 **Definition:** The zero-level set of a function `f: (x, y, z) → ℝ`, extracted by marching cubes.
 
-**Resolution type:** `voxel_resolution` (default: 128). O(N³) scaling — agents must be aware this is cubic.
+**Resolution type:** `voxel_resolution` (default: 128). O(N³) scaling. Agents must account for the cubic cost.
 
 **Shared implementation pattern:**
 1. Define `f(x, y, z, **params) -> float`
@@ -518,7 +518,7 @@ The canonical home is determined by: what is the object's mathematical identity?
 | `costa_surface` | genus | Weierstrass representation; may need parametric approach |
 | `genus2_surface` | — | Various constructions |
 
-**TPMS note:** These tile space infinitely. The `periods` parameter controls how many unit cells are included. Marching cubes naturally clips to the evaluation box.
+**TPMS note:** These surfaces tile space without end. The `periods` parameter sets how many unit cells are included. Marching cubes clips the surface to the evaluation box.
 
 ### 4.3 Strange Attractors / Dynamical Systems
 
@@ -532,7 +532,7 @@ The canonical home is determined by: what is the object's mathematical identity?
 3. Output is a `Curve` (polyline of N points)
 4. Representation strategy decides: raw point cloud, tube, or weighted cloud
 
-**Default representation:** `RAW_POINT_CLOUD` — raw trajectory points produce the ghostly, ethereal look that works best in glass. Tube thickening is available via `--representation tube` for objects where a solid form is preferred.
+**Default representation:** `RAW_POINT_CLOUD`. Raw trajectory points give a faint, translucent look, which works best in glass. `--representation tube` thickens the trajectory into a tube for objects that should look solid.
 
 | Name | Equations | Key Parameters |
 |------|-----------|---------------|
@@ -547,15 +547,15 @@ The canonical home is determined by: what is the object's mathematical identity?
 **Attractor-specific considerations:**
 - **Transient removal:** Discard the first N steps (configurable, default ~1000) before recording.
 - **Multiple trajectories:** Optionally integrate from multiple initial conditions (controlled by seed) for denser coverage.
-- **Both representations available:** Every attractor can be exported as raw point cloud OR tube mesh. The CLI flag `--representation tube --tube-radius 0.3` overrides the default.
+- **Both representations available:** Every attractor can be exported as a raw point cloud or a tube mesh. The CLI flag `--representation tube --tube-radius 0.3` overrides the default.
 
 ### 4.4 Fractals
 
-**Resolution types:** `voxel_resolution` (for 3D extraction) + `iteration_depth` (escape-time cutoff). `pixel_resolution` for 2D heightmaps. Agents: `voxel_resolution=256` means 256³ = 16M evaluations — use `numba` for the inner loop (see §10.2).
+**Resolution types:** `voxel_resolution` (for 3D extraction) + `iteration_depth` (escape-time cutoff). `pixel_resolution` for 2D heightmaps. For agents: `voxel_resolution=256` means 256³ = 16M evaluations, so use `numba` for the inner loop (see §10.2).
 
 #### 4.4.1 Mandelbulb
 
-**Default representation:** `SPARSE_SHELL` — surface only, no interior fill. A solid Mandelbulb becomes an opaque white blob in glass. The sparse shell preserves the fractal surface detail.
+**Default representation:** `SPARSE_SHELL` (surface only, no interior fill). A solid Mandelbulb engraves as an opaque white volume. The sparse shell keeps the fractal surface detail.
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -582,11 +582,11 @@ The canonical home is determined by: what is the object's mathematical identity?
 
 #### 4.4.3 3D Julia Sets
 
-Same approach as Mandelbulb but with fixed c parameter. Default representation: `SPARSE_SHELL`.
+Same approach as Mandelbulb, but with a fixed c parameter. Default representation: `SPARSE_SHELL`.
 
 #### 4.4.4 Fractal Cross-Sections
 
-Slice a 3D fractal with a plane at various angles/offsets. Reuses the 3D evaluator, outputs a 2D slice as heightmap or contour. Default representation: `HEIGHTMAP_RELIEF`.
+Slice a 3D fractal with a plane at various angles and offsets. This reuses the 3D evaluator and outputs the 2D slice as a heightmap or contour. Default representation: `HEIGHTMAP_RELIEF`.
 
 ### 4.5 Knot Theory
 
@@ -602,14 +602,14 @@ Slice a 3D fractal with a plane at various angles/offsets. Reuses the 3D evaluat
 | `seven_crossing_knots` | Various; may need explicit coordinate data | knot_index |
 
 **Knot-specific considerations:**
-- Self-intersection detection after tube thickening — warn but don't fail.
-- Progression convenience: `torus_knot` with a list of (p,q) pairs generates a sequence for grid adjacency.
+- Detect self-intersection after tube thickening. Warn, but do not fail.
+- Progressions: `torus_knot` with a list of (p,q) pairs generates a sequence of knots for adjacent grid positions.
 
 ### 4.6 Number Theory / Constants
 
-**Resolution type:** varies per generator. Each documents its own.
+**Resolution type:** varies per generator, and each generator documents its own.
 
-**Default representation:** varies — typically `WEIGHTED_CLOUD` or `HEIGHTMAP_RELIEF`.
+**Default representation:** varies, typically `WEIGHTED_CLOUD` or `HEIGHTMAP_RELIEF`.
 
 | Name | Approach | Default Representation |
 |------|----------|----------------------|
@@ -639,7 +639,7 @@ Slice a 3D fractal with a plane at various angles/offsets. Reuses the 3D evaluat
 | `voronoi_3d` | 3D Voronoi, extract cell boundaries | `WIREFRAME` |
 | `generic_parametric` | User-supplied `f(u,v) → (x,y,z)` | `SURFACE_SHELL` |
 
-`voronoi_3d` requires a seed for point placement — deterministic via `default_rng(seed)`.
+`voronoi_3d` requires a seed for point placement, which is deterministic through `default_rng(seed)`.
 
 ### 4.9 Physics and Astronomy
 
@@ -679,7 +679,7 @@ Used by: `RepresentationStrategy` when `type=TUBE`.
 
 **Input:** Curve (polyline, N×3 array)
 **Output:** Mesh (tube surface)
-**Algorithm:** Parallel transport frame extrusion (not Frenet-Serret — Frenet frames are undefined at inflection points and produce twisting artifacts)
+**Algorithm:** Parallel transport frame extrusion. Not Frenet-Serret: Frenet frames are undefined at inflection points and produce twisting artifacts.
 **Parameters:** `radius`, `sides` (default 16), `closed` (default True for closed curves)
 
 ### 5.2 Marching Cubes
@@ -701,11 +701,11 @@ Used by: all implicit surface generators, Mandelbulb, 3D Julia sets.
 
 **Default:** Uniform surface sampling at 10 points/mm².
 
-**Library choice:** `trimesh.sample.sample_surface` for surface sampling (no heavy dependency). `open3d` is an **optional** dependency, pulled in only for PCD export and advanced point cloud processing. The core pipeline does not require it.
+**Library choice:** `trimesh.sample.sample_surface` for surface sampling, which adds no heavy dependency. `open3d` is an **optional** dependency, installed only for PCD export and advanced point cloud processing. The core pipeline does not require it.
 
 ### 5.4 Validation
 
-Two-tier validation: mesh validation + engraving validation.
+Validation has two tiers: mesh validation and engraving validation.
 
 #### Mesh Validation
 
@@ -723,7 +723,7 @@ Repair options (best-effort): fill small holes, remove degenerate faces, fix nor
 - No point outside container volume
 - Minimum point spacing (no clusters denser than min_point_spacing_mm)
 - Maximum gap check (no region of usable volume >max_point_spacing_mm from nearest point, for objects that should have continuous coverage)
-- Estimated visual density: flag if >70% of voxels in any axis-aligned projection are occupied (opacity warning — the object may read as a white brick)
+- Estimated visual density: flag if >70% of voxels in any axis-aligned projection are occupied (opacity warning: the object may look like a solid white block)
 - Depth distribution: report what fraction of points are in each depth quartile
 
 Returns a `ValidationResult` with pass/fail per check, severity (error/warning/info), and human-readable messages.
@@ -767,15 +767,15 @@ Returns a `ValidationResult` with pass/fail per check, severity (error/warning/i
 
 ## 7. Studio — Interactive Exploration Workbench
 
-This project is fundamentally artistic. The operator needs to see, rotate, tweak, compare, and curate 100+ mathematical forms before committing them to glass. The **Studio** is a first-class browser-based GUI application for exploring the full generator library, tuning parameters interactively, saving configurations, and queueing production exports. It is not an afterthought bolted onto the CLI — it is a primary interface alongside the CLI.
+This project produces an artwork. Before engraving, the operator needs to see, rotate, adjust, compare, and select from 100+ mathematical forms. The **Studio** is a browser-based GUI application for exploring the full generator library, tuning parameters interactively, saving configurations, and queueing production exports. It is a primary interface, equal to the CLI, not an add-on to it.
 
-The CLI remains the contract for agents and batch automation. The Studio is the contract for the human artist.
+The CLI remains the stable interface for agents and batch automation. The Studio is the interface for the human artist.
 
-The Studio is designed in two tiers. **Tier 1** is a minimal but functional viewer built alongside the core pipeline — achievable by agents in one phase, providing ~80% of the artistic exploration value. **Tier 2** is the full React application with presets, gallery, comparison, and export queue — built later, likely with more hands-on intervention, after the operator has generated 20–30 blocks via CLI + Tier 1 and has concrete UX requirements.
+The Studio has two tiers. **Tier 1** is a minimal, working viewer built alongside the core pipeline. Agents can build it in one phase, and it provides about 80% of the value for artistic exploration. **Tier 2** is the full React application with presets, gallery, comparison, and export queue. It is built later, likely with more hands-on work, after the operator has generated 20–30 blocks with the CLI and Tier 1 and has concrete UX requirements.
 
 ### 7.1 Tier 1: Preview Viewer (build with pipeline)
 
-A single HTML page served by a lightweight FastAPI server with a Three.js viewport and basic controls. This is the minimum viable artistic exploration tool.
+A single HTML page with a Three.js viewport and basic controls, served by a small FastAPI server. It is the minimum tool that supports artistic exploration.
 
 **Architecture:**
 
@@ -790,7 +790,7 @@ Single HTML page (vanilla JS + Three.js)  ◄── HTTP ──►  Python Backe
        └────────────────────────────────────────────────────────┘
 ```
 
-**Technology:** FastAPI backend (already needed for Tier 2 anyway, and it's Pydantic-native for the config models). Frontend is a single `index.html` with inline JS — no build step, no npm, no React. Three.js loaded from CDN. This is critical for agent buildability: a single HTML file with vanilla JS is dramatically easier for an agent to produce and debug than a React + r3f + Zustand application.
+**Technology:** FastAPI backend. Tier 2 needs it anyway, and it uses Pydantic natively for the config models. The frontend is a single `index.html` with inline JS: no build step, no npm, no React. Three.js loads from a CDN. This choice is critical for agents: an agent can produce and debug a single HTML file with vanilla JS much more easily than a React + r3f + Zustand application.
 
 **Features:**
 
@@ -806,15 +806,15 @@ Single HTML page (vanilla JS + Three.js)  ◄── HTTP ──►  Python Backe
 **Geometry loading:**
 - `mathviz preview <file>` — loads a specific STL/PLY file into the viewer
 - `mathviz preview <generator_name>` — generates at preview resolution, serves result
-- URL query params: `?generator=lorenz_attractor&sigma=12&rho=28` — allows bookmarking specific configurations
-- Hot-reload: watches for file changes, auto-reloads
+- URL query params: `?generator=lorenz_attractor&sigma=12&rho=28`, so a configuration can be bookmarked
+- Hot-reload: the viewer watches the file and reloads it when it changes
 
 **LOD strategy:**
 - Server-side decimation: meshes ≤100K faces, point clouds ≤200K points
 - "High-res" button loads full geometry with loading spinner
 - Transfer format: GLB for meshes (Three.js native), binary PLY for point clouds
 
-**What Tier 1 does NOT include:** No parameter sliders, no preset management, no gallery, no comparison view, no WebSocket, no SQLite. Parameter changes happen via CLI + browser refresh (or URL query params). Presets are TOML files managed manually. This is deliberately spartan — it works, it's fast, and it doesn't require a React build toolchain.
+**What Tier 1 does NOT include:** No parameter sliders, no preset management, no gallery, no comparison view, no WebSocket, no SQLite. To change a parameter, rerun the CLI and refresh the browser, or edit the URL query params. Presets are TOML files that the operator manages by hand. Tier 1 is deliberately minimal: it works, it is fast, and it needs no React build toolchain.
 
 CLI commands:
 ```
@@ -824,7 +824,7 @@ mathviz preview <file_or_generator> [--port N] [--no-open]
 
 ### 7.2 Tier 2: Full Studio (build later, possibly different tooling)
 
-The full Studio application with parameter controls, presets, gallery, comparison, and export queue. Built after the operator has used Tier 1 + CLI for 20–30 blocks and has concrete UX requirements from that experience.
+The full Studio application with parameter controls, presets, gallery, comparison, and export queue. It is built after the operator has used Tier 1 and the CLI for 20–30 blocks and has concrete UX requirements from that work.
 
 **Architecture:**
 
@@ -846,7 +846,7 @@ Browser (React + Three.js)  ◄──── WebSocket ────►  Python Ba
 - **Communication:** WebSocket for live parameter updates and generation progress. REST for CRUD.
 - **Storage:** SQLite (stdlib) for presets, generation history, gallery metadata
 
-**Why this requires different tooling:** Agent-driven development of a React + Three.js + FastAPI + WebSocket + SQLite application with debounced regeneration and LOD switching is significantly harder than the Python pipeline. r3f state management with live WebSocket geometry updates is the kind of thing that requires tight visual iteration — exactly where agents are weakest. The spec below is detailed enough that a strong agent could produce the skeleton, but the UX polish will almost certainly require hands-on intervention.
+**Why this requires different tooling:** For an agent, a React + Three.js + FastAPI + WebSocket + SQLite application with debounced regeneration and LOD switching is much harder to build than the Python pipeline. r3f state management with live WebSocket geometry updates needs fast visual iteration, which is where agents are weakest. The spec below is detailed enough for a strong agent to produce the skeleton, but the UX polish will almost certainly need hands-on work.
 
 ### 7.3 Tier 2 Layout
 
@@ -949,7 +949,7 @@ class Preset(BaseModel):
 
 **Preset operations:** Save / Save as variant / Load / Quick-save (Cmd+S) / Export as TOML / Delete / Rename / Tag.
 
-**Storage:** SQLite in the project directory (`mathviz_studio.db`). Presets also exportable as TOML for CLI use and version control.
+**Storage:** SQLite in the project directory (`mathviz_studio.db`). Presets can also be exported as TOML for CLI use and version control.
 
 #### Gallery View
 
@@ -957,13 +957,13 @@ Expandable bottom panel or full-page view showing saved presets as a thumbnail g
 
 #### Comparison Mode
 
-Select 2–4 presets, view side-by-side in split viewports. Independent orbit controls per viewport, with optional linked camera toggle. Each viewport shows preset name and key differing parameters highlighted.
+Select 2–4 presets to view side by side in split viewports. Each viewport has its own orbit controls, and an optional toggle links the cameras. Each viewport shows the preset name and highlights the key parameters that differ.
 
 #### Export Queue
 
 - "Export STL" / "Export Point Cloud" buttons → export dialog (format, sampling profile, output path)
 - Background thread execution with progress bar
-- Multiple exports queueable
+- Several exports can be queued
 - Batch export from gallery multi-select
 
 ### 7.5 API Endpoints (shared by Tier 1 and Tier 2)
@@ -1019,9 +1019,9 @@ Server → Client:
 
 ### 7.6 Geometry Transfer Format
 
-**For meshes:** GLB (binary glTF). Three.js native loading, trimesh exports it. Compact, fast.
+**For meshes:** GLB (binary glTF). Three.js loads it natively, and trimesh exports it. It is compact and fast.
 
-**For point clouds:** Custom binary format: header (uint32 point count) + packed float32 XYZ triplets. Simpler and faster than PLY for this specific use case. ~2.4 MB for 200K points.
+**For point clouds:** A custom binary format: a header (uint32 point count) followed by packed float32 XYZ triplets. For this use it is simpler and faster than PLY. 200K points take ~2.4 MB.
 
 Both load in <1 second on localhost.
 
@@ -1035,7 +1035,7 @@ Both load in <1 second on localhost.
 
 ### 7.8 Static Image Rendering
 
-PyVista (VTK) for high-resolution offline renders. CLI: `mathviz render <file> --width 4096 --height 4096 --output render.png`. Also accessible from Tier 2 Studio.
+PyVista (VTK) for high-resolution offline renders. CLI: `mathviz render <file> --width 4096 --height 4096 --output render.png`. Also available in the Tier 2 Studio.
 
 ### 7.9 2D Rendering
 
@@ -1045,7 +1045,7 @@ Projection or native 2D evaluation. CLI: `mathviz render-2d <file_or_generator> 
 
 ## 8. CLI Interface
 
-Built with **Typer** (automatic parameter validation from type hints, better agent ergonomics than Click).
+Built with **Typer**. Typer validates parameters from type hints, and agents find it easier to use than Click.
 
 ```
 mathviz generate <generator_name>
@@ -1090,11 +1090,11 @@ mathviz grid export-all [--sampling-profile production] [--output-dir exports/]
 
 | Flag | Purpose |
 |------|---------|
-| `mathviz studio` | Launch the Tier 2 Studio workbench (§7.2–7.4). Full exploration GUI with parameter controls, presets, gallery, comparison, and export queue. Only available after Tier 2 is built. Default port 8457. |
-| `mathviz preview` | Launch the Tier 1 preview viewer (§7.1). Minimal Three.js viewport with orbit controls, view mode toggles, container wireframe. Available from Phase 4. |
-| `--dry-run` | Run the full pipeline without writing files. Print what would be generated: generator, params, resolution, estimated point/face count, estimated generation time. Essential for agent iteration. |
+| `mathviz studio` | Launch the Tier 2 Studio (§7.2–7.4): the full exploration GUI with parameter controls, presets, gallery, comparison, and export queue. Available only after Tier 2 is built. Default port 8457. |
+| `mathviz preview` | Launch the Tier 1 preview viewer (§7.1): a minimal Three.js viewport with orbit controls, view mode toggles, and the container wireframe. Available from Phase 4. |
+| `--dry-run` | Run the full pipeline without writing files. Print what would be generated: generator, params, resolution, estimated point/face count, estimated generation time. Agents rely on it when iterating. |
 | `--report path.json` | Write a structured JSON report of the full pipeline run: timing per stage, validation results, output file paths, parameters used. |
-| `--json` | All commands produce structured machine-readable JSON to stdout. Since agents are part of the development loop, this is a day-one requirement, not a nice-to-have. |
+| `--json` | Every command writes structured, machine-readable JSON to stdout. Agents are part of the development loop, so this is required from the start. |
 | `--representation TYPE` | Override the default representation strategy for this generator. |
 | `--sampling-profile` | `preview` (fast, ~100K points), `production` (full density, ~2M points), or `custom` (use explicit density/budget flags). |
 | `--point-budget N` | Hard cap on output point count. |
@@ -1112,7 +1112,7 @@ mathviz grid export-all [--sampling-profile production] [--output-dir exports/]
 
 ### 9.1 Project Config File
 
-Optional `mathviz.toml` in working directory:
+An optional `mathviz.toml` in the working directory:
 
 ```toml
 [container]
@@ -1229,7 +1229,7 @@ method = "uniform"          # highest quality
 
 ### 9.4 Grid Manifest
 
-The installation is 100+ blocks in a 10×10 (or larger) grid. Individual blocks are managed as presets and per-object TOML configs, but there needs to be a single artifact that maps grid positions to blocks. Without this, managing 100 blocks across weeks of iteration becomes a spreadsheet problem.
+The installation is 100+ blocks in a 10×10 or larger grid. Each block is managed as a preset and a per-object TOML config, but one file must map grid positions to blocks. Without it, the operator would track 100 blocks across weeks of iteration in a separate spreadsheet.
 
 The grid manifest is a TOML file (`grid.toml`) in the project root:
 
@@ -1323,9 +1323,9 @@ mathviz grid export-all [--sampling-profile production] [--output-dir exports/]
 mathviz grid summary                    # counts by status
 ```
 
-**The grid manifest is a data model from Phase 1.** The data model and CLI commands exist from early on (it's just a TOML file and a Pydantic model). The Tier 2 Studio's grid layout view (drag-and-drop preset assignment, adjacency preview, installation mockup) is built on top of this data model later. But even without the Studio, the manifest is usable via CLI and a text editor.
+**The grid manifest is a data model from Phase 1.** The data model and CLI commands exist from early on, because they need only a TOML file and a Pydantic model. The Tier 2 Studio's grid layout view (drag-and-drop preset assignment, adjacency preview, installation mockup) is built on this data model later. Without the Studio, the manifest is usable through the CLI and a text editor.
 
-**Adjacency tracking:** The manifest stores positions but doesn't enforce adjacency constraints. The operator maintains visual coherence manually (or with CLI queries like `mathviz grid neighbors 3 5` which shows the 8 surrounding blocks). Adjacency is an artistic judgment, not a programmatic constraint.
+**Adjacency tracking:** The manifest stores positions but does not enforce adjacency constraints. The operator keeps adjacent blocks visually coherent by hand, or with CLI queries such as `mathviz grid neighbors 3 5`, which shows the 8 surrounding blocks. Adjacency is an artistic judgment, not a constraint in code.
 
 ---
 
@@ -1349,25 +1349,25 @@ mathviz grid summary                    # counts by status
 
 | Package | Version | Purpose | Scope |
 |---------|---------|---------|-------|
-| **numba** | ≥0.58 | JIT compilation | **Fractal inner loops only.** Mandelbulb, Julia 3D, Mandelbrot iteration kernels. NOT a general optimization strategy. Agents should not reach for numba unless the inner loop is a tight numerical kernel with millions of iterations. Cold-start latency is ~2-5 seconds on first call. |
+| **numba** | ≥0.58 | JIT compilation | **Fractal inner loops only**: Mandelbulb, Julia 3D, and Mandelbrot iteration kernels. Not a general optimization strategy. Agents should not use numba unless the inner loop is a tight numerical kernel with millions of iterations. The first call has ~2-5 seconds of cold-start latency. |
 
 ### 10.3 Optional Dependencies
 
 | Package | Version | Purpose | When needed |
 |---------|---------|---------|-------------|
-| **open3d** | ≥0.17 | PCD export, advanced point cloud ops | Only if PCD format needed. Heavy install. |
+| **open3d** | ≥0.17 | PCD export, advanced point cloud ops | Only when PCD output is needed. Large install. |
 | **pyvista** | ≥0.42 | High-res static rendering | Only for `mathviz render` command |
 | **meshio** | — | Additional mesh format I/O | If export format breadth becomes insufficient |
 | **pygalmesh** / **gmsh** | — | Higher quality mesh generation | If marching cubes quality is insufficient |
 
-Install groups: `pip install mathviz` (core + CLI + Tier 1 preview), `pip install mathviz[studio]` (adds Tier 2: React frontend build), `pip install mathviz[render]` (adds pyvista), `pip install mathviz[open3d]` (adds open3d), `pip install mathviz[all]`. The Tier 2 Studio frontend is a separate npm project in `studio-frontend/` — built to static files and served by the Python backend. Tier 1 preview has no npm dependency (single HTML file with CDN-loaded Three.js).
+Install groups: `pip install mathviz` (core + CLI + Tier 1 preview), `pip install mathviz[studio]` (adds Tier 2: React frontend build), `pip install mathviz[render]` (adds pyvista), `pip install mathviz[open3d]` (adds open3d), `pip install mathviz[all]`. The Tier 2 Studio frontend is a separate npm project in `studio-frontend/`. It is built to static files that the Python backend serves. The Tier 1 preview has no npm dependency: it is a single HTML file that loads Three.js from a CDN.
 
 ### 10.4 Tier 2 Studio Dependencies
 
-These are only needed if building the full Tier 2 Studio (Phase 7). Tier 1 preview has zero additional dependencies beyond core.
+These are needed only to build the full Tier 2 Studio (Phase 7). The Tier 1 preview needs no dependencies beyond core.
 
 **Backend (already in core):**
-FastAPI and uvicorn are in core dependencies since Tier 1 also uses them. Tier 2 adds:
+FastAPI and uvicorn are core dependencies, because Tier 1 also uses them. Tier 2 adds:
 
 | Package | Version | Purpose |
 |---------|---------|---------|
@@ -1384,7 +1384,7 @@ FastAPI and uvicorn are in core dependencies since Tier 1 also uses them. Tier 2
 | **vite** | Build tool / dev server |
 | **zustand** | Lightweight state management |
 
-The frontend builds to static files (`studio/static/`) served by FastAPI. During development, Vite dev server proxies API calls to the backend.
+The frontend builds to static files (`studio/static/`) served by FastAPI. During development, the Vite dev server proxies API calls to the backend.
 
 **Storage:**
 - **sqlite3** (stdlib) — preset database, generation history, gallery metadata, grid manifest. No external DB dependency.
@@ -1402,7 +1402,7 @@ The frontend builds to static files (`studio/static/`) served by FastAPI. During
 
 **Python 3.11+** (tomllib in stdlib, performance improvements).
 
-Primary: macOS (Apple Silicon). Pure Python + compiled extensions that all have ARM64 wheels. No platform-specific code.
+Primary platform: macOS on Apple Silicon. The code is pure Python plus compiled extensions that all have ARM64 wheels. There is no platform-specific code.
 
 ---
 
@@ -1410,7 +1410,7 @@ Primary: macOS (Apple Silicon). Pure Python + compiled extensions that all have 
 
 ### 11.1 Timing Instrumentation
 
-Every pipeline stage logs its wall-clock duration. This is not optional — it's built into the core pipeline runner.
+Every pipeline stage logs its wall-clock duration. This is built into the core pipeline runner and is not optional.
 
 ```python
 class PipelineTimer:
@@ -1458,15 +1458,15 @@ Timing appears in:
 
 ### 11.3 Preview / Studio Responsiveness
 
-Both Tier 1 and Tier 2 viewers must maintain ≥30fps during orbit/pan/zoom. This is the primary UX constraint — a laggy viewport makes artistic exploration painful.
+Both Tier 1 and Tier 2 viewers must keep ≥30fps during orbit/pan/zoom. This is the primary UX constraint: a slow viewport makes artistic exploration hard.
 
 - **LOD defaults:** 100K faces for meshes, 200K points for clouds (configurable in mathviz.toml)
 - **Decimation is server-side:** FastAPI sends pre-decimated GLB/binary geometry. The browser never processes full-resolution data during interaction.
-- **High-res mode:** Explicit user action (button click) loads full geometry. Loading spinner shown. Framerate may drop — acceptable since user explicitly requested it.
+- **High-res mode:** An explicit user action (a button click) loads the full geometry, with a loading spinner. The frame rate may drop, which is acceptable because the user asked for it.
 - **Point size:** Three.js `Points` material with `sizeAttenuation: true` and configurable base size.
-- **Parameter debounce (Tier 2 only):** Slider changes debounced at 300ms. Regeneration at preview resolution. "Regenerate full-res" button for deliberate high-quality generation.
-- **Transform-only updates (Tier 2 only):** Placement changes re-transform existing geometry without regeneration — effectively instant.
-- **Geometry cache:** Recent generations cached in memory (LRU, 1GB default). Revisiting a recent configuration is instant.
+- **Parameter debounce (Tier 2 only):** Slider changes are debounced at 300ms, and regeneration runs at preview resolution. A "Regenerate full-res" button runs a high-quality generation on request.
+- **Transform-only updates (Tier 2 only):** Placement changes re-transform the existing geometry without regeneration, so they appear instant.
+- **Geometry cache:** Recent generations are cached in memory (LRU, 1GB default), so returning to a recent configuration is instant.
 
 ---
 
@@ -1678,7 +1678,7 @@ exports/                                # Production export output directory
 
 ### Generator Registration
 
-Self-registering via decorator, with alias support:
+Generators register themselves with a decorator, which also accepts aliases:
 
 ```python
 @register(aliases=["trefoil", "cinquefoil"])
@@ -1726,7 +1726,7 @@ Every generator test:
 
 ### Fixture Tests
 
-Reference STL/meta files in `fixtures/`. Tests compare generated output against reference: vertex count within tolerance, bounding box match, face count within tolerance.
+Reference STL and meta files live in `fixtures/`. Tests compare generated output against the reference: vertex count within tolerance, bounding box match, face count within tolerance.
 
 ---
 
@@ -1734,7 +1734,7 @@ Reference STL/meta files in `fixtures/`. Tests compare generated output against 
 
 ### Module Independence
 
-Each generator is a self-contained file importing only from `core/`, `shared/`, and external libraries. Never from other generators. An agent implements a new generator by looking at one example + the GeneratorBase ABC.
+Each generator is a self-contained file that imports only from `core/`, `shared/`, and external libraries, never from another generator. An agent implements a new generator from one example and the GeneratorBase ABC.
 
 ### Progressive Implementation
 
@@ -1772,9 +1772,9 @@ Each generator is a self-contained file importing only from `core/`, `shared/`, 
 3. Single `index.html` with vanilla JS + Three.js (CDN): viewport, OrbitControls, view toggles, container wireframe, dark background, screenshot, info display
 4. CLI `mathviz preview` command
 5. Tests: server smoke test, geometry endpoint returns valid GLB
-— **This is the artistic exploration checkpoint.** After Phase 4 you can generate objects via CLI, preview them in the browser, iterate on parameters, and export production files. Phases 5+ happen in parallel with block production.
+— **Phase 4 is the checkpoint for artistic exploration.** After Phase 4 you can generate objects with the CLI, preview them in the browser, iterate on parameters, and export production files. Phases 5 and later run in parallel with block production.
 
-**Phase 5: Remaining generators** — any order, each independent. Grid manifest (§9.4) maintained as TOML alongside production.
+**Phase 5: Remaining generators** — in any order; each is independent. The grid manifest (§9.4) is maintained as TOML during production.
 
 **Phase 6: Polish**
 1. EngravingOptimizer (occlusion, depth compensation)
@@ -1805,7 +1805,7 @@ Each generator is a self-contained file importing only from `core/`, `shared/`, 
 - All randomness via `numpy.random.default_rng(seed)` — never `np.random.seed()`
 - All numerical code uses float64
 - Imports are explicit (no `from x import *`)
-- numba used ONLY in fractal inner loops — nowhere else
+- numba only in fractal inner loops, nowhere else
 
 ### Test-Driven for Agents
 
@@ -1822,19 +1822,19 @@ Verify: `pytest tests/test_generators/test_<category>.py -v`
 
 ### Engraver Format
 
-Confirm with vendor: what format, what resolution, what point density. This anchors the production sampling profile.
+Confirm the format, resolution, and point density with the vendor. The production sampling profile depends on these values.
 
 ### Mesh Boolean Operations
 
-Add as needed (trimesh CSG, libigl, pymeshlab). Architecture supports it — it would be a shared component or a representation strategy variant.
+Add when needed (trimesh CSG, libigl, pymeshlab). The architecture allows it, as a shared component or a representation strategy variant.
 
 ### Parameter Sweeps
 
-Future: `mathviz sweep` command generating N objects with interpolated parameters. Architecture supports it via config files.
+Future: a `mathviz sweep` command that generates N objects with interpolated parameters. The architecture supports it through config files.
 
 ### GPU Acceleration
 
-If fractal generation at voxel_resolution=512+ becomes a bottleneck: CUDA or Metal compute shaders. Architecture doesn't preclude it — the numba inner loops are the natural swap point.
+If fractal generation at voxel_resolution=512+ becomes a bottleneck, use CUDA or Metal compute shaders. The architecture allows it: the numba inner loops are the place to swap in GPU code.
 
 ### Studio Evolution (Tier 2 and beyond)
 
@@ -1928,25 +1928,25 @@ The `point_budget` parameter caps output. Default: 2M for production.
 
 ### Engraving Depth and Aspect Ratio
 
-The default container is a 100×100×100mm cube. When using non-cubic containers (e.g. shallow blocks), mathematically balanced objects may appear compressed. The `PlacementPolicy.depth_bias` parameter lets the operator exaggerate or further compress depth to optimize visual readability in the medium. The default of 1.0 applies no correction; values of 1.2–1.5 may help for objects with important z-axis structure in shallow containers.
+The default container is a 100×100×100mm cube. In a non-cubic container, such as a shallow block, mathematically balanced objects may look compressed. The `PlacementPolicy.depth_bias` parameter lets the operator exaggerate depth or compress it further, so the form stays readable in the glass. The default of 1.0 applies no correction. Values of 1.2–1.5 may help objects with important z-axis structure in shallow containers.
 
 ### Fracture Point Visibility
 
-Points deeper in the glass are less visible (light attenuation through glass). The `EngravingOptimizer.depth_compensation` flag increases point density for deeper points. `depth_compensation_factor=1.5` means the deepest layer gets 1.5× the density of the front layer, with linear interpolation between.
+Points deeper in the glass are less visible, because the glass attenuates light. The `EngravingOptimizer.depth_compensation` flag increases point density for deeper points. `depth_compensation_factor=1.5` means the deepest layer gets 1.5× the density of the front layer, with linear interpolation between.
 
 ### Volumetric Occlusion
 
-A dense point cloud of a solid object becomes an opaque white brick, obscuring internal structure. The `EngravingOptimizer` provides three strategies:
+A dense point cloud of a solid object engraves as an opaque white volume that hides the internal structure. The `EngravingOptimizer` provides three strategies:
 
-- **shell_fade:** Keep surface points at full density, thin inner layers progressively. Good for objects with interesting surface detail (Mandelbulb, minimal surfaces).
-- **radial_gradient:** Density decreases from center outward, so the core is visible through a sparse outer shell. Good for objects with interesting internal structure.
-- **none:** No thinning. Appropriate for inherently sparse objects (attractors, wireframes, thin surfaces).
+- **shell_fade:** Keep surface points at full density and thin inner layers progressively. Suits objects with important surface detail (Mandelbulb, minimal surfaces).
+- **radial_gradient:** Density decreases from the center outward, so the core is visible through a sparse outer shell. Suits objects with important internal structure.
+- **none:** No thinning. For objects that are already sparse (attractors, wireframes, thin surfaces).
 
 ---
 
 ## Appendix C: Resolution Quick Reference
 
-For agents implementing generators — know what your resolution parameters cost:
+For agents implementing generators, the cost of each resolution parameter:
 
 | Resolution Type | N=64 | N=128 | N=256 | N=512 |
 |----------------|------|-------|-------|-------|

@@ -1,7 +1,7 @@
 # Python API
 
-MathViz can be used as a Python library for programmatic access to generators,
-the pipeline, and individual processing stages.
+MathViz can be imported as a Python library. The library exposes the
+generators, the full pipeline, and each pipeline stage.
 
 ## Running the Full Pipeline
 
@@ -189,9 +189,9 @@ print(resolved.seed)        # 7
 
 ### Config Models
 
-All configuration models are Pydantic BaseModel subclasses (except
-`ResolvedConfig` which is a dataclass). They support JSON serialization,
-validation, and schema generation:
+All configuration models except `ResolvedConfig` are Pydantic `BaseModel`
+subclasses. `ResolvedConfig` is a dataclass. The Pydantic models provide JSON
+serialization, validation, and schema generation:
 
 ```python
 from mathviz.core.container import Container

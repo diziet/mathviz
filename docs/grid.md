@@ -1,13 +1,14 @@
 # Grid Layout
 
-MathViz manages multi-block installations through a grid manifest. The grid
-tracks which generator preset is assigned to each physical block position and
-its export status.
+A grid manifest describes a multi-block installation. For each physical block
+position, it records the assigned generator preset and the export status.
 
 ## Manifest Format
 
-The grid manifest is stored as a TOML file (default: `grid.toml`). It contains
-metadata about the grid dimensions and a section for each block.
+The grid manifest is a TOML file, `grid.toml` by default. ~~It contains
+metadata about the grid dimensions and a section for each block.~~ It contains
+the grid dimensions and one section for each block that has been assigned or
+given a status. A position with no section is `empty` (checked 2026-09-23).
 
 ```toml
 rows = 10
@@ -43,7 +44,7 @@ Each block has one of four statuses:
 mathviz grid init <rows> <cols> [--path grid.toml]
 ```
 
-Creates a new empty grid manifest with all blocks in `empty` status.
+Creates an empty grid manifest. Every block has `empty` status.
 
 ```bash
 mathviz grid init 10 10
@@ -56,8 +57,8 @@ mathviz grid init 16 16 --path installation.toml
 mathviz grid show [--path grid.toml]
 ```
 
-Displays an ASCII table showing all blocks with color-coded status. Use
-`--json` for machine-readable output.
+Prints an ASCII table of all blocks, colored by status. `--json` prints JSON
+instead.
 
 ### Assign Presets
 
@@ -65,7 +66,7 @@ Displays an ASCII table showing all blocks with color-coded status. Use
 mathviz grid assign <row> <col> <preset> [--config path] [--path grid.toml]
 ```
 
-Assigns a generator preset name to a grid position. Optionally link a
+Assigns a generator preset name to a grid position. `--config` links a
 per-block config file.
 
 ```bash
@@ -80,7 +81,7 @@ mathviz grid assign 1 0 mandelbulb
 mathviz grid status <row> <col> [--set <status>] [--path grid.toml]
 ```
 
-View or update a block's status.
+Shows a block's status, or sets it with `--set`.
 
 ```bash
 # View status
@@ -99,8 +100,9 @@ mathviz grid status 0 0 --set assigned
 mathviz grid neighbors <row> <col> [--path grid.toml]
 ```
 
-Shows the 8 surrounding blocks for a position. Useful for checking visual
-coherence between adjacent blocks.
+~~Shows the 8 surrounding blocks for a position.~~ Shows up to 8 surrounding
+blocks for a position, and fewer at an edge or corner (checked 2026-09-23). Use
+it to check that adjacent blocks look coherent together.
 
 ```bash
 mathviz grid neighbors 5 5
@@ -112,7 +114,7 @@ mathviz grid neighbors 5 5
 mathviz grid summary [--path grid.toml]
 ```
 
-Shows counts of blocks by status.
+Shows the number of blocks in each status.
 
 ```bash
 mathviz grid summary
@@ -129,8 +131,9 @@ mathviz grid summary
 mathviz grid export-all [--path grid.toml] [--output-dir export] [--format ply]
 ```
 
-Exports all assigned blocks sequentially through the full pipeline. Each
-block's status is updated to `exported` on success or `error` on failure.
+Runs each block that has a preset and status `assigned` or `error` through the
+full pipeline, one block at a time. A block's status becomes `exported` on
+success and `error` on failure.
 
 ```bash
 # Export all assigned blocks to PLY files
@@ -144,7 +147,7 @@ Output files are named `block_<row>_<col>.<format>`.
 
 ## Workflow Example
 
-A typical workflow for managing an installation:
+A typical sequence of commands for an installation:
 
 ```bash
 # 1. Create the grid

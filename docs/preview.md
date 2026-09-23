@@ -1,7 +1,7 @@
 # Preview UI
 
-MathViz includes an interactive 3D preview served by FastAPI with a Three.js
-viewer. Launch it with `mathviz preview`.
+`mathviz preview` starts an interactive 3D preview: a Three.js viewer served by
+FastAPI.
 
 ## Starting the Preview
 
@@ -21,14 +21,14 @@ mathviz preview gyroid --port 9000 --no-open
 
 ## Generator Switcher
 
-A searchable dropdown at the top of the right panel lets you switch generators
-without restarting the server. Type to filter the list by name. Selecting a
+A searchable dropdown at the top of the right panel switches the generator
+without restarting the server. Typing filters the list by name. Selecting a
 generator loads its parameter schema and regenerates the preview.
 
 ## Container / Dimensions Editor
 
-The left-column **Container** panel controls the glass block dimensions and
-margins used by the Transform pipeline stage.
+The left-column **Container** panel sets the glass block dimensions and
+margins that the Transform pipeline stage uses.
 
 | Control | Default | Description |
 |---|---|---|
@@ -40,35 +40,40 @@ margins used by the Transform pipeline stage.
 | Margin Z | 5 mm | Depth margin |
 | Uniform Margin | on | Lock all margins to the same value |
 
-The panel shows the calculated usable volume. Click **Apply** to regenerate
-with the new dimensions, or **Reset** to revert to defaults.
+The panel shows the calculated usable volume. **Apply** regenerates with the
+new dimensions. **Reset** restores the defaults.
 
 ## Parameter Editor
 
-The left-column **Parameter** panel displays editable fields for the selected
-generator's parameters, populated from the generator's schema. Fields support
-text, number, and checkbox inputs with type detection.
+The left-column **Parameter** panel shows an editable field for each parameter
+in the selected generator's schema. Each field is a text, number, or checkbox
+input, chosen from the parameter's detected type.
 
-- **Apply** — regenerate with current parameter values
-- **Reset** — revert parameters to generator defaults
-- **Randomize** (dice button) — randomize all parameters within their valid
-  ranges. Also available via the **R** keyboard shortcut.
+- **Apply** — regenerate with the current parameter values
+- **Reset** — restore the generator's default parameters
+- **Randomize** (dice button) — set every parameter to a random value within
+  its valid range. The **R** keyboard shortcut does the same.
 - **Resolution fields** — generators with resolution parameters (e.g.
   `integration_steps`, `grid_resolution`) show an additional section.
 
 ### Auto-Apply
 
-Enable the **Auto-Apply** checkbox to regenerate automatically whenever a
-parameter value changes. A 300 ms debounce prevents excessive regeneration.
+With the **Auto-Apply** checkbox on, the preview regenerates whenever a
+parameter value changes. A 300 ms debounce limits how often it regenerates.
 
 ### Seed
 
-The seed input (top of the right panel) controls deterministic generation.
-Click the random button next to it for a random seed.
+The seed input at the top of the right panel sets the seed for generation.
+The random button next to it picks a random seed.
 
 ## View Modes
 
-The **View Mode** dropdown switches between three rendering styles:
+~~The **View Mode** dropdown switches between three rendering styles:~~ The
+**View Mode** dropdown has eight modes: Shaded Mesh, Wireframe, Vertex Cloud
+(the default, called Point Cloud below), Dense Cloud, Edge Cloud, Surface
+Cloud, Crystal Preview, and Color Map (checked 2026-09-23 in
+`src/mathviz/static/index.html`). [preview-ui.md](preview-ui.md) describes five
+of them. This table describes three:
 
 | Mode | Description |
 |---|---|
@@ -76,14 +81,14 @@ The **View Mode** dropdown switches between three rendering styles:
 | Wireframe | Edge-only display (blue lines) |
 | Point Cloud | Individual vertex points (default) |
 
-A **Point Size** slider (0.5–10) controls point cloud dot size across all views.
+A **Point Size** slider (0.5–10) sets the size of point cloud dots in all views.
 
 ## Display Options
 
 | Control | Default | Description |
 |---|---|---|
-| Show Bounding Box | on | Render the axis-aligned bounding box helper |
-| Light Background | off | Toggle between dark and light canvas background |
+| Show Bounding Box | on | Show the axis-aligned bounding box |
+| Light Background | off | Switch the canvas background from dark to light |
 | Lock Camera | off | Disable orbit controls to prevent accidental rotation |
 
 ## Camera Controls
@@ -99,7 +104,7 @@ Camera controls are disabled when **Lock Camera** is checked.
 
 ### Save
 
-Click **Save** to persist the current state:
+**Save** stores the current state:
 
 - Generated geometry (GLB mesh + PLY point cloud)
 - Metadata (generator name, parameters, seed, container, timestamp)
@@ -111,14 +116,14 @@ Snapshots are stored in the directory configured by `MATHVIZ_SNAPSHOTS_DIR`
 
 ### Load
 
-Click **Load** to open the snapshot gallery. Each snapshot card shows a
-thumbnail, generator name, seed, and timestamp. Click a card to restore the
-snapshot's geometry, parameters, and view state. Snapshots can be deleted from
-the gallery with a confirmation dialog.
+**Load** opens the snapshot gallery. Each snapshot card shows a thumbnail,
+generator name, seed, and timestamp. Clicking a card restores the snapshot's
+geometry, parameters, and view state. The gallery can also delete a snapshot,
+after a confirmation dialog.
 
 ## Comparison Mode
 
-The **Compare Mode** dropdown offers side-by-side viewing:
+The **Compare Mode** dropdown shows several panels side by side:
 
 | Mode | Layout |
 |---|---|
@@ -129,17 +134,17 @@ The **Compare Mode** dropdown offers side-by-side viewing:
 ### How it works
 
 - Panel A (top-left) copies the current single-view geometry.
-- Remaining panels generate with incremented seeds using the same generator
-  and parameters as panel A.
+- The other panels use the same generator and parameters as panel A, with
+  incremented seeds.
 - Each panel has a collapsible overlay at the bottom for editing its seed and
-  parameter overrides. Click the overlay summary to expand/collapse.
-- Panels generate in parallel via the `/api/generate-batch` endpoint.
+  parameter overrides. Clicking the overlay summary expands or collapses it.
+- Panels generate in parallel through the `/api/generate-batch` endpoint.
 - All panels share the global view mode and point size settings.
 
 ### Exiting comparison mode
 
 Switching back to Single View restores panel A's geometry to the main viewport
-and frees GPU resources for other panels.
+and frees the GPU resources of the comparison panels.
 
 ## Keyboard Shortcuts
 
@@ -152,7 +157,7 @@ and frees GPU resources for other panels.
 
 ## Info Panel
 
-The bottom-left info panel displays real-time statistics:
+The bottom-left info panel shows live statistics:
 
 - Current generator name
 - Vertex count / face count (mesh)
@@ -161,11 +166,11 @@ The bottom-left info panel displays real-time statistics:
 
 ## Loading and Cancellation
 
-A centered loading indicator shows elapsed time during generation. Click
-**Cancel** to abort a long-running generation. In comparison mode, progress
+A centered loading indicator shows the elapsed time during generation.
+**Cancel** stops a long-running generation. In comparison mode, the progress
 updates as each panel completes.
 
 ## Screenshot
 
-Click the **Screenshot** button to download the current canvas as
+The **Screenshot** button downloads the current canvas as
 `mathviz-screenshot.png` at the current viewport resolution.

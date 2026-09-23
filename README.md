@@ -1,10 +1,10 @@
 # MathViz
 
-MathViz is a pipeline for programmatically generating 3D mathematical forms —
-strange attractors, fractals, knots, minimal surfaces, and more — and preparing
-them for subsurface laser engraving in crystal glass blocks. The output is a
-wall-mounted installation of glass blocks arranged in a grid, each containing a
-unique form rendered as a monochrome point cloud of micro-fractures.
+MathViz generates 3D mathematical forms, such as strange attractors, fractals,
+knots and minimal surfaces, and prepares them for subsurface laser engraving in
+crystal glass blocks. The blocks are mounted on a wall in a grid. Each block
+contains a different form, engraved as a monochrome point cloud of
+micro-fractures.
 
 <table>
   <tr>
@@ -28,10 +28,10 @@ unique form rendered as a monochrome point cloud of micro-fractures.
 
 - **89 generators** across 12 categories (attractors, fractals, knots, parametric surfaces, and more)
 - **Linear pipeline**: Generate → Represent → Transform → Sample → Validate → Export
-- **9 representation strategies** for controlling how forms appear when engraved
-- **Deterministic output**: every form is reproducible from its seed
-- **Grid manifest** for managing multi-block installations
-- **Interactive 3D preview** via browser (Three.js + FastAPI)
+- **9 representation strategies** that control how a form appears when engraved
+- **Deterministic output**: the same seed reproduces the same form
+- **Grid manifest**: records the preset assigned to each block position of an installation
+- **Interactive 3D preview** in the browser (Three.js, served by FastAPI)
 - **High-resolution rendering** to PNG (3D and 2D projections)
 - **Configurable containers**: glass block dimensions, margins, and placement policies
 - **Sampling profiles**: preview (fast) and production (high-quality)
@@ -63,7 +63,7 @@ Generate a Lorenz attractor and export to PLY:
 mathviz generate lorenz --output lorenz.ply
 ```
 
-Preview interactively in the browser:
+Open an interactive preview in the browser:
 
 ```bash
 mathviz preview lorenz
@@ -75,7 +75,7 @@ List all available generators:
 mathviz list
 ```
 
-Get detailed info about a generator:
+Show a generator's details and parameter schema:
 
 ```bash
 mathviz info lorenz
@@ -87,7 +87,7 @@ Override parameters and seed:
 mathviz generate lorenz --param sigma=12 --param rho=30 --seed 7 --output lorenz.ply
 ```
 
-Use a sampling profile for production quality:
+Generate with the production sampling profile:
 
 ```bash
 mathviz generate gyroid --profile production --output gyroid.ply
@@ -120,25 +120,25 @@ See [docs/generators.md](docs/generators.md) for full parameter tables and examp
 | `mathviz list` | List all available generators |
 | `mathviz info` | Show generator details and parameter schema |
 | `mathviz validate` | Generate and validate without exporting |
-| `mathviz preview` | Start interactive 3D preview server |
-| `mathviz render` | High-resolution 3D PNG rendering |
-| `mathviz render-2d` | 2D projection rendering |
-| `mathviz render-all` | Batch render all generators in parallel |
-| `mathviz benchmark` | Pipeline performance benchmarking |
+| `mathviz preview` | Start the interactive 3D preview server |
+| `mathviz render` | Render a high-resolution 3D PNG |
+| `mathviz render-2d` | Render a 2D projection |
+| `mathviz render-all` | Render all generators in parallel |
+| `mathviz benchmark` | Benchmark pipeline performance |
 | `mathviz convert` | Convert geometry between formats |
 | `mathviz sample` | Sample a mesh into a point cloud |
 | `mathviz transform` | Fit geometry within a container |
 | `mathviz schema` | Generate JSON Schema files from config models |
 | `mathviz grid init` | Create a new grid manifest |
-| `mathviz grid show` | Display the grid |
+| `mathviz grid show` | Show the grid |
 | `mathviz grid assign` | Assign a preset to a grid position |
 | `mathviz grid status` | Show or update block status |
-| `mathviz grid neighbors` | Show surrounding blocks |
+| `mathviz grid neighbors` | Show the blocks around a position, up to 8 |
 | `mathviz grid summary` | Show counts by status |
 | `mathviz export-demo` | Build a static demo site for deployment |
-| `mathviz grid export-all` | Batch export all assigned blocks |
+| `mathviz grid export-all` | Export every assigned block |
 
-See [docs/cli.md](docs/cli.md) for full flag reference and examples.
+See [docs/cli.md](docs/cli.md) for every flag, with examples.
 
 ## Documentation
 
@@ -146,10 +146,10 @@ See [docs/cli.md](docs/cli.md) for full flag reference and examples.
 - [Pipeline](docs/pipeline.md) — the Generate → Represent → Transform → Sample → Validate → Export pipeline
 - [CLI Reference](docs/cli.md) — every CLI command with flags, options, and examples
 - [Configuration](docs/configuration.md) — config file format, precedence rules, sampling profiles
-- [Representation Strategies](docs/representation.md) — how raw geometry is realized for engraving
+- [Representation Strategies](docs/representation.md) — how a generator's raw geometry becomes the geometry that is engraved
 - [Preview UI](docs/preview.md) — interactive 3D preview with comparison mode, snapshots, and keyboard shortcuts
-- [Preview UI Reference](docs/preview-ui.md) — comprehensive guide to every preview control, view mode, and shortcut
-- [Rendering](docs/rendering.md) — `render`, `render-2d`, and `render-all` commands, optional dependencies
+- [Preview UI Reference](docs/preview-ui.md) — every preview control, view mode, and shortcut
+- [Rendering](docs/rendering.md) — `render`, `render-2d`, ~~and `render-all`~~ commands, optional dependencies. `render-all` is documented only in [docs/cli.md](docs/cli.md) (checked 2026-09-23).
 - [Demo Site](docs/demo.md) — building, previewing, and deploying the static demo gallery
 - [Grid Layout](docs/grid.md) — grid manifest format and grid CLI
 - [Python API](docs/api.md) — using MathViz as a Python library
@@ -164,4 +164,4 @@ pytest
 
 ## License
 
-See LICENSE file for details.
+~~See LICENSE file for details.~~ The repository has no LICENSE file (checked 2026-09-23).

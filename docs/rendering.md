@@ -1,7 +1,7 @@
 # Rendering
 
-MathViz can render generators to high-resolution PNG images for preview and
-documentation purposes. Rendering requires the optional `[render]` dependency.
+MathViz renders a generator's output to a high-resolution PNG image, for
+previews and documentation. Rendering requires the optional `[render]` extra.
 
 ## Installation
 
@@ -11,7 +11,7 @@ Rendering uses PyVista for 3D visualization. Install it with:
 pip install ".[render]"
 ```
 
-This installs PyVista (>= 0.43.0) and its dependencies including VTK.
+This installs PyVista (>= 0.43.0) and its dependencies, including VTK.
 
 ## 3D Rendering
 
@@ -81,13 +81,14 @@ mathviz render-2d mandelbulb -o mandelbulb.png --view angle --width 3840 --heigh
 
 Both commands produce PNG images. The output path must end with `.png`.
 
-The renderer runs the full pipeline (Generate → Represent → Transform) before
-rendering, so rendered images reflect the same geometry that would be exported.
+Before rendering, the renderer runs the pipeline through Transform (Generate →
+Represent → Transform), so the image shows the same geometry that an export
+would write.
 
 ## Headless Rendering
 
-PyVista supports headless rendering on servers without a display by using the
-OSMesa or EGL backends. Set the environment variable before running:
+PyVista can render on a server without a display through its OSMesa or EGL
+backends. Set `PYVISTA_OFF_SCREEN` before running:
 
 ```bash
 export PYVISTA_OFF_SCREEN=true
