@@ -104,6 +104,40 @@ def test_gitignored_missing_path_is_not_reported(
     assert code == 0, output
 
 
+def test_missing_directory_matched_only_by_a_directory_pattern_is_not_reported(
+    repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _write(repo, ".gitignore", "runs/\nbuild/out/\n")
+    _track(repo)
+    code, output = _check(_with_readme(repo, "Built into `build/out`.\n"), capsys)
+    assert code == 0, output
+
+
+def test_path_beyond_an_ignored_symlink_does_not_hide_other_ignored_paths(
+    repo: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    shared = tmp_path / "shared-logs"
+    shared.mkdir()
+    (repo / "logs").symlink_to(shared)
+    _write(repo, ".gitignore", "runs/\nlogs\n")
+    _track(repo)
+    extra = "`logs/`, `logs/latest/run.json` and `runs/latest/summary.txt`\n"
+    code, output = _check(_with_readme(repo, extra), capsys)
+    assert code == 0, output
+
+
+def test_path_beyond_a_tracked_symlink_is_reported(
+    repo: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    shared = tmp_path / "shared-logs"
+    shared.mkdir()
+    (repo / "logs").symlink_to(shared)
+    _track(repo)
+    code, output = _check(_with_readme(repo, "`logs/latest/run.json`\n"), capsys)
+    assert code == 1
+    assert "path `logs/latest/run.json` does not exist" in output
+
+
 def test_struck_through_reference_is_not_checked(
     repo: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
