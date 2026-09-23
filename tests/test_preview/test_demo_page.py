@@ -52,7 +52,7 @@ def test_demo_no_api_references(
 
 
 def test_demo_contains_threejs_import(demo_html: str) -> None:
-    """demo.html imports Three.js."""
+    """demo.html contains three and an importmap."""
     assert "three" in demo_html.lower()
     assert "importmap" in demo_html
 
@@ -72,14 +72,14 @@ def test_demo_contains_visualization_selector(demo_html: str) -> None:
 
 
 def test_demo_has_manifest_loading(demo_js_files: dict[str, str]) -> None:
-    """demo-scene.js loads manifest.json."""
+    """demo-scene.js contains manifest.json."""
     assert "manifest.json" in demo_js_files["demo-scene.js"]
 
 
 def test_demo_loads_glb_from_relative_paths(
     demo_js_files: dict[str, str],
 ) -> None:
-    """Gallery module resolves geometry from relative paths like ./data/{name}/mesh.glb."""
+    """demo-gallery.js contains /mesh.glb and /cloud.ply."""
     gallery_js = demo_js_files["demo-gallery.js"]
     assert "/mesh.glb" in gallery_js
     assert "/cloud.ply" in gallery_js
@@ -99,7 +99,7 @@ def test_demo_has_no_backend_ui_elements(demo_html: str) -> None:
 
 
 def test_demo_retains_client_side_features(demo_html: str) -> None:
-    """demo.html retains all client-side rendering features."""
+    """demo.html contains the ids of the ten client-side controls listed below."""
     assert 'id="point-size"' in demo_html
     assert 'id="density-slider"' in demo_html
     assert 'id="show-bbox"' in demo_html

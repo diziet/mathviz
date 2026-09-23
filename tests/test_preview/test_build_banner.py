@@ -18,7 +18,6 @@ class TestBuildBannerMiddleware:
     """Tests for GET /buildbanner.json via BuildBannerMiddleware."""
 
     def test_returns_200(self, client: TestClient) -> None:
-        """Endpoint returns 200 OK."""
         resp = client.get("/buildbanner.json")
         assert resp.status_code == 200
 

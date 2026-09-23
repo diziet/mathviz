@@ -70,7 +70,8 @@ def test_html_includes_keydown_handling(preview_html: str) -> None:
 
 
 def test_enter_on_seed_triggers_generation(preview_html: str) -> None:
-    """Controls panel Enter handler calls applyGenerator with current seed."""
+    """handleEnterKey is set on #controls, and the script calls applyGenerator(currentGen,
+    parseSeed())."""
     script = _extract_script(preview_html)
     # handleEnterKey is called with the controls panel element
     assert re.search(
@@ -114,16 +115,15 @@ def test_event_delegation_covers_dynamic_inputs(preview_html: str) -> None:
 
 
 def test_non_enter_keys_do_not_trigger(preview_html: str) -> None:
-    """handleEnterKey guards on Enter key only."""
+    """The script compares e.key with 'Enter'."""
     script = _extract_script(preview_html)
-    # The function checks e.key against 'Enter' and returns early otherwise
     assert re.search(
         r"""e\.key\s*!==?\s*['"]Enter['"]""", script
     ), "No Enter key guard found in handleEnterKey"
 
 
 def test_checkbox_inputs_excluded(preview_html: str) -> None:
-    """handleEnterKey skips checkbox inputs."""
+    """The script compares e.target.type with 'checkbox'."""
     script = _extract_script(preview_html)
     assert re.search(
         r"""e\.target\.type\s*===?\s*['"]checkbox['"]""", script
@@ -131,7 +131,7 @@ def test_checkbox_inputs_excluded(preview_html: str) -> None:
 
 
 def test_input_blurred_after_enter(preview_html: str) -> None:
-    """handleEnterKey blurs the input after triggering."""
+    """The script calls e.target.blur()."""
     script = _extract_script(preview_html)
     assert re.search(
         r"e\.target\.blur\s*\(\s*\)", script

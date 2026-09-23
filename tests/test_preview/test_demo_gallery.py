@@ -1,7 +1,9 @@
 """Tests for the demo gallery UI and manifest loader (Task 166).
 
-Validates gallery rendering, card interaction, query-param deep-linking,
-category filtering, and collapse/toggle behavior using DOM-level assertions.
+Checks that demo.html and the demo scripts contain the code for gallery
+rendering, card clicks, query-param deep-linking, category filtering and
+collapse/toggle. Each test looks for substrings in the static files; no
+script runs.
 """
 
 import importlib.resources
@@ -139,17 +141,17 @@ def test_gallery_exports_resolve_paths(gallery_js: str) -> None:
 
 
 def test_gallery_creates_card_elements_with_dataset_name(gallery_js: str) -> None:
-    """Gallery creates card divs with data-name set to the item's name."""
+    """demo-gallery.js sets card.dataset.name = item.name."""
     assert "card.dataset.name = item.name" in gallery_js
 
 
 def test_gallery_creates_card_with_category_dataset(gallery_js: str) -> None:
-    """Gallery sets data-category on each card for filtering."""
+    """demo-gallery.js contains card.dataset.category."""
     assert "card.dataset.category" in gallery_js
 
 
 def test_gallery_renders_thumbnail_with_lazy_loading(gallery_js: str) -> None:
-    """Gallery sets thumbnail src from item.thumbnail with lazy loading."""
+    """demo-gallery.js sets thumb.loading = 'lazy' and reads item.thumbnail."""
     assert "thumb.loading = 'lazy'" in gallery_js
     assert "item.thumbnail" in gallery_js
 
@@ -160,7 +162,7 @@ def test_gallery_renders_display_name_in_title(gallery_js: str) -> None:
 
 
 def test_gallery_renders_description_when_present(gallery_js: str) -> None:
-    """Cards include a description element when item has a description."""
+    """demo-gallery.js contains item.description and gallery-card-desc."""
     assert "item.description" in gallery_js
     assert "gallery-card-desc" in gallery_js
 
@@ -169,18 +171,18 @@ def test_gallery_renders_description_when_present(gallery_js: str) -> None:
 
 
 def test_card_click_finds_item_by_dataset_name(gallery_js: str) -> None:
-    """Click handler looks up item by card's data-name attribute."""
+    """demo-gallery.js contains card.dataset.name and items.find."""
     assert "card.dataset.name" in gallery_js
     assert "items.find" in gallery_js
 
 
 def test_card_click_skips_already_selected(gallery_js: str) -> None:
-    """Clicking the already-selected card does not re-trigger onSelect."""
+    """demo-gallery.js compares name === selectedName."""
     assert "name === selectedName" in gallery_js
 
 
 def test_card_click_highlights_and_calls_onselect(gallery_js: str) -> None:
-    """Click handler highlights the card and invokes onSelect callback."""
+    """demo-gallery.js contains _highlightCard."""
     # Checks only that _highlightCard exists, not the call order or the onSelect call.
     assert "_highlightCard" in gallery_js
 
@@ -189,7 +191,7 @@ def test_card_click_highlights_and_calls_onselect(gallery_js: str) -> None:
 
 
 def test_scene_gallery_onselect_resolves_paths(scene_js: str) -> None:
-    """Gallery onSelect callback resolves mesh/cloud paths before loading."""
+    """demo-scene.js calls resolveItemPaths(item) and uses paths.mesh and paths.cloud."""
     assert "resolveItemPaths(item)" in scene_js
     assert "paths.mesh" in scene_js
     assert "paths.cloud" in scene_js
@@ -206,17 +208,17 @@ def test_scene_passes_three_args_to_load(scene_js: str) -> None:
 
 
 def test_scene_reads_query_param(scene_js: str) -> None:
-    """demo-scene.js reads ?name= query param on init."""
+    """demo-scene.js contains getQueryParamName."""
     assert "getQueryParamName" in scene_js
 
 
 def test_query_param_selects_or_falls_back(scene_js: str) -> None:
-    """When ?name= doesn't match, first item is selected as fallback."""
+    """demo-scene.js contains !queryName || !gallery.selectByName(queryName)."""
     assert "!queryName || !gallery.selectByName(queryName)" in scene_js
 
 
 def test_gallery_select_by_name_returns_bool(gallery_js: str) -> None:
-    """selectByName returns false when name not found, true on success."""
+    """demo-gallery.js contains return false and return true."""
     assert "return false" in gallery_js
     assert "return true" in gallery_js
 
@@ -225,7 +227,7 @@ def test_gallery_select_by_name_returns_bool(gallery_js: str) -> None:
 
 
 def test_gallery_filter_extracts_sorted_categories(gallery_js: str) -> None:
-    """Categories are extracted as a sorted unique set with 'All' first."""
+    """demo-gallery.js contains Array.from(set).sort() and ALL_CATEGORY."""
     assert "Array.from(set).sort()" in gallery_js
     assert "ALL_CATEGORY" in gallery_js
 
@@ -236,20 +238,20 @@ def test_gallery_filter_creates_buttons_with_data_category(gallery_js: str) -> N
 
 
 def test_gallery_filter_click_updates_active_highlight(gallery_js: str) -> None:
-    """Clicking a filter button updates which button has the active class."""
+    """demo-gallery.js contains _updateFilterHighlight and classList.toggle('active'."""
     assert "_updateFilterHighlight" in gallery_js
     assert "classList.toggle('active'" in gallery_js
 
 
 def test_gallery_filter_hides_non_matching_cards(gallery_js: str) -> None:
-    """Cards whose category doesn't match the filter are hidden via display:none."""
+    """demo-gallery.js contains card.style.display and card.dataset.category === category."""
     # _filterCards sets card.style.display = 'none' for non-matching
     assert "card.style.display" in gallery_js
     assert "card.dataset.category === category" in gallery_js
 
 
 def test_gallery_all_category_shows_all_cards(gallery_js: str) -> None:
-    """Selecting 'All' category shows all cards."""
+    """demo-gallery.js compares category === ALL_CATEGORY."""
     assert "category === ALL_CATEGORY" in gallery_js
 
 
@@ -290,13 +292,13 @@ def test_display_no_legacy_two_arg_fallback(display_js: str) -> None:
 
 
 def test_gallery_close_wired_in_scene(scene_js: str) -> None:
-    """demo-scene.js wires the gallery-close button to collapse the panel."""
+    """demo-scene.js contains gallery-close and classList.add('collapsed')."""
     assert "gallery-close" in scene_js
     assert "classList.add('collapsed')" in scene_js
 
 
 def test_gallery_toggle_uses_css_class_not_inline_style(scene_js: str) -> None:
-    """Toggle button visibility is controlled via CSS class, not inline style."""
+    """demo-scene.js adds and removes the hidden class."""
     assert "classList.add('hidden')" in scene_js
     assert "classList.remove('hidden')" in scene_js
 
@@ -305,7 +307,7 @@ def test_gallery_toggle_uses_css_class_not_inline_style(scene_js: str) -> None:
 
 
 def test_manifest_schema_fields(gallery_js: str) -> None:
-    """Gallery handles all manifest fields."""
+    """demo-gallery.js contains each manifest field name."""
     for field in ["name", "category", "display_name", "thumbnail", "mesh", "cloud", "description"]:
         assert field in gallery_js, f"Gallery JS missing handling for '{field}'"
 
@@ -320,6 +322,6 @@ def test_scene_imports_gallery(scene_js: str) -> None:
 
 
 def test_gallery_module_listed_in_demo_page_test() -> None:
-    """demo-gallery.js is importable as a static resource."""
+    """demo-gallery.js can be read as a static resource and is not empty."""
     content = _read_static_file("demo-gallery.js")
     assert content

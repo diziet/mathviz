@@ -40,7 +40,8 @@ class TestColorMapViewModeOption:
 
 
 class TestColorMapControlsVisibility:
-    """Selecting Color Map mode shows the metric and gradient selectors."""
+    """The color map controls start hidden and hold the metric and gradient
+    selectors."""
 
     def test_colormap_controls_hidden_by_default(self, html: str) -> None:
         """Color map controls are hidden when not in color map mode."""
@@ -57,7 +58,7 @@ class TestColorMapControlsVisibility:
         assert 'id="colormap-gradient"' in html
 
     def test_enter_colormap_shows_controls(self, html: str) -> None:
-        """enterColorMapMode sets controls to visible."""
+        """Preview HTML has colormap-controls followed later by display and block."""
         assert re.search(
             r"colormap-controls.*display.*block", html, re.DOTALL
         ), "enterColorMapMode should show colormap controls"
@@ -72,7 +73,7 @@ class TestHeightMetric:
         assert "Height (Z)" in html
 
     def test_height_uses_z_coordinate(self, html: str) -> None:
-        """Height metric reads the Z coordinate (index 2) from position array."""
+        """Preview HTML reads posArray[i * 3 + 2], the Z coordinate."""
         assert re.search(
             r"posArray\[i \* 3 \+ 2\]", html
         ), "Height metric should read Z coordinate"
@@ -94,27 +95,27 @@ class TestDistanceMetric:
 
 
 class TestMetricUpdateWithoutRegeneration:
-    """Changing metric updates colors without regenerating geometry."""
+    """Tests for updateColorMap and the selectors that should call it."""
 
     def test_update_color_map_function(self, html: str) -> None:
         """updateColorMap function exists for recoloring in place."""
         assert "function updateColorMap" in html
 
     def test_metric_change_calls_update(self, html: str) -> None:
-        """Metric selector change event calls updateColorMap."""
+        """Preview HTML has updateColorMap somewhere after colormap-metric."""
         assert re.search(
             r"colormap-metric.*updateColorMap", html, re.DOTALL
         ), "Metric change should trigger updateColorMap"
 
     def test_gradient_change_calls_update(self, html: str) -> None:
-        """Gradient selector change event calls updateColorMap."""
+        """Preview HTML has updateColorMap somewhere after colormap-gradient."""
         assert re.search(
             r"colormap-gradient.*updateColorMap", html, re.DOTALL
         ), "Gradient change should trigger updateColorMap"
 
 
 class TestGradientPresets:
-    """Gradient presets produce visually distinct color mappings."""
+    """Gradient presets and the custom gradient are offered in the selector."""
 
     @pytest.mark.parametrize("name", ["viridis", "inferno", "coolwarm", "rainbow"])
     def test_gradient_preset_option(self, html: str, name: str) -> None:
@@ -129,7 +130,7 @@ class TestGradientPresets:
         assert 'id="colormap-end-color"' in html
 
     def test_gradient_data_structure(self, html: str) -> None:
-        """Gradient color stops are defined as RGB arrays."""
+        """Preview HTML defines a COLORMAP_GRADIENTS object."""
         assert "COLORMAP_GRADIENTS" in html
         assert re.search(
             r"COLORMAP_GRADIENTS\s*=\s*\{", html
@@ -137,16 +138,16 @@ class TestGradientPresets:
 
 
 class TestColorMapWithGeometryTypes:
-    """Color mapping works with both point clouds and meshes."""
+    """Points and mesh materials are created with vertexColors: true."""
 
     def test_applies_to_points(self, html: str) -> None:
-        """Color map applies vertex colors to Points objects."""
+        """Preview HTML creates a PointsMaterial with vertexColors: true."""
         assert re.search(
             r"PointsMaterial\(\{[^}]*vertexColors:\s*true", html
         ), "PointsMaterial with vertexColors should be created"
 
     def test_applies_to_meshes(self, html: str) -> None:
-        """Color map applies vertex colors to Mesh objects."""
+        """Preview HTML creates a MeshStandardMaterial with vertexColors: true."""
         assert re.search(
             r"MeshStandardMaterial\(\{[^}]*vertexColors:\s*true", html
         ), "MeshStandardMaterial with vertexColors should be created"
@@ -159,36 +160,37 @@ class TestColorMapWithGeometryTypes:
 
 
 class TestExitColorMapMode:
-    """Switching away from Color Map mode restores original material."""
+    """Tests for exitColorMapMode and the switch away from Color Map mode."""
 
     def test_exit_function_exists(self, html: str) -> None:
         """exitColorMapMode function is defined."""
         assert "function exitColorMapMode" in html
 
     def test_exit_restores_materials(self, html: str) -> None:
-        """exitColorMapMode restores pre-colormap materials."""
+        """Preview HTML contains preColormapMaterial."""
         assert "preColormapMaterial" in html
 
     def test_exit_disposes_colormap_materials(self, html: str) -> None:
-        """exitColorMapMode disposes color map materials."""
+        """Preview HTML calls child.material.dispose()."""
         assert re.search(
             r"child\.material\.dispose\(\)", html
         ), "Color map materials should be disposed on exit"
 
     def test_exit_removes_color_attribute(self, html: str) -> None:
-        """exitColorMapMode removes the color attribute from geometry."""
+        """Preview HTML calls deleteAttribute('color')."""
         assert re.search(
             r"deleteAttribute\('color'\)", html
         ), "Color attribute should be removed on exit"
 
     def test_exit_hides_controls(self, html: str) -> None:
-        """exitColorMapMode hides the color map controls."""
+        """Preview HTML has exitColorMapMode, then colormap-controls, then none."""
         assert re.search(
             r"exitColorMapMode.*colormap-controls.*none", html, re.DOTALL
         ), "Controls should be hidden when exiting colormap mode"
 
     def test_mode_transition_triggers_exit(self, html: str) -> None:
-        """applyViewMode calls exitColorMapMode when leaving colormap."""
+        """Preview HTML has viewMode !== 'colormap', then colormapActive, then
+        exitColorMapMode."""
         assert re.search(
             r"viewMode !== 'colormap'.*colormapActive.*exitColorMapMode",
             html,
@@ -204,13 +206,14 @@ class TestColorMapMaterialLifecycle:
         assert "function swapColormapMaterial" in html
 
     def test_swap_disposes_previous_colormap_material(self, html: str) -> None:
-        """Repeated swaps dispose the previous colormap material."""
+        """Preview HTML calls obj.material.dispose() after swapColormapMaterial."""
         assert re.search(
             r"swapColormapMaterial.*obj\.material\.dispose\(\)", html, re.DOTALL
         ), "swapColormapMaterial should dispose previous material on re-entry"
 
     def test_exit_scoped_to_modified_objects(self, html: str) -> None:
-        """exitColorMapMode only cleans up objects with preColormapMaterial."""
+        """Preview HTML has if (child.userData.preColormapMaterial), later
+        deleteAttribute('color')."""
         assert re.search(
             r"if \(child\.userData\.preColormapMaterial\).*deleteAttribute\('color'\)",
             html,
@@ -219,7 +222,7 @@ class TestColorMapMaterialLifecycle:
 
 
 class TestColorMapNormalization:
-    """Metric values are normalized to [0, 1] for gradient mapping."""
+    """The normalizing, gradient sampling and vertex color functions are defined."""
 
     def test_normalize_function(self, html: str) -> None:
         """normalizeValues function exists."""
@@ -230,5 +233,5 @@ class TestColorMapNormalization:
         assert "function sampleGradient" in html
 
     def test_build_vertex_colors_function(self, html: str) -> None:
-        """buildVertexColors function computes final RGB array."""
+        """buildVertexColors function is defined."""
         assert "function buildVertexColors" in html

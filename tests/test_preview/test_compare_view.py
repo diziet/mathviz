@@ -66,19 +66,20 @@ class TestViewportSplitting:
     """Tests for viewport splitting with setViewport/setScissor."""
 
     def test_2x2_creates_4_viewports(self, preview_html: str) -> None:
-        """Selecting 2x2 mode creates 4 viewport regions in the canvas."""
+        """Preview HTML calls setViewport and setScissor and loops over
+        state.comparePanels."""
         assert "setViewport" in preview_html
         assert "setScissor" in preview_html
         assert "for (const panel of state.comparePanels)" in preview_html
 
     def test_3x3_creates_9_viewports(self, preview_html: str) -> None:
-        """Selecting 3x3 mode creates 9 viewport regions via grid dimension."""
+        """Preview HTML contains getGridDimension and '3x3'."""
         assert "getGridDimension" in preview_html
         # 3x3 returns dim=3, so 3*3=9 panels
         assert "'3x3'" in preview_html
 
     def test_viewport_uses_scissor_test(self, preview_html: str) -> None:
-        """Compare mode render enables scissor test for clean viewport regions."""
+        """Preview HTML calls setScissorTest(true)."""
         assert "setScissorTest(true)" in preview_html
 
 
@@ -102,7 +103,7 @@ class TestPerPanelScenes:
     """Tests for independent per-panel scenes."""
 
     def test_each_panel_has_own_scene(self, preview_html: str) -> None:
-        """Each viewport has its own scene with independent geometry."""
+        """Preview HTML contains createPanelScene and new THREE.Scene()."""
         assert "createPanelScene" in preview_html
         assert "new THREE.Scene()" in preview_html
 
@@ -128,24 +129,24 @@ class TestPanelOverlay:
     def test_panel_overlay_created_for_each_viewport(
         self, preview_html: str,
     ) -> None:
-        """Per-panel parameter overlay is present in the DOM for each viewport."""
+        """Preview HTML contains panel-overlay and createPanelOverlayDOM."""
         assert "panel-overlay" in preview_html
         assert "createPanelOverlayDOM" in preview_html
 
     def test_overlay_has_summary(self, preview_html: str) -> None:
-        """Each overlay has a summary line showing seed/param diffs."""
+        """Preview HTML contains overlay-summary."""
         assert "overlay-summary" in preview_html
 
     def test_overlay_has_editor(self, preview_html: str) -> None:
-        """Each overlay has an inline parameter editor."""
+        """Preview HTML contains overlay-editor."""
         assert "overlay-editor" in preview_html
 
     def test_overlay_expands_on_click(self, preview_html: str) -> None:
-        """Clicking the overlay toggles the expanded class."""
+        """Preview HTML calls overlay.classList.toggle('expanded')."""
         assert "overlay.classList.toggle('expanded')" in preview_html
 
     def test_overlay_collapses_on_escape(self, preview_html: str) -> None:
-        """Pressing Escape collapses expanded overlays."""
+        """Preview HTML contains Escape and panel-overlay."""
         assert "Escape" in preview_html
         assert "panel-overlay" in preview_html
 
@@ -154,17 +155,17 @@ class TestExitCompareMode:
     """Tests for exiting compare mode."""
 
     def test_exit_returns_to_single_view(self, preview_html: str) -> None:
-        """Exiting compare mode returns to single-view with panel 1's geometry."""
+        """exitCompareMode refers to comparePanels[0] and sets state.compareMode
+        = null."""
         assert "exitCompareMode" in preview_html
         exit_fn = preview_html.split("function exitCompareMode")[1].split(
             "/* Compare mode toggle */"
         )[0]
-        # Panel 0 geometry is cloned back to main scene
         assert "comparePanels[0]" in exit_fn
         assert "state.compareMode = null" in exit_fn
 
     def test_exit_cleans_up_panel_dom(self, preview_html: str) -> None:
-        """Exiting compare mode removes panel labels and overlays."""
+        """exitCompareMode calls removeAllPanelDOM."""
         exit_fn = preview_html.split("function exitCompareMode")[1].split(
             "/* Compare mode toggle */"
         )[0]
@@ -175,19 +176,19 @@ class TestSharedControls:
     """Tests for shared controls applying to all panels."""
 
     def test_view_mode_applies_to_all_panels(self, preview_html: str) -> None:
-        """Shared view mode control applies to all panels."""
+        """Preview HTML contains applyViewModeToAllPanels."""
         assert "applyViewModeToAllPanels" in preview_html
 
     def test_point_size_applies_to_all_panels(self, preview_html: str) -> None:
-        """Shared point size slider applies to all panels."""
+        """Preview HTML contains updatePointSizeInPanels."""
         assert "updatePointSizeInPanels" in preview_html
 
     def test_background_applies_to_all_panels(self, preview_html: str) -> None:
-        """Shared background toggle applies to all panels."""
+        """Preview HTML contains updatePanelBackgrounds."""
         assert "updatePanelBackgrounds" in preview_html
 
     def test_bbox_applies_to_all_panels(self, preview_html: str) -> None:
-        """Shared bounding box toggle applies to all panels."""
+        """Preview HTML contains updatePanelBBoxVisibility."""
         assert "updatePanelBBoxVisibility" in preview_html
 
 
@@ -195,7 +196,7 @@ class TestPanelLabels:
     """Tests for panel labels in compare mode."""
 
     def test_panel_labels_exist(self, preview_html: str) -> None:
-        """Each panel has a label in the top-left corner."""
+        """Preview HTML contains panel-label and PANEL_LABELS."""
         assert "panel-label" in preview_html
         assert "PANEL_LABELS" in preview_html
 
@@ -205,15 +206,14 @@ class TestPanelLabels:
 
 
 class TestPanelIndependence:
-    """Tests that changing params in one panel does not affect others."""
+    """Tests for per-panel params and regeneration."""
 
     def test_per_panel_regeneration(self, preview_html: str) -> None:
-        """Each panel generates independently via regeneratePanel."""
+        """regeneratePanel exists, and its body refers to panel.scene."""
         assert "regeneratePanel" in preview_html
         regen_fn = preview_html.split("async function regeneratePanel")[1].split(
             "function addBoundingBoxToScene"
         )[0]
-        # Only updates the specific panel's scene
         assert "panel.scene" in regen_fn
 
     def test_panel_has_independent_params(self, preview_html: str) -> None:
@@ -227,7 +227,7 @@ class TestPanelIndependence:
     def test_overlay_apply_only_regenerates_one_panel(
         self, preview_html: str,
     ) -> None:
-        """Applying overlay params only regenerates that specific panel."""
+        """applyPanelOverlay calls regeneratePanel(panelIndex)."""
         apply_fn = preview_html.split("async function applyPanelOverlay")[1].split(
             "async function regeneratePanel"
         )[0]
@@ -238,11 +238,11 @@ class TestPanelSpinner:
     """Tests for per-panel loading spinner."""
 
     def test_panel_spinner_exists(self, preview_html: str) -> None:
-        """Each panel has a loading spinner element."""
+        """Preview HTML contains panel-spinner."""
         assert "panel-spinner" in preview_html
 
     def test_spinner_shown_during_generation(self, preview_html: str) -> None:
-        """Spinner is shown when a panel is regenerating."""
+        """Preview HTML contains setPanelSpinner."""
         assert "setPanelSpinner" in preview_html
 
 
@@ -258,7 +258,8 @@ class TestCompareState:
         assert "comparePanels:" in preview_html
 
     def test_enter_compare_populates_panels(self, preview_html: str) -> None:
-        """Entering compare mode creates panels with current generator."""
+        """enterCompareMode's body contains createPanelData and
+        state.comparePanels."""
         enter_fn = preview_html.split("async function enterCompareMode")[1].split(
             "function exitCompareMode"
         )[0]

@@ -63,7 +63,8 @@ class TestBatchGenerate:
             assert panel["error"] is None
 
     def test_batch_uses_parallel_execution(self, client: TestClient) -> None:
-        """Batch generation submits jobs to a ProcessPoolExecutor."""
+        """Batch generation uses a pool with more than 1 worker and submits all 4
+        panels."""
         import mathviz.preview.executor as executor_mod
 
         original_ensure = executor_mod.GenerationExecutor._ensure_batch_pool
@@ -129,7 +130,8 @@ class TestBatchGenerate:
         assert len(set(ids)) == 3
 
     def test_batch_respects_timeout(self, client: TestClient) -> None:
-        """Batch respects the generation timeout."""
+        """When submit_batch returns a timed-out result, the response has
+        timed_out True and an error on each panel."""
         import mathviz.preview.server as server_mod
         from mathviz.preview.executor import (
             BATCH_TIMEOUT_ERROR,
@@ -164,7 +166,8 @@ class TestBatchGenerate:
         assert "empty" in resp.json()["detail"].lower()
 
     def test_single_panel_batch_works(self, client: TestClient) -> None:
-        """Single-panel batch works the same as regular generate."""
+        """A single-panel batch returns one panel with geometry_id and mesh_url,
+        no error."""
         panel = _make_panel(seed=42)
         resp = client.post("/api/generate-batch", json={"panels": [panel]})
         assert resp.status_code == 200
@@ -175,7 +178,7 @@ class TestBatchGenerate:
         assert data["panels"][0]["error"] is None
 
     def test_cached_panels_skip_generation(self, client: TestClient) -> None:
-        """Already-cached panels are not regenerated."""
+        """Two identical batch requests return the same geometry_id."""
         panel = _make_panel(seed=42)
 
         # First call generates
@@ -183,7 +186,7 @@ class TestBatchGenerate:
         assert resp1.status_code == 200
         gid1 = resp1.json()["panels"][0]["geometry_id"]
 
-        # Second call should use cache
+        # Second call with the same panel
         resp2 = client.post("/api/generate-batch", json={"panels": [panel]})
         assert resp2.status_code == 200
         gid2 = resp2.json()["panels"][0]["geometry_id"]
