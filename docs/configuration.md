@@ -175,6 +175,7 @@ MathViz reads these environment variables:
 |---|---|---|
 | `MATHVIZ_SNAPSHOTS_DIR` | `~/.mathviz/snapshots` | Directory for saved preview snapshots (geometry, metadata, thumbnails) |
 | `MATHVIZ_GENERATION_TIMEOUT` | `300` | Maximum generation time in seconds for the preview server. Values ≤ 0 are ignored with a warning. |
+| `MATHVIZ_THUMBNAILS_DIR` | `~/.mathviz/thumbnails` | Directory for cached generator thumbnails, stored as `<view_mode>/<name>.webp` |
 | `PYVISTA_OFF_SCREEN` | (unset) | Set to `true` for headless rendering without a display (see [rendering.md](rendering.md)) |
 
 ~~Environment variables are checked at startup.~~ MathViz reads

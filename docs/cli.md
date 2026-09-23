@@ -141,6 +141,7 @@ mathviz export-demo [OPTIONS]
 | `--generators` | string | curated list of 15 | Comma-separated generator names, or 'all' |
 | `--output` | path | dist/ | Output directory for the demo site |
 | `--profile` | string | preview | Sampling profile name (e.g. preview, production) |
+| `--no-presets` | flag | | Ignore snapshots and presets file; use generator defaults |
 | `--verbose` | flag | | Enable debug logging |
 | `--quiet` | flag | | Suppress non-error output |
 
@@ -264,6 +265,8 @@ mathviz render <generator_name> --output <path.png> [OPTIONS]
 | `--seed` | int | 42 | Random seed |
 | `--width` | int | 1920 | Image width in pixels |
 | `--height` | int | 1080 | Image height in pixels |
+| `--style` | string | vertex | Render style: <!-- fact:render-styles -->shaded, wireframe, vertex<!-- /fact --> |
+| `--point-size` | float | 3.0 | Point size for vertex style |
 | `--verbose` | flag | | Enable debug logging |
 | `--quiet` | flag | | Suppress non-error output |
 
@@ -291,6 +294,8 @@ mathviz render-2d <generator_name> --output <path.png> [OPTIONS]
 | `--seed` | int | 42 | Random seed |
 | `--width` | int | 1920 | Image width in pixels |
 | `--height` | int | 1080 | Image height in pixels |
+| `--style` | string | vertex | Render style: <!-- fact:render-styles -->shaded, wireframe, vertex<!-- /fact --> |
+| `--point-size` | float | 3.0 | Point size for vertex style |
 | `--verbose` | flag | | Enable debug logging |
 | `--quiet` | flag | | Suppress non-error output |
 
