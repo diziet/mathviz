@@ -284,12 +284,10 @@ def generate_docs() -> str:
     notes = _load_notes()
     all_generators = list_generators()
 
-    # Group by category
     gen_by_cat: dict[str, list[GeneratorMeta]] = {}
     for meta in all_generators:
         gen_by_cat.setdefault(meta.category, []).append(meta)
 
-    # Sort generators within each category by name
     for cat in gen_by_cat:
         gen_by_cat[cat].sort(key=lambda m: m.name)
 

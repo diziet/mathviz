@@ -37,7 +37,7 @@ from merge_gate import (
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 GATE_CMD_ENV = "MATHVIZ_MERGE_GATE_CMD"
-# Subprocess output bypasses our buffer; flush so status lines stay in order.
+# Subprocess output bypasses this process's stdout buffer; flush so status lines stay in order.
 say = partial(print, flush=True)
 
 

@@ -118,7 +118,7 @@ def _run_render(
     quiet: bool,
 ) -> None:
     """Shared render logic for render and render-2d commands."""
-    # Validate view name early
+    # Reject an unknown view name before running the pipeline
     if view != "all":
         try:
             resolve_view_name(view)

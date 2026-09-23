@@ -1,7 +1,7 @@
-"""Demo site builder — package-importable entry point for export-demo CLI.
+"""Demo site builder: the importable entry point behind the export-demo command.
 
-Provides :func:`build_demo` which orchestrates the full static demo build:
-resolve generators, run pipeline, export assets, write manifest.
+:func:`build_demo` runs the static demo build. It resolves the generators, runs
+the pipeline, exports the assets and writes the manifest.
 """
 
 import json

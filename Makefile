@@ -61,7 +61,7 @@ test: ## Blocking gate: pytest with the pyproject.toml defaults (xdist, not slow
 gate: ## Blocking gate: gate-wiring-check, lint, test under the gate lock; make merge runs the same stages
 	$(LOCKED) bash scripts/gate.sh
 
-gate-wiring-check: ## Blocking gate: every test collected, no orphan script, blocking targets wired
+gate-wiring-check: ## Blocking gate: every test collected, no orphan script, every Blocking-gate target run by gate
 	$(PY) scripts/check_gate_wiring.py
 
 # ---- Workflow ---------------------------------------------------------------------------------
@@ -77,5 +77,5 @@ sync: ## Sanctioned path for updating the current branch: fetch + fast-forward; 
 merge: ## Sanctioned path for landing a PR: make merge pr=N [keep=1] [dry_run=1]; the only merge path
 	$(PY) scripts/merge.py --pr "$(pr)" $(if $(keep),--keep,) $(if $(dry_run),--dry-run,)
 
-branches-gc: ## Advisory: triage local branches/worktrees (merged, superseded, open-PR, checked-out); args="--delete" removes the safe class
+branches-gc: ## Advisory: report local branches/worktrees as merged, superseded, open-PR or checked-out; args="--delete" deletes only merged branches
 	$(PY) scripts/branches_gc.py $(args)
