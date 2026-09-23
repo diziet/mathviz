@@ -153,6 +153,7 @@ See [docs/cli.md](docs/cli.md) for full flag reference and examples.
 - [Demo Site](docs/demo.md) — building, previewing, and deploying the static demo gallery
 - [Grid Layout](docs/grid.md) — grid manifest format and grid CLI
 - [Python API](docs/api.md) — using MathViz as a Python library
+- [Writing Style](docs/writing-style.md) — rules for prose in docs, comments, test names, and pull requests
 
 ## Testing
 
