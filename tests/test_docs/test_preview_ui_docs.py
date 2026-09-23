@@ -117,11 +117,11 @@ class TestPreviewUiFeatureCoverage:
 
 
 class TestKeyboardShortcutCoverage:
-    """Tests that every keyboard shortcut in code has a docs entry."""
+    """Tests that each CODE_KEYBOARD_SHORTCUTS string is in preview-ui.md."""
 
     @pytest.mark.parametrize("shortcut", CODE_KEYBOARD_SHORTCUTS)
     def test_shortcut_documented(self, shortcut: str) -> None:
-        """Each keyboard shortcut from code appears in preview-ui.md."""
+        """Each shortcut string appears in preview-ui.md (any case)."""
         content = read_text(PREVIEW_UI_DOC).lower()
         assert shortcut.lower() in content, (
             f"Keyboard shortcut '{shortcut}' not found in docs/preview-ui.md"
@@ -135,7 +135,7 @@ class TestKeyboardShortcutCoverage:
         )
 
     def test_shortcut_table_has_entries(self) -> None:
-        """The keyboard shortcuts section contains a table with entries."""
+        """After "## Keyboard Shortcuts" come at least 8 table data rows."""
         content = read_text(PREVIEW_UI_DOC)
         shortcuts_section = content.split("## Keyboard Shortcuts")[-1]
         table_rows = [

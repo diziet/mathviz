@@ -40,22 +40,22 @@ PIPELINE_STAGES = [
 
 
 class TestReadmeCompleteness:
-    """README contains all required sections."""
+    """README contains the words that mark its required sections."""
 
     def test_readme_has_install_section(self) -> None:
-        """README contains install instructions."""
+        """README contains the word "install" (any case)."""
         content = read_text(README_PATH).lower()
         assert "install" in content, "README.md missing install section"
 
     def test_readme_has_run_section(self) -> None:
-        """README contains instructions to run the tool."""
+        """README contains "quickstart" or "run" (any case)."""
         content = read_text(README_PATH).lower()
         assert "quickstart" in content or "run" in content, (
             "README.md missing run/quickstart section"
         )
 
     def test_readme_has_test_section(self) -> None:
-        """README contains testing instructions."""
+        """README contains "testing" or "pytest" (any case)."""
         content = read_text(README_PATH).lower()
         assert "testing" in content or "pytest" in content, (
             "README.md missing test section"
@@ -104,7 +104,7 @@ class TestPipelineDocCompleteness:
 
 
 class TestMarkdownValidity:
-    """All doc files are valid markdown with no broken headers."""
+    """No doc file has an empty heading."""
 
     @pytest.mark.parametrize(
         "filename",

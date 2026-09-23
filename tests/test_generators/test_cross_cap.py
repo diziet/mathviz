@@ -1,6 +1,6 @@
 """Tests for the cross-cap surface generator.
 
-Covers: mesh validity, non-orientability, registration, representation,
+Covers: mesh validity, vertices near the origin, registration, representation,
 determinism, parameter validation, and bounding box correctness.
 """
 
@@ -43,11 +43,7 @@ def test_no_nan_or_inf_in_vertices() -> None:
 
 
 def test_self_intersections_present() -> None:
-    """Cross-cap has self-intersections in R³.
-
-    Multiple topologically distant vertices collapse near the origin,
-    confirming the self-intersecting immersion.
-    """
+    """At grid_resolution=64, over one vertex lies within 0.05 of the origin."""
     gen = CrossCapGenerator()
     obj = gen.generate(grid_resolution=64)
     assert obj.mesh is not None

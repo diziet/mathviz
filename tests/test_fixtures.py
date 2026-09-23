@@ -187,16 +187,15 @@ class TestFixtureMetadata:
 
 
 class TestFixtureSanity:
-    """Checks that the fixture comparisons detect a real mismatch."""
+    """Checks that lorenz at another seed does not match the reference bounding box."""
 
     def test_wrong_seed_produces_mismatch(self) -> None:
-        """A deliberately wrong seed produces different output for lorenz.
+        """Lorenz at seed 99 has a min_corner that differs from the reference's.
 
         The lorenz generator uses seed to perturb the initial condition
         (see LorenzGenerator.generate: rng.normal(scale=1e-3, size=3)),
         so different seeds produce divergent trajectories and different
-        bounding boxes. A mismatch here shows that the bounding-box comparison
-        detects a real difference.
+        bounding boxes.
         """
         ref = REFERENCE["lorenz"]
         result_wrong_seed = _run_generator("lorenz", seed=99)

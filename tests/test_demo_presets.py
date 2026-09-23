@@ -86,7 +86,7 @@ class TestResolveDemoPreset:
         assert seed == 99
 
     def test_no_presets_flag_uses_defaults(self) -> None:
-        """--no-presets (use_presets=False) ignores both snapshots and file."""
+        """use_presets=False ignores the presets entry and returns the defaults."""
         presets = {"lorenz": {"params": {"sigma": 12}, "seed": 7}}
         params, seed = resolve_demo_preset("lorenz", presets, use_presets=False)
         assert params is None

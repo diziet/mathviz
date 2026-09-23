@@ -33,22 +33,22 @@ class TestReadme:
         assert len(content.strip()) > 0, "README.md is empty"
 
     def test_readme_has_install_section(self) -> None:
-        """README.md contains an install section."""
+        """README.md contains the word "install" (any case)."""
         content = read_text(README_PATH).lower()
         assert "install" in content, "README.md missing install section"
 
     def test_readme_has_quickstart_section(self) -> None:
-        """README.md contains a quickstart section."""
+        """README.md contains the word "quickstart" (any case)."""
         content = read_text(README_PATH).lower()
         assert "quickstart" in content, "README.md missing quickstart section"
 
     def test_readme_has_generators_section(self) -> None:
-        """README.md contains a generators section."""
+        """README.md contains the word "generator" (any case)."""
         content = read_text(README_PATH).lower()
         assert "generator" in content, "README.md missing generators section"
 
     def test_readme_has_cli_section(self) -> None:
-        """README.md contains a CLI section."""
+        """README.md contains the string "cli" (any case)."""
         content = read_text(README_PATH).lower()
         assert "cli" in content, "README.md missing CLI section"
 
@@ -75,7 +75,7 @@ class TestDocsStructure:
 
     @pytest.mark.parametrize("filename", EXPECTED_DOC_FILES)
     def test_doc_file_valid_markdown(self, filename: str) -> None:
-        """Each doc file has valid markdown (starts with heading, no broken headers)."""
+        """Each doc file starts with a level-1 heading and has no empty heading line."""
         path = DOCS_DIR / filename
         content = read_text(path)
         lines = content.strip().split("\n")
