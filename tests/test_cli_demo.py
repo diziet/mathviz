@@ -193,7 +193,6 @@ class TestExportDemoOutputStructure:
         )
         assert result.exit_code == 0
 
-        # Check structure
         assert (out / "data" / "lorenz" / "mesh.glb").is_file()
         assert (out / "data" / "lorenz" / "cloud.ply").is_file()
         assert (out / "data" / "lorenz" / "thumbnail.png").is_file()
@@ -203,7 +202,6 @@ class TestExportDemoOutputStructure:
         assert len(manifest) == 1
         assert manifest[0]["name"] == "lorenz"
 
-        # Verify _copy_static_assets was called with the output dir
         mock_static.assert_called_once_with(out)
 
 

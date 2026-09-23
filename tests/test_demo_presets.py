@@ -250,7 +250,7 @@ class TestExportPresetsScript:
 
     @pytest.fixture(autouse=True)
     def _add_scripts_to_path(self) -> None:
-        """Ensure scripts/ is on sys.path for import."""
+        """Put scripts/ on sys.path so the script module can be imported."""
         scripts_dir = str(Path(__file__).resolve().parent.parent / "scripts")
         if scripts_dir not in sys.path:
             sys.path.insert(0, scripts_dir)

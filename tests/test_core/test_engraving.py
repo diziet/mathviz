@@ -334,7 +334,7 @@ class TestEdgeCases:
         assert len(result.point_cloud.points) == 0
 
     def test_single_point(self) -> None:
-        """Single point cloud is handled gracefully."""
+        """optimize() accepts a one-point cloud without raising."""
         cloud = PointCloud(
             points=np.array([[1.0, 2.0, 3.0]], dtype=np.float64)
         )

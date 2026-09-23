@@ -162,7 +162,7 @@ class TestPipelineTimer:
         assert "a" in timer.timings
         with timer.stage("a"):
             _ = sum(range(10000))
-        # Overwrites, doesn't crash
+        # A repeated stage name replaces the timing and does not raise.
         assert "a" in timer.timings
         assert isinstance(timer.timings["a"], float)
 
@@ -176,7 +176,7 @@ class TestPipelineRunner:
     def test_full_pipeline_produces_valid_output_and_timing(
         self, run_cube: Callable[..., PipelineResult]
     ) -> None:
-        """Full pipeline with all stages produces valid output and timing."""
+        """A run with every stage returns a point cloud, a ValidationResult and stage timings."""
         result = run_cube(
             representation_config=RepresentationConfig(
                 type=RepresentationType.SURFACE_SHELL,

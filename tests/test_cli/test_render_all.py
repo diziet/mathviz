@@ -194,9 +194,9 @@ class TestFilterGenerators:
         assert selected == ["lorenz"]
 
     def test_aliases_resolved_to_canonical(self) -> None:
-        """Generator aliases are resolved to canonical names."""
-        # "side" view alias won't work here — need a generator alias
-        # All generators go through get_generator_meta which resolves aliases
+        """A canonical generator name passes through _filter_generators unchanged."""
+        # No alias is passed: "side" is a view alias, not a generator alias.
+        # _filter_generators resolves aliases through _resolve_to_canonical.
         selected = _filter_generators(["lorenz"])
         assert selected == ["lorenz"]
 

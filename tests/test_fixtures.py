@@ -187,7 +187,7 @@ class TestFixtureMetadata:
 
 
 class TestFixtureSanity:
-    """Sanity checks that verify the tests actually detect mismatches."""
+    """Checks that the fixture comparisons detect a real mismatch."""
 
     def test_wrong_seed_produces_mismatch(self) -> None:
         """A deliberately wrong seed produces different output for lorenz.
@@ -195,8 +195,8 @@ class TestFixtureSanity:
         The lorenz generator uses seed to perturb the initial condition
         (see LorenzGenerator.generate: rng.normal(scale=1e-3, size=3)),
         so different seeds produce divergent trajectories and different
-        bounding boxes. This validates our comparison logic actually
-        catches real differences.
+        bounding boxes. A mismatch here shows that the bounding-box comparison
+        detects a real difference.
         """
         ref = REFERENCE["lorenz"]
         result_wrong_seed = _run_generator("lorenz", seed=99)

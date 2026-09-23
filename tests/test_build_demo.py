@@ -133,8 +133,8 @@ class TestBuildDemoOutput:
         """Script produces dist/index.html and dist/manifest.json."""
         build_demo.build_demo("all", output_dir, "preview")
 
-        # Script delegates to library; manifest is written but index.html
-        # comes from _copy_static_assets which is mocked, so only check manifest
+        # index.html comes from _copy_static_assets, which is mocked, so only the
+        # manifest is checked.
         assert (output_dir / "manifest.json").is_file()
 
     @pytest.mark.usefixtures("_mock_pipeline", "_mock_generators_two")
@@ -187,7 +187,7 @@ class TestManifestSchema:
 
 
 class TestGeneratorFiltering:
-    """Verify --generators flag filters correctly."""
+    """The --generators flag selects which generators are built."""
 
     @pytest.mark.usefixtures("_mock_pipeline", "_mock_generators_two")
     def test_specific_generators_produces_exact_dirs(self, output_dir: Path) -> None:
@@ -208,7 +208,7 @@ class TestGeneratorFiltering:
 
 
 class TestFailureHandling:
-    """Verify that failing generators are skipped gracefully."""
+    """A generator that fails is skipped, and the build continues."""
 
     def test_failing_generator_skipped_with_warning(
         self, output_dir: Path
@@ -304,7 +304,7 @@ class TestParseArgs:
         assert args.profile == "preview"
 
     def test_custom_args(self) -> None:
-        """Custom args are parsed correctly."""
+        """parse_args reads --generators, --output and --profile."""
         args = build_demo.parse_args(
             ["--generators", "lorenz,gyroid", "--output", "build", "--profile", "production"]
         )

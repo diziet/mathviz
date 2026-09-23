@@ -80,7 +80,6 @@ class TestSkipExisting:
             num_points=100,
         )
         result = sample(obj, config)
-        # Should return the same point cloud unchanged
         assert result.point_cloud is existing_cloud
         assert len(result.point_cloud.points) == 1
 
@@ -99,7 +98,6 @@ class TestSkipExisting:
             resample=True,
         )
         result = sample(obj, config)
-        # Should have been resampled with many more points
         assert result.point_cloud is not existing_cloud
         assert len(result.point_cloud.points) > 1
 

@@ -250,11 +250,11 @@ class TestVolumeFill:
         points = result.point_cloud.points
         assert len(points) > 0
 
-        # All points should be inside the cube [-1, 1]^3
+        # Coarse check: the cube spans [-1, 1]^3, and this allows 0.5 of slack.
         assert np.all(points >= -1.0 - 0.5)
         assert np.all(points <= 1.0 + 0.5)
 
-        # Verify using trimesh that points are actually inside
+        # Exact check: trimesh tests containment in the cube mesh.
         box = trimesh.creation.box(extents=[2.0, 2.0, 2.0])
         inside = box.contains(points)
         assert np.all(inside), f"{np.sum(~inside)} points outside mesh"
