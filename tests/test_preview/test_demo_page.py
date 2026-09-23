@@ -87,22 +87,14 @@ def test_demo_loads_glb_from_relative_paths(
 
 def test_demo_has_no_backend_ui_elements(demo_html: str) -> None:
     """demo.html does not include backend-dependent UI elements."""
-    # No generator search input
     assert 'id="generator-search"' not in demo_html
-    # No seed input
     assert 'id="seed-input"' not in demo_html
-    # No parameter panel
     assert 'id="param-panel"' not in demo_html
-    # No container editor
     assert 'id="container-panel"' not in demo_html
-    # No save/load buttons
     assert 'id="save-btn"' not in demo_html
     assert 'id="load-btn"' not in demo_html
-    # No snapshot gallery
     assert 'id="snapshot-gallery"' not in demo_html
-    # No regenerate button
     assert 'id="regenerate-btn"' not in demo_html
-    # No compare mode
     assert 'id="compare-mode"' not in demo_html
 
 

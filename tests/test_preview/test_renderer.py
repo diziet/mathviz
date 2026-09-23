@@ -79,20 +79,16 @@ def _make_mock_pyvista() -> MagicMock:
     mock_pv = MagicMock(spec=ModuleType)
     mock_pv.__name__ = "pyvista"
 
-    # Mock PolyData
     mock_polydata = MagicMock()
     mock_pv.PolyData = MagicMock(return_value=mock_polydata)
 
-    # Mock Plotter
     mock_plotter = MagicMock()
     mock_plotter.camera = MagicMock()
     mock_pv.Plotter = MagicMock(return_value=mock_plotter)
 
-    # Mock Light
     mock_light = MagicMock()
     mock_pv.Light = MagicMock(return_value=mock_light)
 
-    # OFF_SCREEN attribute
     mock_pv.OFF_SCREEN = False
 
     return mock_pv
@@ -137,7 +133,7 @@ class TestRenderToPng:
         with patch.dict(sys.modules, {"pyvista": mock_pv}):
             from mathviz.preview import renderer
 
-            # Force re-evaluation with mocked module
+            # render_to_png imports pyvista at call time, so it gets the mock.
             result = renderer.render_to_png(
                 _sphere_mesh(),
                 output_file,
@@ -148,7 +144,6 @@ class TestRenderToPng:
         assert output_file.exists()
         assert output_file.stat().st_size > 0
 
-        # Verify plotter was created with correct dimensions
         mock_pv.Plotter.assert_called_once_with(
             off_screen=True,
             window_size=[800, 600],
@@ -224,7 +219,6 @@ class TestRender2dProjection:
         assert result == output_file
         assert output_file.exists()
 
-        # Verify parallel projection was enabled
         mock_plotter.enable_parallel_projection.assert_called_once()
 
     def test_top_projection_sets_correct_camera(self, tmp_path: Path) -> None:
@@ -284,14 +278,12 @@ class TestRender2dProjection:
 
             renderer.render_2d_projection(sphere, output_file, view="top")
 
-        # Verify sphere vertices are approximately on a unit sphere
         verts = sphere.mesh.vertices
         radii = np.linalg.norm(verts, axis=1)
         np.testing.assert_allclose(radii, 1.0, atol=0.01)
 
-        # Verify parallel projection + top-down camera were configured
         mock_plotter.enable_parallel_projection.assert_called_once()
-        # Camera position set to look down from Z
+        # The top view looks down the z axis.
         assert mock_plotter.camera.position == (0, 0, 1)
         assert mock_plotter.camera.focal_point == (0, 0, 0)
         assert mock_plotter.camera.up == (0, 1, 0)

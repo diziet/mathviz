@@ -21,7 +21,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> Generator[None, None, None]:
-    """Ensure generators are registered and state is clean."""
+    """Register torus if missing; reset the cache and the served file before and after the test."""
     _ensure_torus_registered()
     reset_cache()
     set_served_file(None)

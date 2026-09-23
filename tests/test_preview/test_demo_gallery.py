@@ -140,7 +140,6 @@ def test_gallery_exports_resolve_paths(gallery_js: str) -> None:
 
 def test_gallery_creates_card_elements_with_dataset_name(gallery_js: str) -> None:
     """Gallery creates card divs with data-name set to the item's name."""
-    # _renderCards sets card.dataset.name = item.name
     assert "card.dataset.name = item.name" in gallery_js
 
 
@@ -171,7 +170,6 @@ def test_gallery_renders_description_when_present(gallery_js: str) -> None:
 
 def test_card_click_finds_item_by_dataset_name(gallery_js: str) -> None:
     """Click handler looks up item by card's data-name attribute."""
-    # The handler reads card.dataset.name, then finds the matching item
     assert "card.dataset.name" in gallery_js
     assert "items.find" in gallery_js
 
@@ -183,7 +181,7 @@ def test_card_click_skips_already_selected(gallery_js: str) -> None:
 
 def test_card_click_highlights_and_calls_onselect(gallery_js: str) -> None:
     """Click handler highlights the card and invokes onSelect callback."""
-    # After finding the item, handler should highlight then call onSelect
+    # Checks only that _highlightCard exists, not the call order or the onSelect call.
     assert "_highlightCard" in gallery_js
 
 
@@ -214,7 +212,6 @@ def test_scene_reads_query_param(scene_js: str) -> None:
 
 def test_query_param_selects_or_falls_back(scene_js: str) -> None:
     """When ?name= doesn't match, first item is selected as fallback."""
-    # Should use inverted condition: if (!queryName || !selectByName(queryName))
     assert "!queryName || !gallery.selectByName(queryName)" in scene_js
 
 
@@ -279,7 +276,7 @@ def test_controls_dropdown_uses_resolved_paths_directly(controls_js: str) -> Non
     """Dropdown handler uses dataset.mesh/cloud without redundant fallback."""
     assert "selected.dataset.mesh" in controls_js
     assert "selected.dataset.cloud" in controls_js
-    # Should NOT have the old broken fallback
+    # dataset.path was the old fallback, which was broken.
     assert "dataset.path" not in controls_js
 
 

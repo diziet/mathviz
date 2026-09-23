@@ -27,7 +27,7 @@ def _ensure_generators_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _setup() -> Generator[None, None, None]:
-    """Ensure generators are registered and cache is clean."""
+    """Register the test generators if missing; reset the cache before and after the test."""
     _ensure_generators_registered()
     reset_cache()
     yield

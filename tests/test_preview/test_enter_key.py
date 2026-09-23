@@ -25,7 +25,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> Generator[None, None, None]:
-    """Ensure generators are registered and cache is clean."""
+    """Register torus if missing; reset the cache before and after the test."""
     _ensure_torus_registered()
     reset_cache()
     yield
@@ -77,7 +77,6 @@ def test_enter_on_seed_triggers_generation(preview_html: str) -> None:
         r"handleEnterKey\s*\(\s*document\.getElementById\s*\(\s*['\"]controls['\"]\s*\)",
         script,
     ), "handleEnterKey not wired to controls panel"
-    # The controls handler invokes applyGenerator
     assert re.search(
         r"applyGenerator\s*\(\s*currentGen\s*,\s*parseSeed\s*\(\s*\)\s*\)",
         script,
@@ -93,8 +92,8 @@ def test_enter_on_container_input_triggers_regeneration(
         r"handleEnterKey\s*\(\s*document\.getElementById\s*\(\s*['\"]container-panel['\"]\s*\)",
         script,
     ), "handleEnterKey not wired to container-panel"
-    # Verify container handler uses applyParams (preserves user parameters)
-    # Find the container-panel handler block and check it calls applyParams
+    # The regex captures the container-panel handler body. It must call
+    # applyParams, which keeps the user's parameter values.
     container_match = re.search(
         r"handleEnterKey\s*\(\s*document\.getElementById\s*\(\s*['\"]container-panel['\"]\s*\)\s*,\s*\(\)\s*=>\s*\{([^}]+)\}",
         script,
