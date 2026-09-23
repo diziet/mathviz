@@ -107,7 +107,7 @@ class TestRenderAllCreatesFiles:
 
     @patch("mathviz.cli_render_batch._render_single_job", _mock_render_single_job)
     def test_workers_1_runs_sequentially(self, tmp_path: Path) -> None:
-        """--workers 1 runs sequentially without error."""
+        """--workers 1 exits 0."""
         result, _ = _invoke_render_all(tmp_path)
         assert result.exit_code == 0
 
@@ -189,7 +189,7 @@ class TestFilterGenerators:
         assert selected == ["lorenz", "torus"]
 
     def test_unknown_generators_filtered_out(self) -> None:
-        """Unknown generator names are filtered out with warning."""
+        """Unknown generator names are filtered out."""
         selected = _filter_generators(["lorenz", "nonexistent_xyz"])
         assert selected == ["lorenz"]
 

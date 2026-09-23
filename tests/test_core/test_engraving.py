@@ -33,7 +33,10 @@ def _assert_idempotent(
     tolerance: float = 0.05,
     check_intensities: bool = False,
 ) -> None:
-    """Assert that running optimize twice produces the same result."""
+    """Assert that a second optimize changes the point count by under tolerance.
+
+    With check_intensities, the intensities must also match within 1e-10.
+    """
     cloud = _make_cloud(num_points, seed=seed)
     obj = _make_obj(cloud)
     container = _default_container()
@@ -132,7 +135,7 @@ class TestShellFade:
 
 
 class TestDepthCompensation:
-    """Depth compensation increases point density at max depth."""
+    """Depth compensation raises point intensities at max depth."""
 
     def test_depth_compensation_boosts_back_intensities(self) -> None:
         """Points at max depth should have higher intensities than front."""
@@ -169,7 +172,7 @@ class TestDepthCompensation:
         )
 
     def test_depth_compensation_factor_controls_ratio(self) -> None:
-        """Higher factor produces larger front-to-back intensity ratio."""
+        """A higher factor gives a larger max-to-min intensity ratio."""
         cloud = _make_cloud(1000)
         container = _default_container()
 
@@ -249,7 +252,7 @@ class TestPointBudget:
         assert len(result.point_cloud.points) <= 500
 
     def test_budget_prefers_high_intensity_points(self) -> None:
-        """When intensities exist, budget keeps highest-intensity points."""
+        """With depth compensation and point_budget=500, mean intensity > 0.6."""
         cloud = _make_cloud(2000)
         obj = _make_obj(cloud)
         profile = EngravingProfile(
@@ -264,7 +267,6 @@ class TestPointBudget:
         intensities = result.point_cloud.intensities
 
         assert intensities is not None
-        # Kept points should have higher mean intensity than original would
         assert intensities.mean() > 0.6
 
 
@@ -272,7 +274,7 @@ class TestIdempotent:
     """optimize(optimize(cloud)) ≈ optimize(cloud) in point count."""
 
     def test_idempotent_shell_fade(self) -> None:
-        """Running shell_fade optimizer twice produces same point count."""
+        """Running shell_fade twice changes the point count by under 5%."""
         _assert_idempotent(EngravingProfile(
             occlusion_mode="shell_fade",
             occlusion_shell_layers=3,
@@ -281,7 +283,7 @@ class TestIdempotent:
         ))
 
     def test_idempotent_radial_gradient(self) -> None:
-        """Running radial gradient optimizer twice produces same count."""
+        """Running radial gradient twice changes the point count by under 5%."""
         _assert_idempotent(
             EngravingProfile(
                 occlusion_mode="radial_gradient",

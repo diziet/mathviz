@@ -179,12 +179,12 @@ class TestGridDimensions:
         assert positions == {(0, 1), (0, 3)}
 
     def test_zero_dimension_raises(self) -> None:
-        """Grid with zero rows or cols raises."""
+        """A grid with zero rows raises."""
         with pytest.raises(ValueError, match="must be >= 1"):
             GridManifest.create(0, 4)
 
     def test_negative_dimension_raises(self) -> None:
-        """Grid with negative dimensions raises."""
+        """A grid with negative rows raises."""
         with pytest.raises(ValueError, match="must be >= 1"):
             GridManifest.create(-1, 4)
 
@@ -213,7 +213,7 @@ class TestGridPersistence:
         assert b12.status == BlockStatus.ASSIGNED
 
     def test_status_transition_updates_disk(self, tmp_path: Path) -> None:
-        """Status transitions update the manifest file on disk."""
+        """After set_status and save, a reload shows the new status, EXPORTED then ERROR."""
         manifest_path = tmp_path / "grid.toml"
         manifest = GridManifest.create(2, 2, manifest_path)
         manifest.assign(0, 0, "lorenz")

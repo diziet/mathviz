@@ -181,7 +181,7 @@ def test_list_generators_returns_metadata() -> None:
 
 
 def test_get_generator_meta() -> None:
-    """get_generator_meta returns full metadata for a registered name."""
+    """get_generator_meta returns the name and class for a registered name."""
 
     @register
     class MetaGen(_BasePlaceholder):

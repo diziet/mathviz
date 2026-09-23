@@ -155,14 +155,14 @@ class TestPipelineTimer:
         assert t1 == t2
 
     def test_duplicate_stage_overwrites(self) -> None:
-        """Duplicate stage name overwrites previous timing."""
+        """A repeated stage name does not raise and still has a float timing."""
         timer = PipelineTimer()
         with timer.stage("a"):
             pass
         assert "a" in timer.timings
         with timer.stage("a"):
             _ = sum(range(10000))
-        # A repeated stage name replaces the timing and does not raise.
+        # A repeated stage name does not raise.
         assert "a" in timer.timings
         assert isinstance(timer.timings["a"], float)
 
@@ -205,7 +205,7 @@ class TestPipelineRunner:
         assert result.math_object.mesh is not None
 
     def test_validate_or_raise_fires_between_stages(self) -> None:
-        """Invalid geometry from generator fails before reaching transformer."""
+        """A generator with no geometry makes run() raise ValueError ("no geometry")."""
         register(_EmptyGenerator)
         with pytest.raises(ValueError, match="no geometry"):
             run(
@@ -251,7 +251,7 @@ class TestPipelineRunner:
     def test_pipeline_uses_default_representation_when_none(
         self, run_cube: Callable[..., PipelineResult]
     ) -> None:
-        """Pipeline uses get_default() when no representation_config given."""
+        """Without a representation_config, the represent stage still runs."""
         result = run_cube()
         assert result.math_object is not None
         assert "represent" in result.timings

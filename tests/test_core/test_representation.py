@@ -124,7 +124,7 @@ class TestTube:
     """TUBE representation tests."""
 
     def test_curve_to_watertight_mesh(self) -> None:
-        """TUBE on a curve input produces a watertight mesh via tube thickening."""
+        """TUBE on a closed curve produces a non-empty triangle mesh."""
         curve = _make_circle_curve()
         obj = MathObject(curves=[curve], generator_name="trefoil_knot")
         config = RepresentationConfig(
@@ -282,7 +282,7 @@ class TestSliceStack:
     """SLICE_STACK representation tests."""
 
     def test_produces_discrete_layers(self) -> None:
-        """SLICE_STACK with slice_count=5 produces roughly 5 discrete z-layers."""
+        """SLICE_STACK with slice_count=5 gives points with at least 4 distinct z-values."""
         mesh = _make_watertight_cube_mesh(size=2.0)
         obj = MathObject(mesh=mesh, generator_name="test")
         config = RepresentationConfig(
@@ -297,7 +297,7 @@ class TestSliceStack:
         points = result.point_cloud.points
         assert len(points) > 0
 
-        # Check that z-values cluster into roughly 5 distinct layers
+        # At least 4 distinct z-values after rounding to 4 decimals; no upper bound
         z_values = points[:, 2]
         unique_z = np.unique(np.round(z_values, decimals=4))
         assert len(unique_z) >= 4, f"Expected ~5 layers, got {len(unique_z)}"
@@ -328,7 +328,7 @@ class TestWireframe:
     """WIREFRAME representation tests."""
 
     def test_produces_tube_mesh_along_edges(self) -> None:
-        """WIREFRAME produces thin tubes along mesh edges."""
+        """WIREFRAME on a cube mesh produces a non-empty mesh."""
         mesh = _make_cube_mesh()
         obj = MathObject(mesh=mesh, generator_name="test")
         config = RepresentationConfig(

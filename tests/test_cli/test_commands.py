@@ -40,7 +40,7 @@ class TestGenerateDryRun:
     """Test generate command with --dry-run."""
 
     def test_dry_run_writes_no_files(self, tmp_path: Path) -> None:
-        """--dry-run writes no files but prints expected output info."""
+        """--dry-run exits 0 and does not write the --output file."""
         output_file = tmp_path / "should_not_exist.ply"
         result = runner.invoke(
             app,
@@ -129,7 +129,7 @@ class TestListCommand:
         assert "torus" in names
 
     def test_list_rich_output(self) -> None:
-        """List without --json produces table output."""
+        """List without --json exits 0 and names torus."""
         result = runner.invoke(app, ["list"])
         assert result.exit_code == 0
         assert "torus" in result.output
@@ -139,7 +139,7 @@ class TestInfoCommand:
     """Test info command."""
 
     def test_info_torus_json_valid(self) -> None:
-        """mathviz info torus --json produces valid JSON param schema."""
+        """mathviz info torus --json outputs its name, category and default params."""
         result = runner.invoke(app, ["info", "torus", "--json"])
         assert result.exit_code == 0
         data = json.loads(result.output)

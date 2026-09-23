@@ -86,7 +86,7 @@ class TestBenchmarkCommand:
     def test_generator_rows_have_timing_columns(
         self, shared_benchmark: BenchmarkResult,
     ) -> None:
-        """Each generator row has timing columns for all pipeline stages."""
+        """The report names both generators and the five stages, Generate to Total."""
         assert shared_benchmark.result.exit_code == 0
         for name in FAST_GENERATORS.split(","):
             assert name in shared_benchmark.html_content
@@ -96,7 +96,7 @@ class TestBenchmarkCommand:
     def test_report_contains_exactly_requested_generators(
         self, shared_benchmark: BenchmarkResult,
     ) -> None:
-        """Report contains rows for all requested generators."""
+        """Report names both requested generators and has at least 3 <tr> tags."""
         assert shared_benchmark.result.exit_code == 0
         html = shared_benchmark.html_content
         for name in FAST_GENERATORS.split(","):
@@ -137,7 +137,7 @@ class TestBenchmarkErrorHandling:
     def test_failed_generator_in_report_not_crash(
         self, error_benchmark: BenchmarkResult,
     ) -> None:
-        """Failed generators appear in the report with error messages."""
+        """With one unknown generator the run exits 0; the report names both."""
         assert error_benchmark.result.exit_code == 0
         assert "nonexistent_generator_xyz" in error_benchmark.html_content
         assert "torus" in error_benchmark.html_content
@@ -147,8 +147,8 @@ class TestBenchmarkErrorHandling:
     ) -> None:
         """--generators flag actively excludes generators not in the list."""
         assert error_benchmark.result.exit_code == 0
-        # Only torus was requested (nonexistent doesn't produce output rows)
-        # so lorenz must be absent — proving the flag filters, not just includes
+        # Only torus and nonexistent_generator_xyz were requested, so lorenz must be
+        # absent — proving the flag filters, not just includes
         assert "lorenz" not in error_benchmark.html_content
 
 
@@ -156,7 +156,7 @@ class TestBenchmarkTimings:
     """Test timing accuracy in benchmark results."""
 
     def test_stage_timings_sum_to_total(self) -> None:
-        """Per-stage timings sum approximately to total time."""
+        """Per-stage timings sum to between 50% and 110% of the total time."""
         from mathviz.cli_benchmark import _run_single_generator
 
         result = _run_single_generator("torus", 1)
