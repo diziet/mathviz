@@ -16,7 +16,6 @@ from mathviz.pipeline.runner import ExportConfig, PipelineResult, run
 from mathviz.pipeline.sampler import SamplerConfig
 from mathviz.pipeline.timer import PipelineTimer
 
-
 # --- Helpers ---
 
 
@@ -160,7 +159,7 @@ class TestPipelineTimer:
         timer = PipelineTimer()
         with timer.stage("a"):
             pass
-        first_time = timer.timings["a"]
+        assert "a" in timer.timings
         with timer.stage("a"):
             _ = sum(range(10000))
         # Overwrites, doesn't crash

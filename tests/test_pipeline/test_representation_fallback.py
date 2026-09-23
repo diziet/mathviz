@@ -15,7 +15,6 @@ from mathviz.pipeline.representation_strategy import (
 )
 from mathviz.pipeline.runner import run
 
-
 # --- Helpers ---
 
 

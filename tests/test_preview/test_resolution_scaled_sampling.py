@@ -16,7 +16,6 @@ from mathviz.core.math_object import MathObject, Mesh
 from mathviz.generators.parametric.torus import TorusGenerator
 from mathviz.pipeline.dense_sampling import (
     MAX_RESOLUTION_SCALED_SAMPLES,
-    _DENSE_SURFACE_DENSITY,
     _compute_resolution_scale,
     apply_resolution_scaled_sampling,
 )
@@ -113,7 +112,8 @@ class TestDefaultResolutionMatchesNormal:
     """Default resolution produces the same count as base density."""
 
     def test_default_resolution_matches_base_density(self) -> None:
-        """At default resolution, resolution-scaled produces same count as direct base density call."""
+        """At default resolution, resolution-scaled produces same count as direct base density call.
+        """
         obj = MathObject(generator_name="test", mesh=_small_mesh())
 
         # Resolution-scaled at default resolution (scale=1.0)

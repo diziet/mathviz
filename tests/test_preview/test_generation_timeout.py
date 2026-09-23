@@ -2,27 +2,26 @@
 
 import os
 import pickle
-import time
 import threading
+import time
 from collections.abc import Iterator
-from concurrent.futures import CancelledError, ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import CancelledError, ProcessPoolExecutor, ThreadPoolExecutor
 from typing import Any
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+import mathviz.preview.server as server_mod
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import register
-from mathviz.core.math_object import MathObject, Mesh
 from mathviz.generators.parametric.torus import TorusGenerator
 from mathviz.preview.executor import (
     DEFAULT_TIMEOUT_SECONDS,
     GenerationExecutor,
     get_timeout_seconds,
 )
-from mathviz.preview.server import app, get_executor, reset_cache
-import mathviz.preview.server as server_mod
+from mathviz.preview.server import app, reset_cache
 
 
 def _ensure_torus_registered() -> None:
@@ -111,7 +110,9 @@ class TestGenerationTimeout:
         with patch.dict(os.environ, {"MATHVIZ_GENERATION_TIMEOUT": "abc"}):
             assert get_timeout_seconds() == DEFAULT_TIMEOUT_SECONDS
 
-    def test_custom_timeout_passed_to_executor(self, client: TestClient, captured_submit_kwargs: dict[str, Any]) -> None:
+    def test_custom_timeout_passed_to_executor(
+        self, client: TestClient, captured_submit_kwargs: dict[str, Any]
+    ) -> None:
         """Request with custom timeout passes that value to the executor."""
         resp = client.post(
             "/api/generate",
@@ -120,7 +121,9 @@ class TestGenerationTimeout:
         assert resp.status_code == 200
         assert captured_submit_kwargs.get("timeout_override") == 60
 
-    def test_no_timeout_field_falls_back_to_default(self, client: TestClient, captured_submit_kwargs: dict[str, Any]) -> None:
+    def test_no_timeout_field_falls_back_to_default(
+        self, client: TestClient, captured_submit_kwargs: dict[str, Any]
+    ) -> None:
         """Request without timeout field falls back to env var / 300s default."""
         resp = client.post(
             "/api/generate",
@@ -323,8 +326,8 @@ class TestThreadBasedExecution:
 
     def test_generation_result_identical_via_thread(self, client: TestClient) -> None:
         """Generation result via thread is identical to direct pipeline call."""
-        from mathviz.pipeline.runner import run as run_pipeline
         from mathviz.core.container import Container, PlacementPolicy
+        from mathviz.pipeline.runner import run as run_pipeline
 
         # Run via HTTP (thread executor)
         resp = client.post(

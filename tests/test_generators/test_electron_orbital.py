@@ -222,7 +222,7 @@ class TestValidParamCombinations:
     ) -> None:
         """Every returned (n,l,m) tuple satisfies quantum number rules."""
         combos = gen.get_valid_param_combinations(max_n=4)
-        for n, l, m in combos:
+        for n, l, m in combos:  # noqa: E741 - quantum number l
             assert 1 <= n <= 4
             assert 0 <= l < n
             assert abs(m) <= l

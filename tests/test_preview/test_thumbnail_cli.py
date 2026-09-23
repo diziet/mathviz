@@ -1,6 +1,5 @@
 """Tests for the render-thumbnail CLI command."""
 
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest

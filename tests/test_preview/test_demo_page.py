@@ -1,7 +1,6 @@
 """Tests for the static demo page (demo.html)."""
 
 import importlib.resources
-from pathlib import Path
 
 import pytest
 

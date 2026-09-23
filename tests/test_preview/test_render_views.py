@@ -2,18 +2,17 @@
 
 import sys
 from pathlib import Path
-from typing import Iterator
 from types import ModuleType
+from typing import Iterator
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 
-from mathviz.core.math_object import MathObject, Mesh, PointCloud
+from mathviz.core.math_object import MathObject, Mesh
 from mathviz.preview.renderer import (
-    VALID_VIEW_NAMES,
-    RenderConfig,
     _VIEW_CAMERAS,
+    VALID_VIEW_NAMES,
     get_view_camera,
     resolve_view_name,
 )

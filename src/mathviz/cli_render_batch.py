@@ -138,7 +138,7 @@ def _build_jobs(generators: list[str], views: list[str]) -> list[RenderJob]:
 
 def _print_summary(summary: BatchSummary, console: Console) -> None:
     """Print final batch render summary."""
-    console.print(f"\n[bold]Batch render complete[/bold]")
+    console.print("\n[bold]Batch render complete[/bold]")
     console.print(f"  Total renders: {summary.total}")
     console.print(f"  Successes:     {summary.successes}")
     console.print(f"  Failures:      {summary.failures}")

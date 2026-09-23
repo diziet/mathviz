@@ -13,6 +13,7 @@ from mathviz.core.generator import register
 from mathviz.generators.parametric.torus import TorusGenerator
 from mathviz.preview.server import app, reset_cache
 from mathviz.preview.snapshots import SNAPSHOTS_DIR_ENV_VAR
+from tests.test_preview.conftest import make_snapshot_request as _make_snapshot_request
 
 
 def _ensure_torus_registered() -> None:
@@ -65,9 +66,6 @@ def _generate_torus(client: TestClient) -> str:
     )
     assert resp.status_code == 200
     return resp.json()["geometry_id"]
-
-
-from tests.test_preview.conftest import make_snapshot_request as _make_snapshot_request
 
 
 def _create_snapshot(client: TestClient) -> dict[str, Any]:

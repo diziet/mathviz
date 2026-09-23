@@ -9,7 +9,7 @@ from typer.testing import CliRunner
 from mathviz.cli import app
 from mathviz.core.generator import clear_registry, get_generator, list_generators, register
 from mathviz.core.representation import RepresentationType
-from mathviz.generators.procedural._lsystem_engine import PRESETS, rewrite
+from mathviz.generators.procedural._lsystem_engine import rewrite
 from mathviz.generators.procedural.lsystem import LSystemGenerator
 
 _runner = CliRunner()

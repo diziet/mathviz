@@ -15,10 +15,9 @@ from pathlib import Path
 import pytest
 
 import mathviz.core.generator as _gen_module
+from mathviz.core.generator import GeneratorMeta, list_generators
 
 _gen_module._ensure_discovered()
-
-from mathviz.core.generator import GeneratorMeta, list_generators
 
 ROOT = Path(__file__).parent.parent.parent
 DOCS_DIR = ROOT / "docs"

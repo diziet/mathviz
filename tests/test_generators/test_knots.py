@@ -7,7 +7,6 @@ from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import (
     clear_registry,
     get_generator,
-    get_generator_meta,
     register,
 )
 from mathviz.core.math_object import Mesh

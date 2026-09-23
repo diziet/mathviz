@@ -8,8 +8,8 @@ from mathviz.core.representation import RepresentationType
 from mathviz.generators.attractors.clifford import CliffordGenerator
 from mathviz.generators.attractors.dequan_li import DequanLiGenerator
 from mathviz.generators.attractors.sprott import SPROTT_VARIANTS, SprottGenerator
-
 from tests.test_generators.conftest import TEST_STEPS_FAST as _TEST_STEPS
+
 _TEST_POINTS = 1000
 
 

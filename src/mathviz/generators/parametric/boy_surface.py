@@ -39,7 +39,6 @@ def _evaluate_boy_surface(
     cos_u = np.cos(u)
     sin_u = np.sin(u)
     cos_v = np.cos(v)
-    sin_v = np.sin(v)
     cos_2u = np.cos(2.0 * u)
     sin_2u = np.sin(2.0 * u)
     sin_2v = np.sin(2.0 * v)

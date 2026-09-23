@@ -13,7 +13,6 @@ from mathviz.core.generator import GeneratorBase, register
 from mathviz.core.math_object import BoundingBox, Curve, MathObject
 from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.generators.knots._knot_utils import (
-    DEFAULT_TUBE_RADIUS,
     extract_curve_points,
     validate_curve_points,
 )

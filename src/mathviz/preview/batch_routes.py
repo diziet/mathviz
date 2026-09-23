@@ -23,7 +23,9 @@ def build_geometry_urls(
 ) -> tuple[str | None, str | None]:
     """Build mesh and cloud URLs for a geometry entry."""
     mesh_url = f"/api/geometry/{geometry_id}/mesh" if math_object.mesh is not None else None
-    cloud_url = f"/api/geometry/{geometry_id}/cloud" if math_object.point_cloud is not None else None
+    cloud_url = (
+        f"/api/geometry/{geometry_id}/cloud" if math_object.point_cloud is not None else None
+    )
     return mesh_url, cloud_url
 
 

@@ -70,7 +70,7 @@ def _parse_coefficients(
     """
     if "coefficients" in params:
         return [(int(l), int(m), float(c))
-                for l, m, c in params["coefficients"]]
+                for l, m, c in params["coefficients"]]  # noqa: E741 - quantum number l
     l_deg = int(params.get("l", _DEFAULT_L))
     m_ord = int(params.get("m", _DEFAULT_M))
     amplitude = float(params.get("amplitude", _DEFAULT_AMPLITUDE))

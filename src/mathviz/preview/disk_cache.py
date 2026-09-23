@@ -1,6 +1,5 @@
 """Disk-based generation cache for the preview server."""
 
-import hashlib
 import json
 import logging
 import os

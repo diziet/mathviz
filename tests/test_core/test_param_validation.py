@@ -4,9 +4,8 @@ from typing import Any
 
 import pytest
 
-from mathviz.core.generator import GeneratorBase, clear_registry, list_generators, register
+from mathviz.core.generator import GeneratorBase, clear_registry, register
 from mathviz.core.math_object import MathObject
-
 
 # ---------------------------------------------------------------------------
 # Minimal test generator

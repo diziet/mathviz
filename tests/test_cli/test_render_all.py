@@ -8,10 +8,10 @@ from typer.testing import CliRunner
 
 from mathviz.cli import app
 from mathviz.cli_render_batch import (
+    RenderResult,
     _build_jobs,
     _filter_generators,
     _validate_views,
-    RenderResult,
 )
 
 runner = CliRunner()

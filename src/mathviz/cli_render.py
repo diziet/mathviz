@@ -9,7 +9,6 @@ from rich.console import Console
 
 from mathviz.preview.renderer import (
     PYVISTA_INSTALL_MSG,
-    VALID_VIEW_NAMES,
     RenderConfig,
     RenderStyle,
     render_2d_projection,
@@ -40,7 +39,9 @@ def register_render_commands(
         seed: Optional[int] = typer.Option(None, "--seed", help="Random seed"),
         width: int = typer.Option(1920, "--width", help="Image width in pixels"),
         height: int = typer.Option(1080, "--height", help="Image height in pixels"),
-        style: str = typer.Option("vertex", "--style", help="Render style: shaded/wireframe/vertex"),
+        style: str = typer.Option(
+            "vertex", "--style", help="Render style: shaded/wireframe/vertex"
+        ),
         point_size: float = typer.Option(3.0, "--point-size", help="Point size for vertex style"),
         verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
         quiet: bool = typer.Option(False, "--quiet", help="Suppress non-error output"),
@@ -73,7 +74,9 @@ def register_render_commands(
         seed: Optional[int] = typer.Option(None, "--seed", help="Random seed"),
         width: int = typer.Option(1920, "--width", help="Image width in pixels"),
         height: int = typer.Option(1080, "--height", help="Image height in pixels"),
-        style: str = typer.Option("vertex", "--style", help="Render style: shaded/wireframe/vertex"),
+        style: str = typer.Option(
+            "vertex", "--style", help="Render style: shaded/wireframe/vertex"
+        ),
         point_size: float = typer.Option(3.0, "--point-size", help="Point size for vertex style"),
         verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
         quiet: bool = typer.Option(False, "--quiet", help="Suppress non-error output"),

@@ -13,7 +13,7 @@ import numpy as np
 from scipy.spatial import Voronoi
 
 from mathviz.core.generator import GeneratorBase, register
-from mathviz.core.math_object import BoundingBox, Curve, Mesh, MathObject
+from mathviz.core.math_object import BoundingBox, Curve, MathObject, Mesh
 from mathviz.core.representation import RepresentationConfig, RepresentationType
 
 logger = logging.getLogger(__name__)

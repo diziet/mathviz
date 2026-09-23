@@ -16,7 +16,7 @@ from mathviz.core.math_object import Mesh, PointCloud
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent.parent / "scripts")
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
-import build_demo
+import build_demo  # noqa: E402
 
 # The library module that build_demo delegates to
 _LIB = "mathviz.demo_builder"
@@ -85,7 +85,7 @@ def _mock_pipeline():
         patch(f"{_LIB}.run_pipeline") as mock_run,
         patch(f"{_LIB}.mesh_to_glb", return_value=b"fake-glb"),
         patch(f"{_LIB}.cloud_to_binary_ply", return_value=b"fake-ply"),
-        patch(f"{_LIB}.generate_thumbnail", return_value=None),
+        patch(f"{_LIB}.render_to_png"),
     ):
         mock_run.side_effect = lambda name, **kw: _make_pipeline_result(name)
         yield {
@@ -233,7 +233,7 @@ class TestFailureHandling:
             patch(f"{_LIB}.run_pipeline", side_effect=_fake_run),
             patch(f"{_LIB}.mesh_to_glb", return_value=b"fake-glb"),
             patch(f"{_LIB}.cloud_to_binary_ply", return_value=b"fake-ply"),
-            patch(f"{_LIB}.generate_thumbnail", return_value=None),
+            patch(f"{_LIB}.render_to_png"),
         ):
             count = build_demo.build_demo("lorenz,broken", output_dir, "preview")
 

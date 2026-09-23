@@ -1,7 +1,6 @@
 """Tests for subprocess-based thumbnail generation and render-thumbnail CLI."""
 
 import subprocess
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -103,6 +102,7 @@ class TestThumbnailSubprocessEndpoint:
     def client(self):
         """Return a FastAPI test client."""
         from fastapi.testclient import TestClient
+
         from mathviz.preview.server import app
         return TestClient(app)
 

@@ -103,4 +103,7 @@ class TestStretchCollapsiblePanel:
 
     def test_stretch_panel_initialized_via_shared_function(self, preview_html: str) -> None:
         """Stretch panel is initialized via the shared initCollapsiblePanel function."""
-        assert "initCollapsiblePanel('stretch-panel', 'stretch-toggle', 'stretchPanelCollapsed')" in preview_html
+        assert (
+            "initCollapsiblePanel('stretch-panel', 'stretch-toggle', 'stretchPanelCollapsed')"
+            in preview_html
+        )
