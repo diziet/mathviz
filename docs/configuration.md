@@ -1,7 +1,7 @@
 # Configuration
 
-MathViz uses a layered configuration system. Configuration values are merged
-from multiple sources with a clear precedence order.
+MathViz merges configuration values from several layers. A value in a higher
+layer overrides the same value in a lower layer.
 
 ## Precedence
 
@@ -13,13 +13,13 @@ From lowest to highest priority:
 4. **Sampling profile** — merged into per-object config layer
 5. **CLI flags** — `--seed`, `--width`, `--height`, `--depth`, `--param`
 
-Higher-priority values override lower-priority values. Nested sections (e.g.,
-`[container]`) are deep-merged: only explicitly set keys override defaults.
+Nested sections such as `[container]` are deep-merged: a layer overrides only
+the keys it sets.
 
 ## Project Config (mathviz.toml)
 
-Place a `mathviz.toml` file in the working directory to set project-wide
-defaults. MathViz auto-discovers this file on startup.
+A `mathviz.toml` file in the current working directory sets project-wide
+defaults. A command that loads its configuration reads this file if it exists.
 
 ```toml
 [container]
@@ -44,19 +44,19 @@ seed = 42
 
 ## Per-Object Config
 
-Pass a TOML config file via `--config` for per-object overrides:
+`--config` takes a TOML file with per-object overrides:
 
 ```bash
 mathviz generate lorenz --config block_config.toml --output lorenz.ply
 ```
 
-The per-object config has the same format as the project config and overrides
-project-level values.
+The per-object config has the same format as the project config. Its values
+override the project config.
 
 ## Sampling Profiles
 
-Named sampling profiles live in the `profiles/` directory within the package.
-Use them via `--profile`:
+Named sampling profiles are TOML files in the package's `profiles/` directory.
+`--profile` selects one by name:
 
 ```bash
 mathviz generate gyroid --profile production --output gyroid.ply
@@ -66,7 +66,7 @@ mathviz generate gyroid --profile production --output gyroid.ply
 
 #### preview
 
-Fast iteration with low point budget.
+Fast iteration with a low point budget.
 
 ```toml
 [sampling]
@@ -86,7 +86,7 @@ density = 8.0
 
 #### custom
 
-Template for user-defined settings.
+A template for user-defined settings.
 
 ```toml
 [sampling]
@@ -144,13 +144,13 @@ Controls how raw geometry is represented for engraving.
 | `type` | string | (required) | Representation strategy (see [representation.md](representation.md)) |
 | `tube_radius` | float | null | Tube radius for tube strategy |
 | `tube_sides` | int | 16 | Number of tube polygon sides |
-| `shell_thickness` | float | null | Shell thickness for surface_shell |
+| `shell_thickness` | float | null | ~~Shell thickness for surface_shell~~ No pipeline code reads this field (checked 2026-09-23) |
 | `volume_density` | float | null | Density for volume_fill |
 | `slice_count` | int | null | Number of slices for slice_stack |
 | `slice_axis` | string | `"z"` | Axis for slicing: x, y, z |
 | `wireframe_thickness` | float | null | Line thickness for wireframe |
 | `surface_density` | float | null | Density for sparse_shell |
-| `density_weight_function` | string | null | Weight function expression for weighted_cloud |
+| `density_weight_function` | string | null | ~~Weight function expression for weighted_cloud~~ No pipeline code reads this field (checked 2026-09-23) |
 
 ### EngravingProfile
 
@@ -169,7 +169,7 @@ Controls engraving-specific validation and optimization.
 
 ## Environment Variables
 
-MathViz reads the following environment variables at runtime:
+MathViz reads these environment variables:
 
 | Variable | Default | Description |
 |---|---|---|
@@ -177,8 +177,11 @@ MathViz reads the following environment variables at runtime:
 | `MATHVIZ_GENERATION_TIMEOUT` | `300` | Maximum generation time in seconds for the preview server. Values ≤ 0 are ignored with a warning. |
 | `PYVISTA_OFF_SCREEN` | (unset) | Set to `true` for headless rendering without a display (see [rendering.md](rendering.md)) |
 
-Environment variables are checked at startup. Invalid values for
-`MATHVIZ_GENERATION_TIMEOUT` log a warning and fall back to the default.
+~~Environment variables are checked at startup.~~ MathViz reads
+`MATHVIZ_SNAPSHOTS_DIR` for each snapshot operation, and
+`MATHVIZ_GENERATION_TIMEOUT` for each generation or batch that has no
+per-request timeout. Neither is read once at startup (checked 2026-09-23). An
+invalid `MATHVIZ_GENERATION_TIMEOUT` logs a warning, and the default applies.
 
 ```bash
 # Example: custom snapshot directory and longer timeout
@@ -188,12 +191,13 @@ export MATHVIZ_GENERATION_TIMEOUT=600
 
 ## JSON Schema Generation
 
-Generate JSON Schema files for all config models using:
+`mathviz schema` writes JSON Schema files for all config models:
 
 ```bash
 mathviz schema schemas/
 ```
 
-This writes schema files for Container, PlacementPolicy, SamplerConfig,
-RepresentationConfig, EngravingProfile, and per-generator parameter schemas.
-Use these for editor autocompletion and validation of TOML config files.
+It writes one schema file each for Container, PlacementPolicy, SamplerConfig,
+RepresentationConfig and EngravingProfile, plus a parameter schema for each
+generator that defines one. Editors can use these files to autocomplete and
+validate TOML config files.

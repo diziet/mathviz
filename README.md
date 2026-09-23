@@ -133,7 +133,7 @@ See [docs/generators.md](docs/generators.md) for full parameter tables and examp
 | `mathviz grid show` | Show the grid |
 | `mathviz grid assign` | Assign a preset to a grid position |
 | `mathviz grid status` | Show or update block status |
-| `mathviz grid neighbors` | Show the 8 blocks around a position |
+| `mathviz grid neighbors` | Show the blocks around a position, up to 8 |
 | `mathviz grid summary` | Show counts by status |
 | `mathviz export-demo` | Build a static demo site for deployment |
 | `mathviz grid export-all` | Export every assigned block |

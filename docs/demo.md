@@ -1,9 +1,9 @@
 # Static Demo Site
 
-MathViz can build a self-contained static demo site that showcases generators
+`mathviz export-demo` builds a self-contained static site that shows generators
 in an interactive 3D gallery. The output is a directory of HTML, JS, geometry
-files (GLB/PLY), thumbnails, and a `manifest.json` — ready to deploy to
-Cloudflare Pages or any static hosting provider.
+files (GLB/PLY), thumbnails, and a `manifest.json`. The directory can be
+deployed to Cloudflare Pages or any other static hosting provider.
 
 ## Building the demo
 
@@ -11,8 +11,8 @@ Cloudflare Pages or any static hosting provider.
 mathviz export-demo
 ```
 
-This runs the pipeline for a curated set of ~15 visually impressive generators,
-exports geometry and thumbnails, and assembles everything into `dist/`.
+The command runs the pipeline for a curated list of 15 generators, exports
+their geometry and thumbnails, and writes the site to `dist/`.
 
 ### Options
 
@@ -56,14 +56,14 @@ Deploy the built directory with Wrangler:
 npx wrangler pages deploy dist/
 ```
 
-This uploads the entire `dist/` directory as a Cloudflare Pages deployment.
-You can also connect a Git repository for automatic deployments — see the
+This uploads the `dist/` directory as a Cloudflare Pages deployment. Cloudflare
+Pages can also deploy automatically from a connected Git repository; see the
 [Cloudflare Pages docs](https://developers.cloudflare.com/pages/).
 
 ## Customizing the generator list
 
-The default generator list is a curated selection of visually interesting forms.
-To customize it, pass a comma-separated list of generator names:
+The default generator list is a curated selection of forms chosen for their
+appearance. To use a different list, pass comma-separated generator names:
 
 ```bash
 mathviz export-demo --generators lorenz,rossler,gyroid,torus_knot
@@ -75,7 +75,7 @@ To see all available generators:
 mathviz list
 ```
 
-To build with every generator (slow — processes all 89+):
+To build with every generator (slow: it processes all 89+):
 
 ```bash
 mathviz export-demo --generators all
@@ -104,8 +104,8 @@ dist/
 
 ## Alternative: standalone script
 
-The same build logic is available as a standalone script for use outside the
-CLI (e.g. in CI):
+`scripts/build_demo.py` runs the same build logic outside the CLI, for example
+in CI:
 
 ```bash
 python scripts/build_demo.py --generators lorenz,gyroid --output build/

@@ -1,11 +1,11 @@
 # CLI Reference
 
-MathViz provides a command-line interface via the `mathviz` command. All
-commands support `--help` for inline documentation.
+The `mathviz` command is the MathViz command-line interface. Every command
+accepts `--help`, which prints its usage and options.
 
 ## generate
 
-Run a generator through the full pipeline (Generate → Represent → Transform →
+Runs a generator through the full pipeline (Generate → Represent → Transform →
 Sample → Validate → Export).
 
 ```bash
@@ -56,7 +56,7 @@ mathviz generate lorenz --config block_config.toml --output lorenz.ply
 
 ## list
 
-List all available generators.
+Lists all available generators.
 
 ```bash
 mathviz list [OPTIONS]
@@ -75,7 +75,7 @@ mathviz list --json
 
 ## info
 
-Show detailed info and parameter schema for a generator.
+Shows a generator's details and parameter schema.
 
 ```bash
 mathviz info <generator_name> [OPTIONS]
@@ -94,8 +94,8 @@ mathviz info gyroid --json
 
 ## benchmark
 
-Run pipeline benchmarks across generators and produce an HTML report with
-per-stage timing data.
+Runs generators through the pipeline and writes an HTML report of per-stage
+timings.
 
 ```bash
 mathviz benchmark [OPTIONS]
@@ -128,8 +128,8 @@ mathviz benchmark --workers 2
 
 ## export-demo
 
-Build a self-contained static demo site from generator pipeline output. The
-site includes GLB meshes, PLY point clouds, PNG thumbnails, and an interactive
+Builds a self-contained static demo site from generator pipeline output. The
+site contains GLB meshes, PLY point clouds, PNG thumbnails, and an interactive
 gallery viewer.
 
 ```bash
@@ -138,7 +138,7 @@ mathviz export-demo [OPTIONS]
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `--generators` | string | curated list of ~15 | Comma-separated generator names, or 'all' |
+| `--generators` | string | curated list of 15 | Comma-separated generator names, or 'all' |
 | `--output` | path | dist/ | Output directory for the demo site |
 | `--profile` | string | preview | Sampling profile name (e.g. preview, production) |
 | `--verbose` | flag | | Enable debug logging |
@@ -160,13 +160,13 @@ mathviz export-demo --output build/ --profile production
 mathviz export-demo --generators all
 ```
 
-See [demo.md](demo.md) for deployment and customization details.
+See [demo.md](demo.md) for deployment and customization.
 
 ## cache clear
 
-Remove all cached generation results from the disk cache. The cache
-stores serialized geometry files (GLB, PLY) to avoid re-running the
-pipeline for identical requests.
+Removes all cached generation results from the disk cache. The cache stores
+serialized geometry files (GLB, PLY), so an identical request does not run the
+pipeline again.
 
 ```bash
 mathviz cache clear [OPTIONS]
@@ -185,8 +185,8 @@ mathviz cache clear
 
 ## validate
 
-Generate and validate without exporting. Runs the pipeline through the
-Validate stage and reports pass/fail checks.
+Generates and validates without exporting. Runs the pipeline through the
+Validate stage and reports each check as pass or fail.
 
 ```bash
 mathviz validate <generator_name> [OPTIONS]
@@ -214,14 +214,14 @@ mathviz validate gyroid --json
 
 ## preview
 
-Start an interactive 3D preview server. Opens a browser window with a Three.js
-viewer served by FastAPI.
+Starts the interactive 3D preview server and opens a browser window with a
+Three.js viewer served by FastAPI.
 
 ```bash
 mathviz preview <target> [OPTIONS]
 ```
 
-The target can be a generator name or a file path to preview.
+The target is a generator name or the path of a file to preview.
 
 | Option | Type | Default | Description |
 |---|---|---|---|
@@ -250,7 +250,7 @@ mathviz preview gyroid --port 9000 --no-open
 
 ## render
 
-Render a generator to a high-resolution PNG image. Requires the `[render]`
+Renders a generator to a high-resolution PNG image. Requires the `[render]`
 optional dependency (PyVista).
 
 ```bash
@@ -276,7 +276,7 @@ mathviz render gyroid -o gyroid.png --width 3840 --height 2160
 
 ## render-2d
 
-Render a 2D projection of a generator to PNG. Requires the `[render]` optional
+Renders a 2D projection of a generator to PNG. Requires the `[render]` optional
 dependency (PyVista).
 
 ```bash
@@ -304,9 +304,9 @@ mathviz render-2d mandelbulb -o mandelbulb_angle.png --view angle
 
 ## render-all
 
-Batch render every generator across multiple views in parallel. Organizes
-outputs into a structured directory with one subdirectory per generator.
-Requires the `[render]` optional dependency (PyVista).
+Renders every generator in several views, in parallel. The output directory
+has one subdirectory per generator. Requires the `[render]` optional dependency
+(PyVista).
 
 ```bash
 mathviz render-all [OPTIONS]
@@ -318,7 +318,7 @@ mathviz render-all [OPTIONS]
 | `--views` | string | top,front,side,angle | Comma-separated views to render |
 | `--workers` | int | CPU count | Number of parallel workers |
 | `--generators` | string | all non-data-driven | Comma-separated list of generators |
-| `--style` | string | points | Render style: shaded, wireframe, points |
+| `--style` | string | ~~points~~ vertex (checked 2026-09-23) | Render style: shaded, wireframe, ~~points~~ vertex (checked 2026-09-23) |
 | `--width` | int | 1920 | Image width in pixels |
 | `--height` | int | 1080 | Image height in pixels |
 | `--verbose` | flag | | Enable debug logging |
@@ -342,9 +342,11 @@ mathviz render-all --output-dir gallery/ --style shaded
 
 ## render-thumbnail
 
-Generate a WebP thumbnail for a generator (or all generators). Thumbnails are
-cached at `~/.mathviz/thumbnails/<view_mode>/<name>.webp`. The preview server
-spawns this command as a subprocess to avoid VTK main-thread crashes on macOS.
+Generates a WebP thumbnail for one generator, or for all generators with
+`--all`. Thumbnails are cached at
+`~/.mathviz/thumbnails/<view_mode>/<name>.webp`. The preview server runs this
+command in a subprocess, because VTK crashes on macOS when it renders outside
+the main thread.
 
 ```bash
 mathviz render-thumbnail [NAME] [OPTIONS]
@@ -352,7 +354,7 @@ mathviz render-thumbnail [NAME] [OPTIONS]
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `--view-mode` | string | points | View mode: points, shaded, wireframe |
+| `--view-mode` | string | ~~points~~ vertex (checked 2026-09-23) | View mode: ~~points~~ vertex, shaded, wireframe. `points` exits with code 2 (checked 2026-09-23). |
 | `--all` | flag | | Generate thumbnails for all generators |
 | `--verbose` | flag | | Enable debug logging |
 | `--quiet` | flag | | Suppress non-error output |
@@ -372,7 +374,7 @@ mathviz render-thumbnail --all --view-mode shaded
 
 ## convert
 
-Convert geometry between file formats. Supports STL, OBJ, PLY, XYZ, and PCD.
+Converts geometry between file formats: STL, OBJ, PLY, XYZ, and PCD.
 
 ```bash
 mathviz convert <input_path> <output_path> [OPTIONS]
@@ -401,7 +403,7 @@ mathviz convert input.dat output.dat --format ply
 
 ## sample
 
-Sample a mesh into a point cloud.
+Samples a mesh into a point cloud.
 
 ```bash
 mathviz sample <input_path> <output_path> [OPTIONS]
@@ -432,7 +434,7 @@ mathviz sample model.stl filled.ply --method volume_fill --num-points 100000
 
 ## transform
 
-Fit geometry within a container's bounding box.
+Fits geometry within a container's bounding box.
 
 ```bash
 mathviz transform <input_path> <output_path> [OPTIONS]
@@ -459,9 +461,9 @@ mathviz transform model.stl fitted.stl --width 120 --height 120 --depth 60
 
 ## schema
 
-Generate JSON Schema files from all configuration models. Writes schemas for
-Container, PlacementPolicy, SamplerConfig, RepresentationConfig,
-EngravingProfile, and per-generator parameter schemas.
+Writes JSON Schema files for all configuration models: Container,
+PlacementPolicy, SamplerConfig, RepresentationConfig and EngravingProfile, plus a
+parameter schema for each generator that defines one.
 
 ```bash
 mathviz schema <output_dir> [OPTIONS]
@@ -495,14 +497,14 @@ schemas/
 
 ## grid
 
-Grid commands manage the installation grid manifest. All grid subcommands
-operate on a TOML manifest file (default: `grid.toml`).
+The grid commands manage the installation grid manifest. Every grid subcommand
+reads or writes a TOML manifest file, `grid.toml` by default.
 
-See [grid.md](grid.md) for full details.
+See [grid.md](grid.md) for details.
 
 ### grid init
 
-Create a new grid manifest.
+Creates a new grid manifest.
 
 ```bash
 mathviz grid init <rows> <cols> [OPTIONS]
@@ -515,7 +517,7 @@ mathviz grid init <rows> <cols> [OPTIONS]
 
 ### grid show
 
-Display the grid as an ASCII table or JSON.
+Prints the grid as an ASCII table or as JSON.
 
 ```bash
 mathviz grid show [OPTIONS]
@@ -528,7 +530,7 @@ mathviz grid show [OPTIONS]
 
 ### grid assign
 
-Assign a generator preset to a grid position.
+Assigns a generator preset to a grid position.
 
 ```bash
 mathviz grid assign <row> <col> <preset> [OPTIONS]
@@ -542,7 +544,7 @@ mathviz grid assign <row> <col> <preset> [OPTIONS]
 
 ### grid status
 
-Show or update the status of a grid block.
+Shows or sets the status of a grid block.
 
 ```bash
 mathviz grid status <row> <col> [OPTIONS]
@@ -556,7 +558,8 @@ mathviz grid status <row> <col> [OPTIONS]
 
 ### grid neighbors
 
-Show the 8 surrounding blocks for a position.
+~~Show the 8 surrounding blocks for a position.~~ Shows up to 8 surrounding
+blocks for a position, and fewer at an edge or corner (checked 2026-09-23).
 
 ```bash
 mathviz grid neighbors <row> <col> [OPTIONS]
@@ -569,7 +572,7 @@ mathviz grid neighbors <row> <col> [OPTIONS]
 
 ### grid summary
 
-Show counts of blocks by status.
+Shows the number of blocks in each status.
 
 ```bash
 mathviz grid summary [OPTIONS]
@@ -582,7 +585,8 @@ mathviz grid summary [OPTIONS]
 
 ### grid export-all
 
-Batch export all assigned blocks through the pipeline.
+Runs each block that has a preset and status `assigned` or `error` through the
+pipeline, one block at a time.
 
 ```bash
 mathviz grid export-all [OPTIONS]
