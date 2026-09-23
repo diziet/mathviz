@@ -83,7 +83,7 @@ sync: ## Sanctioned path for updating the current branch: fetch + fast-forward; 
 # TODO: build a report-only local watcher that re-runs the gate on each new origin/main commit
 # and notifies on failure and recovery. It would catch two PRs that each pass alone and together
 # merge into a failing main.
-merge: ## Sanctioned path for landing a PR: make merge pr=N [keep=1] [dry_run=1]; the only merge path
+merge: ## Sanctioned path for merging a PR: make merge pr=N [keep=1] [dry_run=1]; the only merge path
 	$(PY) scripts/merge.py --pr "$(pr)" $(if $(keep),--keep,) $(if $(dry_run),--dry-run,)
 
 branches-gc: ## Advisory: report local branches/worktrees as merged, superseded, open-PR or checked-out; args="--delete" deletes only merged branches
