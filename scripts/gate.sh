@@ -38,7 +38,9 @@ run_stage() {
   fi
 }
 
-for stage in gate-wiring-check lint test; do
+# scripts/check_gate_wiring.py parses this unindented list; each Blocking-gate target must be in it.
+stages="gate-wiring-check lint test"
+for stage in $stages; do
   run_stage "$stage" make -C "$ROOT" -s "$stage"
 done
 echo "gate: all stages passed (logs: $LOG_DIR)"
