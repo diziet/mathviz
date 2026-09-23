@@ -39,6 +39,16 @@ REFERENCE_SUMMARY_PATH = FIXTURES_DIR / "reference_summary.json"
 VERTEX_COUNT_TOLERANCE = 0.01  # ±1%
 BOUNDING_BOX_EPSILON = 1e-6
 
+# The Lorenz fixture integrates a chaotic system over t = 0..100, and scipy's DOP853
+# steps call numpy's BLAS, so the bounding box depends on the BLAS build.
+_LORENZ_BBOX_XFAIL_REASON = (
+    "Open question: regenerate the lorenz reference, or change the lorenz fixture so its "
+    "bounding box does not depend on BLAS rounding. Measured 2026-09-23: min_corner[0] is "
+    "15.6719 with Accelerate on macOS 26.5.2 and 16.0141 with OpenBLAS. The reference, "
+    "16.1964, was generated 2026-03-15, when the Studio ran macOS 26.3. That the older "
+    "Accelerate produced it is not verified."
+)
+
 # Skip entire module if reference fixtures haven't been generated
 if not REFERENCE_SUMMARY_PATH.exists():
     pytest.skip(
@@ -128,8 +138,14 @@ class TestFixtureVertexCount:
 class TestFixtureBoundingBox:
     """Verify regenerated bounding boxes match reference within epsilon."""
 
-    def test_bounding_box_within_epsilon(self, generator_name: str) -> None:
+    def test_bounding_box_within_epsilon(
+        self, generator_name: str, request: pytest.FixtureRequest
+    ) -> None:
         """Regenerated bounding box matches reference within ε."""
+        if generator_name == "lorenz":
+            request.applymarker(
+                pytest.mark.xfail(reason=_LORENZ_BBOX_XFAIL_REASON, strict=False)
+            )
         ref = REFERENCE[generator_name]
         result = _get_cached_result(generator_name)
         obj = result.math_object
