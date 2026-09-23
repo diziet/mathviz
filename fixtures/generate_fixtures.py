@@ -10,10 +10,9 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from fixtures.specs import FIXTURE_SPECS, SEED
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.pipeline.runner import ExportConfig, run
-
-from fixtures.specs import FIXTURE_SPECS, SEED
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

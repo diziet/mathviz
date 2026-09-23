@@ -6,7 +6,6 @@ import pytest
 from mathviz.core.generator import clear_registry, register
 from mathviz.core.representation import RepresentationType
 from mathviz.generators.attractors.double_pendulum import DoublePendulumGenerator
-
 from tests.test_generators.conftest import TEST_STEPS_FAST as _TEST_STEPS
 from tests.test_generators.conftest import TEST_TRANSIENT_FAST as _TEST_TRANSIENT
 

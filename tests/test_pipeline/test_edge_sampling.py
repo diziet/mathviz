@@ -8,14 +8,12 @@ import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
-from mathviz.core.math_object import CoordSpace, MathObject, Mesh, PointCloud
 from mathviz.core.container import Container
 from mathviz.core.generator import register
+from mathviz.core.math_object import CoordSpace, MathObject, Mesh
 from mathviz.generators.parametric.torus import TorusGenerator
 from mathviz.pipeline.dense_sampling import (
-    MAX_DENSE_SAMPLES,
     _sample_mesh_edges,
-    apply_edge_sampling,
     apply_post_transform_sampling,
 )
 from mathviz.pipeline.representation_handlers import extract_unique_edges

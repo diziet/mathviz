@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 
+from fixtures.specs import FIXTURE_SPECS, SEED
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import clear_registry, register
 from mathviz.generators.attractors.lorenz import LorenzGenerator
@@ -21,8 +22,6 @@ from mathviz.generators.knots.torus_knot import TorusKnotGenerator
 from mathviz.generators.number_theory.ulam_spiral import UlamSpiralGenerator
 from mathviz.generators.parametric.torus import TorusGenerator
 from mathviz.pipeline.runner import run
-
-from fixtures.specs import FIXTURE_SPECS, SEED
 
 _GENERATOR_CLASSES = [
     TorusGenerator,

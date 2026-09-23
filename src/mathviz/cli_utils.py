@@ -130,7 +130,8 @@ def _run_convert(
     """Execute the convert command."""
     from mathviz.pipeline.mesh_exporter import export_mesh
     from mathviz.pipeline.point_cloud_exporter import export_point_cloud
-    from mathviz.pipeline.sampler import SamplerConfig, sample as run_sample
+    from mathviz.pipeline.sampler import SamplerConfig
+    from mathviz.pipeline.sampler import sample as run_sample
 
     obj = _load_or_exit(input_path, console)
 
@@ -187,7 +188,8 @@ def _run_sample(
 ) -> None:
     """Execute the sample command."""
     from mathviz.pipeline.point_cloud_exporter import export_point_cloud
-    from mathviz.pipeline.sampler import SamplerConfig, SamplingMethod, sample as run_sample
+    from mathviz.pipeline.sampler import SamplerConfig, SamplingMethod
+    from mathviz.pipeline.sampler import sample as run_sample
 
     obj = _load_or_exit(input_path, console)
 

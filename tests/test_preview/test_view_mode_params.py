@@ -13,7 +13,6 @@ from fastapi.testclient import TestClient
 
 from mathviz.preview.server import app
 
-
 _DO_GENERATE_PATTERN = re.compile(
     r"async function _doGenerate\b.*?^  \}",
     re.DOTALL | re.MULTILINE,

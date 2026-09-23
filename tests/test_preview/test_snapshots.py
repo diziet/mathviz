@@ -14,7 +14,6 @@ from mathviz.core.generator import register
 from mathviz.generators.parametric.torus import TorusGenerator
 from mathviz.preview.server import app, reset_cache
 from mathviz.preview.snapshots import SNAPSHOTS_DIR_ENV_VAR
-
 from tests.test_preview.conftest import make_snapshot_request as _make_snapshot_request
 
 

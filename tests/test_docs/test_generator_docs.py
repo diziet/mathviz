@@ -8,10 +8,10 @@ import re
 
 import pytest
 
-from mathviz.core.generator import GeneratorBase
-
 # Trigger initial import of all generator modules so subclasses exist
 import mathviz.core.generator as _gen_module
+from mathviz.core.generator import GeneratorBase
+
 _gen_module._ensure_discovered()
 
 from tests.test_docs.conftest import GENERATORS_DOC, README_PATH, read_text

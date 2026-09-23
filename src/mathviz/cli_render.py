@@ -9,7 +9,6 @@ from rich.console import Console
 
 from mathviz.preview.renderer import (
     PYVISTA_INSTALL_MSG,
-    VALID_VIEW_NAMES,
     RenderConfig,
     RenderStyle,
     render_2d_projection,

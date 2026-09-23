@@ -2,27 +2,26 @@
 
 import os
 import pickle
-import time
 import threading
+import time
 from collections.abc import Iterator
-from concurrent.futures import CancelledError, ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import CancelledError, ProcessPoolExecutor, ThreadPoolExecutor
 from typing import Any
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+import mathviz.preview.server as server_mod
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.generator import register
-from mathviz.core.math_object import MathObject, Mesh
 from mathviz.generators.parametric.torus import TorusGenerator
 from mathviz.preview.executor import (
     DEFAULT_TIMEOUT_SECONDS,
     GenerationExecutor,
     get_timeout_seconds,
 )
-from mathviz.preview.server import app, get_executor, reset_cache
-import mathviz.preview.server as server_mod
+from mathviz.preview.server import app, reset_cache
 
 
 def _ensure_torus_registered() -> None:
@@ -323,8 +322,8 @@ class TestThreadBasedExecution:
 
     def test_generation_result_identical_via_thread(self, client: TestClient) -> None:
         """Generation result via thread is identical to direct pipeline call."""
-        from mathviz.pipeline.runner import run as run_pipeline
         from mathviz.core.container import Container, PlacementPolicy
+        from mathviz.pipeline.runner import run as run_pipeline
 
         # Run via HTTP (thread executor)
         resp = client.post(

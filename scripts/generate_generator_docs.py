@@ -237,12 +237,12 @@ def _build_generator_section(
                 f"--param {k}={v}" for k, v in ex_params.items()
             )
             lines.append(f"- {desc}")
-            lines.append(f"  ```bash")
+            lines.append("  ```bash")
             lines.append(
                 f"  mathviz generate {meta.name} {param_strs} "
                 f"--output {meta.name}.ply"
             )
-            lines.append(f"  ```")
+            lines.append("  ```")
         lines.append("")
     else:
         # Default example command

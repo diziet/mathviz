@@ -16,7 +16,6 @@ from mathviz.core.math_object import MathObject, Mesh
 from mathviz.generators.parametric.torus import TorusGenerator
 from mathviz.pipeline.dense_sampling import (
     MAX_RESOLUTION_SCALED_SAMPLES,
-    _DENSE_SURFACE_DENSITY,
     _compute_resolution_scale,
     apply_resolution_scaled_sampling,
 )

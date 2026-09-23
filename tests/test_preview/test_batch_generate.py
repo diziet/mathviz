@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from mathviz.core.generator import register
 from mathviz.generators.parametric.torus import TorusGenerator
-from mathviz.preview.server import app, get_cache, reset_cache
+from mathviz.preview.server import app, reset_cache
 
 
 def _ensure_torus_registered() -> None:
@@ -133,12 +133,12 @@ class TestBatchGenerate:
 
     def test_batch_respects_timeout(self, client: TestClient) -> None:
         """Batch respects the generation timeout."""
+        import mathviz.preview.server as server_mod
         from mathviz.preview.executor import (
             BATCH_TIMEOUT_ERROR,
             BatchPanelResult,
             BatchResult,
         )
-        import mathviz.preview.server as server_mod
 
         timed_out_result = BatchResult(
             panels=[

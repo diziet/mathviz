@@ -3,7 +3,6 @@
 import logging
 import os
 import threading
-import time
 from concurrent.futures import (
     CancelledError,
     Future,

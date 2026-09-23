@@ -5,7 +5,6 @@ category filtering, and collapse/toggle behavior using DOM-level assertions.
 """
 
 import importlib.resources
-import json
 import re
 
 import pytest

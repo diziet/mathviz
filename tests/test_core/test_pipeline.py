@@ -16,7 +16,6 @@ from mathviz.pipeline.runner import ExportConfig, PipelineResult, run
 from mathviz.pipeline.sampler import SamplerConfig
 from mathviz.pipeline.timer import PipelineTimer
 
-
 # --- Helpers ---
 
 

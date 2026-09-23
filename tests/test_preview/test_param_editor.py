@@ -1,6 +1,6 @@
 """Tests for the parameter editor panel in the preview UI."""
 
-from typing import Any, Generator
+from typing import Generator
 
 import pytest
 from fastapi.testclient import TestClient

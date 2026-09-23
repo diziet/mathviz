@@ -8,7 +8,6 @@ import pytest
 from typer.testing import CliRunner
 
 from mathviz.cli import app
-from mathviz.cli_demo import DEFAULT_GENERATORS
 from mathviz.demo_builder import DemoBuildResult
 
 runner = CliRunner()
@@ -149,9 +148,10 @@ class TestExportDemoOutputStructure:
         tmp_path: Path,
     ) -> None:
         """Output directory has data/<name>/ with expected files and index.html."""
+        import numpy as np
+
         from mathviz.core.generator import GeneratorMeta
         from mathviz.core.math_object import Mesh, PointCloud
-        import numpy as np
 
         meta = GeneratorMeta(
             name="lorenz",

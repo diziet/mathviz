@@ -1,6 +1,5 @@
 """Tests for the grid manifest and grid block models."""
 
-import json
 from pathlib import Path
 
 import pytest

@@ -9,7 +9,6 @@ from mathviz.generators.attractors.chen import ChenGenerator
 from mathviz.generators.attractors.halvorsen import HalvorsenGenerator
 from mathviz.generators.attractors.rossler import RosslerGenerator
 from mathviz.generators.attractors.thomas import ThomasGenerator
-
 from tests.test_generators.conftest import TEST_STEPS_FAST as _TEST_STEPS
 
 

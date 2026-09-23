@@ -9,6 +9,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from mathviz.cli_benchmark import register_benchmark_command
+from mathviz.cli_cache import register_cache_commands
+from mathviz.cli_demo import register_export_demo_command
 from mathviz.cli_grid import grid_app
 from mathviz.cli_output import (
     error_exit,
@@ -18,9 +21,6 @@ from mathviz.cli_output import (
     serialize_checks,
     write_report,
 )
-from mathviz.cli_benchmark import register_benchmark_command
-from mathviz.cli_cache import register_cache_commands
-from mathviz.cli_demo import register_export_demo_command
 from mathviz.cli_preview import register_preview_command
 from mathviz.cli_render import register_render_commands
 from mathviz.cli_render_batch import register_render_all_command
