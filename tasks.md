@@ -7032,3 +7032,314 @@ The demo builder should use curated parameter/seed combinations instead of hardc
 - `manifest.json` entries include `params` and `seed` fields.
 
 ---
+
+## Task 170: Keep Koch 3D cap triangles inside the snowflake outline
+
+**Class:** possible bug (measured by the report)
+**Source:** prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, pass 3 (PR #173) and the lane summary, 2026-09-23.
+
+**Objective:**
+
+`_triangulate_cap` in `src/mathviz/generators/fractals/koch_3d.py:78` triangulates with
+`Delaunay(curve_2d)`, which covers the convex hull of the outline, not the outline itself. The
+report measured this on 2026-09-23: at level 2, 30 of the 76 cap triangles lie outside the
+snowflake, so every Koch 3D cap fills the snowflake's notches. The `TODO:` at line 86 records the
+defect. The code was not changed.
+
+**Suggested path:**
+
+First write a test that fails on the current code: at level 2, no cap triangle lies outside the
+snowflake outline. Then change `_triangulate_cap` until the test passes. The `TODO:` names two
+options: drop the triangles outside the outline, or use a constrained triangulation. Remove the
+`TODO:` and update the docstring in the same change.
+
+**Tests:** `tests/test_generators/test_koch_3d.py`
+
+- At level 2, every cap triangle lies inside the snowflake outline. This test fails before the fix.
+- The existing Koch 3D tests still pass.
+
+---
+
+## Task 171: Check what a refused `git merge --ff-only` on `main` leaves in the checkout
+
+**Class:** possible bug (tooling; observed by the report)
+**Source:** prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, pass 1 (PR #171), 2026-09-23.
+
+**Objective:**
+
+`.githooks/reference-transaction` calls `guard_main_ff` from `scripts/guard_main.sh` and refuses
+to move `refs/heads/main` to a commit that `origin/main` does not contain. The report proved the
+guard in a throwaway clone on 2026-09-23 and observed a side effect: after the refused
+`git merge --ff-only <unmerged>`, the index and the working tree were already updated, so the
+feature's files were left staged on `main`. The report states that the template repository
+(llm-reliability-benchmark) behaves the same way.
+
+**Suggested path:**
+
+First write a tooling test that runs a refused `git merge --ff-only` on `main` in a fixture clone
+and asserts that the index and the working tree still match `HEAD`. If it fails, change the guard
+so a refused fast-forward leaves the checkout as it was, or, if the hook runs too late for that,
+state the side effect and the recovery command in the hook's header comment and in the CLAUDE.md
+Workflow section. The PR body says which, and why.
+
+**Tests:** `tests/tooling/test_hooks.py`
+
+- A refused `git merge --ff-only` on `main`: the test records the index and working tree state
+  and asserts the chosen behavior.
+- `make gate-wiring-check` and the tooling tests pass.
+
+---
+
+## Task 172: Correct the option tables in `docs/cli.md`
+
+**Class:** stale claim
+**Source:** prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, pass 2 (PR #172), 2026-09-23.
+
+**Objective:**
+
+`docs/cli.md` omits options that the CLI defines:
+
+- The `export-demo` table (section at line 129) has no `--no-presets`, which
+  `src/mathviz/cli_demo.py:60` defines.
+- The `render` table (line 251) and the `render-2d` table (line 277) have no `--style` or
+  `--point-size`, which `src/mathviz/cli_render.py:43-45` and `78-80` define.
+- The report did not check the defaults in these option tables row by row; a sub-agent
+  spot-checked some of them. Reported, not verified.
+
+**Suggested path:**
+
+Add the missing rows with the names, types, defaults and help text from the Typer definitions.
+Check every row's default against the code and correct the ones that differ.
+
+**Tests:** `tests/test_docs`
+
+- `pytest tests/test_docs` passes.
+
+---
+
+## Task 173: Correct the environment-variable table and defaults in `docs/configuration.md`
+
+**Class:** stale claim
+**Source:** prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, pass 2 (PR #172), 2026-09-23.
+
+**Objective:**
+
+- The `## Environment Variables` table in `docs/configuration.md` (lines 170-178) lists
+  `MATHVIZ_SNAPSHOTS_DIR`, `MATHVIZ_GENERATION_TIMEOUT` and `PYVISTA_OFF_SCREEN`. It does not list
+  `MATHVIZ_THUMBNAILS_DIR`, which `src/mathviz/preview/thumbnails.py:26` reads.
+- The report did not check the defaults in the file's option tables row by row. Reported, not
+  verified.
+
+**Suggested path:**
+
+Add a `MATHVIZ_THUMBNAILS_DIR` row with its default and when the code reads it, taken from
+`src/mathviz/preview/thumbnails.py`. Check every default in the file against the code and correct
+the ones that differ. Keep the `## Environment Variables` heading: `docs/preview.md` and
+`docs/preview-ui.md` link to it.
+
+**Tests:** `tests/test_docs`
+
+- `pytest tests/test_docs` passes.
+
+---
+
+## Task 174: Correct the grid workflow step and the PNG suffix claim in `docs/`
+
+**Class:** stale claim
+**Source:** prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, pass 2 (PR #172), 2026-09-23.
+
+**Objective:**
+
+- `docs/grid.md` Workflow Example, step 7 (line 177): it resets a failed block with
+  `mathviz grid status 1 2 --set assigned` before `export-all`. The report found the step
+  unnecessary, because `export-all` also runs blocks in `error` status (the same file says so at
+  line 134).
+- `docs/rendering.md:82` says "The output path must end with `.png`." No suffix check exists in
+  `cli_render.py` or `renderer.py`, and the report did not test what PyVista does with another
+  suffix. Reported, not verified.
+
+**Suggested path:**
+
+Change step 7 to state what `export-all` does with `error` blocks, checked against the code. Run
+`mathviz render` with an output path that does not end in `.png` and make the `rendering.md`
+sentence state the observed result, dated.
+
+**Tests:** `tests/test_docs`
+
+- `pytest tests/test_docs` passes.
+
+---
+
+## Task 175: Correct or remove four unclear or wrong comments and help strings
+
+**Class:** stale claim
+**Source:** prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, passes 2 and 3 (PRs #172 and #173), 2026-09-23.
+
+**Objective:**
+
+- `src/mathviz/cli_thumbnail.py:39`: the `render-thumbnail --view-mode` help text says
+  "View mode: points/shaded/wireframe". The default is `vertex`, and `points` is not a valid view
+  mode (pass 2 corrected `docs/cli.md`, not the help string).
+- `src/mathviz/generators/attractors/double_pendulum.py:19`: the module docstring says ω₂ is
+  "correlated with ω₁ through conservation constraints". Reported, not verified.
+- `src/mathviz/generators/fractals/menger_sponge.py:124`: the comment `# Two tangent axes` was left
+  because its meaning was unclear.
+- `scripts/generate_generator_docs.py:275`: the comment "(handles case-sensitive names)" was left
+  because its meaning was unclear.
+
+**Suggested path:**
+
+Make the help string list the values of `VALID_VIEW_MODES`. For each of the three comments, read
+the code it describes: rewrite it to state what the code does, or delete it when it adds nothing.
+Keep the ω₂ claim only if it can be shown from the equations or a measurement; otherwise remove it.
+
+**Tests:**
+
+- `mathviz render-thumbnail --help` lists only valid view modes.
+- `make lint` and `make test` pass. `docs/generators.md` stays fresh
+  (`scripts/generate_generator_docs.py --check`).
+
+---
+
+## Task 176: Source or mark the unverified numbers in `mathviz-spec.md`
+
+**Class:** stale claim
+**Source:** prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, pass 2 (PR #172), 2026-09-23.
+
+**Objective:**
+
+Pass 2 carried these numbers over unchanged without checking them:
+
+- the Tier 1 viewer's "about 80% of the value" estimate (line 774);
+- the timings in §11.2 Performance Expectations (line 1444);
+- the DPI figures in Appendix B (line 1922, "500–1000 DPI equivalent").
+
+Reported, not verified.
+
+**Suggested path:**
+
+For each number, measure it or cite its source with a date, or mark it as an unverified estimate.
+Do not change heading text or section numbers: `tasks.md` cites §5.5 and §8.
+
+**Tests:**
+
+- None; documentation change. `make test` passes.
+
+---
+
+## Task 177: Make three preview tests assert what their names say
+
+**Class:** weak test
+**Source:** prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, pass 3 (PR #173), 2026-09-23.
+
+**Objective:**
+
+Pass 3 corrected the comments in these tests to say what they check. The test names still promise
+more:
+
+- `tests/test_preview/test_generation_timeout.py:325` `test_generation_result_identical_via_thread`
+  runs the torus through the HTTP thread executor and directly, but does not compare the results.
+- `tests/test_preview/test_batch_generate.py:120` `test_response_order_matches_request` checks only
+  that the three `geometry_id` values are distinct, not that they follow the request order.
+- `tests/test_preview/test_snapshots_save.py:269` `test_save_does_not_import_pyvista` checks that
+  the `snapshots` module source does not mention `pyvista` or `render_to_png`. It does not remove
+  PyVista, so it does not show that the save path runs without it.
+
+**Suggested path:**
+
+For each test, add the assertion its name promises, or rename it to what it checks and update its
+docstring and comment to match.
+
+**Tests:** the three files above
+
+- Each test asserts what its name and docstring state.
+- `make test` passes.
+
+---
+
+## Task 178: Owner decision: the lorenz bounding-box reference fixture
+
+**Class:** design question (needs the owner)
+**Source:** prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, pass 0 (PR #170) and the lane summary, 2026-09-23.
+
+**Objective:**
+
+`tests/test_fixtures.py:140` `test_bounding_box_within_epsilon[lorenz]` is marked xfail with
+`strict=False` (line 146), because today's environment does not reproduce the lorenz reference.
+Measured 2026-09-23: `min_corner[0]` is 15.6719 with Accelerate numpy across Python 3.11, 3.13
+and 3.14, numpy 2.3.5-2.4.6, scipy 1.16.3-1.17.1 and numba 0.63.1-0.67.0. It is 16.0141 with
+OpenBLAS numpy. The reference is 16.1964, generated 2026-03-15. The Lorenz fixture integrates a
+chaotic system over t = 0..100, and scipy's DOP853 steps call `np.dot`, so a different BLAS build
+gives a different trajectory. The report's explanation, that macOS 26.3's Accelerate produced
+the reference, is reported, not verified.
+
+**Suggested path:**
+
+Needs the owner's decision: regenerate the lorenz reference, or change the lorenz fixture so that
+its bounding box does not depend on BLAS rounding. The report notes that regenerating alone makes
+the test depend on today's macOS build. Nobody changes the fixture or the xfail until the owner
+records the decision in this task.
+
+**Tests:** `tests/test_fixtures.py`
+
+- After the decision: the lorenz case passes without the xfail marker.
+
+---
+
+## Task 179: Owner decision: where `mathviz-spec.md` and the code disagree
+
+**Class:** design question (needs the owner)
+**Source:** prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, pass 2 (PR #172) and the lane summary, 2026-09-23.
+
+**Objective:**
+
+Pass 2 found these differences between `mathviz-spec.md` and the code, and left them because
+fixing them adds facts:
+
+- There are two `### 3.3` headings (lines 210 and 260).
+- The §12 Project Structure tree (line 1473) lists files that do not exist: `mathviz.toml`,
+  `grid.toml`, `examples/`, `studio-frontend/`, `docs/adr-*.md`.
+- There is no `mathviz studio` command (spec line 1071).
+- The install groups `[studio]`, `[open3d]` and `[all]` (line 1363) are absent from
+  `pyproject.toml`, and so are `pytest-benchmark` and `mypy`.
+- The geometry cache is "LRU in temp directory" in §7.7 (line 1034) but "in memory" in §11.3
+  (line 1469).
+- Appendix B names three optimizer strategies (line 1939), while `occlusion_mode` in
+  `src/mathviz/core/engraving.py:15` has four values.
+- The spec lists 8 pipeline stages; `docs/pipeline.md` lists 6.
+
+**Suggested path:**
+
+Needs the owner's decision for each difference: whether the spec describes planned work, or should
+describe the code as built. Nobody edits the spec or the code for these until the owner records the
+decisions in this task. Do not renumber sections: `tasks.md` cites §5.5 and §8.
+
+**Tests:**
+
+- None; documentation change. `make test` passes.
+
+---
+
+## Task 180: Owner decision: add `uv.lock` and the main-branch gate watcher
+
+**Class:** design question (needs the owner)
+**Source:** prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, pass 1 (PR #171) and the lane summary, 2026-09-23.
+
+**Objective:**
+
+- The repo has no lock file, so `make venv` installs the newest release that each
+  `pyproject.toml` floor allows. The `TODO:` at `Makefile:7` records it. Without a lock file,
+  `lock-check`, `venv-check` and `check_pins.py` were not ported from the template.
+- The report-only watcher that re-runs the gate on each new `origin/main` commit does not exist.
+  The `TODO:` at `Makefile:74` records it.
+
+**Suggested path:**
+
+Needs the owner's decision on each: whether to commit `uv.lock` and port the lock checks, and
+whether to build the watcher. Nobody adds either until the owner records the decision in this task.
+
+**Tests:**
+
+- After the decision: `make doctor` and `make gate` pass.
+
+---
