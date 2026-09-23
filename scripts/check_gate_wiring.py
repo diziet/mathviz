@@ -5,8 +5,10 @@
 (b) every script under scripts/ is referenced from the Makefile, a hook, another
     script, or a test module (no orphan tooling), except the listed operator
     scripts, and each of those must still exist and still be unreferenced;
-(c) every Makefile target whose `## ` comment says `Blocking gate` is reached
-    from `gate` or `merge`.
+(c) the Makefile `gate` recipe runs scripts/gate.sh, and every Makefile target
+    whose `## ` comment says `Blocking gate` is in that script's `stages="..."`
+    list. The list is parsed rather than searched as text, because a target name
+    inside a message string is not a stage.
 The verdict is the exit code, never parsed output.
 """
 
@@ -23,6 +25,9 @@ TEST_DEF_PATTERN = re.compile(r"^\s*(async\s+)?def\s+test_", re.MULTILINE)
 BLOCKING_TARGET_PATTERN = re.compile(
     r"^([A-Za-z0-9_-]+):.*## Blocking gate", re.MULTILINE
 )
+# Only an unindented list matches, not an indented subset inside a branch.
+STAGES_PATTERN = re.compile(r'^stages="([^"]*)"', re.MULTILINE)
+GATE_SCRIPT = "scripts/gate.sh"
 KNOWN_TEST_MODULES: frozenset[str] = frozenset(
     {
         "tests/test_build_demo.py",
@@ -177,32 +182,43 @@ def blocking_targets(makefile_text: str) -> list[str]:
     return BLOCKING_TARGET_PATTERN.findall(makefile_text)
 
 
+def recipe_text(makefile_text: str, target: str) -> str:
+    """Return the tab-indented recipe lines of `target`, or '' when it has no rule."""
+    lines = makefile_text.splitlines()
+    for index, line in enumerate(lines):
+        if re.match(rf"^{re.escape(target)}:", line):
+            recipe: list[str] = []
+            for body in lines[index + 1 :]:
+                if not body.startswith("\t"):
+                    break
+                recipe.append(body)
+            return "\n".join(recipe)
+    return ""
+
+
+def gate_stages(gate_text: str) -> list[str] | None:
+    """Return the stage list from gate.sh, or None without a `stages=` line."""
+    match = STAGES_PATTERN.search(gate_text)
+    return match.group(1).split() if match else None
+
+
 def check_blocking_targets_wired(root: Path) -> list[str]:
-    """(c) Every Blocking-gate target appears in gate.sh or the merge scripts."""
+    """(c) `gate` runs gate.sh and every Blocking-gate target is in its stage list."""
     makefile = root / "Makefile"
     if not makefile.is_file():
         return ["Makefile missing"]
-    corpus_files = [
-        root / "scripts" / "gate.sh",
-        *sorted((root / "scripts").glob("merge*.py")),
+    makefile_text = makefile.read_text()
+    if GATE_SCRIPT not in recipe_text(makefile_text, "gate"):
+        return [f"Makefile `gate` recipe does not run {GATE_SCRIPT}"]
+    gate = root / GATE_SCRIPT
+    stages = gate_stages(gate.read_text()) if gate.is_file() else None
+    if stages is None:
+        return [f'{GATE_SCRIPT} has no stages="..." list']
+    return [
+        f"blocking target '{target}' is not a stage in {GATE_SCRIPT}"
+        for target in blocking_targets(makefile_text)
+        if target not in WIRING_ROOTS and target not in stages
     ]
-    corpus = "\n".join(
-        line
-        for path in corpus_files
-        if path.is_file()
-        for line in path.read_text(errors="replace").splitlines()
-        if not line.lstrip().startswith("#")
-    )
-    problems: list[str] = []
-    for target in blocking_targets(makefile.read_text()):
-        if target in WIRING_ROOTS:
-            continue
-        if not re.search(rf"\b{re.escape(target)}\b", corpus):
-            problems.append(
-                f"blocking target '{target}' is not invoked by gate or merge "
-                "(scripts/gate.sh, scripts/merge*.py)"
-            )
-    return problems
 
 
 def run_all(

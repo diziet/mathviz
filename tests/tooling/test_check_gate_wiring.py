@@ -17,6 +17,14 @@ MAKEFILE = (
 )
 
 
+def _gate_sh(stages: str, extra: str = "") -> str:
+    """Return a gate.sh shaped like ours: one full `stages=` list, then a loop."""
+    return (
+        f'#!/bin/sh\nstages="{stages}"\n{extra}'
+        'for s in $stages; do make -s "$s"; done\n'
+    )
+
+
 @pytest.fixture
 def mini_repo(tmp_path: Path) -> Path:
     """A repo shaped like ours: Makefile, scripts, one test."""
@@ -26,7 +34,7 @@ def mini_repo(tmp_path: Path) -> Path:
     (tmp_path / "Makefile").write_text(MAKEFILE)
     scripts = tmp_path / "scripts"
     scripts.mkdir()
-    (scripts / "gate.sh").write_text("#!/bin/sh\nfor s in lint; do make -s $s; done\n")
+    (scripts / "gate.sh").write_text(_gate_sh("lint"))
     (scripts / "tool.py").write_text("print('tool')\n")
     (scripts / "manual.py").write_text("print('run by hand')\n")
     (tmp_path / "tests").mkdir()
@@ -160,10 +168,55 @@ def test_unwired_blocking_target_fails_then_passes_when_added_to_gate(
     )
     problems = wiring.check_blocking_targets_wired(mini_repo)
     assert len(problems) == 1 and "'typecheck'" in problems[0]
-    (mini_repo / "scripts" / "gate.sh").write_text(
-        "#!/bin/sh\nfor s in lint typecheck; do make -s $s; done\n"
-    )
+    (mini_repo / "scripts" / "gate.sh").write_text(_gate_sh("lint typecheck"))
     assert wiring.check_blocking_targets_wired(mini_repo) == []
+
+
+@pytest.mark.parametrize(
+    ("path", "text"),
+    [
+        (
+            "scripts/gate.sh",
+            _gate_sh("lint", 'echo "gate: typecheck is not a stage here"\n'),
+        ),
+        (
+            "scripts/merge_gate.py",
+            'MESSAGE = "run make typecheck before the merge"\n',
+        ),
+    ],
+    ids=["gate-echo", "merge-script-string"],
+)
+def test_blocking_target_named_only_in_a_string_fails_by_name(
+    mini_repo: Path, path: str, text: str
+) -> None:
+    """A target name inside a message is not a stage; only the stage list counts."""
+    (mini_repo / "Makefile").write_text(
+        MAKEFILE + "typecheck: ## Blocking gate: mypy\n\tmypy .\n"
+    )
+    (mini_repo / path).write_text(text)
+    problems = wiring.check_blocking_targets_wired(mini_repo)
+    assert len(problems) == 1 and "'typecheck'" in problems[0]
+
+
+def test_gate_recipe_that_skips_gate_script_fails(mini_repo: Path) -> None:
+    (mini_repo / "Makefile").write_text(
+        MAKEFILE.replace("\tbash scripts/gate.sh\n", "\tmake -s lint\n")
+    )
+    assert wiring.check_blocking_targets_wired(mini_repo) == [
+        "Makefile `gate` recipe does not run scripts/gate.sh"
+    ]
+
+
+def test_gate_script_without_stage_list_fails_closed(mini_repo: Path) -> None:
+    (mini_repo / "scripts" / "gate.sh").write_text("#!/bin/sh\nmake -s lint\n")
+    assert wiring.check_blocking_targets_wired(mini_repo) == [
+        'scripts/gate.sh has no stages="..." list'
+    ]
+
+
+def test_stage_list_is_the_unindented_list_only() -> None:
+    gate_text = 'stages="lint test"\nif [ "$d" = 1 ]; then\n  stages="lint"\nfi\n'
+    assert wiring.gate_stages(gate_text) == ["lint", "test"]
 
 
 def test_blocking_targets_are_parsed_from_help_comments() -> None:
