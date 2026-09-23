@@ -158,11 +158,11 @@ def _maple_leaf_3d() -> tuple[list[np.ndarray], list[np.ndarray], list[float]]:
 
 
 def _spiral_3d() -> tuple[list[np.ndarray], list[np.ndarray], list[float]]:
-    """Return spiral extended to 3D with z-axis rotation on second transform."""
+    """Return spiral extended to 3D, with a y-axis rotation on the second transform."""
     m2, o2, probs = _spiral_2d()
     matrices = [_embed_2d_to_3d(m, 0.7) for m in m2]
     offsets = _embed_offsets_2d_to_3d(o2)
-    # Add z-axis rotation to second transform for 3D interest
+    # Rotate the second transform 15° about the y-axis (mixing x and z) to give the spiral depth
     cos15 = np.cos(np.radians(15))
     sin15 = np.sin(np.radians(15))
     matrices[1] = np.array([
@@ -306,7 +306,6 @@ def _validate_custom_transforms(
             "matrices, offsets, and probabilities must have equal length"
         )
 
-    # Validate probabilities
     if any(p < 0 for p in probs):
         raise ValueError("probabilities must be non-negative")
     prob_sum = sum(probs)
@@ -315,7 +314,6 @@ def _validate_custom_transforms(
             f"probabilities must sum to 1.0, got {prob_sum}"
         )
 
-    # Validate matrix shapes
     for i, m in enumerate(matrices):
         arr = np.asarray(m)
         if arr.shape not in _VALID_MATRIX_SHAPES:
@@ -328,7 +326,6 @@ def _validate_custom_transforms(
                 f"matrices[0] shape {np.asarray(matrices[0]).shape}"
             )
 
-    # Validate offset dimensions match matrix dimensions
     ndim = np.asarray(matrices[0]).shape[0]
     for i, o in enumerate(offsets):
         arr = np.asarray(o)
@@ -337,7 +334,6 @@ def _validate_custom_transforms(
                 f"offsets[{i}] shape {arr.shape}, expected ({ndim},)"
             )
 
-    # Validate dimension compatibility
     if ndim == 3 and dimensions == "2d_extruded":
         raise ValueError(
             "3×3 custom matrices are incompatible with dimensions='2d_extruded'; "

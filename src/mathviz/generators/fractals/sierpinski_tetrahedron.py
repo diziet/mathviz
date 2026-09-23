@@ -169,7 +169,7 @@ class SierpinskiTetrahedronGenerator(GeneratorBase):
     ) -> MathObject:
         """Generate a Sierpinski tetrahedron mesh.
 
-        Fully deterministic — seed is stored for metadata only.
+        The output is deterministic. The seed is stored as metadata only.
         """
         merged = self.get_default_params()
         if params:

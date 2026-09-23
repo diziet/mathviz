@@ -177,7 +177,7 @@ class MengerSpongeGenerator(GeneratorBase):
     ) -> MathObject:
         """Generate a Menger sponge mesh.
 
-        Fully deterministic — seed is stored for metadata only.
+        The output is deterministic. The seed is stored as metadata only.
         """
         merged = self.get_default_params()
         if params:

@@ -4,8 +4,8 @@ Evaluates the Mandelbulb 3D escape-time field on a 2D plane, producing a
 scalar field suitable for HEIGHTMAP_RELIEF representation. The plane is
 defined by a constant coordinate along the chosen axis.
 
-Seed is stored for metadata/provenance only — the computation is fully
-deterministic for given parameters.
+The seed is stored as metadata only. The computation is deterministic for
+given parameters.
 """
 
 import logging
@@ -114,7 +114,7 @@ class FractalSliceGenerator(GeneratorBase):
     ) -> MathObject:
         """Generate a 2D fractal cross-section as a scalar field.
 
-        Seed is stored for metadata only — output is fully deterministic.
+        The seed is stored as metadata only. The output is deterministic.
         """
         merged = self.get_default_params()
         if params:

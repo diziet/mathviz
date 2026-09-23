@@ -152,7 +152,6 @@ def _collect_faces(vor: Voronoi, indices: list[int]) -> Mesh:
     remap = {old: new for new, old in enumerate(used)}
     vertices = vor.vertices[used].astype(np.float64)
 
-    # Filter non-finite vertices
     finite = np.all(np.isfinite(vertices), axis=1)
     if not np.all(finite):
         good = {used[i] for i in range(len(used)) if finite[i]}

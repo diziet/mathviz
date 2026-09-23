@@ -2,8 +2,8 @@
 
 Computes the Mandelbrot escape-time iteration count on a 2D grid and stores
 it as a scalar field. The HEIGHTMAP_RELIEF representation extrudes this into
-a 3D relief surface. Vectorized NumPy — no numba needed for pixel_resolution
-up to ~512.
+a 3D relief surface. The iteration is vectorized NumPy and needs no numba
+for pixel_resolution up to ~512.
 """
 
 import logging
@@ -64,7 +64,7 @@ class MandelbrotHeightmapGenerator(GeneratorBase):
 
     Escape-time iteration count on a pixel_resolution² grid becomes the
     z-height of a relief surface via HEIGHTMAP_RELIEF representation.
-    Seed has no effect — the Mandelbrot set is fully deterministic.
+    The seed has no effect: the Mandelbrot set is deterministic.
     """
 
     name = "mandelbrot_heightmap"
