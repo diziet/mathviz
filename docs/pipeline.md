@@ -1,8 +1,9 @@
 # Pipeline
 
-MathViz processes mathematical forms through a linear chain of independently
-callable stages. Each stage operates on a `MathObject` dataclass and calls
-`validate_or_raise()` at every boundary to ensure data integrity.
+The MathViz pipeline is a linear sequence of stages, and each stage can be
+called on its own. Each stage operates on a `MathObject` dataclass and calls
+`validate_or_raise()` at every boundary, which raises `ValueError` for an
+invalid `MathObject`.
 
 ## Stages
 
@@ -13,7 +14,8 @@ Generate → Represent → Transform → Sample → Validate → Export
 ### 1. Generate
 
 The generator produces raw geometry in abstract coordinate space. Each
-generator is deterministic given a seed (using `numpy.random.default_rng(seed)`).
+generator is deterministic for a given seed. It draws random numbers from
+`numpy.random.default_rng(seed)`.
 
 - **Input**: generator name, parameters, seed
 - **Output**: `MathObject` with mesh and/or point cloud in `ABSTRACT` coordinate space
@@ -21,30 +23,30 @@ generator is deterministic given a seed (using `numpy.random.default_rng(seed)`)
 
 ### 2. Represent
 
-The representation stage applies a fabrication policy that controls how the raw
-geometry will appear when engraved in glass. This separates "what the math
-produces" from "how it looks engraved."
+The Represent stage applies a fabrication policy, which controls how the raw
+geometry appears when engraved in glass. It keeps what the math produces
+separate from how it looks engraved.
 
 - **Input**: `MathObject` from Generate, `RepresentationConfig`
 - **Output**: `MathObject` with geometry modified according to the chosen strategy
-- **Key rule**: if no explicit config is provided, a default strategy is selected per generator
+- **Key rule**: without a `RepresentationConfig`, the stage uses the generator's default strategy
 
 See [representation.md](representation.md) for the nine available strategies.
 
 ### 3. Transform
 
-The transformer fits geometry from abstract coordinate space into a physical
-glass block container. It scales, centers, and applies placement policy
-(anchor, viewing axis, depth bias, rotation).
+The Transform stage fits geometry from abstract coordinate space into a
+physical glass block container. It scales the geometry, centers it, and applies
+the placement policy (anchor, viewing axis, depth bias, rotation).
 
 - **Input**: `MathObject` in `ABSTRACT` space, `Container`, `PlacementPolicy`
 - **Output**: `MathObject` in `PHYSICAL` space, fitted within the container margins
-- **Key rule**: aspect ratio is preserved by default; depth bias adjusts z-scaling
+- **Key rule**: aspect ratio is preserved by default. Depth bias changes the z scaling.
 
 ### 4. Sample (optional)
 
-Converts mesh geometry into a point cloud suitable for laser engraving. This
-stage is only run when a `SamplerConfig` is provided.
+Converts mesh geometry into a point cloud for laser engraving. The stage runs
+only when a `SamplerConfig` is provided.
 
 - **Input**: `MathObject` with mesh, `SamplerConfig`
 - **Output**: `MathObject` with point cloud added
@@ -52,18 +54,17 @@ stage is only run when a `SamplerConfig` is provided.
 
 ### 5. Validate
 
-Runs mesh and engraving validation checks on the final geometry. Checks include
-bounding box containment, mesh integrity, point spacing, and point budget
-compliance.
+Runs mesh and engraving checks on the final geometry: bounding box
+containment, mesh integrity, point spacing, and the point budget.
 
 - **Input**: `MathObject`, `Container`, optional `EngravingProfile`
 - **Output**: `ValidationResult` with a list of pass/fail checks
-- **Key rule**: validation failures produce warnings but do not abort the pipeline
+- **Key rule**: a failed check produces a warning and does not stop the pipeline
 
 ### 6. Export (optional)
 
-Writes the final geometry to disk. Supports mesh formats (STL, OBJ, GLB) and
-point cloud formats (PLY, XYZ, PCD).
+Writes the final geometry to disk, as a mesh (STL, OBJ, GLB) or a point cloud
+(PLY, XYZ, PCD).
 
 - **Input**: `MathObject`, `ExportConfig` (path, format, export type)
 - **Output**: file written to disk
@@ -84,7 +85,7 @@ The `validate` command runs Generate through Validate without exporting:
 mathviz validate lorenz --seed 42
 ```
 
-Use `--dry-run` to see what would happen without executing:
+`--dry-run` shows what the command would do without running it:
 
 ```bash
 mathviz generate lorenz --output lorenz.ply --dry-run
@@ -111,8 +112,7 @@ print(result.timings)
 
 ## Stage Timing
 
-The pipeline tracks execution time for each stage. Access timings from the
-`PipelineResult`:
+The pipeline records the run time of each stage in `PipelineResult.timings`:
 
 ```python
 result = run(generator="lorenz", container=Container(), placement=PlacementPolicy())
