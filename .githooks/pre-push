@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Refuse any push to refs/heads/main, then run the gate-wiring check (blocking, fast).
+# Each step skips silently when its tooling is absent in this worktree.
+set -euo pipefail
+root="$(cd "$(dirname "$0")/.." && pwd -P)"
+guard="$root/scripts/guard_main.sh"
+[ -f "$guard" ] || exit 0
+. "$guard"
+guard_main_push
+if [ -x "$root/.venv/bin/python" ] && [ -f "$root/scripts/check_gate_wiring.py" ]; then
+  make -C "$root" -s gate-wiring-check
+else
+  echo "pre-push: no .venv or wiring check in this worktree; skipping gate-wiring-check" >&2
+fi

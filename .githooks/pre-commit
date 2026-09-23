@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Refuse commits on main, then apply ruff's fixes to and lint the staged .py files. Skips
+# silently on a branch that has no scripts/guard_main.sh (older checkout).
+set -euo pipefail
+guard="$(cd "$(dirname "$0")/.." && pwd -P)/scripts/guard_main.sh"
+[ -f "$guard" ] || exit 0
+. "$guard"
+guard_main_commit
+precommit_ruff
