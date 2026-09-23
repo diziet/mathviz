@@ -124,6 +124,7 @@ class Hilbert3DGenerator(GeneratorBase):
 
         points = _generate_hilbert_points(order)
 
+        # Normalize to [0, size] range
         grid_max = (1 << order) - 1
         if grid_max > 0:
             points = points / grid_max * size

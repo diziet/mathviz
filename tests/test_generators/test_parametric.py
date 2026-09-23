@@ -212,7 +212,7 @@ def test_default_representation_is_surface_shell(
 
 
 def test_custom_radii(torus: TorusGenerator) -> None:
-    """Major radius 2.0 and minor radius 0.5 give an x/y extent of 2.5 and a z extent of 0.5."""
+    """Major radius 2.0 and minor radius 0.5 give a max |x| of 2.5 and a max |z| of 0.5."""
     obj = torus.generate(
         params={"major_radius": 2.0, "minor_radius": 0.5},
         grid_resolution=16,

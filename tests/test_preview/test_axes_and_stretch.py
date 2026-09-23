@@ -170,6 +170,8 @@ class TestStretchBehavior:
         self, preview_html: str
     ) -> None:
         """Stretch values persist across regeneration via applyStretch call."""
+        # displayGenerateResult must call applyStretch after loading the geometry.
+        # This checks only that the call is present.
         display_fn = preview_html.split("async function displayGenerateResult")[
             1
         ].split("/* ──")[0]

@@ -217,7 +217,7 @@ class Koch3DGenerator(GeneratorBase):
         params: dict[str, Any] | None = None,
         seed: int = 42,
         # resolution_kwargs is accepted per the GeneratorBase contract but
-        # unused: the Koch geometry depends only on level.
+        # unused: the Koch geometry depends on level, not on resolution.
         **resolution_kwargs: Any,
     ) -> MathObject:
         """Generate a Koch snowflake 3D mesh.
