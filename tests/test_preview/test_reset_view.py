@@ -53,7 +53,7 @@ class TestResetViewButton:
         assert "Reset View" in html
 
     def test_html_contains_fit_camera_in_reset(self, html: str) -> None:
-        """HTML contains resetView function that calls fitCamera."""
+        """HTML contains fitCamera(active) and resetView."""
         assert "fitCamera(active)" in html
         assert "resetView" in html
 
@@ -70,31 +70,31 @@ class TestResetViewButton:
         assert 'id="reset-view-btn" disabled' in html
 
     def test_html_contains_enable_reset_view_call(self, html: str) -> None:
-        """HTML calls enableResetView after geometry display."""
+        """HTML calls enableResetView() and sets resetViewBtn.disabled = false."""
         assert "enableResetView()" in html
         assert "resetViewBtn.disabled = false" in html
 
     def test_html_disables_reset_on_clear_scene(self, html: str) -> None:
-        """HTML disables reset button when clearScene is called."""
+        """HTML sets resetViewBtn.disabled = true."""
         assert "resetViewBtn.disabled = true" in html
 
     def test_html_contains_home_key_shortcut(self, html: str) -> None:
-        """HTML binds the Home key to reset view."""
+        """HTML contains 'Home' and resetView."""
         assert "'Home'" in html
         assert "resetView" in html
 
     def test_html_shortcut_checks_modifier_keys(self, html: str) -> None:
-        """Keyboard shortcut skips when modifier keys are held."""
+        """HTML contains e.ctrlKey, e.metaKey and e.altKey."""
         assert "e.ctrlKey" in html
         assert "e.metaKey" in html
         assert "e.altKey" in html
 
     def test_html_shortcut_checks_disabled_state(self, html: str) -> None:
-        """Keyboard shortcut respects the button's disabled state."""
+        """HTML contains resetViewBtn.disabled."""
         assert "resetViewBtn.disabled" in html
 
     def test_html_shortcut_guards_editable_elements(self, html: str) -> None:
-        """Keyboard shortcut skips input, select, textarea, and contentEditable."""
+        """HTML contains INPUT, SELECT, TEXTAREA and isContentEditable."""
         assert "INPUT" in html
         assert "SELECT" in html
         assert "TEXTAREA" in html

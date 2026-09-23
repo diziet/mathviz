@@ -59,7 +59,7 @@ class TestRandomizeButtonPresent:
         assert 'id="param-randomize-btn"' in preview_html
 
     def test_randomize_button_in_param_buttons(self, preview_html: str) -> None:
-        """Randomize button is inside the param-buttons container."""
+        """The first param-buttons comes before the first param-randomize-btn in the HTML."""
         idx_buttons = preview_html.find("param-buttons")
         idx_randomize = preview_html.find("param-randomize-btn")
         assert idx_buttons < idx_randomize
@@ -69,33 +69,33 @@ class TestRandomizeButtonPresent:
         assert "randomizeParams" in preview_html
 
     def test_randomize_fetches_ranges(self, preview_html: str) -> None:
-        """Randomize logic fetches param-ranges from the API."""
+        """Preview HTML contains param-ranges."""
         assert "param-ranges" in preview_html
 
 
-# --- Clicking Randomize changes parameter input values ---
+# --- Names the randomize code uses ---
 
 
 class TestRandomizeChangesValues:
-    """Randomize logic uses param-ranges to set random values in inputs."""
+    """Preview HTML contains randomizeInRange and paramFields.querySelectorAll."""
 
     def test_randomize_in_range_function(self, preview_html: str) -> None:
         """randomizeInRange helper function exists for uniform random selection."""
         assert "randomizeInRange" in preview_html
 
     def test_randomize_iterates_param_inputs(self, preview_html: str) -> None:
-        """Randomize iterates over all param inputs in paramFields."""
+        """Preview HTML contains paramFields.querySelectorAll."""
         assert "paramFields.querySelectorAll" in preview_html
 
 
-# --- Randomized values fall within exploration ranges ---
+# --- GET /api/generators/{name}/param-ranges ---
 
 
 class TestParamRangesEndpoint:
     """GET /api/generators/{name}/param-ranges returns valid ranges."""
 
     def test_lorenz_param_ranges(self, client: TestClient) -> None:
-        """Lorenz param-ranges endpoint returns ranges for all params."""
+        """Lorenz param-ranges has sigma, rho, beta; each range has a step and min <= max."""
         resp = client.get("/api/generators/lorenz/param-ranges")
         assert resp.status_code == 200
         data = resp.json()
@@ -129,14 +129,14 @@ class TestParamRangesEndpoint:
         assert resp.status_code == 404
 
 
-# --- Seed is also randomized ---
+# --- Seed randomization code ---
 
 
 class TestSeedRandomization:
-    """Randomize also sets a random seed value."""
+    """Preview HTML has the seed input and a random seed expression."""
 
     def test_randomize_sets_seed(self, preview_html: str) -> None:
-        """Randomize logic sets seed-input to a random value."""
+        """Preview HTML contains seed-input and Math.floor(Math.random() * 1000000)."""
         assert "seed-input" in preview_html
         assert "Math.floor(Math.random() * 1000000)" in preview_html
 
@@ -187,7 +187,7 @@ class TestDerivedRanges:
         assert rng is None
 
     def test_negative_int_range(self) -> None:
-        """Negative int derives to [-2x, 2x] with step 1."""
+        """Negative int derives to [2x, 2*abs(x)] with step 1."""
         rng = _derive_param_range(-5)
         assert rng is not None
         assert rng["min"] == -10
@@ -251,11 +251,11 @@ class TestExplicitRanges:
         assert data["sigma"]["min"] == 5.0
 
 
-# --- Keyboard shortcut triggers randomization ---
+# --- Keyboard shortcut code ---
 
 
 class TestKeyboardShortcut:
-    """R key triggers randomization when no input is focused."""
+    """Tests for the R-key shortcut code in the preview HTML."""
 
     def test_keydown_listener_exists(self, preview_html: str) -> None:
         """Keyboard event listener for R key is present."""
@@ -263,9 +263,9 @@ class TestKeyboardShortcut:
         assert "e.key === 'r'" in preview_html or "e.key === 'R'" in preview_html
 
     def test_shortcut_checks_active_element(self, preview_html: str) -> None:
-        """Shortcut skips when an input/textarea/select is focused."""
+        """Preview HTML contains activeElement."""
         assert "activeElement" in preview_html
 
     def test_shortcut_calls_randomize(self, preview_html: str) -> None:
-        """Shortcut calls randomizeParams()."""
+        """Preview HTML calls randomizeParams()."""
         assert "randomizeParams()" in preview_html

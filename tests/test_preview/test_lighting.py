@@ -35,7 +35,7 @@ class TestLightSources:
         assert "HemisphereLight" in html
 
     def test_has_at_least_three_lights(self, html: str) -> None:
-        """At least 3 light sources are added to the scene."""
+        """The HTML has at least 3 new THREE.<Light> constructor calls."""
         light_pattern = re.compile(
             r"new THREE\.(DirectionalLight|AmbientLight|HemisphereLight|PointLight|SpotLight)"
         )
@@ -59,7 +59,7 @@ class TestShadowMapping:
         assert "PCFSoftShadowMap" in html
 
     def test_light_casts_shadow(self, html: str) -> None:
-        """At least one light has castShadow = true in createLightingRig."""
+        """The key light has castShadow = true."""
         assert re.search(r"key\.castShadow\s*=\s*true", html), (
             "Key light castShadow not found in lighting rig"
         )
@@ -78,11 +78,11 @@ class TestMeshMaterials:
         )
 
     def test_physical_material_used(self, html: str) -> None:
-        """MeshPhysicalMaterial is used for shaded meshes."""
+        """The HTML uses MeshPhysicalMaterial."""
         assert "MeshPhysicalMaterial" in html
 
     def test_shadow_on_both_light_and_mesh(self, html: str) -> None:
-        """castShadow appears on both lights and meshes."""
+        """castShadow = true appears at least twice in the HTML."""
         count = html.count("castShadow = true")
         assert count >= 2, f"Expected castShadow on light + mesh, found {count} occurrences"
 
@@ -91,7 +91,7 @@ class TestNormalComputation:
     """Verify normals are computed on loaded geometries."""
 
     def test_compute_vertex_normals_called(self, html: str) -> None:
-        """computeVertexNormals() is called on loaded geometries."""
+        """The HTML calls computeVertexNormals()."""
         assert "computeVertexNormals()" in html
 
 
@@ -119,7 +119,7 @@ class TestLightingRigShared:
         assert "function applyLightIntensities" in html
 
     def test_light_intensities_constant(self, html: str) -> None:
-        """LIGHT_INTENSITIES constant defines dark and light mode values."""
+        """The HTML has LIGHT_INTENSITIES and "dark: {" and "light: {" blocks."""
         assert "LIGHT_INTENSITIES" in html
         assert re.search(r"dark:\s*\{", html), "Dark mode intensities not found"
         assert re.search(r"light:\s*\{", html), "Light mode intensities not found"

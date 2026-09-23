@@ -88,21 +88,21 @@ class TestGeneratorSelectorHTML:
         assert 'id="generator-dropdown"' in preview_html
 
     def test_html_fetches_generators_api(self, preview_html: str) -> None:
-        """Preview GET / HTML contains JavaScript that fetches /api/generators."""
+        """Preview HTML contains /api/generators and fetchGenerators."""
         assert "/api/generators" in preview_html
         assert "fetchGenerators" in preview_html
 
     def test_html_calls_generate_on_selection(self, preview_html: str) -> None:
-        """Selecting a generator triggers a POST /api/generate with the correct name."""
+        """Preview HTML contains loadFromAPI and /api/generate."""
         assert "loadFromAPI" in preview_html
         assert "/api/generate" in preview_html
 
     def test_html_updates_url_on_selection(self, preview_html: str) -> None:
-        """URL is updated with the selected generator name after switching."""
+        """Preview HTML calls history.replaceState."""
         assert "history.replaceState" in preview_html
 
     def test_html_has_type_ahead_filtering(self, preview_html: str) -> None:
-        """Type-ahead filtering narrows the visible list correctly."""
+        """Preview HTML contains filterGenerators and generator-search."""
         assert "filterGenerators" in preview_html
         assert 'id="generator-search"' in preview_html
 
@@ -122,12 +122,12 @@ class TestSeedControl:
         assert 'id="seed-random-btn"' in preview_html
 
     def test_seed_change_triggers_regeneration(self, preview_html: str) -> None:
-        """Changing the seed triggers regeneration via applyGenerator."""
+        """Preview HTML contains seed-input and applyGenerator."""
         assert "seed-input" in preview_html
         assert "applyGenerator" in preview_html
 
     def test_seed_input_preloads_from_url(self, preview_html: str) -> None:
-        """Seed input is populated from the URL query param on load."""
+        """Preview HTML contains seedInput.value and parseQueryParams."""
         assert "seedInput.value" in preview_html
         assert "parseQueryParams" in preview_html
 
@@ -139,11 +139,11 @@ class TestGeneratorSelectorStyling:
     """Tests for proper styling of the generator selector."""
 
     def test_dropdown_has_overlay_styling(self, preview_html: str) -> None:
-        """Dropdown has position:absolute to overlay the 3D canvas."""
+        """Preview HTML contains generator-dropdown and position:absolute."""
         assert "generator-dropdown" in preview_html
         assert "position:absolute" in preview_html
 
     def test_category_display_in_dropdown(self, preview_html: str) -> None:
-        """Generator entries show category information."""
+        """Preview HTML contains gen-category."""
         assert "gen-category" in preview_html
         assert "category" in preview_html

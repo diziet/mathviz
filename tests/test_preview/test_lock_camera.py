@@ -64,7 +64,7 @@ class TestLockCameraButton:
         assert "cameraLocked: 'render'" in html
 
     def test_button_near_other_options(self, html: str) -> None:
-        """Lock Camera button is in the Options section with other toggles."""
+        """The lock-camera element comes after the show-bbox element in the HTML."""
         bbox_pos = html.index('id="show-bbox"')
         lock_pos = html.index('id="lock-camera"')
         assert lock_pos > bbox_pos
@@ -74,13 +74,13 @@ class TestLockCameraCycling:
     """Tests for the three-state cycling behavior."""
 
     def test_cycle_map_exists(self, html: str) -> None:
-        """Click handler cycles render -> full -> off -> render."""
+        """The HTML has the cycle map render: 'full', full: 'off', off: 'render'."""
         assert "render: 'full'" in html
         assert "full: 'off'" in html
         assert "off: 'render'" in html
 
     def test_click_updates_dataset_and_state(self, html: str) -> None:
-        """Click handler updates btn.dataset.mode and state.cameraLocked."""
+        """The HTML sets btn.dataset.mode and state.cameraLocked to next."""
         assert "btn.dataset.mode = next" in html
         assert "state.cameraLocked = next" in html
 
@@ -118,7 +118,7 @@ class TestSetupCameraForObject:
         assert "fitCamera(object3d)" in fn
 
     def test_clipping_planes_in_else_branch(self, html: str) -> None:
-        """Clipping planes update when camera is locked (not off)."""
+        """setupCameraForObject calls updateClippingPlanes(object3d)."""
         fn = _extract_fn_body(html, "function setupCameraForObject")
         assert "updateClippingPlanes(object3d)" in fn
 
@@ -131,14 +131,14 @@ class TestSetupCameraForObject:
 
 
 class TestFirstRenderFitsCamera:
-    """Tests for the first-render override that ensures initial framing."""
+    """Tests for the _firstRender flag."""
 
     def test_first_render_flag_exists(self, html: str) -> None:
-        """A _firstRender flag forces fitCamera on initial load."""
+        """The HTML declares let _firstRender = true."""
         assert "let _firstRender = true" in html
 
     def test_first_render_cleared_after_use(self, html: str) -> None:
-        """_firstRender is set to false after the first fitCamera call."""
+        """setupCameraForObject sets _firstRender = false."""
         fn = _extract_fn_body(html, "function setupCameraForObject")
         assert "_firstRender = false" in fn
 
@@ -147,7 +147,7 @@ class TestCameraPreservation:
     """Tests for camera save/restore across regenerations."""
 
     def test_camera_position_saved_and_restored(self, html: str) -> None:
-        """Camera position is cloned before and copied after regeneration."""
+        """The HTML clones camera.position and copies saved.position back."""
         assert "camera.position.clone()" in html
         assert "camera.position.copy(saved.position)" in html
 
@@ -157,7 +157,7 @@ class TestCameraPreservation:
         assert "controls.target.copy(saved.target)" in html
 
     def test_save_returns_null_when_off(self, html: str) -> None:
-        """saveCameraIfLocked returns null only when mode is off."""
+        """saveCameraIfLocked compares state.cameraLocked with 'off'."""
         fn = _extract_fn_body(html, "function saveCameraIfLocked()")
         assert "state.cameraLocked === 'off'" in fn
 
@@ -171,7 +171,7 @@ class TestResetView:
     """Tests for Reset View behavior across all modes."""
 
     def test_reset_view_calls_fit_camera(self, html: str) -> None:
-        """Reset View calls fitCamera regardless of lock mode."""
+        """resetView calls fitCamera(active)."""
         fn = _extract_fn_body(html, "function resetView()")
         assert "fitCamera(active)" in fn
 
@@ -183,7 +183,7 @@ class TestResetView:
         assert "if (wasFullLock) controls.enabled = false" in fn
 
     def test_reset_view_uses_try_finally(self, html: str) -> None:
-        """resetView uses try/finally to ensure controls re-disabled."""
+        """resetView's body has a try/finally block."""
         fn = _extract_fn_body(html, "function resetView()")
         assert "try {" in fn
         assert "} finally {" in fn
@@ -193,11 +193,11 @@ class TestExistingBehaviorPreserved:
     """Tests for features that must still work."""
 
     def test_clipping_planes_function_exists(self, html: str) -> None:
-        """updateClippingPlanes function exists and updates projection."""
+        """The updateClippingPlanes(object3d) function exists."""
         assert "function updateClippingPlanes(object3d)" in html
 
     def test_concurrent_generate_uses_generation_id(self, html: str) -> None:
-        """Concurrent displayGenerateResult calls serialized via generationId."""
+        """The HTML bumps state.generationId, keeps a copy and returns when they differ."""
         assert "state.generationId += 1" in html
         assert "const myGenerationId = state.generationId" in html
         assert "if (myGenerationId !== state.generationId) return" in html

@@ -72,7 +72,7 @@ class TestParamEditorSection:
         assert "dataset.paramType" in preview_html or "data-param-type" in preview_html
 
     def test_boolean_params_use_checkbox(self, preview_html: str) -> None:
-        """Boolean parameters render as checkboxes."""
+        """Preview HTML contains the word checkbox."""
         assert (
             "type='checkbox'" in preview_html
             or 'type = \'checkbox\'' in preview_html
@@ -80,7 +80,7 @@ class TestParamEditorSection:
         )
 
     def test_number_params_use_number_input(self, preview_html: str) -> None:
-        """Numeric parameters render as number inputs."""
+        """Preview HTML contains 'number' in single quotes."""
         assert (
             "type='number'" in preview_html
             or "type = 'number'" in preview_html
@@ -103,15 +103,15 @@ class TestResolutionEditorSection:
         assert 'id="param-resolution-fields"' in preview_html
 
     def test_resolution_title(self, preview_html: str) -> None:
-        """Resolution section has a title."""
+        """Preview HTML contains the word Resolution."""
         assert "Resolution" in preview_html
 
     def test_resolution_descriptions_shown(self, preview_html: str) -> None:
-        """Resolution param descriptions are displayed as hints."""
+        """Preview HTML contains the param-hint class."""
         assert "param-hint" in preview_html
 
     def test_resolution_high_value_warning(self, preview_html: str) -> None:
-        """High resolution values trigger a visual warning."""
+        """Preview HTML contains the resolution-warning class."""
         assert "resolution-warning" in preview_html
 
 
@@ -153,58 +153,58 @@ class TestParamsAPIResponse:
         assert "grid_resolution" in data["resolution"]
 
 
-# --- Dynamic parameter input creation ---
+# --- Parameter input code ---
 
 
 class TestDynamicParamInputs:
-    """Parameter inputs are dynamically created based on generator defaults."""
+    """Tests for the names of the parameter input code in the preview HTML."""
 
     def test_populate_param_fields_function(self, preview_html: str) -> None:
-        """populateParamFields function creates inputs from API data."""
+        """Preview HTML contains populateParamFields."""
         assert "populateParamFields" in preview_html
 
     def test_fetch_and_populate_function(self, preview_html: str) -> None:
-        """fetchAndPopulateParams fetches and populates the panel."""
+        """Preview HTML contains fetchAndPopulateParams."""
         assert "fetchAndPopulateParams" in preview_html
 
     def test_collect_param_values_function(self, preview_html: str) -> None:
-        """collectParamValues extracts typed values from inputs."""
+        """Preview HTML contains collectParamValues."""
         assert "collectParamValues" in preview_html
 
     def test_int_params_have_step_1(self, preview_html: str) -> None:
-        """Integer params use step='1' for the number input."""
+        """Preview HTML contains '1' in single quotes."""
         assert "'1'" in preview_html
 
     def test_float_params_have_step_01(self, preview_html: str) -> None:
-        """Float params use step='0.1' for the number input."""
+        """Preview HTML contains '0.1' in single quotes."""
         assert "'0.1'" in preview_html
 
 
-# --- Apply button sends params and resolution ---
+# --- Apply button ---
 
 
 class TestApplyButton:
-    """Apply button sends both params and resolution in POST body."""
+    """Tests for the Apply button, the names its code uses, and POST /api/generate."""
 
     def test_apply_button_exists(self, preview_html: str) -> None:
         """Apply button element is present."""
         assert 'id="param-apply-btn"' in preview_html
 
     def test_apply_collects_params(self, preview_html: str) -> None:
-        """Apply handler calls getEditorParams."""
+        """Preview HTML contains getEditorParams."""
         assert "getEditorParams" in preview_html
 
     def test_apply_collects_resolution(self, preview_html: str) -> None:
-        """Apply handler calls getEditorResolution."""
+        """Preview HTML contains getEditorResolution."""
         assert "getEditorResolution" in preview_html
 
     def test_apply_sends_both_in_body(self, preview_html: str) -> None:
-        """POST body includes both params and resolution keys."""
+        """Preview HTML contains params: genParams and the word resolution."""
         assert "params: genParams" in preview_html
         assert "resolution" in preview_html
 
     def test_apply_shows_loading_indicator(self, preview_html: str) -> None:
-        """Apply shows a loading indicator during generation."""
+        """Preview HTML has the param-loading element."""
         assert 'id="param-loading"' in preview_html
 
     def test_apply_with_resolution_via_api(self, client: TestClient) -> None:
@@ -224,11 +224,11 @@ class TestApplyButton:
         assert data["mesh_url"] is not None
 
 
-# --- Reset button restores defaults ---
+# --- Reset button ---
 
 
 class TestResetButton:
-    """Reset button restores default values."""
+    """Tests for the Reset button and the names its code uses."""
 
     def test_reset_button_exists(self, preview_html: str) -> None:
         """Reset button element is present."""
@@ -239,27 +239,27 @@ class TestResetButton:
         assert "resetParamDefaults" in preview_html
 
     def test_reset_uses_cached_defaults(self, preview_html: str) -> None:
-        """Reset restores from cachedParamDefaults."""
+        """Preview HTML contains cachedParamDefaults."""
         assert "cachedParamDefaults" in preview_html
 
     def test_reset_clears_error(self, preview_html: str) -> None:
-        """Reset hides the error display."""
+        """Preview HTML contains paramError or param-error."""
         assert "paramError" in preview_html or "param-error" in preview_html
 
 
-# --- Generator switch clears and repopulates ---
+# --- Generator switch ---
 
 
 class TestGeneratorSwitch:
-    """Switching generators clears and repopulates the parameter panel."""
+    """Tests for generator switching: names in the HTML and per-generator API params."""
 
     def test_select_generator_calls_fetch(self, preview_html: str) -> None:
-        """selectGenerator triggers fetchAndPopulateParams."""
+        """Preview HTML contains selectGenerator and fetchAndPopulateParams."""
         assert "selectGenerator" in preview_html
         assert "fetchAndPopulateParams" in preview_html
 
     def test_populate_clears_fields(self, preview_html: str) -> None:
-        """populateParamFields clears existing fields first."""
+        """Preview HTML contains innerHTML = '' (or innerHTML='')."""
         assert "innerHTML = ''" in preview_html or "innerHTML=''" in preview_html
 
     def test_different_generators_have_different_params(
@@ -279,11 +279,11 @@ class TestGeneratorSwitch:
         assert set(lorenz["resolution"].keys()) != set(torus["resolution"].keys())
 
 
-# --- Info panel updates after generation ---
+# --- Info panel ---
 
 
 class TestInfoPanelUpdates:
-    """Info panel updates with vertex/face/point counts after generation."""
+    """Tests for the info panel count elements, updateInfo, and generate's URLs."""
 
     def test_info_vertices_element(self, preview_html: str) -> None:
         """Info panel has vertex count element."""
@@ -298,7 +298,7 @@ class TestInfoPanelUpdates:
         assert 'id="info-points"' in preview_html
 
     def test_update_info_function(self, preview_html: str) -> None:
-        """updateInfo function updates the info panel."""
+        """Preview HTML contains updateInfo."""
         assert "updateInfo" in preview_html
 
     def test_generate_returns_geometry_urls(self, client: TestClient) -> None:

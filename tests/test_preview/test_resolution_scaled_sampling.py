@@ -1,8 +1,9 @@
 """Tests for the Surface Cloud (resolution-scaled) view mode.
 
 Verifies that resolution-scaled sampling scales density with resolution,
-matches normal density at default resolution, respects the sample cap,
-and doesn't break existing view modes.
+gives the same count at the default resolution as with no resolution given,
+respects the sample cap, and leaves the default and dense requests and the
+view-mode options in place.
 """
 
 from typing import Any
@@ -109,10 +110,10 @@ class TestResolutionScaling:
 
 
 class TestDefaultResolutionMatchesNormal:
-    """Default resolution produces the same count as base density."""
+    """Default resolution gives the same count as empty resolution_kwargs."""
 
     def test_default_resolution_matches_base_density(self) -> None:
-        """At default resolution, resolution-scaled and direct sampling give equal counts."""
+        """voxel_resolution=128 and empty resolution_kwargs give equal counts."""
         obj = MathObject(generator_name="test", mesh=_small_mesh())
 
         # Resolution-scaled at default resolution (scale=1.0)
@@ -130,7 +131,7 @@ class TestDefaultResolutionMatchesNormal:
         )
 
     def test_no_resolution_kwarg_uses_scale_1(self) -> None:
-        """When resolution_kwargs is empty, scale defaults to 1.0."""
+        """With empty resolution_kwargs, sampling returns a non-empty point cloud."""
         obj = MathObject(generator_name="test", mesh=_small_mesh())
         result = apply_resolution_scaled_sampling(
             obj,
@@ -182,15 +183,15 @@ class TestSampleCountCap:
 
 
 class TestExistingModesUnaffected:
-    """Existing view modes are unaffected by the Surface Cloud addition."""
+    """Default and dense requests still succeed, and the view-mode options are present."""
 
     def test_default_sampling_unchanged(self, client: TestClient) -> None:
-        """Default request (no sampling field) works as before."""
+        """Default request (no sampling field) returns 200 with a geometry_id."""
         data = _generate(client)
         assert "geometry_id" in data
 
     def test_dense_sampling_unchanged(self, client: TestClient) -> None:
-        """Dense mode still works as before."""
+        """Dense mode (post_transform) returns 200 with a geometry_id."""
         data = _generate(client, sampling="post_transform")
         assert "geometry_id" in data
 

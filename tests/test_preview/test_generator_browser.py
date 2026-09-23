@@ -1,4 +1,8 @@
-"""Tests for the visual generator browser modal (Task 124)."""
+"""Tests for the visual generator browser modal (Task 124).
+
+All tests but test_generators_api_returns_data check for substrings in the
+preview HTML; no script runs.
+"""
 
 from collections.abc import Generator
 
@@ -46,13 +50,15 @@ class TestBrowserModalStructure:
     """Tests for the generator browser modal HTML structure."""
 
     def test_cmd_k_opens_browser(self, preview_html: str) -> None:
-        """Cmd+K keyboard shortcut opens the browser modal."""
+        """Preview HTML contains metaKey or ctrlKey, a key === 'k' check and
+        openBrowser."""
         assert "metaKey" in preview_html or "ctrlKey" in preview_html
         assert "key === 'k'" in preview_html or "key==='k'" in preview_html
         assert "openBrowser" in preview_html
 
     def test_browser_shows_all_categories(self, preview_html: str) -> None:
-        """Browser populates category grid from the generators API."""
+        """Preview HTML contains the browser ids, getGroupedGenerators and
+        renderCategoryGrid."""
         assert 'id="generator-browser"' in preview_html
         assert 'id="browser-content"' in preview_html
         assert "getGroupedGenerators" in preview_html
@@ -61,7 +67,8 @@ class TestBrowserModalStructure:
     def test_category_card_shows_name_count_thumbs(
         self, preview_html: str
     ) -> None:
-        """Each category card shows name, count, and thumbnail previews."""
+        """Preview HTML contains category-name, category-count and
+        category-thumbs."""
         assert "category-name" in preview_html
         assert "category-count" in preview_html
         assert "category-thumbs" in preview_html
@@ -69,19 +76,21 @@ class TestBrowserModalStructure:
     def test_clicking_category_shows_generators(
         self, preview_html: str
     ) -> None:
-        """Clicking a category card shows its generators in a sub-grid."""
+        """Preview HTML contains showCategoryGenerators and
+        browsing_generators_in_category."""
         assert "showCategoryGenerators" in preview_html
         assert "browsing_generators_in_category" in preview_html
 
     def test_clicking_generator_loads_and_closes(
         self, preview_html: str
     ) -> None:
-        """Clicking a generator card calls selectGenerator and closeBrowser."""
+        """Preview HTML contains closeBrowser and selectGenerator."""
         assert "closeBrowser" in preview_html
         assert "selectGenerator" in preview_html
 
     def test_search_filters_generators(self, preview_html: str) -> None:
-        """Search input filters generators across all categories."""
+        """Preview HTML contains browser-search, renderSearchResults and
+        filterGenerators."""
         assert 'id="browser-search"' in preview_html
         assert "renderSearchResults" in preview_html
         assert "filterGenerators" in preview_html
@@ -89,14 +98,15 @@ class TestBrowserModalStructure:
     def test_escape_closes_from_category_grid(
         self, preview_html: str
     ) -> None:
-        """Escape key closes the modal from the category grid view."""
+        """Preview HTML contains Escape and closeBrowser."""
         assert "Escape" in preview_html
         assert "closeBrowser" in preview_html
 
     def test_back_navigation_returns_to_categories(
         self, preview_html: str
     ) -> None:
-        """Back navigation returns from category detail to category grid."""
+        """Preview HTML contains browser-back, browserGoBack and Back to
+        categories."""
         assert 'id="browser-back"' in preview_html
         assert "browserGoBack" in preview_html
         assert "Back to categories" in preview_html
@@ -104,15 +114,15 @@ class TestBrowserModalStructure:
     def test_selected_generator_highlighted(
         self, preview_html: str
     ) -> None:
-        """Currently selected generator is highlighted if visible."""
-        # The JS adds 'selected' class to the current generator's card
+        """Preview HTML contains selected and searchInput.value."""
         assert "selected" in preview_html
         assert "searchInput.value" in preview_html
 
     def test_modal_populates_from_generators_api(
         self, preview_html: str
     ) -> None:
-        """Modal populates dynamically from the generators API."""
+        """Preview HTML contains fetchGenerators, allGenerators and
+        /api/generators."""
         assert "fetchGenerators" in preview_html
         assert "allGenerators" in preview_html
         assert "/api/generators" in preview_html
@@ -130,32 +140,32 @@ class TestBrowserModalFeatures:
         assert 'id="browser-close"' in preview_html
 
     def test_browser_state_machine(self, preview_html: str) -> None:
-        """Browser uses a state machine with correct states."""
+        """Preview HTML contains browserState and the three state names."""
         assert "browserState" in preview_html
         assert "browsing_categories" in preview_html
         assert "browsing_generators_in_category" in preview_html
         assert "'closed'" in preview_html
 
     def test_thumbnail_lazy_loading(self, preview_html: str) -> None:
-        """Thumbnails are lazy-loaded from the thumbnail endpoint."""
+        """Preview HTML contains /api/generators/, /thumbnail and loading."""
         assert "/api/generators/" in preview_html
         assert "/thumbnail" in preview_html
         assert "loading" in preview_html
 
     def test_category_shortcut_numbers(self, preview_html: str) -> None:
-        """Category cards display shortcut numbers."""
+        """Preview HTML contains the category-shortcut class."""
         assert "category-shortcut" in preview_html
 
     def test_number_key_shortcuts(self, preview_html: str) -> None:
-        """Number keys navigate to categories and generators."""
+        """Preview HTML contains parseInt(e.key."""
         assert "parseInt(e.key" in preview_html
 
     def test_search_auto_focus(self, preview_html: str) -> None:
-        """Search input is auto-focused when modal opens."""
+        """Preview HTML calls browserSearch.focus()."""
         assert "browserSearch.focus()" in preview_html
 
     def test_backdrop_click_closes(self, preview_html: str) -> None:
-        """Clicking the backdrop outside the panel closes the modal."""
+        """Preview HTML compares e.target === browserOverlay."""
         assert "e.target === browserOverlay" in preview_html
 
     def test_generators_api_returns_data(self, client: TestClient) -> None:
@@ -170,11 +180,11 @@ class TestBrowserModalFeatures:
             assert "name" in gen
 
     def test_css_placeholder_spinner(self, preview_html: str) -> None:
-        """CSS includes placeholder spinner for loading thumbnails."""
+        """Preview HTML contains thumb-placeholder and thumb-spin."""
         assert "thumb-placeholder" in preview_html
         assert "thumb-spin" in preview_html
 
     def test_backspace_goes_back(self, preview_html: str) -> None:
-        """Backspace key navigates back from category detail."""
+        """Preview HTML contains Backspace and browserGoBack."""
         assert "Backspace" in preview_html
         assert "browserGoBack" in preview_html
