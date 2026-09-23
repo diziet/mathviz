@@ -149,7 +149,7 @@ See [docs/cli.md](docs/cli.md) for every flag, with examples.
 - [Representation Strategies](docs/representation.md) — how a generator's raw geometry becomes the geometry that is engraved
 - [Preview UI](docs/preview.md) — interactive 3D preview with comparison mode, snapshots, and keyboard shortcuts
 - [Preview UI Reference](docs/preview-ui.md) — every preview control, view mode, and shortcut
-- [Rendering](docs/rendering.md) — `render`, `render-2d`, and `render-all` commands, optional dependencies
+- [Rendering](docs/rendering.md) — `render`, `render-2d`, ~~and `render-all`~~ commands, optional dependencies. `render-all` is documented only in [docs/cli.md](docs/cli.md) (checked 2026-09-23).
 - [Demo Site](docs/demo.md) — building, previewing, and deploying the static demo gallery
 - [Grid Layout](docs/grid.md) — grid manifest format and grid CLI
 - [Python API](docs/api.md) — using MathViz as a Python library
