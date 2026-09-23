@@ -558,7 +558,7 @@ def test_fractal_slice_registered() -> None:
 
 
 def test_numba_jit_is_active() -> None:
-    """Verify numba-compiled kernel is actually JIT-compiled."""
+    """Verify the numba kernel is JIT-compiled, not run as plain Python."""
     import numba
 
     from mathviz.generators.fractals._escape_kernel import (

@@ -245,7 +245,7 @@ class TestPreviewUI:
 
 
 class TestPicklability:
-    """Ensure objects sent across process boundary survive pickling."""
+    """Objects sent across the process boundary survive a pickle round trip."""
 
     def test_container_survives_pickle_roundtrip(self) -> None:
         """Container can be pickled and unpickled for subprocess use."""

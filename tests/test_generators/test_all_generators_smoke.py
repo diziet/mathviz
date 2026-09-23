@@ -123,7 +123,7 @@ def test_generator_full_pipeline(generator_name: str) -> None:
 @pytest.mark.slow
 @pytest.mark.parametrize("generator_name", _generator_names())
 def test_generator_default_params_consistency(generator_name: str) -> None:
-    """Verify get_default_params() keys match what generate() actually reads."""
+    """Verify get_default_params() keys match what generate() reads."""
     from mathviz.core import get_generator
 
     gen_class = get_generator(generator_name)

@@ -19,7 +19,7 @@ from typing import Any
 
 import yaml
 
-# Ensure the src/ directory is on sys.path when running as a standalone script.
+# Add src/ to sys.path if it is missing, so the file can run as a standalone script.
 _SRC_DIR = str(Path(__file__).resolve().parent.parent / "src")
 if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
@@ -335,7 +335,7 @@ def generate_docs() -> str:
             parts.append(_build_generator_section(meta, notes))
 
     result = "\n".join(parts)
-    # Ensure single trailing newline
+    # End the output with exactly one newline
     return result.rstrip("\n") + "\n"
 
 

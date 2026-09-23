@@ -74,7 +74,7 @@ def _put_entry(
     mesh_data: bytes | None = None,
     cloud_data: bytes | None = None,
 ) -> None:
-    """Store a cache entry with sensible defaults."""
+    """Store a cache entry. Defaults: torus, seed 42, no params, no mesh or cloud data."""
     dc.put(
         key,
         generator_name=generator_name,
