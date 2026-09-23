@@ -81,7 +81,7 @@ def _build_digit_cloud(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Build 3D points and intensities from digit values."""
     num_digits = len(digits)
-    # Layout digits in a grid: wrap into rows
+    # Lay out digits in a grid, wrapped into rows
     cols = int(np.ceil(np.sqrt(num_digits)))
 
     idx = np.arange(num_digits)

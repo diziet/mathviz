@@ -1,8 +1,8 @@
 """Sprott minimal chaotic systems generator.
 
 Implements several of J.C. Sprott's minimal chaotic flows, selectable via
-a ``system`` parameter. Each is a 3D ODE with very few terms, producing
-visually distinct strange attractors.
+a ``system`` parameter. Each is a 3D ODE with very few terms, and each
+produces a different strange attractor.
 
 Supported systems:
     sprott_a:  dx/dt = y,        dy/dt = -x + y*z,  dz/dt = 1 - y^2

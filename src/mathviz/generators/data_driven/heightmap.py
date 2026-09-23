@@ -143,9 +143,9 @@ class HeightmapGenerator(GeneratorBase):
 
     Reads pixel luminance from an image file and produces a scalar field
     for HEIGHTMAP_RELIEF representation. Supports PNG, JPEG, BMP, and
-    optionally GeoTIFF (requires rasterio). The seed parameter is accepted
-    for interface conformance but unused — output is fully determined by
-    the input file.
+    optionally GeoTIFF (requires rasterio). With an input file, the file
+    alone determines the output. Without one, the seed drives the built-in
+    demo heightmap.
     """
 
     name = "heightmap"
@@ -170,8 +170,8 @@ class HeightmapGenerator(GeneratorBase):
     ) -> MathObject:
         """Generate a heightmap scalar field from an image file.
 
-        The seed parameter is accepted for interface conformance but does
-        not affect output — the result is fully determined by the input file.
+        With an input file, the file alone determines the output. Without
+        one, the seed drives the built-in demo.
         """
         merged = self.get_default_params()
         if params:

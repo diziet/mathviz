@@ -1,7 +1,7 @@
 """Multi-component linked structure generators: Borromean rings and chain links.
 
-These generators produce multiple closed curves that are topologically
-linked — they look particularly striking as glass tubes.
+These generators produce several closed curves that are topologically
+linked.
 """
 
 import logging

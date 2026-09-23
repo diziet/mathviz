@@ -111,9 +111,8 @@ class Hilbert3DGenerator(GeneratorBase):
     ) -> MathObject:
         """Generate a 3D Hilbert curve.
 
-        Note: this generator is deterministic by construction — the output
-        depends only on ``order`` and ``size``. The seed is stored as
-        metadata but does not influence the geometry.
+        The output depends only on ``order`` and ``size``. The seed is stored
+        as metadata but does not affect the geometry.
         """
         merged = self.get_default_params()
         if params:
@@ -125,7 +124,6 @@ class Hilbert3DGenerator(GeneratorBase):
 
         points = _generate_hilbert_points(order)
 
-        # Normalize to [0, size] range
         grid_max = (1 << order) - 1
         if grid_max > 0:
             points = points / grid_max * size

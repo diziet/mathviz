@@ -1,8 +1,8 @@
 """Terrain heightmap generator.
 
-Multi-octave simplex noise heightmap simulating natural terrain. Uses fractal
-Brownian motion (fBm) with configurable octaves, persistence, and lacunarity
-for realistic terrain detail at multiple scales.
+Multi-octave simplex noise heightmap that resembles natural terrain. Uses
+fractal Brownian motion (fBm) with configurable octaves, persistence, and
+lacunarity to add detail at several scales.
 """
 
 import logging
@@ -98,8 +98,8 @@ def _compute_terrain_field(
 class TerrainGenerator(GeneratorBase):
     """Multi-octave simplex noise terrain heightmap.
 
-    Uses fractal Brownian motion with configurable octaves for realistic
-    terrain surfaces. Output is a scalar field for HEIGHTMAP_RELIEF.
+    Uses fractal Brownian motion with configurable octaves. Output is a
+    scalar field for HEIGHTMAP_RELIEF.
     """
 
     name = "terrain"
