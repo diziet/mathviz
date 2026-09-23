@@ -92,9 +92,7 @@ def test_terrain_plausible_elevation_range() -> None:
     z_min = float(np.min(obj.scalar_field))
     z_max = float(np.max(obj.scalar_field))
 
-    # Should not be flat
     assert z_max - z_min > 0.01, "Terrain is too flat"
-    # Should not be degenerate (NaN or inf)
     assert np.all(np.isfinite(obj.scalar_field))
     # Normalized range should be within [0, height_scale]
     assert z_min >= -0.01
@@ -124,7 +122,7 @@ def test_terrain_metadata() -> None:
 
 
 def test_terrain_custom_params() -> None:
-    """Terrain with custom octaves produces valid output."""
+    """Terrain with octaves=2 and persistence=0.3 validates and records both values."""
     gen = TerrainGenerator()
     obj = gen.generate(
         params={"octaves": 2, "persistence": 0.3},
@@ -153,7 +151,6 @@ def test_reaction_diffusion_non_trivial_pattern() -> None:
 
     assert obj.scalar_field is not None
     assert obj.scalar_field.dtype == np.float64
-    # Not uniform
     std = float(np.std(obj.scalar_field))
     assert std > 1e-6, f"Field is uniform (std={std})"
 

@@ -191,7 +191,6 @@ def test_zero_displacement_matches_base() -> None:
         obj.mesh.vertices, obj_displaced.mesh.vertices, atol=1e-3,
     )
 
-    # Also verify the zero-displaced mesh has valid normals
     assert obj.mesh.normals is not None
 
 

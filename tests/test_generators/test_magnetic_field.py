@@ -97,7 +97,6 @@ class TestMagneticFieldQuadrupole:
             quad_bbox.min_corner
         )
 
-        # Patterns should be meaningfully different
         assert not np.allclose(dipole_extent, quad_extent, atol=0.1), (
             "Quadrupole and dipole should produce different spatial extents"
         )
@@ -159,7 +158,7 @@ class TestMagneticFieldGeneral:
         assert rep.type == RepresentationType.TUBE
 
     def test_metadata_recorded(self, gen: MagneticFieldGenerator) -> None:
-        """Generator metadata is recorded correctly."""
+        """The object records the generator's name and category."""
         obj = gen.generate(line_points=_TEST_LINE_POINTS)
         assert obj.generator_name == "magnetic_field"
         assert obj.category == "physics"

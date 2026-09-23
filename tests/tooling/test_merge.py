@@ -285,7 +285,7 @@ def test_server_refusal_of_changed_head_is_not_reported_as_merged(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """The head can move after our fetch; propagate the server's conditional refusal."""
+    """The head can move after the fetch; the server's conditional refusal is reported."""
     original = merge_gate.run
 
     def server(

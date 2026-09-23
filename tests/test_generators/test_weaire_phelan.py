@@ -205,7 +205,7 @@ def test_default_params() -> None:
 
 
 def test_edge_only_string_false_produces_mesh() -> None:
-    """String 'false' from CLI is correctly parsed as False."""
+    """edge_only='false', the string form the CLI passes, is parsed as False."""
     gen = WeairePhelanGenerator()
     obj = gen.generate(params={"cells_per_axis": 1, "edge_only": "false"})
     obj.validate_or_raise()

@@ -196,7 +196,6 @@ def test_superellipsoid_sphere_approximation() -> None:
     # Check vertices are approximately on the unit sphere
     verts = obj.mesh.vertices
     radii = np.linalg.norm(verts, axis=1)
-    # Exclude pole vertices which are exact
     assert np.allclose(radii, 1.0, atol=0.05), (
         f"Max deviation from unit sphere: {np.max(np.abs(radii - 1.0)):.4f}"
     )

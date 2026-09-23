@@ -133,7 +133,8 @@ class TestEdgeSamplingProportional:
             if dist < 1e-6:
                 near_long += 1
 
-        # Long edge should have roughly half the points (it's ~50% of total length)
+        # Edge 0-1 is about 50% of the total edge length, so it should get about
+        # half the points.
         assert near_long > len(cloud.points) * 0.3
 
 
@@ -149,8 +150,8 @@ class TestDenseCombined:
         cloud = dense_result.point_cloud
         assert cloud is not None
 
-        # Dense combines surface (70%) + edge (30%); cloud should have points
-        # from both sources (more total than just edge budget alone)
+        # Dense sampling gives 70% of the budget to surface points and 30% to edge
+        # points. This test checks only that the cloud is not empty.
         assert len(cloud.points) > 0
 
     def test_dense_includes_more_sources_than_edge_only(
@@ -171,8 +172,8 @@ class TestDenseCombined:
         assert dense_entry is not None
         dense_count = len(dense_entry.math_object.point_cloud.points)
 
-        # Dense combines surface (70% budget) + edge (30% budget)
-        # Both should produce substantial points; dense total should be close to cap
+        # Dense sampling gives 70% of the budget to surface points and 30% to edge
+        # points, so its total should be close to the cap.
         assert dense_count > edge_count * 0.8
         # Dense should have more points than edge-only's 30% share
         assert dense_count > cap * 0.5
@@ -219,7 +220,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> None:
-    """Ensure real generators are registered and cache is clean."""
+    """Register torus if missing; reset the cache before and after the test."""
     _ensure_torus_registered()
     reset_cache()
     yield

@@ -55,7 +55,7 @@ def _assert_bbox_finite(obj) -> None:
 
 
 def _assert_metadata(obj, expected_name: str) -> None:
-    """Assert generator metadata is recorded correctly."""
+    """Assert that obj records expected_name and the physics category."""
     assert obj.generator_name == expected_name
     assert obj.category == "physics"
 
@@ -126,7 +126,7 @@ class TestKeplerOrbit:
     def test_metadata_recorded(
         self, kepler: KeplerOrbitGenerator
     ) -> None:
-        """Generator metadata is recorded correctly."""
+        """The object records the generator's name and category."""
         obj = kepler.generate(curve_points=_TEST_CURVE_POINTS)
         _assert_metadata(obj, "kepler_orbit")
 
@@ -221,7 +221,7 @@ class TestNBody:
         assert rep.type == RepresentationType.RAW_POINT_CLOUD
 
     def test_metadata_recorded(self, nbody: NBodyGenerator) -> None:
-        """Generator metadata is recorded correctly."""
+        """The object records the generator's name and category."""
         obj = nbody.generate(integration_steps=_TEST_STEPS)
         _assert_metadata(obj, "nbody")
 
@@ -289,7 +289,7 @@ class TestPlanetaryPositions:
             float(np.mean(np.linalg.norm(c.points, axis=1)))
             for c in obj.curves[:8]
         ]
-        # Should be roughly increasing (Mercury < Venus < ... < Neptune)
+        # Mean orbit radius increases from Mercury to Neptune.
         for i in range(len(mean_radii) - 1):
             assert mean_radii[i] < mean_radii[i + 1], (
                 f"Planet {i} radius {mean_radii[i]:.2f} >= "
@@ -306,7 +306,7 @@ class TestPlanetaryPositions:
     def test_metadata_recorded(
         self, planetary: PlanetaryPositionsGenerator
     ) -> None:
-        """Generator metadata is recorded correctly."""
+        """The object records the generator's name and category."""
         obj = planetary.generate(curve_points=_TEST_CURVE_POINTS)
         _assert_metadata(obj, "planetary_positions")
 
