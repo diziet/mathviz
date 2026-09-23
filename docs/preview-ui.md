@@ -152,11 +152,10 @@ defaults.
 
 ## View Modes
 
-~~The **View Mode** dropdown switches between five rendering styles:~~ The
-**View Mode** dropdown has eight modes: Shaded Mesh, Wireframe, Vertex Cloud
-(the default, called Point Cloud below), Dense Cloud, Edge Cloud, Surface
-Cloud, Crystal Preview, and Color Map (checked 2026-09-23 in
-`src/mathviz/static/index.html`). The table describes five of them:
+The **View Mode** dropdown in `src/mathviz/static/index.html`
+has <!-- fact:preview-view-mode-count -->8<!-- /fact --> modes: <!-- fact:preview-view-modes -->Shaded Mesh, Wireframe, Vertex Cloud, Dense Cloud, Edge Cloud, Surface Cloud, Crystal Preview, Color Map<!-- /fact -->.
+Vertex Cloud is the default, called Point Cloud below. The table describes five
+of them:
 
 | Mode | Description | When to Use |
 |---|---|---|
