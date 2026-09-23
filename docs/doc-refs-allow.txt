@@ -1,0 +1,52 @@
+# Exemptions for scripts/check_doc_refs.py (make doc-refs-check).
+#
+# One per line: <doc glob> | <reference glob> | <reason>
+# The reference is the text a failure prints between backticks. Globs use fnmatch,
+# where `*` also matches `/`. Every entry must still match a finding, or the check
+# fails and asks for the entry to be removed.
+
+# A correct reference the check cannot read. doc_refs_cli.py takes a Typer sub-app's
+# name only from add_typer(name=...); cli.py calls add_typer(grid_app) and the name is
+# set in typer.Typer(name="grid"). `mathviz --help` lists grid (checked 2026-09-24).
+* | mathviz grid | Typer sub-app named in typer.Typer(name="grid") in src/mathviz/cli_grid.py; see the comment above
+
+# Files a command reads or writes at run time, not repo files.
+* | mathviz.toml | project config read from the working directory (PROJECT_CONFIG_NAME in src/mathviz/core/config.py)
+* | grid.toml | default --path of the grid commands in src/mathviz/cli_grid.py
+mathviz-spec.md | .meta.json | sidecar written next to each export by src/mathviz/pipeline/metadata.py
+docs/demo.md | manifest.json | written into the output directory by src/mathviz/demo_builder.py
+docs/preview*.md | mathviz-screenshot.png | download name set by the Screenshot button in src/mathviz/static/index.html
+
+# Not repository paths or commands.
+mathviz-spec.md | dx/dt | a derivative in the Lorenz ODE notation
+mathviz-spec.md | @react-three/* | npm package names
+mathviz-spec.md | --long-name | a placeholder in the long-flag naming convention
+mathviz-spec.md | mathviz sweep | the sentence names it as future work
+
+# mathviz-spec.md and the code disagree here. tasks.md Task 179 asks the owner whether
+# the spec states planned work or should describe the code as built, and says nobody
+# edits the spec for those differences until the owner decides. These references are
+# the same kind of difference; each entry names what the code has (checked 2026-09-24).
+mathviz-spec.md | mathviz studio | Task 179: no studio command
+mathviz-spec.md | studio-frontend/ | Task 179: no Tier 2 frontend directory
+mathviz-spec.md | studio/static/ | Task 179 kind: no Tier 2 frontend build; src/mathviz/studio/ holds only __init__.py
+mathviz-spec.md | mathviz_studio.db | Task 179 kind: no Tier 2 Studio storage
+mathviz-spec.md | --representation | Task 179 kind: no command defines it
+mathviz-spec.md | --tube-radius | Task 179 kind: no command defines it
+mathviz-spec.md | --point-budget | Task 179 kind: no command defines it
+mathviz-spec.md | --sampling-profile | Task 179 kind: generate and validate call it --profile
+mathviz-spec.md | --projection | Task 179 kind: render-2d calls it --view
+mathviz-spec.md | core/transformer.py | Task 179 kind: built as src/mathviz/pipeline/transformer.py
+mathviz-spec.md | core/mesh_exporter.py | Task 179 kind: built as src/mathviz/pipeline/mesh_exporter.py
+mathviz-spec.md | core/cloud_exporter.py | Task 179 kind: built as src/mathviz/pipeline/point_cloud_exporter.py
+mathviz-spec.md | core/meta_exporter.py | Task 179 kind: built as src/mathviz/pipeline/metadata.py
+mathviz-spec.md | pipeline.py | Task 179 kind: built as src/mathviz/pipeline/runner.py
+mathviz-spec.md | shared/mesh_utils.py | Task 179 kind: no such module; src/mathviz/shared/ has marching_cubes.py and tube_thickening.py
+
+# Autopilot's task queue. Its note under the title says completed tasks are a
+# historical record that names files as planned, and open tasks can name files that do
+# not exist yet. On 2026-09-24 it had 54 findings: run outputs (renders/, thumbnails,
+# manifest.json, .meta.json), runtime config (mathviz.toml, grid.toml), test and module
+# paths later placed elsewhere or removed, and the absent files that open Tasks 179 and
+# 180 ask the owner about.
+tasks.md | * | autopilot task queue; see the note under its title and the comment above
