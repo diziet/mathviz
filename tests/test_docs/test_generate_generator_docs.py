@@ -125,11 +125,9 @@ class TestParameterTablesMatchDefaults:
         params = inst.get_default_params()
 
         for pname, pvalue in params.items():
-            # Check that the parameter name appears in the section
             assert f"`{pname}`" in section, (
                 f"Parameter '{pname}' not found in section for {meta.name}"
             )
-            # Check that the default value is present
             if isinstance(pvalue, float):
                 formatted = f"{pvalue:.6g}"
                 assert formatted in section, (
@@ -195,7 +193,6 @@ class TestDocStructure:
             m.group(1).lower()
             for m in re.finditer(r"^## (.+)$", content, re.MULTILINE)
         }
-        # Map categories to expected heading patterns
         heading_map = {
             "attractors": "attractors",
             "curves": "curves",

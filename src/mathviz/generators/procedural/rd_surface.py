@@ -160,7 +160,7 @@ class ReactionDiffusionSurface(GeneratorBase):
     """Gray-Scott reaction-diffusion on curved surfaces.
 
     Simulates reaction-diffusion directly on a surface mesh, displacing
-    vertices along normals to produce organic Turing-pattern geometry.
+    vertices along normals to produce Turing-pattern geometry.
     """
 
     name = "rd_surface"
@@ -192,7 +192,7 @@ class ReactionDiffusionSurface(GeneratorBase):
     ) -> MathObject:
         """Generate a reaction-diffusion patterned surface mesh.
 
-        Note: grid_resolution is a resolution kwarg, not a params entry.
+        grid_resolution is a resolution kwarg, not a params entry.
         Pass it as a keyword argument: generate(grid_resolution=64).
         """
         merged = self.get_default_params()

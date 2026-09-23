@@ -145,7 +145,7 @@ def _get_pyvista_mesh(obj: MathObject) -> "object":
 
 
 def _setup_backlit_scene(plotter: "object", pv_mesh: "object", config: RenderConfig) -> None:
-    """Set up a scene with lighting appropriate for simulating backlit glass."""
+    """Set up scene lighting that simulates backlit glass."""
     import pyvista as pv
 
     plotter.set_background(config.background_color)

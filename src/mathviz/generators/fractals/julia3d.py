@@ -4,8 +4,8 @@ Same iteration as the Mandelbulb but with a fixed c parameter instead of using
 the voxel coordinate as c. The inner kernel is numba-JIT-compiled.
 Default representation: SPARSE_SHELL.
 
-Seed is stored for metadata/provenance only — the Julia 3D computation
-is fully deterministic for given parameters.
+The seed is stored as metadata only. The Julia 3D computation is
+deterministic for given parameters.
 """
 
 import logging
@@ -66,7 +66,7 @@ class Julia3DGenerator(GeneratorBase):
     ) -> MathObject:
         """Generate a Julia 3D mesh via marching cubes.
 
-        Seed is stored for metadata only — output is fully deterministic.
+        The seed is stored as metadata only. The output is deterministic.
         """
         merged = self.get_default_params()
         if params:

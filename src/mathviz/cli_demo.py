@@ -11,7 +11,7 @@ from mathviz.demo_builder import build_demo
 
 logger = logging.getLogger(__name__)
 
-# Curated list of ~15 visually impressive generators for the default demo
+# The 15 default export-demo generators, chosen for their appearance
 DEFAULT_GENERATORS = ",".join([
     "lorenz",
     "rossler",

@@ -31,7 +31,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> None:
-    """Ensure real generators are registered and cache is clean."""
+    """Register torus if missing; reset the cache before the test."""
     _ensure_torus_registered()
     reset_cache()
 
@@ -203,7 +203,6 @@ class TestLodConstraints:
         gid = resp.json()["geometry_id"]
         resp = client.get(f"/api/geometry/{gid}/mesh?lod=preview")
         assert resp.status_code == 200
-        # Verify via trimesh that the result has <= 100K faces
         scene_or_mesh = trimesh.load(io.BytesIO(resp.content), file_type="glb")
         if isinstance(scene_or_mesh, trimesh.Scene):
             total_faces = sum(

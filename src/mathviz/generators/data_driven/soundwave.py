@@ -54,8 +54,8 @@ def _load_wav(path: Path) -> tuple[int, np.ndarray]:
 def _compute_envelope(samples: np.ndarray, num_output: int) -> np.ndarray:
     """Compute amplitude envelope by chunking and taking max absolute value.
 
-    Uses np.array_split to distribute all samples evenly across chunks,
-    ensuring no trailing samples are discarded.
+    Uses np.array_split to distribute all samples evenly across chunks, so
+    no trailing samples are discarded.
     """
     total = len(samples)
     if total <= num_output:
@@ -83,7 +83,7 @@ def _synthesize_demo_envelope(num_samples: int, seed: int) -> np.ndarray:
     envelope_shape = np.clip(t / 0.1, 0, 1) * np.clip((duration - t) / 0.3, 0, 1)
     signal = np.sin(2 * np.pi * freq * t) * envelope_shape
 
-    # Add slight randomness for visual interest
+    # Add small noise so the demo waveform is not a pure sine
     noise = rng.normal(0, 0.02, total_samples)
     signal = signal + noise * envelope_shape
 
@@ -109,8 +109,8 @@ class SoundwaveGenerator(GeneratorBase):
 
     Extracts the amplitude envelope from an audio file and maps it to
     a 3D curve. The waveform extends along the x-axis with amplitude
-    on the y-axis. The seed parameter is accepted for interface conformance
-    but unused — output is fully determined by the input file.
+    on the y-axis. With an input file, the file alone determines the output.
+    Without one, the seed drives the built-in demo waveform.
     """
 
     name = "soundwave"
@@ -138,8 +138,8 @@ class SoundwaveGenerator(GeneratorBase):
     ) -> MathObject:
         """Generate a 3D waveform curve from a WAV file.
 
-        The seed parameter is accepted for interface conformance but does
-        not affect output — the result is fully determined by the input file.
+        With an input file, the file alone determines the output. Without
+        one, the seed drives the built-in demo.
         """
         merged = self.get_default_params()
         if params:

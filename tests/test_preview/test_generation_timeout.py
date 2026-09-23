@@ -35,7 +35,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _setup() -> None:
-    """Ensure generators are registered and cache is clean."""
+    """Register torus if missing; reset the cache before the test."""
     _ensure_torus_registered()
     reset_cache()
 
@@ -100,7 +100,6 @@ class TestGenerationTimeout:
     def test_timeout_default_is_300(self) -> None:
         """Default timeout is 300 seconds."""
         with patch.dict(os.environ, {}, clear=True):
-            # Remove the var if set
             os.environ.pop("MATHVIZ_GENERATION_TIMEOUT", None)
             assert get_timeout_seconds() == DEFAULT_TIMEOUT_SECONDS
             assert DEFAULT_TIMEOUT_SECONDS == 300
@@ -185,10 +184,10 @@ class TestCancelEndpoint:
 
 
 class TestNormalGeneration:
-    """Tests that normal generation works with timeout in place."""
+    """Generation succeeds while the timeout is in place."""
 
     def test_fast_generation_succeeds(self, client: TestClient) -> None:
-        """Normal (fast) generation still works correctly with timeout."""
+        """A fast torus generation returns 200 and a geometry URL with the timeout on."""
         resp = client.post(
             "/api/generate",
             json={"generator": "torus", "seed": 42},
@@ -316,7 +315,6 @@ class TestThreadBasedExecution:
             t = threading.Thread(target=do_submit)
             t.start()
 
-            # Wait for generation to start, then cancel
             started.wait(timeout=5)
             executor.cancel()
 
@@ -325,7 +323,7 @@ class TestThreadBasedExecution:
         assert not finished.is_set(), "Generation should have been cancelled before finishing"
 
     def test_generation_result_identical_via_thread(self, client: TestClient) -> None:
-        """Generation result via thread is identical to direct pipeline call."""
+        """A torus with seed 123 generates through the HTTP thread executor and directly."""
         from mathviz.core.container import Container, PlacementPolicy
         from mathviz.pipeline.runner import run as run_pipeline
 
@@ -346,7 +344,7 @@ class TestThreadBasedExecution:
             placement=PlacementPolicy(),
         )
         assert direct.math_object is not None
-        # Both should produce a valid mesh — the HTTP endpoint succeeded
+        # The two results are not compared; both calls must succeed.
         assert data["mesh_url"] is not None or data["cloud_url"] is not None
 
 

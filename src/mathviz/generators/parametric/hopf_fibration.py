@@ -1,8 +1,7 @@
 """Hopf fibration generator.
 
 Maps points on S² to great circles on S³, then projects to R³ via
-stereographic projection. Fibers are organized into nested tori of
-linked rings — one of the most visually striking objects in topology.
+stereographic projection. The fibers form nested tori of linked rings.
 """
 
 import logging

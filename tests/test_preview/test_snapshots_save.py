@@ -51,7 +51,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> None:
-    """Ensure real generators are registered and cache is clean."""
+    """Register torus if missing; reset the cache before the test."""
     _ensure_torus_registered()
     reset_cache()
 
@@ -282,7 +282,7 @@ class TestSnapshotNoPyvista:
             "snapshots module should not reference render_to_png"
         )
 
-        # Also verify the endpoint works without PyVista
+        # The save endpoint also succeeds. PyVista is not removed for this check.
         gid = _generate_torus(client)
         req = _make_snapshot_request(gid)
         with patch.dict(os.environ, {SNAPSHOTS_DIR_ENV_VAR: str(tmp_path)}):
@@ -350,6 +350,5 @@ class TestSnapshotThumbnailBase64:
         with patch.dict(os.environ, {SNAPSHOTS_DIR_ENV_VAR: str(tmp_path)}):
             resp = client.post("/api/snapshots", json=req)
         assert resp.status_code == 200
-        # Verify server still responds to other requests
         health = client.get("/api/generators")
         assert health.status_code == 200

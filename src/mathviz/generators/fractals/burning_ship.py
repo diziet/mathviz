@@ -3,8 +3,8 @@
 Computes the Burning Ship escape-time iteration count on a 2D grid and stores
 it as a scalar field. The iteration rule takes absolute values of the real and
 imaginary parts of z before squaring: z_next = (|Re(z)| + i·|Im(z)|)² + c.
-This produces an asymmetric, aggressive-looking fractal distinct from the
-Mandelbrot set. Uses HEIGHTMAP_RELIEF representation.
+Unlike the Mandelbrot set, the result is asymmetric. Uses HEIGHTMAP_RELIEF
+representation.
 """
 
 import logging
@@ -47,7 +47,7 @@ class BurningShipGenerator(GeneratorBase):
 
     Escape-time iteration count on a pixel_resolution² grid becomes the
     z-height of a relief surface via HEIGHTMAP_RELIEF representation.
-    Seed has no effect — the fractal is fully deterministic.
+    The seed has no effect: the fractal is deterministic.
     """
 
     name = "burning_ship"

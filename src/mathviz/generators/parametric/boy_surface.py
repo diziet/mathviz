@@ -34,7 +34,7 @@ def _evaluate_boy_surface(
     """Evaluate Boy's surface using Apéry's parameterization.
 
     u in [0, pi], v in [0, pi]. The denominator can approach zero near
-    certain parameter values, so we clamp it for numerical stability.
+    certain parameter values, so it is clamped for numerical stability.
     """
     cos_u = np.cos(u)
     sin_u = np.sin(u)

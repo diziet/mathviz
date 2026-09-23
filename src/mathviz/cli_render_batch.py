@@ -255,21 +255,19 @@ def register_render_all_command(
         """Render every generator across multiple views in parallel."""
         configure_logging_fn(verbose, quiet)
 
-        # Parse and validate views
         try:
             view_list = _validate_views([v.strip() for v in views.split(",")])
         except ValueError as exc:
             output_console.print(f"[red]{exc}[/red]")
             raise typer.Exit(code=2)
 
-        # Validate style
+        # Constructing RenderConfig validates the style; the instance is discarded.
         try:
             RenderConfig(style=style)
         except ValueError as exc:
             output_console.print(f"[red]{exc}[/red]")
             raise typer.Exit(code=2)
 
-        # Resolve generators
         gen_names = generators.split(",") if generators else None
         selected = _filter_generators(gen_names)
 

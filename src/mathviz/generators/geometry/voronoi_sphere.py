@@ -5,7 +5,7 @@ computes the spherical Voronoi diagram via scipy.spatial.SphericalVoronoi,
 and produces either ridge curves, cell face meshes, or both.
 
 For ``ridges_only``, the generator returns curves and the representation
-layer handles thickening (matching the voronoi_3d pattern).
+layer thickens them, as for voronoi_3d.
 For ``cells_only`` and ``both``, it returns triangle meshes directly.
 """
 
@@ -279,7 +279,7 @@ def _build_ridges_only(
     radius: float, edge_height: float, arc_resolution: int,
     merged: dict[str, Any], seed: int,
 ) -> MathObject:
-    """Return curves for ridges — representation layer handles thickening."""
+    """Return ridge curves; the representation layer thickens them."""
     curves = _extract_ridge_curves(sv, radius, edge_height, arc_resolution)
     all_pts = _collect_all_curve_points(curves)
     bbox = BoundingBox.from_points(all_pts)

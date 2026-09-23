@@ -159,7 +159,6 @@ def test_full_pipeline_stl_roundtrip(tmp_path: Path) -> None:
     assert out_path.exists()
     assert out_path.stat().st_size > 0
 
-    # Reimport and validate
     reimported = trimesh.load(str(out_path), file_type="stl")
     assert reimported.is_watertight
     assert len(reimported.faces) > 0
@@ -213,7 +212,7 @@ def test_default_representation_is_surface_shell(
 
 
 def test_custom_radii(torus: TorusGenerator) -> None:
-    """Custom major/minor radii produce correctly sized geometry."""
+    """Major radius 2.0 and minor radius 0.5 give an x/y extent of 2.5 and a z extent of 0.5."""
     obj = torus.generate(
         params={"major_radius": 2.0, "minor_radius": 0.5},
         grid_resolution=16,
@@ -226,7 +225,6 @@ def test_custom_radii(torus: TorusGenerator) -> None:
     assert obj.bounding_box.max_corner[0] == pytest.approx(xy_extent)
     assert obj.bounding_box.max_corner[2] == pytest.approx(z_extent)
 
-    # Verify actual vertex extent matches
     verts = obj.mesh.vertices
     assert np.max(np.abs(verts[:, 0])) == pytest.approx(xy_extent, rel=0.01)
     assert np.max(np.abs(verts[:, 2])) == pytest.approx(z_extent, rel=0.01)

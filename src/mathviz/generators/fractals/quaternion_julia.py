@@ -1,14 +1,14 @@
 """Quaternion Julia set generator.
 
 Iterates q -> q² + c in quaternion space (4D) and extracts a 3D isosurface
-by fixing the 4th quaternion component (slice_w). Produces smoother, more
-organic shapes than the Mandelbulb. Uses marching cubes on a 3D voxel grid
-to extract the boundary surface.
+by fixing the 4th quaternion component (slice_w). The shapes are smoother
+than the Mandelbulb's. Uses marching cubes on a 3D voxel grid to extract the
+boundary surface.
 
 Default representation: SURFACE_SHELL.
 
-Seed is stored for metadata/provenance only — the computation is fully
-deterministic for given parameters.
+The seed is stored as metadata only. The computation is deterministic for
+given parameters.
 """
 
 import logging

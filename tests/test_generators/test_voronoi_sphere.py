@@ -285,7 +285,7 @@ def test_edge_width_zero_with_ridges_rejected() -> None:
 
 
 def test_edge_width_zero_cells_only_allowed() -> None:
-    """edge_width=0 is fine for cells_only since ridges aren't used."""
+    """edge_width=0 is accepted with cell_style cells_only, which draws no ridges."""
     gen = VoronoiSphereGenerator()
     obj = gen.generate(
         params={"edge_width": 0.0, "cell_style": "cells_only"}, seed=42,

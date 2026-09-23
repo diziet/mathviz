@@ -1,5 +1,5 @@
 /**
- * UI controls wiring for the static demo page.
+ * Event handlers for the UI controls of the static demo page.
  */
 import * as THREE from 'three';
 import {
@@ -9,7 +9,7 @@ import {exportTurntable} from './demo-export.js';
 
 const TURNTABLE_BASE_SPEED = 2;
 
-/** Wire all UI controls to scene actions. */
+/** Add event listeners that connect each UI control to its scene action. */
 export function wireControls(ctx) {
   const {state, scene, renderer, camera, controls, container, actions} = ctx;
   const {

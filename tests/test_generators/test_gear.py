@@ -124,7 +124,6 @@ def test_helical_gear_twisted_teeth() -> None:
     verts = obj.mesh.vertices[:-2]
     z_vals = np.unique(np.round(verts[:, 2], decimals=8))
 
-    # Should have more than 2 z-layers for helical gear
     assert len(z_vals) >= 2
 
     # Bottom and top profiles should differ in xy (twisted)
@@ -132,7 +131,6 @@ def test_helical_gear_twisted_teeth() -> None:
     bottom = verts[:num_per_layer]
     top = verts[-num_per_layer:]
 
-    # At least some xy coordinates must differ significantly
     xy_diff = np.linalg.norm(bottom[:, :2] - top[:, :2], axis=1)
     assert np.max(xy_diff) > 1e-4, "Top and bottom should be twisted"
 
@@ -157,7 +155,7 @@ def test_helical_gear_multiple_layers() -> None:
 
 
 def test_registers_and_renders() -> None:
-    """Generator registers and can produce valid output via registry lookup."""
+    """get_generator("gear") returns GearGenerator, and its output passes validation."""
     gen_cls = get_generator("gear")
     assert gen_cls is GearGenerator
 

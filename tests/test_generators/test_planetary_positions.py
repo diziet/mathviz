@@ -63,7 +63,7 @@ class TestAllCurvesHaveMinPoints:
 
 
 class TestTubeRepresentationSucceeds:
-    """Tube thickening works on planetary_positions output."""
+    """Tube thickening succeeds on planetary_positions output."""
 
     def test_generate_plus_tube_succeeds(
         self,

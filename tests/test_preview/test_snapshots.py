@@ -28,7 +28,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> None:
-    """Ensure real generators are registered and cache is clean."""
+    """Register torus if missing; reset the cache before the test."""
     _ensure_torus_registered()
     reset_cache()
 
@@ -109,7 +109,6 @@ class TestSaveAfterLoad:
         data = _create_snapshot_with_ui_state(client, SAMPLE_UI_STATE)
         sid = data["snapshot_id"]
 
-        # Verify the snapshot has geometry_id in listing
         resp = client.get("/api/snapshots")
         assert resp.status_code == 200
         snaps = resp.json()
@@ -199,7 +198,7 @@ class TestSnapshotUiState:
     def test_load_snapshot_without_ui_state_graceful(
         self, client: TestClient, tmp_path: Path
     ) -> None:
-        """Loading a snapshot saved before ui_state existed works gracefully."""
+        """A snapshot saved before ui_state existed is listed with ui_state None."""
         data = _create_snapshot_with_ui_state(client)
         # Remove ui_state from metadata to simulate old snapshot
         meta_path = tmp_path / data["snapshot_id"] / "metadata.json"
@@ -209,7 +208,6 @@ class TestSnapshotUiState:
 
         resp = client.get("/api/snapshots")
         snap = resp.json()[0]
-        # ui_state should be absent or None, not an error
         assert snap.get("ui_state") is None
 
 

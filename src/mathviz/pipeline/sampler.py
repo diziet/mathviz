@@ -43,7 +43,7 @@ class SamplerConfig(BaseModel):
 
     @model_validator(mode="after")
     def _check_density_num_points_exclusive(self) -> "SamplerConfig":
-        """Ensure density and num_points are not both set."""
+        """Reject a config that sets both density and num_points."""
         if self.density is not None and self.num_points is not None:
             raise ValueError("density and num_points are mutually exclusive")
         return self

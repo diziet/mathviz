@@ -24,7 +24,7 @@ def _ensure_generators_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _setup() -> Generator[None, None, None]:
-    """Ensure generators are registered and cache is clean."""
+    """Register the test generators if missing; reset the cache before and after the test."""
     _ensure_generators_registered()
     reset_cache()
     yield
@@ -202,8 +202,8 @@ class TestRandomizeAlwaysApplies:
 
     def test_no_auto_apply_guard(self, preview_html: str) -> None:
         """randomizeParams does not gate on state.autoApply."""
-        # The old code had 'if (state.autoApply) { applyParams(); }'
-        # The new code always calls fetch /api/generate directly
+        # randomizeParams used to call applyParams() only inside
+        # 'if (state.autoApply)'. It now calls fetch /api/generate itself.
         assert "MAX_RANDOMIZE_ATTEMPTS" in preview_html
 
     def test_retry_on_validation_error(self, preview_html: str) -> None:

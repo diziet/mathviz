@@ -1,6 +1,6 @@
 """Geodesic sphere generator.
 
-Generates triangulated geodesic spheres at various subdivision frequencies,
+Generates a triangulated geodesic sphere at a chosen subdivision frequency,
 starting from an icosahedron. Optionally produces the dual polyhedron
 (Goldberg polyhedron) with pentagonal and hexagonal faces.
 """
@@ -57,7 +57,6 @@ def _build_icosahedron() -> tuple[np.ndarray, np.ndarray]:
         [0, -1, _PHI], [0, 1, _PHI], [0, -1, -_PHI], [0, 1, -_PHI],
         [_PHI, 0, -1], [_PHI, 0, 1], [-_PHI, 0, -1], [-_PHI, 0, 1],
     ], dtype=np.float64)
-    # Normalize to unit sphere
     norms = np.linalg.norm(verts, axis=1, keepdims=True)
     verts = verts / norms
 
@@ -243,7 +242,6 @@ class GeodesicSphereGenerator(GeneratorBase):
         if is_dual:
             vertices, faces = _build_dual(vertices, faces)
 
-        # Scale to desired radius
         vertices = vertices * radius
 
         mesh = Mesh(vertices=vertices, faces=faces)

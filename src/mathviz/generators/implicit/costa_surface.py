@@ -13,10 +13,10 @@ Mathematical construction:
 - Coordinates obtained via numerical integration of the Weierstrass-Enneper
   representation along L-shaped paths on the grid
 
-Note: although the Costa surface is traditionally classified alongside implicit
-surfaces in minimal surface theory, this implementation uses a parametric
-Weierstrass-Enneper approach internally. The category is set to ``parametric``
-to reflect the actual computation method.
+Minimal surface theory traditionally classifies the Costa surface with
+implicit surfaces, but this implementation computes it parametrically through
+the Weierstrass-Enneper representation. The category is therefore
+``parametric``.
 """
 
 import logging

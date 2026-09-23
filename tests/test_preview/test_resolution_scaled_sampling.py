@@ -34,7 +34,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> None:
-    """Ensure real generators are registered and cache is clean."""
+    """Register torus if missing; reset the cache before and after the test."""
     _ensure_torus_registered()
     reset_cache()
     yield
@@ -112,8 +112,7 @@ class TestDefaultResolutionMatchesNormal:
     """Default resolution produces the same count as base density."""
 
     def test_default_resolution_matches_base_density(self) -> None:
-        """At default resolution, resolution-scaled produces same count as direct base density call.
-        """
+        """At default resolution, resolution-scaled and direct sampling give equal counts."""
         obj = MathObject(generator_name="test", mesh=_small_mesh())
 
         # Resolution-scaled at default resolution (scale=1.0)

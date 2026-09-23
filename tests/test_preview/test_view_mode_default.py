@@ -1,12 +1,11 @@
-"""Tests for default view mode being Vertex Cloud.
+"""Tests that the default view mode is Vertex Cloud.
 
-Verifies that view mode is only overridden when incompatible with available
-data, not unconditionally after every generation or file load.
+The view mode changes only when it is incompatible with the available data,
+not after every generation or file load.
 
-# NOTE: These tests verify static HTML source patterns (string matching on
-# the served page). They do NOT exercise runtime JS behavior — a browser-based
-# test (e.g. Playwright) would be needed to cover the runtime conditional
-# paths such as loading a PLY while in wireframe mode.
+These tests match strings in the served HTML source. They do not run the
+JavaScript. Covering the runtime branches, such as loading a PLY in wireframe
+mode, needs a browser-based test (for example, Playwright).
 """
 
 import re
@@ -31,7 +30,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> Generator[None, None, None]:
-    """Ensure generators are registered and state is clean."""
+    """Register torus if missing; reset the cache and the served file before and after the test."""
     _ensure_torus_registered()
     reset_cache()
     set_served_file(None)
@@ -104,7 +103,7 @@ class TestViewModeNotOverridden:
     def test_no_unconditional_shaded_override(self, client: TestClient) -> None:
         """displayGenerateResult must not unconditionally set shaded mode."""
         html = _get_html(client)
-        # The old else branch that forced shaded should be gone
+        # An earlier version had an else branch that always set shaded mode.
         assert "state.viewMode = 'shaded'" not in html
 
     def test_mesh_only_preserves_vertex_mode(self, client: TestClient) -> None:
@@ -117,7 +116,6 @@ class TestViewModeNotOverridden:
         )
         assert gen_fn is not None
         fn_body = gen_fn.group(0)
-        # Only fallback assignment should be to 'vertex' (for incompatible mode)
         assert "state.viewMode = 'shaded'" not in fn_body
         # The guard uses the helper and only fires when no mesh is available
         assert "viewModeNeedsMesh()" in fn_body
@@ -135,7 +133,7 @@ class TestViewModeNotOverridden:
         # Cloud-only means !hasMesh, so the guard fires only if mode needs mesh.
         # Vertex mode (the default) does not need mesh, so no override occurs.
         assert "viewModeNeedsMesh() && !hasMesh" in fn_body
-        # Verify dropdown is synced to state (not hardcoded)
+        # The dropdown takes its value from state.viewMode, not a hard-coded mode.
         assert "document.getElementById('view-mode').value = state.viewMode" in fn_body
 
     def test_dropdown_synced_after_generation(self, client: TestClient) -> None:
@@ -164,7 +162,7 @@ class TestViewModeNotOverridden:
         """loadFromFile for mesh formats preserves current view mode."""
         html = _get_html(client)
         # Mesh formats (STL/GLB/GLTF) support all view modes — no override
-        # The old `state.viewMode = 'shaded'` after displayMesh should be gone
+        # An earlier version set `state.viewMode = 'shaded'` after displayMesh.
         mesh_block = re.search(
             r"ext === 'stl'.*?else if.*?ext === 'ply'",
             html,
@@ -202,7 +200,6 @@ class TestViewModeNotOverridden:
         )
         assert gen_fn is not None
         fn_body = gen_fn.group(0)
-        # Should NOT contain unconditional assignments
         assert "state.viewMode = 'shaded'" not in fn_body
         # The only assignment should be the fallback for incompatible modes
         assignments = re.findall(r"state\.viewMode\s*=\s*'(\w+)'", fn_body)
@@ -223,6 +220,5 @@ class TestViewModeNotOverridden:
         )
         assert gen_fn is not None
         fn_body = gen_fn.group(0)
-        # No references to specific generator names
         assert "schwarz" not in fn_body.lower()
         assert "lorenz" not in fn_body.lower()

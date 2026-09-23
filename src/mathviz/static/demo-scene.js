@@ -1,6 +1,6 @@
 /**
  * Main entry point for the MathViz static demo page.
- * Sets up the Three.js scene, loads manifest.json, and wires UI controls.
+ * Sets up the Three.js scene, loads manifest.json, and attaches the UI control handlers.
  */
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
@@ -155,7 +155,7 @@ function updateFPS() {
   }
 }
 
-/* ── Create display manager and wire controls ── */
+/* ── Create the display manager and attach the control handlers ── */
 const sceneCtx = {state, scene, renderer, camera, controls, container, DARK_COLOR, LIGHT_COLOR};
 const display = createDisplayManager(sceneCtx);
 
@@ -188,7 +188,7 @@ async function init() {
   const galleryPanel = document.getElementById('gallery-panel');
   const galleryToggle = document.getElementById('gallery-toggle');
 
-  /* Wire gallery toggle/close buttons */
+  /* Gallery toggle and close buttons */
   galleryToggle.addEventListener('click', () => {
     galleryPanel.classList.remove('collapsed');
     galleryToggle.classList.add('hidden');

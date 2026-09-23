@@ -21,7 +21,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> Generator[None, None, None]:
-    """Ensure generators are registered and cache is clean."""
+    """Register torus if missing; reset the cache before and after the test."""
     _ensure_torus_registered()
     reset_cache()
     yield
@@ -69,7 +69,6 @@ class TestViewportSplitting:
         """Selecting 2x2 mode creates 4 viewport regions in the canvas."""
         assert "setViewport" in preview_html
         assert "setScissor" in preview_html
-        # The render loop iterates over comparePanels
         assert "for (const panel of state.comparePanels)" in preview_html
 
     def test_3x3_creates_9_viewports(self, preview_html: str) -> None:
@@ -88,7 +87,6 @@ class TestSharedCamera:
 
     def test_all_viewports_share_camera(self, preview_html: str) -> None:
         """All viewports share the same camera object in the render loop."""
-        # The renderCompareMode function uses the single camera for all panels
         render_fn = preview_html.split("function renderCompareMode")[1].split(
             "function animate"
         )[0]
@@ -96,7 +94,6 @@ class TestSharedCamera:
 
     def test_single_orbit_controls(self, preview_html: str) -> None:
         """Only one OrbitControls instance is created for all panels."""
-        # Count OrbitControls instantiations
         count = preview_html.count("new OrbitControls(")
         assert count == 1
 

@@ -21,7 +21,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> Generator[None, None, None]:
-    """Ensure generators are registered and cache is clean."""
+    """Register torus if missing; reset the cache before and after the test."""
     _ensure_torus_registered()
     reset_cache()
     yield
@@ -117,9 +117,9 @@ class TestTwoDigitInput:
         self, preview_html: str
     ) -> None:
         """Digit buffer is reset in closeBrowser, browserGoBack, showCategoryGenerators."""
-        # Count occurrences of resetDigitBuffer - should appear in multiple functions
         count = preview_html.count("resetDigitBuffer()")
-        # openBrowser, closeBrowser, browserGoBack, showCategoryGenerators, handleBrowserDigit x2
+        # Called in openBrowser, closeBrowser, browserGoBack, showCategoryGenerators,
+        # and twice in handleBrowserDigit.
         assert count >= 5
 
 

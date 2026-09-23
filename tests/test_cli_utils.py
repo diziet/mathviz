@@ -117,7 +117,7 @@ class TestSampleCommand:
         assert "element vertex" in content
 
     def test_sample_with_density(self, tmp_path: Path) -> None:
-        """Sampling with --density option works."""
+        """sample with --density 0.5 exits 0 and writes the PLY file."""
         stl_path = tmp_path / "input.stl"
         ply_path = tmp_path / "output.ply"
         _create_stl(stl_path)
@@ -169,7 +169,7 @@ class TestTransformCommand:
         assert size[2] <= 20.0 + 0.01
 
     def test_transform_point_cloud(self, tmp_path: Path) -> None:
-        """Transform works on point cloud files."""
+        """transform accepts a PLY point cloud and writes the output file."""
         ply_in = tmp_path / "cloud.ply"
         ply_out = tmp_path / "output.ply"
         _create_ply_cloud(ply_in)

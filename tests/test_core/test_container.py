@@ -10,7 +10,7 @@ class TestContainerUsableVolume:
     """Test usable_volume property with various margin configurations."""
 
     def test_non_uniform_margins(self) -> None:
-        """Usable volume with non-uniform margins computes correctly."""
+        """Margins of 5, 10 and 3 mm give a usable volume of (90, 60, 34) for 100x80x40."""
         c = Container(
             width_mm=100,
             height_mm=80,
@@ -34,7 +34,7 @@ class TestContainerUsableVolume:
         assert c.usable_volume == (40.0, 40.0, 40.0)
 
     def test_zero_margin_on_one_axis(self) -> None:
-        """Container with zero margin on z-axis works."""
+        """A zero z margin leaves the full 40 mm depth usable."""
         c = Container(
             width_mm=100,
             height_mm=100,
@@ -46,7 +46,7 @@ class TestContainerUsableVolume:
         assert c.usable_volume == (90.0, 90.0, 40.0)
 
     def test_default_container(self) -> None:
-        """Default container has expected usable volume."""
+        """The default container has a usable volume of (90, 90, 90)."""
         c = Container()
         assert c.usable_volume == (90.0, 90.0, 90.0)
 

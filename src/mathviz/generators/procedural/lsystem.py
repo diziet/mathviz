@@ -2,7 +2,7 @@
 
 Produces 3D branching structures from Lindenmayer system grammars. Supports
 named presets (tree, bush, fern, hilbert3d, sierpinski) and custom angle,
-length, and decay parameters for organic variation.
+length, and decay parameters.
 """
 
 import logging

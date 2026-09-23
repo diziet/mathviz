@@ -12,7 +12,7 @@ const PLACEHOLDER_THUMB = 'data:image/svg+xml,' + encodeURIComponent(
 const ALL_CATEGORY = 'All';
 
 /**
- * Build the gallery from a manifest array and wire interactions.
+ * Build the gallery from a manifest array and attach its click handlers.
  * @param {HTMLElement} galleryContainer - The gallery panel element.
  * @param {Array} items - Manifest entries with name, category, display_name, etc.
  * @param {function} onSelect - Callback when a card is clicked: (item) => void.

@@ -137,7 +137,6 @@ class TestCrossDocLinks:
             content = read_text(doc_path)
             links = self._extract_md_links(content)
             for link in links:
-                # Strip anchor fragment
                 file_part = link.split("#")[0]
                 if not file_part:
                     continue

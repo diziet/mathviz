@@ -83,7 +83,7 @@ def _correct_frame_holonomy(
 ) -> np.ndarray:
     """Distribute holonomy correction evenly across all frames."""
     n = len(normals)
-    # Transport the last normal one more step to see where it lands vs normals[0]
+    # Transport the last normal one more step, for comparison with normals[0]
     transported = _transport_one_step(normals[-1], tangents[-1], tangents[0])
     # Measure angle between transported frame and initial frame
     cos_angle = np.clip(np.dot(transported, normals[0]), -1.0, 1.0)

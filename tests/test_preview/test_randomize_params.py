@@ -27,7 +27,7 @@ def _ensure_generators_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _setup() -> Generator[None, None, None]:
-    """Ensure generators are registered and cache is clean."""
+    """Register the test generators if missing; reset the cache before and after the test."""
     _ensure_generators_registered()
     reset_cache()
     yield
@@ -238,7 +238,6 @@ class TestExplicitRanges:
 
     def test_base_class_default_is_empty(self) -> None:
         """GeneratorBase.get_param_ranges() returns empty dict by default."""
-        # Verify the base class implementation returns empty dict
         # Use a concrete generator and call the base method explicitly
         gen = TorusGenerator()
         assert GeneratorBase.get_param_ranges(gen) == {}

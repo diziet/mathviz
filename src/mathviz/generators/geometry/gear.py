@@ -154,7 +154,6 @@ def _extrude_to_mesh(
     """Extrude a 2D profile into a 3D mesh along z-axis."""
     num_profile = len(profile)
 
-    # Determine twist and number of layers
     if abs(helix_angle_rad) < 1e-10:
         total_twist = 0.0
         num_layers = 2

@@ -4,8 +4,8 @@ The gyroid is a triply periodic minimal surface defined by the implicit equation
 sin(x)cos(y) + sin(y)cos(z) + sin(z)cos(x) = 0. It tiles space infinitely;
 the ``periods`` parameter controls how many unit cells are included.
 
-Note: field evaluation is O(N³) where N is voxel_resolution. High resolutions
-(e.g. 256+) will be slow and memory-intensive.
+Field evaluation is O(N³), where N is voxel_resolution. High resolutions
+(e.g. 256+) are slow and use a lot of memory.
 """
 
 import numpy as np

@@ -10,7 +10,7 @@ The soft-minimum uses the log-sum-exp formulation for numerical stability:
   softmin(a, b) = m - (1/k) * ln(exp(-k(a-m)) + exp(-k(b-m)))
 where m = min(a, b) and k controls blend sharpness.
 
-Note: field evaluation is O(N³) where N is voxel_resolution.
+Field evaluation is O(N³), where N is voxel_resolution.
 """
 
 import logging

@@ -69,8 +69,7 @@ def test_different_n_values_produce_distinct_geometries() -> None:
     assert len(obj3.mesh.vertices) != len(obj5.mesh.vertices)
     assert len(obj5.mesh.vertices) != len(obj7.mesh.vertices)
 
-    # Even at matching resolution, shapes differ in vertex positions
-    # Compare using bounding box extents or vertex stats
+    # At the same grid resolution, the shapes also differ in bounding box extent.
     extent3 = np.ptp(obj3.mesh.vertices, axis=0)
     extent5 = np.ptp(obj5.mesh.vertices, axis=0)
     assert not np.allclose(extent3, extent5, atol=0.01)

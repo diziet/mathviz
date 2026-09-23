@@ -49,10 +49,8 @@ def test_produces_3d_points(gen: DoublePendulumGenerator) -> None:
     obj = gen.generate(integration_steps=_TEST_STEPS)
     assert obj.curves is not None
     points = obj.curves[0].points
-    # Should be (N, 3)
     assert points.shape[1] == 3
 
-    # All three dimensions should have non-trivial extent
     extents = points.max(axis=0) - points.min(axis=0)
     assert np.all(extents > 0.01), (
         f"Points collapsed to plane: extents={extents}"

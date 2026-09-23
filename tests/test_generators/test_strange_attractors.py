@@ -265,7 +265,7 @@ def test_sprott_default_representation_tube() -> None:
 
 
 def test_all_three_generators_register_and_appear_in_list() -> None:
-    """All three generators register correctly and appear in list."""
+    """clifford, dequan_li and sprott all appear in list_generators()."""
     metas = list_generators()
     names = {m.name for m in metas}
     assert "clifford" in names

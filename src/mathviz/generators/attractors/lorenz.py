@@ -175,7 +175,7 @@ class LorenzGenerator(GeneratorBase):
         # Record integration_steps so output is self-describing
         merged["integration_steps"] = integration_steps
 
-        # Perturb initial condition with seed for variation
+        # Perturb the initial condition by the seed so different seeds give different trajectories
         rng = default_rng(seed)
         perturbation = rng.normal(scale=_PERTURBATION_SCALE, size=3)
         initial_condition = np.array(_DEFAULT_INITIAL_CONDITION) + perturbation

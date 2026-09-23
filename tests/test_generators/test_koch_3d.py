@@ -93,10 +93,8 @@ def test_extrude_and_revolve_produce_distinct_geometry(
     assert obj_extrude.mesh is not None
     assert obj_revolve.mesh is not None
 
-    # Different number of vertices
     assert len(obj_extrude.mesh.vertices) != len(obj_revolve.mesh.vertices)
 
-    # Different bounding boxes
     ext_bbox = obj_extrude.bounding_box
     rev_bbox = obj_revolve.bounding_box
     assert ext_bbox is not None

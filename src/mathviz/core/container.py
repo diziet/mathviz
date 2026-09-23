@@ -17,7 +17,7 @@ class Container(BaseModel):
 
     @model_validator(mode="after")
     def _check_margins_within_dimensions(self) -> Self:
-        """Ensure margins don't exceed half the dimension on any axis."""
+        """Reject a margin that is half of its axis dimension or more."""
         for dim, margin, axis in [
             (self.width_mm, self.margin_x_mm, "x"),
             (self.height_mm, self.margin_y_mm, "y"),

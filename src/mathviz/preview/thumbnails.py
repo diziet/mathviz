@@ -177,7 +177,7 @@ def clear_all_thumbnails() -> int:
             thumb_file.unlink()
             count += 1
 
-    # Clean up empty subdirectories
+    # Remove empty subdirectories
     for subdir in thumbnails_dir.iterdir():
         if subdir.is_dir() and not any(subdir.iterdir()):
             subdir.rmdir()

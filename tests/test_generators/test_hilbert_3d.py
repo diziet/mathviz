@@ -173,7 +173,7 @@ def test_negative_size_raises() -> None:
 
 
 def test_registers_and_renders() -> None:
-    """Generator registers and renders through pipeline successfully."""
+    """hilbert_3d runs through the pipeline with a tube representation and returns a mesh."""
     result = run(
         "hilbert_3d",
         container=Container.with_uniform_margin(),

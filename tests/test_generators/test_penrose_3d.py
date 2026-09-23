@@ -100,7 +100,7 @@ class TestGenerationsScaling:
 
 
 class TestRegistration:
-    """Generator registers and renders successfully."""
+    """Tests that the generator is found by name and by alias and produces valid output."""
 
     def test_registered_by_name(self) -> None:
         """Can look up generator by canonical name."""

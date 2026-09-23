@@ -77,7 +77,6 @@ def test_horn_like_shape() -> None:
     )
     assert obj_small_d.mesh is not None and obj_large_d.mesh is not None
 
-    # Different d values produce meaningfully different geometry
     assert not np.allclose(
         obj_small_d.mesh.vertices, obj_large_d.mesh.vertices,
     )

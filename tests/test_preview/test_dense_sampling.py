@@ -28,7 +28,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> None:
-    """Ensure real generators are registered and cache is clean."""
+    """Register torus if missing; reset the cache before and after the test."""
     _ensure_torus_registered()
     reset_cache()
     yield
@@ -187,7 +187,6 @@ class TestDenseCacheKeySeparation:
 
         assert default_data["geometry_id"] != dense_data["geometry_id"]
 
-        # Both should be in cache
         cache = get_cache()
         assert cache.get(default_data["geometry_id"]) is not None
         assert cache.get(dense_data["geometry_id"]) is not None

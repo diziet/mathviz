@@ -816,8 +816,8 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// keyup intentionally has no _isFormElement guard: if the user presses a key
-// outside a form then focuses an input, we still want keyup to clear the state.
+// keyup has no _isFormElement guard on purpose: a key pressed outside a form
+// and released after an input takes focus must still clear its state.
 document.addEventListener('keyup', (e) => {
   const k = e.key === 'Shift' ? 'shift' : e.key.toLowerCase();
   if (k in _wasdKeys) _wasdKeys[k] = false;

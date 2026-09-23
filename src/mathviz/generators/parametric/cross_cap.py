@@ -63,7 +63,7 @@ def _compute_bounding_box(
     """Compute axis-aligned bounding box for the cross-cap.
 
     The x-component has max |x| = scale/2 (from sin(u)*sin(2v)/2),
-    while y and z reach scale. We use per-axis extents with margin.
+    while y and z reach scale. The box uses per-axis extents with a margin.
     """
     pad = separation_epsilon
     x_extent = scale * 0.55 + pad  # max |x| = scale/2, with 10% margin

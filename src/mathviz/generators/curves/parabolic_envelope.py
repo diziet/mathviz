@@ -46,7 +46,6 @@ def _build_envelope_mesh(
         * scale
     )
 
-    # Build face indices with vectorized arange + broadcasting
     i_idx = np.arange(line_count - 1)
     j_idx = np.arange(segments_per_line - 1)
     i_grid, j_grid = np.meshgrid(i_idx, j_idx, indexing="ij")

@@ -15,9 +15,9 @@ equal lengths (l), under gravity (g):
 
 **3D projection choice:** The 4D phase space (θ₁, θ₂, ω₁, ω₂) is projected
 to 3D as (θ₁, θ₂, ω₁). This preserves both angle coordinates (the primary
-observable quantities) and one angular velocity, giving a visually rich
-attractor structure. The omitted ω₂ is correlated with ω₁ via conservation
-constraints, so minimal information is lost.
+observable quantities) and one angular velocity. The omitted ω₂ is
+correlated with ω₁ through conservation constraints, so little information is
+lost.
 """
 
 from typing import Any

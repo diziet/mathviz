@@ -25,7 +25,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> Generator[None, None, None]:
-    """Ensure generators are registered and cache is clean."""
+    """Register torus if missing; reset the cache before and after the test."""
     _ensure_torus_registered()
     reset_cache()
     yield
@@ -62,7 +62,6 @@ def test_html_contains_auto_apply_checkbox(preview_html: str) -> None:
     """Preview HTML contains an Auto-Apply checkbox with id auto-apply."""
     assert 'id="auto-apply"' in preview_html
     assert 'type="checkbox"' in preview_html
-    # Verify it's labelled Auto-Apply
     assert "Auto-Apply" in preview_html
 
 
@@ -83,15 +82,12 @@ def test_state_includes_auto_apply(preview_html: str) -> None:
 def test_auto_apply_input_listener(preview_html: str) -> None:
     """When auto-apply is enabled, input events trigger regeneration."""
     script = _extract_script(preview_html)
-    # The param panel has an input event listener for auto-apply
     assert re.search(
         r"addEventListener\s*\(\s*['\"]input['\"]", script
     ), "No input event listener found for auto-apply"
-    # The handler checks state.autoApply
     assert re.search(
         r"state\.autoApply", script
     ), "Handler does not check state.autoApply"
-    # The handler calls applyParams
     assert re.search(
         r"applyParams\s*\(\s*\)", script
     ), "Auto-apply handler does not call applyParams"
@@ -103,15 +99,12 @@ def test_auto_apply_input_listener(preview_html: str) -> None:
 def test_auto_apply_uses_debounce(preview_html: str) -> None:
     """Regeneration is debounced (not fired on every input immediately)."""
     script = _extract_script(preview_html)
-    # Uses setTimeout for debounce
     assert re.search(
         r"setTimeout\s*\(", script
     ), "No setTimeout found for debounce"
-    # Uses clearTimeout to reset on each event
     assert re.search(
         r"clearTimeout\s*\(", script
     ), "No clearTimeout found — debounce does not reset"
-    # Debounce delay is defined
     assert re.search(
         r"AUTO_APPLY_DEBOUNCE_MS\s*=\s*\d+", script
     ), "Debounce delay constant not defined"
@@ -123,7 +116,6 @@ def test_auto_apply_uses_debounce(preview_html: str) -> None:
 def test_auto_apply_disabled_no_trigger(preview_html: str) -> None:
     """When auto-apply is disabled, changing inputs does not trigger."""
     script = _extract_script(preview_html)
-    # The handler returns early when autoApply is false
     assert re.search(
         r"if\s*\(\s*!state\.autoApply\s*\)\s*return", script
     ), "No early return when autoApply is disabled"
@@ -132,7 +124,6 @@ def test_auto_apply_disabled_no_trigger(preview_html: str) -> None:
 def test_pending_timer_cleared_on_disable(preview_html: str) -> None:
     """Unchecking auto-apply cancels any pending debounce timer."""
     script = _extract_script(preview_html)
-    # The change handler for auto-apply clears the timer when unchecked
     assert re.search(
         r"!state\.autoApply\s*&&\s*autoApplyTimer\s*!==\s*null", script
     ), "Change handler does not clear pending timer on disable"
@@ -164,11 +155,10 @@ def test_param_panel_below_container_in_dom(preview_html: str) -> None:
 def test_panels_wrapped_in_left_column(preview_html: str) -> None:
     """Both panels are wrapped in a scrollable left-column container."""
     assert 'id="left-column"' in preview_html
-    # left-column should contain both panels
     left_col_start = preview_html.find('id="left-column"')
-    # Find the closing div for left-column by checking nesting
     assert left_col_start > 0, "left-column not found"
-    # container-panel and param-panel should be inside left-column
+    # Checks only that both panels come after the left-column opening tag. The
+    # closing tag is not located, so a panel after the column also passes.
     container_pos = preview_html.find('id="container-panel"')
     param_pos = preview_html.find('id="param-panel"')
     assert container_pos > left_col_start, (

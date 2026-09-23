@@ -4,8 +4,8 @@ The Schwarz P (Primitive) surface is a triply periodic minimal surface defined
 by the implicit equation cos(x) + cos(y) + cos(z) = 0. Like the gyroid, it
 tiles space; the ``periods`` parameter controls how many unit cells are included.
 
-Note: field evaluation is O(N³) where N is voxel_resolution. High resolutions
-(e.g. 256+) will be slow and memory-intensive.
+Field evaluation is O(N³), where N is voxel_resolution. High resolutions
+(e.g. 256+) are slow and use a lot of memory.
 """
 
 import numpy as np

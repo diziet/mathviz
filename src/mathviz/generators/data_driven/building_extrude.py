@@ -32,7 +32,7 @@ def _synthesize_demo_buildings(seed: int) -> dict:
     features = []
 
     for i in range(num_buildings):
-        # Place buildings in a grid pattern with some randomness
+        # Place buildings on a grid with small random offsets and sizes
         row, col = divmod(i, 3)
         base_x = col * 1.5 + rng.uniform(0.0, 0.3)
         base_y = row * 1.5 + rng.uniform(0.0, 0.3)
@@ -185,9 +185,9 @@ class BuildingExtrudeGenerator(GeneratorBase):
     """Extrude GeoJSON polygons into 3D building meshes.
 
     Reads polygon geometries from a GeoJSON file and extrudes each one
-    vertically. Height can be specified per-feature via a property field
-    or as a global default. The seed parameter is accepted for interface
-    conformance but unused — output is fully determined by the input file.
+    vertically. The height comes from a per-feature property field or from a
+    global default. With an input file, the file alone determines the output.
+    Without one, the seed drives the built-in demo city block.
     """
 
     name = "building_extrude"
@@ -212,8 +212,8 @@ class BuildingExtrudeGenerator(GeneratorBase):
     ) -> MathObject:
         """Generate extruded building meshes from a GeoJSON file.
 
-        The seed parameter is accepted for interface conformance but does
-        not affect output — the result is fully determined by the input file.
+        With an input file, the file alone determines the output. Without
+        one, the seed drives the built-in demo.
         """
         merged = self.get_default_params()
         if params:

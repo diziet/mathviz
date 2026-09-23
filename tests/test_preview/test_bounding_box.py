@@ -27,7 +27,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> Generator[None, None, None]:
-    """Ensure generators are registered and cache is clean."""
+    """Register torus if missing; reset the cache before and after the test."""
     _ensure_torus_registered()
     reset_cache()
     yield
@@ -252,7 +252,6 @@ class TestGeometryBoundingBoxAlignment:
         tri = _load_centered_mesh(mesh_to_glb(mesh))
         _assert_centered_at_origin(tri)
         geo_extents = tri.bounding_box.extents
-        # Use default container dimensions from the Container model
         default = Container.with_uniform_margin()
         container_dims = np.array([default.width_mm, default.height_mm, default.depth_mm])
         assert np.all(geo_extents <= container_dims + 0.1)

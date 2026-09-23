@@ -128,7 +128,7 @@ def test_dual_mode_vertices_on_sphere() -> None:
 
 
 def test_registers_and_renders() -> None:
-    """Generator registers and can produce valid output."""
+    """get_generator returns GeodesicSphereGenerator, and its output passes validation."""
     gen_cls = get_generator("geodesic_sphere")
     assert gen_cls is GeodesicSphereGenerator
 
@@ -207,7 +207,7 @@ def test_default_params() -> None:
 
 
 def test_dual_string_true_activates_dual_mode() -> None:
-    """String 'true' from CLI correctly activates dual mode."""
+    """dual='true', the string form the CLI passes, turns dual mode on."""
     gen = GeodesicSphereGenerator()
     obj = gen.generate(params={"frequency": 2, "dual": "true"})
     obj.validate_or_raise()

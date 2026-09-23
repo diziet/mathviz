@@ -95,7 +95,6 @@ def test_different_knot_types_produce_distinct_surfaces() -> None:
 
     assert obj_trefoil.mesh is not None and obj_fig8.mesh is not None
 
-    # Different extents or vertex distributions
     extent_trefoil = np.ptp(obj_trefoil.mesh.vertices, axis=0)
     extent_fig8 = np.ptp(obj_fig8.mesh.vertices, axis=0)
 

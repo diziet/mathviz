@@ -144,7 +144,6 @@ class TestMeshValidation:
         result = validate_mesh(mesh)
         # Should pass (warnings allowed)
         assert result.passed is True
-        # Should have a warning about manifold/boundary edges
         warning_names = {c.name for c in result.warnings}
         assert "manifold" in warning_names or "watertight" in warning_names
 

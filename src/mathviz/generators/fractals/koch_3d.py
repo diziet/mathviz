@@ -78,10 +78,12 @@ def _subdivide_segments(
 def _triangulate_cap(curve_2d: np.ndarray) -> np.ndarray:
     """Triangulate a 2D polygon using Delaunay triangulation.
 
-    Handles non-convex Koch snowflake curves correctly, unlike fan
-    triangulation which produces self-intersecting faces.
+    Delaunay covers the convex hull of the points, so the cap also fills the
+    snowflake's concave notches instead of following the outline. Fan
+    triangulation would produce self-intersecting faces.
     Returns (M, 3) array of triangle indices into curve_2d.
     """
+    # TODO: drop the triangles outside the outline, or use a constrained triangulation.
     tri = Delaunay(curve_2d)
     return tri.simplices.astype(np.int64)
 
@@ -150,7 +152,6 @@ def _build_revolution_mesh(
             curve_2d[:, 0] * sin_angles[seg_idx]
         )
 
-    # Vectorized face generation
     seg_indices = np.arange(num_segments)
     pt_indices = np.arange(num_pts)
     seg_grid, pt_grid = np.meshgrid(
@@ -215,13 +216,13 @@ class Koch3DGenerator(GeneratorBase):
         self,
         params: dict[str, Any] | None = None,
         seed: int = 42,
-        # resolution_kwargs accepted per GeneratorBase contract but unused
-        # — Koch geometry is fully determined by level, not resolution.
+        # resolution_kwargs is accepted per the GeneratorBase contract but
+        # unused: the Koch geometry depends only on level.
         **resolution_kwargs: Any,
     ) -> MathObject:
         """Generate a Koch snowflake 3D mesh.
 
-        Fully deterministic — seed is stored for metadata only.
+        The output is deterministic. The seed is stored as metadata only.
         """
         merged = self.get_default_params()
         if params:

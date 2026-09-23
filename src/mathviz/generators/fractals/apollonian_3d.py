@@ -6,8 +6,8 @@ from a Soddy configuration of 4 mutually tangent spheres inside an outer
 bounding sphere. Uses Descartes' circle theorem extended to 3D to compute
 new sphere curvatures and centers. Default representation: SURFACE_SHELL.
 
-Seed controls a random rotation of the initial tetrahedron configuration,
-producing visually distinct gaskets for different seeds.
+The seed sets a random rotation of the initial tetrahedron configuration,
+so different seeds give different gaskets.
 """
 
 import logging

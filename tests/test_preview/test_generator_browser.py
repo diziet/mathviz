@@ -21,7 +21,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> Generator[None, None, None]:
-    """Ensure generators are registered and cache is clean."""
+    """Register torus if missing; reset the cache before and after the test."""
     _ensure_torus_registered()
     reset_cache()
     yield
@@ -165,7 +165,6 @@ class TestBrowserModalFeatures:
         data = resp.json()
         names = [g["name"] for g in data]
         assert "torus" in names
-        # Each generator should have a category
         for gen in data:
             assert "category" in gen
             assert "name" in gen

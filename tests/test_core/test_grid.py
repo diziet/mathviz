@@ -86,7 +86,7 @@ class TestGridSummary:
         assert counts["exported"] == 0
 
     def test_summary_counts_statuses_correctly(self) -> None:
-        """Summary counts statuses correctly, including empties."""
+        """summary() counts each status and counts unassigned blocks as empty."""
         manifest = GridManifest.create(3, 3)
         manifest.assign(0, 0, "lorenz")
         manifest.assign(0, 1, "torus")
@@ -148,7 +148,7 @@ class TestGridDimensions:
     """Tests for non-square and various grid dimensions."""
 
     def test_non_square_grid(self) -> None:
-        """Grid with non-square dimensions (8x12) works correctly."""
+        """An 8x12 grid accepts presets at all four corners and counts the rest as empty."""
         manifest = GridManifest.create(8, 12)
         assert manifest.rows == 8
         assert manifest.cols == 12
@@ -163,7 +163,7 @@ class TestGridDimensions:
         assert counts["empty"] == 92
 
     def test_single_cell_grid(self) -> None:
-        """A 1x1 grid works."""
+        """A 1x1 grid accepts a preset and has no neighbors."""
         manifest = GridManifest.create(1, 1)
         manifest.assign(0, 0, "lorenz")
         assert manifest.get_block(0, 0).preset == "lorenz"
@@ -219,14 +219,12 @@ class TestGridPersistence:
         manifest.assign(0, 0, "lorenz")
         manifest.save()
 
-        # Transition to exported
         manifest.set_status(0, 0, BlockStatus.EXPORTED)
         manifest.save()
 
         loaded = GridManifest.load(manifest_path)
         assert loaded.get_block(0, 0).status == BlockStatus.EXPORTED
 
-        # Transition to error
         loaded.set_status(0, 0, BlockStatus.ERROR)
         loaded.save()
 
@@ -239,7 +237,7 @@ class TestGridPersistence:
             GridManifest.load(tmp_path / "nope.toml")
 
     def test_empty_grid_save_load(self, tmp_path: Path) -> None:
-        """An empty grid saves and loads correctly."""
+        """An empty grid keeps its dimensions and has no blocks after save and load."""
         manifest_path = tmp_path / "grid.toml"
         manifest = GridManifest.create(3, 5, manifest_path)
         manifest.save()

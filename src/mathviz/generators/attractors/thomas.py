@@ -8,7 +8,7 @@ Integrates the Thomas cyclically symmetric system of ODEs to produce a
 
 With default parameter b≈0.208186, the attractor produces a bounded chaotic
 trajectory with three-fold rotational symmetry. The parameter b controls
-dissipation — values near 0.208186 yield the classic strange attractor.
+dissipation. Values near 0.208186 give the classic strange attractor.
 """
 
 from typing import Any

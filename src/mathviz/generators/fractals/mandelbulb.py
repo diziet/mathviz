@@ -5,8 +5,8 @@ boundary surface via marching cubes. The inner iteration kernel is
 numba-JIT-compiled for acceptable performance at voxel_resolution >= 128.
 Default representation: SPARSE_SHELL.
 
-Seed is stored for metadata/provenance only — the Mandelbulb computation
-is fully deterministic for given parameters.
+The seed is stored as metadata only. The Mandelbulb computation is
+deterministic for given parameters.
 """
 
 import logging
@@ -67,7 +67,7 @@ class MandelbulbGenerator(GeneratorBase):
     ) -> MathObject:
         """Generate a Mandelbulb mesh via marching cubes.
 
-        Seed is stored for metadata only — output is fully deterministic.
+        The seed is stored as metadata only. The output is deterministic.
         """
         merged = self.get_default_params()
         if params:

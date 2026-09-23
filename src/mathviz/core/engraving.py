@@ -30,7 +30,7 @@ class EngravingProfile(BaseModel):
 
     @model_validator(mode="after")
     def _check_spacing_order(self) -> Self:
-        """Ensure min spacing does not exceed max spacing."""
+        """Reject a min point spacing greater than the max point spacing."""
         if self.min_point_spacing_mm > self.max_point_spacing_mm:
             msg = (
                 f"min_point_spacing_mm ({self.min_point_spacing_mm}) "

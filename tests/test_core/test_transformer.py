@@ -66,7 +66,7 @@ def _fit_with_depth_bias(depth_bias: float) -> BoundingBox:
 
 
 class TestAbstractToPhysical:
-    """Test that coord_space transitions correctly."""
+    """Tests for the ABSTRACT to PHYSICAL coord_space change in fit()."""
 
     def test_output_is_physical(self) -> None:
         """Abstract->Physical sets coord_space to PHYSICAL."""
@@ -365,7 +365,7 @@ class TestOffset:
 
 
 class TestBoundingBoxUpdated:
-    """Test that the output bounding box is correctly computed."""
+    """Tests that fit() sets the bounding box to the transformed geometry's extents."""
 
     def test_bounding_box_matches_geometry(self) -> None:
         """Output bounding box matches actual geometry extents."""

@@ -55,7 +55,7 @@ EXIT_SUCCESS = 0
 EXIT_VALIDATION_WARNING = 1
 EXIT_ERROR = 2
 
-# Pipeline stages in execution order (matches runner.py chain)
+# Pipeline stages in the order runner.run() calls them
 _BASE_STAGES = ["generate", "represent", "transform", "sample", "validate"]
 
 
@@ -144,7 +144,6 @@ def _run_pipeline(
     """Shared pipeline execution for generate and validate commands."""
     gen_instance = _resolve_generator(generator_name, json_output)
 
-    # Load config layers
     project_cfg = load_project_config()
     object_cfg = _load_safe(load_object_config, json_output, config_path) if config_path else None
     if profile_name:
@@ -256,7 +255,7 @@ def _handle_dry_run(
     output: Optional[Path],
     json_output: bool,
 ) -> None:
-    """Handle --dry-run: report what would happen without running the pipeline."""
+    """Report what --dry-run would do, without running the pipeline."""
     merged = gen_instance.get_default_params()
     merged.update(params)
     stages = list(_BASE_STAGES)
