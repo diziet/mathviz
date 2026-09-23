@@ -123,12 +123,13 @@ class TestNoNaN:
 
 
 class TestRegistration:
-    """Tests for registration and rendering."""
+    """Tests for registration, aliases and default representation."""
 
     def test_registers_and_renders(
         self, gen: GravitationalLensingGenerator
     ) -> None:
-        """Generator registers and produces valid renderable output."""
+        """get_generator finds gravitational_lensing, and its output
+        validates with curves."""
         gen_cls = get_generator("gravitational_lensing")
         assert gen_cls is GravitationalLensingGenerator
 

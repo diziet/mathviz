@@ -200,7 +200,7 @@ class TestDeterminism:
 
 
 class TestDzSquaredOrbital:
-    """(3,2,0) d_z² orbital produces a dumbbell-with-torus shape."""
+    """(3,2,0) d_z² orbital produces a valid mesh."""
 
     def test_d_orbital_has_mesh(self, gen: ElectronOrbitalGenerator) -> None:
         """The 3d0 (dz²) orbital generates a valid mesh."""

@@ -94,12 +94,12 @@ class TestHopfFibrationStructure:
 
 
 class TestHopfFibrationRegistration:
-    """Tests for registration and rendering."""
+    """Tests for registration, alias, default representation and metadata."""
 
     def test_registers_and_renders(
         self, gen: HopfFibrationGenerator,
     ) -> None:
-        """Generator registers and produces valid renderable output."""
+        """get_generator finds hopf_fibration; its output validates with curves."""
         gen_cls = get_generator("hopf_fibration")
         assert gen_cls is HopfFibrationGenerator
 

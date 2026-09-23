@@ -33,7 +33,7 @@ _TEST_VOXEL_RESOLUTION = 32
 
 
 # ---------------------------------------------------------------------------
-# Default gyroid produces a non-empty manifold mesh
+# Default gyroid produces a non-empty mesh with positive area
 # ---------------------------------------------------------------------------
 
 

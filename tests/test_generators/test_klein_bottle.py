@@ -1,7 +1,9 @@
 """Tests for Klein bottle u-seam wrapping fix (Task 96).
 
-Verifies the shifted connectivity at the u-seam produces a continuous
-figure-8 tube without stretched triangles or flipped normals.
+Verifies the vertex and face counts, that no edge is longer than 2x the
+average edge, that u-seam faces stay under 5x the average interior face
+area, that not every seam-adjacent face pair has opposite normals, and that
+no two vertices coincide.
 """
 
 import numpy as np
@@ -140,11 +142,11 @@ def _build_adjacency(faces: np.ndarray) -> dict[tuple[int, int], list[int]]:
 def test_seam_normal_consistency(
     klein_mesh: tuple[np.ndarray, np.ndarray],
 ) -> None:
-    """Adjacent face normals at u-seam are mostly consistent.
+    """Not every adjacent face pair at the u-seam has opposite normals.
 
     The Klein bottle is non-orientable, so perfect winding consistency
-    is impossible. We verify the flip count is far below the naive 256
-    (which produced all-bad seam faces before the fix).
+    is impossible. The naive wrapping flipped all 256 seam pairs before the
+    fix; the assert requires fewer flipped pairs than pairs checked.
     """
     vertices, faces = klein_mesh
     seam_mask = _seam_face_mask(faces, _GRID_RES, _GRID_RES)
@@ -168,8 +170,8 @@ def test_seam_normal_consistency(
 
     assert checked > 0, "No adjacent seam face pairs found"
     # Non-orientable surface: ~50% seam flips are expected at the
-    # orientation reversal, but far fewer than the 256/256 (100%)
-    # produced by naive wrapping.
+    # orientation reversal. The assert rules out only the 256/256 (100%)
+    # that naive wrapping produced.
     assert negative_count < checked, (
         f"All {checked} seam-adjacent pairs have negative dot product"
     )

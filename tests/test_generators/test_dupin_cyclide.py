@@ -48,7 +48,8 @@ def test_no_nan_or_inf_in_vertices() -> None:
 
 
 def test_torus_like_shape() -> None:
-    """Small d relative to b produces a torus-like shape (symmetric)."""
+    """With d=0.3 and b=1.0, the smaller of the x and y extents is over half
+    the larger."""
     gen = DupinCyclideGenerator()
     obj = gen.generate(
         params={"a": 2.0, "b": 1.0, "c": 0.5, "d": 0.3},
@@ -65,7 +66,8 @@ def test_torus_like_shape() -> None:
 
 
 def test_horn_like_shape() -> None:
-    """Larger d shifts the cyclide further from a standard torus."""
+    """d=1.8 gives different vertices than d=0.3, with the mean x shifted by
+    more than 0.1."""
     gen = DupinCyclideGenerator()
     obj_small_d = gen.generate(
         params={"a": 2.0, "b": 1.0, "c": 0.5, "d": 0.3},
@@ -183,7 +185,7 @@ def test_vertices_within_bounding_box() -> None:
 
 
 def test_a_affects_scale() -> None:
-    """Larger a produces different mesh extent."""
+    """a=3.0 gives different vertices than a=1.0."""
     gen = DupinCyclideGenerator()
     obj_small = gen.generate(
         params={"a": 1.0, "c": 0.3}, grid_resolution=16,

@@ -88,10 +88,11 @@ class TestDNAHelixLength:
 
 
 class TestDNAHelixRegistration:
-    """Tests for registration and rendering."""
+    """Tests for registration, aliases, representation and metadata."""
 
     def test_registers_and_renders(self, gen: DNAHelixGenerator) -> None:
-        """Generator registers and produces valid renderable output."""
+        """get_generator finds dna_helix, and its output validates with at
+        least one curve."""
         gen_cls = get_generator("dna_helix")
         assert gen_cls is DNAHelixGenerator
 
