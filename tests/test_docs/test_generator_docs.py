@@ -8,11 +8,12 @@ import re
 
 import pytest
 
-# Trigger initial import of all generator modules so subclasses exist
 import mathviz.core.generator as _gen_module
 from mathviz.core.generator import GeneratorBase
 from tests.test_docs.conftest import GENERATORS_DOC, README_PATH, read_text
 
+# _ensure_discovered() imports every generator module, so every GeneratorBase
+# subclass exists before _get_concrete_generators() walks the class tree.
 _gen_module._ensure_discovered()
 
 
@@ -84,7 +85,8 @@ class TestEntryContents:
     def test_entry_has_description(self, gen_doc: str, name: str) -> None:
         """Each generator entry has descriptive text (not just a table)."""
         section = self._get_section(gen_doc, name)
-        # Strip tables and code blocks, check remaining text
+        # Keep only prose lines: drop table rows, code fences, and the generated
+        # Aliases, Resolution, Output, Recommended and parameter-note lines.
         text_lines = [
             line for line in section.strip().split("\n")
             if line.strip()
@@ -159,10 +161,8 @@ class TestCategoryHeadings:
         """Every category in the registry has a corresponding h2 heading."""
         gen_doc = read_text(GENERATORS_DOC)
         doc_h2 = _extract_doc_h2_headings(gen_doc)
-        # Normalize to lowercase for matching
         doc_h2_lower = {h.lower() for h in doc_h2}
 
-        # Map category names to expected heading patterns
         category_heading_map = {
             "attractors": "attractors",
             "curves": "curves",

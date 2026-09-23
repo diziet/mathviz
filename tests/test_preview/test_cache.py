@@ -27,7 +27,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> None:
-    """Ensure real generators are registered and cache is clean."""
+    """Register torus if missing; reset the cache before the test."""
     _ensure_torus_registered()
     reset_cache()
 
@@ -220,7 +220,6 @@ class TestCacheSizeLimit:
         time.sleep(0.05)
         _put_entry(dc, "key3", generator_name="gen3", seed=3, mesh_data=b"z" * 300)
 
-        # key1 (oldest) should have been evicted
         assert dc.get("key1") is None
         assert dc.get("key3") is not None
 

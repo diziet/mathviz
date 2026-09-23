@@ -22,7 +22,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _ensure_generators() -> Generator[None, None, None]:
-    """Ensure generators are registered and cache is clean."""
+    """Register torus if missing; reset the cache before and after the test."""
     _ensure_torus_registered()
     reset_cache()
     yield
@@ -170,7 +170,6 @@ class TestStretchBehavior:
         self, preview_html: str
     ) -> None:
         """Stretch values persist across regeneration via applyStretch call."""
-        # displayGenerateResult should call applyStretch after loading
         display_fn = preview_html.split("async function displayGenerateResult")[
             1
         ].split("/* ──")[0]

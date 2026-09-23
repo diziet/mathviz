@@ -197,7 +197,7 @@ class TestExitColorMapMode:
 
 
 class TestColorMapMaterialLifecycle:
-    """Material swap helper properly manages GPU resources."""
+    """The colormap material swap disposes the materials it replaces."""
 
     def test_swap_helper_exists(self, html: str) -> None:
         """swapColormapMaterial function is defined."""

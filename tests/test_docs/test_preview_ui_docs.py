@@ -60,8 +60,8 @@ REQUIRED_FEATURES = [
     "screenshot",
 ]
 
-# Keyboard shortcuts that exist in the source code (index.html)
-# Each tuple is (shortcut description, expected doc text)
+# Keyboard shortcuts handled in src/mathviz/static/index.html. Each string must
+# appear in preview-ui.md.
 CODE_KEYBOARD_SHORTCUTS = [
     "cmd+k",
     "ctrl+k",
@@ -138,12 +138,11 @@ class TestKeyboardShortcutCoverage:
         """The keyboard shortcuts section contains a table with entries."""
         content = read_text(PREVIEW_UI_DOC)
         shortcuts_section = content.split("## Keyboard Shortcuts")[-1]
-        # Count table rows (lines starting with |)
         table_rows = [
             line for line in shortcuts_section.split("\n")
             if line.strip().startswith("|") and "---" not in line
         ]
-        # Subtract header row
+        # The first table row is the header.
         data_rows = len(table_rows) - 1
         assert data_rows >= 8, (
             f"Keyboard shortcuts table has only {data_rows} entries, "

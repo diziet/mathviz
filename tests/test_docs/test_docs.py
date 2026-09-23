@@ -6,7 +6,6 @@ import pytest
 
 from tests.test_docs.conftest import DOCS_DIR, README_PATH, read_text
 
-# Expected doc files
 EXPECTED_DOC_FILES = [
     "generators.md",
     "pipeline.md",
@@ -83,7 +82,6 @@ class TestDocsStructure:
         assert lines[0].startswith("# "), (
             f"docs/{filename} does not start with a level-1 heading"
         )
-        # Check for broken headers (# with no text after)
         for i, line in enumerate(lines, 1):
             if re.match(r"^#{1,6}\s*$", line):
                 pytest.fail(f"docs/{filename}:{i} has empty heading: {line!r}")

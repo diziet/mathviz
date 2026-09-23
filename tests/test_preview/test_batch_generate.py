@@ -22,7 +22,7 @@ def _ensure_torus_registered() -> None:
 
 @pytest.fixture(autouse=True)
 def _setup() -> None:
-    """Ensure generators are registered and cache is clean."""
+    """Register torus if missing; reset the cache before the test."""
     _ensure_torus_registered()
     reset_cache()
 
@@ -93,10 +93,9 @@ class TestBatchGenerate:
 
         assert resp.status_code == 200
         assert len(resp.json()["panels"]) == 4
-        # Verify pool was created with multiple workers
         assert len(pool_workers) >= 1
         assert pool_workers[0] > 1, "Batch pool should use multiple workers"
-        # Verify all 4 panels were submitted to the pool
+        # Each of the 4 panels is submitted to the pool.
         assert len(submit_calls) == 4
 
     def test_failed_panel_does_not_crash_batch(self, client: TestClient) -> None:
@@ -110,24 +109,22 @@ class TestBatchGenerate:
         assert resp.status_code == 200
         data = resp.json()
         assert len(data["panels"]) == 3
-        # Panel 0 and 2 should succeed
+        # Panel 1 names an unknown generator. Panels 0 and 2 succeed.
         assert data["panels"][0]["geometry_id"] is not None
         assert data["panels"][0]["error"] is None
-        # Panel 1 should have an error
         assert data["panels"][1]["error"] is not None
         assert data["panels"][1]["geometry_id"] is None
-        # Panel 2 should succeed
         assert data["panels"][2]["geometry_id"] is not None
         assert data["panels"][2]["error"] is None
 
     def test_response_order_matches_request(self, client: TestClient) -> None:
-        """Response order matches request order."""
+        """Three panels with distinct seeds return three distinct geometry_ids."""
         panels = [_make_panel(seed=i) for i in range(3)]
         resp = client.post("/api/generate-batch", json={"panels": panels})
         assert resp.status_code == 200
         data = resp.json()
 
-        # Each panel should have a unique geometry_id
+        # Checks only that the ids are distinct, not that they follow request order.
         ids = [p["geometry_id"] for p in data["panels"]]
         assert len(set(ids)) == 3
 
