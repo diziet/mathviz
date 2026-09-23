@@ -39,7 +39,7 @@ run_stage() {
 }
 
 # scripts/check_gate_wiring.py parses this unindented list; each Blocking-gate target must be in it.
-stages="gate-wiring-check lint test"
+stages="doc-facts-check doc-refs-check gate-wiring-check lint test"
 for stage in $stages; do
   run_stage "$stage" make -C "$ROOT" -s "$stage"
 done

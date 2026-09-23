@@ -40,7 +40,11 @@ KNOWN_TEST_MODULES: frozenset[str] = frozenset(
         "tests/test_pipeline/test_export_routing.py",
         "tests/test_preview/test_build_banner.py",
         "tests/test_shared/test_tube_thickening.py",
+        "tests/tooling/test_check_doc_refs.py",
         "tests/tooling/test_check_gate_wiring.py",
+        "tests/tooling/test_doc_checks_repo.py",
+        "tests/tooling/test_doc_common.py",
+        "tests/tooling/test_doc_facts.py",
         "tests/tooling/test_hooks.py",
     }
 )
