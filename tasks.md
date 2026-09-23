@@ -7347,3 +7347,36 @@ whether to build the watcher. Nobody adds either until the owner records the dec
 - After the decision: `make doctor` and `make gate` pass.
 
 ---
+
+## Task 181: Add the `render --view` row to `docs/cli.md` and complete the `render-2d` view list
+
+**Class:** stale claim
+**Source:** prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, pass 4 (PR #178), 2026-09-24.
+
+**Objective:**
+
+Task 172 listed the rows missing from these tables. PR #178 added `--style` and `--point-size` to
+the `render` and `render-2d` tables and `--no-presets` to the `export-demo` table. Two gaps remain
+in `docs/cli.md`:
+
+- The `render` table (section at line 252) has no `--view` row. `src/mathviz/cli_render.py:37`
+  defines `--view` for `render` with the default `front-right-top` and the help text "Camera view
+  name or 'all'". Found by pass 4; checked 2026-09-24 by reading the code.
+- The `render-2d` table's `--view` row (line 292) says "Projection view: top, front, side,
+  angle". `render-2d` (`cli_render.py:72`) accepts the same values as `render`: `_run_render`
+  passes `all` to `render_all_views` and checks any other name with `resolve_view_name`, which
+  accepts every name in `VALID_VIEW_NAMES` (`src/mathviz/preview/renderer.py:68`). This is not
+  in the report; checked 2026-09-24 by reading the code while filing this task.
+
+**Suggested path:**
+
+Add a `--view` row to the `render` table with the type, default and help text from the Typer
+definition. In both rows, state the accepted values from `VALID_VIEW_NAMES` and `all`. Resolved
+when both rows match `cli_render.py` and `renderer.py`.
+
+**Tests:** `tests/test_docs`
+
+- `pytest tests/test_docs` passes.
+- `make doc-refs-check` passes.
+
+---
