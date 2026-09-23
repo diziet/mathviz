@@ -126,9 +126,9 @@ def _compute_anchor_point(
 ) -> np.ndarray:
     """Compute the target center position based on anchor mode.
 
-    Note: when depth_bias > 1.0 with z-axis anchors (front/back), the biased
-    size may exceed the usable volume, potentially positioning geometry outside
-    the container. This is the intentional trade-off documented in the task spec.
+    When depth_bias > 1.0 with a z-axis anchor (front or back), the biased size
+    can exceed the usable volume and place geometry outside the container. The
+    task spec documents this trade-off as intended.
     """
     point = container_center.copy()
 

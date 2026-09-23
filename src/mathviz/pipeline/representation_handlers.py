@@ -1,6 +1,6 @@
 """Representation handlers for VOLUME_FILL, SLICE_STACK, and WIREFRAME.
 
-These complete the full set of fabrication strategies by providing:
+Each handler implements one fabrication strategy:
 - VOLUME_FILL: interior point cloud from watertight mesh
 - SLICE_STACK: parallel plane slicing with contour extraction
 - WIREFRAME: edge extraction with tube thickening

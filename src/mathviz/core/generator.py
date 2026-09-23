@@ -51,7 +51,7 @@ class GeneratorBase(ABC):
         return cls(resolved_name=resolved_name)
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
-        """Ensure each subclass gets its own copy of mutable defaults."""
+        """Give each subclass its own copy of the mutable class defaults."""
         super().__init_subclass__(**kwargs)
         if "resolution_params" not in cls.__dict__:
             cls.resolution_params = dict(cls.resolution_params)

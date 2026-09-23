@@ -19,7 +19,7 @@ SamplingMode = Literal["default", "post_transform", "resolution_scaled", "edge"]
 MAX_DENSE_SAMPLES = 5_000_000
 MAX_RESOLUTION_SCALED_SAMPLES = 5_000_000
 
-# Comfortable default when the client does not specify a value.
+# Sample count used when the client does not specify one.
 DEFAULT_DENSE_SAMPLES = 500_000
 _DENSE_SURFACE_DENSITY = 100.0
 _DENSE_SEED = 42

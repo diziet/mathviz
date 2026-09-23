@@ -77,7 +77,7 @@ def _apply_sampling(
     resolution_kwargs: dict[str, Any] | None,
     gen_instance: GeneratorBase,
 ) -> MathObject:
-    """Run the appropriate post-transform sampling and validate."""
+    """Run the post-transform sampling that `mode` selects, then validate the result."""
     kwargs: dict[str, Any] = {}
     if max_samples is not None:
         kwargs["max_samples"] = max_samples

@@ -1,8 +1,8 @@
-"""Representation strategy: transform raw generator output into fabrication-ready form.
+"""Representation strategy: turn raw generator output into geometry for engraving.
 
-This is the key architectural seam between mathematical definition and
-fabrication. Each RepresentationType maps to a concrete transformation
-that produces geometry suitable for engraving in glass.
+This module separates the mathematical definition from fabrication. Each
+RepresentationType maps to a transformation that produces geometry for
+engraving in glass.
 """
 
 import logging

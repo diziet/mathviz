@@ -56,7 +56,7 @@ def _run_pipeline_in_thread(
     sampling_mode: str = "default",
     max_samples: int | None = None,
 ) -> PipelineResult:
-    """Target function executed in the thread pool."""
+    """Run the pipeline; the thread pool calls this in a worker thread."""
     return run_pipeline(
         generator,
         params=params,
@@ -119,7 +119,7 @@ _CANCEL_GRACE_SECONDS = 2
 
 
 class GenerationExecutor:
-    """Manages pipeline generation with timeout and cancel support.
+    """Runs pipeline generations with a timeout and cancellation.
 
     Single generations run in a ThreadPoolExecutor to avoid subprocess
     pickle/import overhead. The numba JIT kernel releases the GIL, so
@@ -248,7 +248,7 @@ class GenerationExecutor:
                     result.panels[idx].error = "Generation failed"
                     logger.error("Batch panel %d failed: %s", idx, exc)
         except TimeoutError:
-            pass  # Some futures didn't complete — handled below
+            pass  # The loop below marks the unfinished panels as timed out
 
         # Mark any panels that didn't complete as timed out
         for future, idx in future_to_idx.items():

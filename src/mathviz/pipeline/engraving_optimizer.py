@@ -145,9 +145,8 @@ def _apply_depth_compensation(
     # Normalized depth: 0=front (min), 1=back (max)
     normalized_depth = (z_vals - z_min) / z_range
 
-    # Intensity: linearly interpolate from 1/factor at front to 1.0 at back
-    # This ensures back points are weighted more heavily. The factor controls
-    # the ratio between back and front intensity.
+    # Intensity rises linearly from 1/factor at the front to 1.0 at the back, so
+    # back points get more weight. factor is the back-to-front intensity ratio.
     factor = profile.depth_compensation_factor
     front_weight = 1.0 / factor  # e.g. factor=1.5 -> front=0.667
     intensities = front_weight + normalized_depth * (1.0 - front_weight)
@@ -178,9 +177,9 @@ def _enforce_budget(cloud: PointCloud, budget: int) -> PointCloud:
         return cloud
 
     if cloud.intensities is not None:
-        # Keep the most important points (highest intensity)
+        # Keep the highest-intensity points
         indices = np.argsort(cloud.intensities)[::-1][:budget]
-        indices.sort()  # preserve spatial ordering
+        indices.sort()  # keep the points in their original order
     else:
         # Uniform downsampling when no intensities
         indices = np.linspace(0, count - 1, budget, dtype=int)
