@@ -143,7 +143,7 @@ def build_klein_wrapped_faces(n_u: int, n_v: int) -> np.ndarray:
     s01 = (n_u - 1) * n_v + ((sc + 1) % n_v)
     # Row 0 reflected: v maps to -v, and v+1 maps to -(v+1).
     # Since v increases clockwise at the seam but counter-clockwise in
-    # row 0 after reflection, we swap the winding to keep faces consistent.
+    # row 0 after reflection, the winding is swapped to keep faces consistent.
     s10 = (n_v - sc) % n_v  # row 0, reflected v
     s11 = (n_v - sc - 1) % n_v  # row 0, reflected v+1
 

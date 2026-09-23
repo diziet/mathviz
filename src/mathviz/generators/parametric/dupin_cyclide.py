@@ -170,7 +170,7 @@ class DupinCyclideGenerator(GeneratorBase):
     def get_param_ranges(self) -> dict[str, dict[str, float]]:
         """Return exploration ranges for cyclide parameters.
 
-        Note: c must be strictly less than a. The range for c is capped
+        c must be strictly less than a. The range for c is capped
         below a's minimum to avoid invalid combinations in parameter sweeps.
         """
         return {

@@ -1,9 +1,8 @@
 """Calabi-Yau manifold cross-section generator.
 
-Generates the iconic string-theory shape by projecting a complex algebraic
-surface satisfying z1^n + z2^n = 1 in C² down to R³. Multiple patches
-(one per value of k in 0..n-1) are combined to form the crystalline
-flower-like geometry.
+Projects a complex algebraic surface satisfying z1^n + z2^n = 1 in C² down to
+R³, the shape used in string-theory illustrations. The patches, one per value
+of k in 0..n-1, are combined into one surface.
 """
 
 import logging
@@ -42,7 +41,7 @@ def _evaluate_patch(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Evaluate one patch of the Calabi-Yau surface.
 
-    The surface satisfies z1^n + z2^n = 1 in C². We parameterize as:
+    The surface satisfies z1^n + z2^n = 1 in C². The parameterization is:
         z1 = exp(2*pi*i*k/n) * (cos(u) * exp(i*v))^(2/n)
         z2 = exp(2*pi*i*k/n) * (sin(u) * exp(i*v))^(2/n)
     then project to 3D via Re/Im mixing controlled by alpha.

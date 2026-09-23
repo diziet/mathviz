@@ -1,7 +1,7 @@
 """Klein bottle parametric surface generator.
 
-Uses the figure-8 immersion in R³, which self-intersects but produces
-visually striking geometry. The surface wraps periodically in both u and v.
+Uses the figure-8 immersion in R³, which self-intersects. The surface wraps
+periodically in both u and v.
 """
 
 import logging
