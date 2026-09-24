@@ -22,7 +22,7 @@ class TestContainerUsableVolume:
         assert c.usable_volume == (90.0, 60.0, 34.0)
 
     def test_cube_container(self) -> None:
-        """Container with equal width/height/depth computes correct usable volume."""
+        """A 50 mm cube with 5 mm margins has a usable volume of (40, 40, 40)."""
         c = Container(
             width_mm=50,
             height_mm=50,

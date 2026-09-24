@@ -157,7 +157,7 @@ class TestFileServing:
         assert resp.status_code == 404
 
     def test_ply_file_served_directly(self, client: TestClient, tmp_path: Path) -> None:
-        """PLY files are served directly with correct content type."""
+        """/api/file returns 200 for a PLY file, with "ply" in the content type."""
         ply_content = b"ply\nformat ascii 1.0\nelement vertex 1\n"
         ply_content += b"property float x\nproperty float y\nproperty float z\n"
         ply_content += b"end_header\n0.0 0.0 0.0\n"
@@ -232,7 +232,8 @@ class TestServerShutdown:
     """Tests for the uvicorn.run call of the preview command."""
 
     def test_uvicorn_run_is_called_with_correct_app(self, runner: CliRunner) -> None:
-        """Preview command calls uvicorn.run with the correct app string."""
+        """`preview torus --no-open` passes "mathviz.preview.server:app" to uvicorn.run as
+        its first argument."""
         with patch("uvicorn.run") as mock_run:
             runner.invoke(cli_app, ["preview", "torus", "--no-open"])
             args, _ = mock_run.call_args

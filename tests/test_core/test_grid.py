@@ -32,7 +32,8 @@ class TestGridManifestAssign:
     """Tests for assigning blocks and retrieving them."""
 
     def test_assign_and_retrieve(self) -> None:
-        """Assigning a block and retrieving it returns correct preset/config."""
+        """After assign(1, 2, "lorenz", config_path="my.toml"), get_block(1, 2) has preset
+        "lorenz", config_path "my.toml" and status ASSIGNED."""
         manifest = GridManifest.create(4, 4)
         manifest.assign(1, 2, "lorenz", config_path="my.toml")
         block = manifest.get_block(1, 2)

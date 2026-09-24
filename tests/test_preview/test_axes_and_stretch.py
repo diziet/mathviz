@@ -85,7 +85,7 @@ class TestAxisLabelColors:
         assert "#4488ff" in preview_html
 
     def test_axis_colors_defined_in_constant(self, preview_html: str) -> None:
-        """Axis colors are defined with correct XYZ mapping."""
+        """Preview HTML contains x: '#ff4444', y: '#44ff44' and z: '#4488ff'."""
         assert "x: '#ff4444'" in preview_html
         assert "y: '#44ff44'" in preview_html
         assert "z: '#4488ff'" in preview_html

@@ -1,8 +1,11 @@
 """Tests for hydrogen atom electron orbital generator.
 
-Verifies that ElectronOrbitalGenerator produces correct orbital shapes
-for various quantum numbers, validates input, and integrates with
-the registry and representation pipeline.
+The 1s mesh has a radial std/mean under 0.05. The 2p0 mesh is longer in z
+than in x, with more than 10 vertices above z=0.5 and more than 10 below
+z=-0.5. The 3d0 mesh has more than 100 vertices and more than 100 faces.
+Invalid n, l or m raises ValueError. The generator is registered as
+electron_orbital and hydrogen_orbital, and its default representation is
+SURFACE_SHELL.
 """
 
 import numpy as np
@@ -166,7 +169,8 @@ class TestRepresentation:
 
 
 class TestMetadata:
-    """Generated MathObject has correct metadata."""
+    """For n=2, l=1, m=0, the MathObject has generator_name "electron_orbital", category
+    "physics", those three parameters and a bounding box."""
 
     def test_metadata_fields(self, gen: ElectronOrbitalGenerator) -> None:
         """MathObject contains generator name, category, and params."""

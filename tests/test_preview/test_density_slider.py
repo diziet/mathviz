@@ -75,7 +75,7 @@ class TestDensitySliderPresent:
         assert 'id="density-slider"' in html
 
     def test_density_slider_is_range_input(self, client: TestClient) -> None:
-        """Density slider is a range input with correct attributes."""
+        """The density-slider tag has type="range", min="0.01", max="1" and step="0.01"."""
         html = _get_html(client)
         tag = _extract_element(html, "density-slider")
         assert 'type="range"' in tag

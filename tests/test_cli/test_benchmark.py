@@ -64,7 +64,7 @@ def shared_benchmark(tmp_path_factory: pytest.TempPathFactory) -> BenchmarkResul
 
 
 class TestBenchmarkCommand:
-    """Test that benchmark command runs and produces correct output."""
+    """`benchmark` on lorenz and torus exits 0, writes the HTML report and prints a summary."""
 
     def test_benchmark_runs_without_error(
         self, shared_benchmark: BenchmarkResult,
