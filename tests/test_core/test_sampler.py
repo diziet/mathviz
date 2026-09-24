@@ -127,7 +127,8 @@ class TestDensityScaling:
 
 
 class TestNumPointsAccuracy:
-    """Requesting N points produces approximately N points (within 10%)."""
+    """Requesting N points gives N within 10% for random surface sampling,
+    and 50-100% of N for uniform surface sampling."""
 
     @pytest.mark.parametrize("target", [100, 500, 1000])
     def test_random_surface_num_points(self, target: int) -> None:

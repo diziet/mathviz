@@ -42,7 +42,7 @@ class TestMagneticFieldDipole:
     def test_dipole_lines_loop_between_poles(
         self, gen: MagneticFieldGenerator
     ) -> None:
-        """Dipole field lines loop from one pole to the other."""
+        """Each dipole field line has points with z > 0 and with z < 0."""
         obj = gen.generate(
             params={"field_type": "dipole", "num_lines": _TEST_NUM_LINES},
             line_points=_TEST_LINE_POINTS,
@@ -69,7 +69,7 @@ class TestMagneticFieldQuadrupole:
     def test_quadrupole_more_complex_pattern(
         self, gen: MagneticFieldGenerator
     ) -> None:
-        """Quadrupole produces a more complex line pattern than dipole."""
+        """Quadrupole and dipole lines have different bounding box extents."""
         dipole_obj = gen.generate(
             params={"field_type": "dipole", "num_lines": _TEST_NUM_LINES},
             seed=42,
@@ -141,7 +141,7 @@ class TestMagneticFieldGeneral:
     """General tests for the magnetic field generator."""
 
     def test_registers_and_renders(self, gen: MagneticFieldGenerator) -> None:
-        """Generator registers and produces valid renderable output."""
+        """Generator is registered and produces valid, non-empty curves."""
         gen_cls = get_generator("magnetic_field")
         assert gen_cls is MagneticFieldGenerator
 

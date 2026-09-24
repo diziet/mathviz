@@ -66,7 +66,7 @@ class TestCrystalGlassBlock:
         assert re.search(r"side:\s*THREE\.BackSide", html), "BackSide not set"
 
     def test_glass_block_env_map(self, html: str) -> None:
-        """Glass block uses a PMREMGenerator environment map."""
+        """Preview HTML contains PMREMGenerator and envMap."""
         assert "PMREMGenerator" in html
         assert "envMap" in html
 
@@ -88,82 +88,85 @@ class TestCrystalPointsMaterial:
         )
 
     def test_crystal_additive_blending(self, html: str) -> None:
-        """Crystal points use additive blending for glow effect."""
+        """Preview HTML contains AdditiveBlending."""
         assert "AdditiveBlending" in html
 
     def test_crystal_sprite_texture(self, html: str) -> None:
-        """Crystal mode creates a radial gradient sprite texture."""
+        """Preview HTML contains createRadialGradient and CanvasTexture."""
         assert "createRadialGradient" in html
         assert "CanvasTexture" in html
 
 
 class TestCrystalBloomPostProcessing:
-    """EffectComposer with UnrealBloomPass is set up in crystal mode."""
+    """Tests for the bloom post-processing code."""
 
     def test_effect_composer_imported(self, html: str) -> None:
-        """EffectComposer is imported."""
+        """Preview HTML contains EffectComposer."""
         assert "EffectComposer" in html
 
     def test_render_pass_imported(self, html: str) -> None:
-        """RenderPass is imported."""
+        """Preview HTML contains RenderPass."""
         assert "RenderPass" in html
 
     def test_unreal_bloom_pass_imported(self, html: str) -> None:
-        """UnrealBloomPass is imported."""
+        """Preview HTML contains UnrealBloomPass."""
         assert "UnrealBloomPass" in html
 
     def test_bloom_setup_in_crystal(self, html: str) -> None:
-        """Crystal mode sets up bloom with EffectComposer."""
+        """Preview HTML contains setupCrystalComposer and new
+        UnrealBloomPass(."""
         assert "setupCrystalComposer" in html
         assert re.search(
             r"new UnrealBloomPass\(", html
         ), "UnrealBloomPass instantiation not found"
 
     def test_bloom_renders_in_crystal(self, html: str) -> None:
-        """Render loop uses composer when crystal mode is active."""
+        """Preview HTML calls crystalComposer.render()."""
         assert re.search(
             r"crystalComposer\.render\(\)", html
         ), "Crystal composer render call not found"
 
 
 class TestCrystalModeExit:
-    """Switching away from crystal mode removes glass block and bloom."""
+    """Tests for the crystal mode exit and cleanup code."""
 
     def test_exit_crystal_mode_exists(self, html: str) -> None:
         """exitCrystalMode function is defined."""
         assert "function exitCrystalMode" in html
 
     def test_exit_removes_glass_block(self, html: str) -> None:
-        """exitCrystalMode removes the glass block from scene."""
+        """Preview HTML calls scene.remove(state.crystalGlassBlock)."""
         assert re.search(
             r"scene\.remove\(state\.crystalGlassBlock\)", html
         ), "Glass block removal not found in exitCrystalMode"
 
     def test_exit_disposes_composer(self, html: str) -> None:
-        """exitCrystalMode disposes the EffectComposer."""
+        """Preview HTML calls crystalComposer.dispose()."""
         assert re.search(
             r"crystalComposer\.dispose\(\)", html
         ), "Composer dispose not found in exitCrystalMode"
 
     def test_exit_restores_materials(self, html: str) -> None:
-        """exitCrystalMode restores original point materials."""
+        """Preview HTML contains originalMaterial."""
         assert "originalMaterial" in html
 
     def test_exit_disposes_env_render_target(self, html: str) -> None:
-        """exitCrystalMode disposes the environment map render target."""
+        """Preview HTML calls crystalEnvRT.dispose()."""
         assert "crystalEnvRT" in html
         assert re.search(
             r"crystalEnvRT\.dispose\(\)", html
         ), "Environment map RT disposal not found"
 
     def test_exit_disposes_canvas_textures(self, html: str) -> None:
-        """exitCrystalMode disposes template texture via crystalTemplateMat."""
+        """Preview HTML has crystalTemplateMat.map and .dispose() on one
+        line."""
         assert re.search(
             r"crystalTemplateMat\.map.*\.dispose\(\)", html
         ), "Canvas texture disposal not found in exitCrystalMode"
 
     def test_template_material_disposed_on_exit(self, html: str) -> None:
-        """Template crystal material is stored in state and disposed on exit."""
+        """Preview HTML calls crystalTemplateMat.dispose() and stores
+        crystalMat in state."""
         assert re.search(
             r"crystalTemplateMat\.dispose\(\)", html
         ), "Template material disposal not found in exitCrystalMode"
@@ -173,7 +176,7 @@ class TestCrystalModeExit:
 
 
 class TestCrystalLedBase:
-    """LED base toggle adds/removes a light below the scene."""
+    """Tests for the LED base checkbox, light and color picker."""
 
     def test_led_base_checkbox(self, html: str) -> None:
         """Crystal controls include an LED base checkbox."""
@@ -193,7 +196,7 @@ class TestCrystalLedBase:
         ), "LED light not positioned below block"
 
     def test_led_base_removable(self, html: str) -> None:
-        """LED base light can be removed."""
+        """Preview HTML contains removeCrystalLedLight."""
         assert "removeCrystalLedLight" in html
 
     def test_led_color_picker(self, html: str) -> None:
@@ -211,29 +214,30 @@ class TestCrystalDarkBackground:
         ), "Crystal mode dark background not found"
 
     def test_exit_restores_bg_from_darkbg_state(self, html: str) -> None:
-        """Exit crystal restores background based on current darkBg state."""
+        """Preview HTML contains state.darkBg ? DARK_COLOR : LIGHT_COLOR."""
         assert re.search(
             r"state\.darkBg\s*\?\s*DARK_COLOR\s*:\s*LIGHT_COLOR", html
         ), "exitCrystalMode should restore bg from state.darkBg"
 
     def test_bg_toggle_respects_crystal_mode(self, html: str) -> None:
-        """Background toggle checks for crystal mode before changing."""
+        """Preview HTML contains if (state.crystalActive)."""
         assert re.search(
             r"if\s*\(state\.crystalActive\)", html
         ), "Background toggle crystal check not found"
 
 
 class TestCrystalCompareModeConflict:
-    """Crystal and compare modes cannot be active simultaneously."""
+    """Each mode's enter function name is followed later by the other mode's
+    exit call."""
 
     def test_entering_crystal_exits_compare(self, html: str) -> None:
-        """enterCrystalMode exits compare mode if active."""
+        """Preview HTML has exitCompareMode somewhere after enterCrystalMode."""
         assert re.search(
             r"enterCrystalMode.*exitCompareMode", html, re.DOTALL
         ), "enterCrystalMode should exit compare mode"
 
     def test_entering_compare_exits_crystal(self, html: str) -> None:
-        """enterCompareMode exits crystal mode if active."""
+        """Preview HTML has exitCrystalMode somewhere after enterCompareMode."""
         assert re.search(
             r"enterCompareMode.*exitCrystalMode", html, re.DOTALL
         ), "enterCompareMode should exit crystal mode"

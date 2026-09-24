@@ -67,7 +67,7 @@ def test_twist_zero_is_orientable(twist_zero_obj) -> None:
 
 
 def test_twist_zero_geometry_matches_standard_torus() -> None:
-    """twist=0 vertices match a standard torus parameterization."""
+    """twist=0 vertices span a z range of 2 * minor_radius (0.6) +/- 0.01."""
     gen = TwistedTorusGenerator()
     obj = gen.generate(
         params={"twist": 0, "major_radius": 1.0, "minor_radius": 0.3},
@@ -121,7 +121,7 @@ def test_different_twists_produce_distinct_geometry() -> None:
 
 
 def test_even_twist_is_orientable() -> None:
-    """Even twist values produce orientable surfaces."""
+    """twist=2 produces a mesh with consistent winding."""
     gen = TwistedTorusGenerator()
     obj = gen.generate(params={"twist": 2}, grid_resolution=32)
     tm = trimesh.Trimesh(

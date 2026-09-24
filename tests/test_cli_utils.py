@@ -40,7 +40,7 @@ class TestConvertCommand:
     """Test convert command."""
 
     def test_convert_stl_to_obj(self, tmp_path: Path) -> None:
-        """mathviz convert STL to OBJ produces a valid OBJ file."""
+        """mathviz convert STL to OBJ writes an OBJ file with vertex lines."""
         stl_path = tmp_path / "input.stl"
         obj_path = tmp_path / "output.obj"
         _create_stl(stl_path)
@@ -52,7 +52,7 @@ class TestConvertCommand:
         assert "v " in content  # OBJ vertex lines
 
     def test_convert_mesh_stl_to_ply_cloud_auto_sample(self, tmp_path: Path) -> None:
-        """mathviz convert mesh STL to PLY with --auto-sample produces a valid cloud PLY."""
+        """mathviz convert mesh STL to PLY with --auto-sample writes a PLY with no faces."""
         stl_path = tmp_path / "input.stl"
         ply_path = tmp_path / "output.ply"
         _create_stl(stl_path)
@@ -80,7 +80,7 @@ class TestConvertCommand:
         assert "mesh" in result.output.lower() or "error" in result.output.lower()
 
     def test_convert_stl_to_stl(self, tmp_path: Path) -> None:
-        """STL to STL is a valid identity conversion."""
+        """Converting STL to STL exits 0 and writes the output file."""
         stl_in = tmp_path / "input.stl"
         stl_out = tmp_path / "output.stl"
         _create_stl(stl_in)
@@ -163,7 +163,7 @@ class TestTransformCommand:
         loaded = trimesh.load(str(out_path), process=False)
         bounds = loaded.bounds  # (2, 3) array
         size = bounds[1] - bounds[0]
-        # Usable volume = dims - 2*margin (default margin=5mm)
+        # The size is checked against the full container dimensions
         assert size[0] <= 50.0 + 0.01
         assert size[1] <= 50.0 + 0.01
         assert size[2] <= 20.0 + 0.01
@@ -185,7 +185,7 @@ class TestSchemaCommand:
     """Test schema generation command."""
 
     def test_schema_produces_valid_json(self, tmp_path: Path) -> None:
-        """Schema generation produces valid JSON Schema files."""
+        """Schema generation writes five model schemas as JSON with properties or type."""
         schema_dir = tmp_path / "schemas"
 
         result = runner.invoke(app, ["schema", str(schema_dir)])
@@ -202,14 +202,13 @@ class TestSchemaCommand:
             assert "properties" in schema or "type" in schema
 
     def test_schema_has_generator_schemas(self, tmp_path: Path) -> None:
-        """Schema generation includes generator parameter schemas."""
+        """Schema generation exits 0; any generator schema files parse as JSON objects."""
         schema_dir = tmp_path / "schemas"
         result = runner.invoke(app, ["schema", str(schema_dir)])
         assert result.exit_code == 0, result.output
 
         gen_dir = schema_dir / "generators"
         if gen_dir.exists():
-            # At least some generators should have schemas
             gen_files = list(gen_dir.glob("*.json"))
             for gf in gen_files:
                 schema = json.loads(gf.read_text())

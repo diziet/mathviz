@@ -131,28 +131,28 @@ class TestViewNameResolution:
 
 
 class TestRenderWithView:
-    """Tests for render_to_png with --view flag."""
+    """Tests for render_to_png with the view argument."""
 
     def test_render_front_produces_png(self, tmp_path: Path) -> None:
-        """render with --view front produces a non-trivial PNG."""
+        """render_to_png with view="front" writes a non-empty output file."""
         _, output_file = _render_with_view(tmp_path, "front")
         assert output_file.exists()
         assert output_file.stat().st_size > 0
 
     def test_render_top_produces_png(self, tmp_path: Path) -> None:
-        """render with --view top produces a non-trivial PNG."""
+        """render_to_png with view="top" writes a non-empty output file."""
         _, output_file = _render_with_view(tmp_path, "top")
         assert output_file.exists()
         assert output_file.stat().st_size > 0
 
     def test_front_and_top_have_different_camera(self, tmp_path: Path) -> None:
-        """--view front and --view top set different camera positions."""
+        """view="front" and view="top" set different camera positions."""
         front_plotter, _ = _render_with_view(tmp_path, "front")
         top_plotter, _ = _render_with_view(tmp_path, "top")
         assert front_plotter.camera.position != top_plotter.camera.position
 
     def test_front_right_top_matches_angle(self, tmp_path: Path) -> None:
-        """--view front-right-top and --view angle set same camera position."""
+        """view="front-right-top" and view="angle" set the same camera position and up."""
         frt_plotter, _ = _render_with_view(tmp_path, "front-right-top")
         angle_plotter, _ = _render_with_view(tmp_path, "angle")
         assert frt_plotter.camera.position == angle_plotter.camera.position
@@ -187,27 +187,27 @@ class TestRenderWithView:
 
 
 class TestRender2dWithExpandedViews:
-    """Tests for render-2d with expanded view names."""
+    """Tests for render_2d_projection with the expanded view names."""
 
     def test_render_2d_back_produces_png(self, tmp_path: Path) -> None:
-        """render-2d with --view back produces a non-trivial PNG."""
+        """render_2d_projection with view="back" writes a non-empty output file."""
         _, output_file = _render_with_view(tmp_path, "back", use_2d=True)
         assert output_file.exists()
         assert output_file.stat().st_size > 0
 
     def test_render_2d_right_produces_png(self, tmp_path: Path) -> None:
-        """render-2d with --view right produces a non-trivial PNG."""
+        """render_2d_projection with view="right" writes a non-empty output file."""
         _, output_file = _render_with_view(tmp_path, "right", use_2d=True)
         assert output_file.exists()
         assert output_file.stat().st_size > 0
 
     def test_render_2d_enables_parallel_projection(self, tmp_path: Path) -> None:
-        """render-2d with new view names still uses parallel projection."""
+        """render_2d_projection with view="back" enables parallel projection once."""
         plotter, _ = _render_with_view(tmp_path, "back", use_2d=True)
         plotter.enable_parallel_projection.assert_called_once()
 
     def test_render_2d_side_alias_works(self, tmp_path: Path) -> None:
-        """render-2d --view side still works via alias to right."""
+        """render_2d_projection with view="side" uses the camera position of right."""
         plotter, output_file = _render_with_view(tmp_path, "side", use_2d=True)
         assert output_file.exists()
         expected_pos, expected_up = get_view_camera("right")
@@ -215,10 +215,10 @@ class TestRender2dWithExpandedViews:
 
 
 class TestRenderAllViews:
-    """Tests for --view all rendering multiple files."""
+    """Tests for render_all_views."""
 
     def test_render_all_produces_multiple_files(self, pyvista_env: tuple) -> None:
-        """--view all produces one file per named view."""
+        """render_all_views writes 26 files, one per view."""
         mock_plotter, renderer, tmp_path = pyvista_env
         output_file = tmp_path / "torus.png"
         paths = renderer.render_all_views(_sphere_mesh(), output_file)
@@ -228,7 +228,7 @@ class TestRenderAllViews:
             assert p.exists()
 
     def test_render_all_names_files_with_view_suffix(self, pyvista_env: tuple) -> None:
-        """--view all names files with view name appended to stem."""
+        """render_all_views appends the view name to the output stem."""
         mock_plotter, renderer, tmp_path = pyvista_env
         output_file = tmp_path / "torus.png"
         paths = renderer.render_all_views(_sphere_mesh(), output_file)
@@ -239,7 +239,7 @@ class TestRenderAllViews:
         assert "torus_front-right-top.png" in filenames
 
     def test_render_all_2d_uses_parallel_projection(self, pyvista_env: tuple) -> None:
-        """--view all with use_2d=True uses parallel projection."""
+        """render_all_views with use_2d=True enables parallel projection."""
         mock_plotter, renderer, tmp_path = pyvista_env
         output_file = tmp_path / "torus.png"
         renderer.render_all_views(_sphere_mesh(), output_file, use_2d=True)

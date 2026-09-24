@@ -196,7 +196,7 @@ class TestBoundingBoxHTML:
         assert 'id="show-bbox"' in preview_html
 
     def test_bbox_visibility_wired_to_checkbox(self, preview_html: str) -> None:
-        """Bounding box visibility should be controlled by the checkbox."""
+        """Preview HTML contains show-bbox and bboxHelper."""
         assert "show-bbox" in preview_html
         assert "bboxHelper" in preview_html
 
@@ -233,7 +233,7 @@ class TestGeometryBoundingBoxAlignment:
         _fetch_and_assert_centered_mesh(client, {"generator": "torus", "seed": 42})
 
     def test_generated_cloud_centered_via_api(self, client: TestClient) -> None:
-        """Point cloud served via API should be centered at the origin."""
+        """The cloud URL from the API returns 200; skips when torus gives no cloud."""
         resp = client.post(
             "/api/generate",
             json={"generator": "torus", "seed": 42},
@@ -278,7 +278,7 @@ class TestLargeAndSmallContainers:
     def test_container_produces_centered_mesh(
         self, client: TestClient, container: dict[str, float]
     ) -> None:
-        """Container at any scale should produce geometry centered at origin."""
+        """100 mm and 10 mm containers both produce a mesh centered at the origin."""
         _fetch_and_assert_centered_mesh(
             client, {"generator": "torus", "seed": 42, "container": container}
         )

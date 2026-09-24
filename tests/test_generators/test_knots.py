@@ -244,13 +244,13 @@ def test_bounding_box_finite(knot: TorusKnotGenerator) -> None:
 
 
 def test_negative_p_raises(knot: TorusKnotGenerator) -> None:
-    """Negative p raises ValueError."""
+    """p=0 raises ValueError."""
     with pytest.raises(ValueError, match="p must be >= 1"):
         knot.generate(params={"p": 0})
 
 
 def test_negative_q_raises(knot: TorusKnotGenerator) -> None:
-    """Negative q raises ValueError."""
+    """q=0 raises ValueError."""
     with pytest.raises(ValueError, match="q must be >= 1"):
         knot.generate(params={"q": 0})
 
@@ -262,7 +262,7 @@ def test_negative_major_radius_raises(knot: TorusKnotGenerator) -> None:
 
 
 def test_minor_radius_exceeds_major_raises(knot: TorusKnotGenerator) -> None:
-    """Minor radius >= major radius raises ValueError."""
+    """Minor radius greater than major radius raises ValueError."""
     with pytest.raises(ValueError, match="r must be less than R"):
         knot.generate(params={"R": 1.0, "r": 1.5})
 

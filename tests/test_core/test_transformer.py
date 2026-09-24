@@ -249,7 +249,7 @@ class TestAnchor:
         )
 
     def test_anchor_center(self) -> None:
-        """Anchor 'center' places geometry at container center."""
+        """Anchor 'center' centers geometry in x and y within the container."""
         mesh = _make_cube_mesh(size=2.0)
         obj = _make_abstract_obj(mesh=mesh)
         container = Container()
@@ -265,7 +265,7 @@ class TestAnchor:
 
 
 class TestRotation:
-    """Test rotation before scaling."""
+    """Test that a rotated object fits the container."""
 
     def test_rotation_applies_before_scaling(self) -> None:
         """A rotated object still fits the container."""

@@ -198,7 +198,7 @@ class TestSnapshotGeometry:
         assert resp.content[:4] == b"glTF"
 
     def test_returns_404_for_missing_file(self, client: TestClient) -> None:
-        """Geometry endpoint returns 404 for file not present in snapshot."""
+        """When the endpoint returns 404 for cloud.ply, the detail says not found."""
         data = _create_snapshot(client)
         resp = client.get(
             f"/api/snapshots/{data['snapshot_id']}/geometry/cloud.ply"
@@ -217,12 +217,12 @@ class TestSnapshotGeometry:
 
 
 class TestLoadSnapshotRestoresState:
-    """Tests for loading a snapshot restoring generator, params, seed, container."""
+    """Tests for the saved values and geometry that the snapshot endpoints return."""
 
     def test_loading_snapshot_restores_values(
         self, client: TestClient
     ) -> None:
-        """Loading a snapshot restores generator, params, seed, and container values."""
+        """The snapshot list returns the saved generator, params, seed and container."""
         _create_snapshot(client)
         resp = client.get("/api/snapshots")
         snap = resp.json()[0]
@@ -236,7 +236,7 @@ class TestLoadSnapshotRestoresState:
     def test_loading_displays_saved_geometry_without_regeneration(
         self, client: TestClient
     ) -> None:
-        """Loading a snapshot displays saved geometry without regeneration."""
+        """After a cache reset, the geometry endpoint serves the saved mesh.glb."""
         data = _create_snapshot(client)
         sid = data["snapshot_id"]
 
@@ -255,7 +255,7 @@ class TestSnapshotGalleryUI:
     def test_preview_html_contains_load_button(
         self, preview_html: str
     ) -> None:
-        """Preview HTML contains a Load button that opens the snapshot gallery."""
+        """Preview HTML contains the load-btn element with the label Load."""
         assert 'id="load-btn"' in preview_html
         assert ">Load<" in preview_html
 
@@ -267,17 +267,17 @@ class TestSnapshotGalleryUI:
         assert 'id="gallery-list"' in preview_html
 
     def test_load_button_opens_gallery(self, preview_html: str) -> None:
-        """JS binds Load button click to open the gallery overlay."""
+        """Preview HTML contains load-btn and openGallery."""
         assert "load-btn" in preview_html
         assert "openGallery" in preview_html
 
     def test_gallery_fetches_snapshots(self, preview_html: str) -> None:
-        """Gallery JS fetches /api/snapshots when opened."""
+        """Preview HTML calls fetch('/api/snapshots')."""
         assert "fetch('/api/snapshots')" in preview_html
 
     def test_gallery_has_delete_with_confirmation(
         self, preview_html: str
     ) -> None:
-        """Delete button uses confirm() before deleting."""
+        """Preview HTML contains confirm( and DELETE."""
         assert "confirm(" in preview_html
         assert "DELETE" in preview_html

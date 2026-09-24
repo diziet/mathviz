@@ -133,7 +133,7 @@ class TestMeshValidation:
     """Test mesh validation checks."""
 
     def test_watertight_cube_passes(self) -> None:
-        """A watertight cube should pass all mesh checks."""
+        """A watertight cube passes mesh validation (no error-severity check fails)."""
         mesh = _make_cube_mesh()
         result = validate_mesh(mesh)
         assert result.passed is True
@@ -238,7 +238,7 @@ class TestEngravingValidation:
         assert bounds_checks[0].passed is True
 
     def test_opacity_warning_fires_when_dense(self) -> None:
-        """Opacity warning fires when >70% of voxels in a projection are occupied."""
+        """A dense 20x20x20 grid cloud fails the opacity check with WARNING severity."""
         # Create a dense filled cube — every grid cell occupied in all projections
         n = 20
         coords = np.linspace(-1, 1, n)
@@ -267,7 +267,7 @@ class TestEngravingValidation:
         assert opacity_checks[0].passed is True
 
     def test_min_spacing_warning(self) -> None:
-        """Points closer than min spacing should trigger warning."""
+        """Points closer than min spacing fail the min_spacing check."""
         points = np.array(
             [[0.0, 0.0, 0.0], [0.001, 0.0, 0.0], [10.0, 10.0, 10.0]],
             dtype=np.float64,
@@ -280,7 +280,7 @@ class TestEngravingValidation:
         assert spacing_checks[0].passed is False
 
     def test_max_gap_warning(self) -> None:
-        """Points with large gaps should trigger warning."""
+        """Points with large gaps fail the max_gap check."""
         points = np.array(
             [[0.0, 0.0, 0.0], [100.0, 0.0, 0.0]],
             dtype=np.float64,

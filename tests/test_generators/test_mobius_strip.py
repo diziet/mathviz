@@ -84,7 +84,7 @@ def test_max_edge_under_3x_median(edge_lengths) -> None:
 
 
 def test_seam_face_areas_within_5x_interior(mesh_obj) -> None:
-    """Seam face areas within 5x of interior face areas."""
+    """Every face area, seam faces included, is at most 5x the median."""
     verts = mesh_obj.mesh.vertices
     faces = mesh_obj.mesh.faces
     areas = _compute_face_areas(verts, faces)
@@ -96,7 +96,7 @@ def test_seam_face_areas_within_5x_interior(mesh_obj) -> None:
 
 
 def test_vertex_normals_at_u0_have_magnitude(mesh_obj) -> None:
-    """Vertex normals at u=0 have magnitude > 50% of interior mean."""
+    """Median vertex-normal magnitude at u=0 is over 50% of interior mean."""
     n = mesh_obj.parameters["grid_resolution"]
     verts = mesh_obj.mesh.vertices
     faces = mesh_obj.mesh.faces

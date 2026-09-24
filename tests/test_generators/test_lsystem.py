@@ -72,7 +72,7 @@ def test_more_iterations_more_segments() -> None:
 
 
 def test_different_presets_produce_distinct_geometries() -> None:
-    """Each preset produces a different bounding box extent."""
+    """The tree, bush and fern presets give at least two different bounding box sizes."""
     gen = LSystemGenerator()
     bboxes = {}
     for preset_name in ("tree", "bush", "fern"):
@@ -155,12 +155,12 @@ def test_same_seed_identical() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Hilbert 3D preset produces a space-filling curve
+# Hilbert 3D preset extends along all three axes
 # ---------------------------------------------------------------------------
 
 
 def test_hilbert3d_space_filling() -> None:
-    """Hilbert 3D preset fills space (points span all three axes)."""
+    """Hilbert 3D preset points extend more than 0.1 along each of the three axes."""
     gen = LSystemGenerator()
     obj = gen.generate(
         params={"preset": "hilbert3d", "iterations": 2, "jitter": 0.0},
@@ -171,7 +171,7 @@ def test_hilbert3d_space_filling() -> None:
     assert obj.curves is not None
     all_pts = np.vstack([c.points for c in obj.curves])
 
-    # Space-filling: should have extent in all three axes
+    # Extent above 0.1 on each axis
     for axis in range(3):
         extent = all_pts[:, axis].max() - all_pts[:, axis].min()
         assert extent > 0.1, f"Axis {axis} extent too small: {extent}"

@@ -100,7 +100,7 @@ class TestContainerValidation:
             Container(margin_x_mm=-1)
 
     def test_margin_exceeding_half_dimension_rejected(self) -> None:
-        """Margins >= half the dimension are rejected."""
+        """A margin above half the dimension is rejected."""
         with pytest.raises(ValidationError):
             Container(width_mm=10, margin_x_mm=20)
 

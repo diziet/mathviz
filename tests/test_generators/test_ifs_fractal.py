@@ -137,7 +137,7 @@ def test_alias_registered() -> None:
 
 
 def test_full_pipeline_renders(tmp_path: Path) -> None:
-    """Full pipeline with SPARSE_SHELL produces a valid PLY."""
+    """Full pipeline with SPARSE_SHELL writes a non-empty PLY file."""
     out_path = tmp_path / "ifs.ply"
     result = run(
         "ifs_fractal",

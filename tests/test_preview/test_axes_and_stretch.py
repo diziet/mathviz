@@ -61,7 +61,7 @@ class TestAxesToggle:
         assert "checked" not in tag
 
     def test_enabling_axes_adds_helper(self, preview_html: str) -> None:
-        """Enabling axes adds AxesHelper or equivalent to the scene."""
+        """Preview HTML contains AxesHelper and createAxesWithLabels."""
         assert "AxesHelper" in preview_html
         assert "createAxesWithLabels" in preview_html
 
@@ -73,15 +73,15 @@ class TestAxisLabelColors:
     """Tests for axis label colors (X=red, Y=green, Z=blue)."""
 
     def test_axis_color_x_red(self, preview_html: str) -> None:
-        """X axis label uses red color (#ff4444)."""
+        """Preview HTML contains the red #ff4444."""
         assert "#ff4444" in preview_html
 
     def test_axis_color_y_green(self, preview_html: str) -> None:
-        """Y axis label uses green color (#44ff44)."""
+        """Preview HTML contains the green #44ff44."""
         assert "#44ff44" in preview_html
 
     def test_axis_color_z_blue(self, preview_html: str) -> None:
-        """Z axis label uses blue color (#4488ff)."""
+        """Preview HTML contains the blue #4488ff."""
         assert "#4488ff" in preview_html
 
     def test_axis_colors_defined_in_constant(self, preview_html: str) -> None:
@@ -91,7 +91,7 @@ class TestAxisLabelColors:
         assert "z: '#4488ff'" in preview_html
 
     def test_axis_labels_are_sprites(self, preview_html: str) -> None:
-        """Axis labels use Sprite + CanvasTexture for text rendering."""
+        """Preview HTML contains Sprite and CanvasTexture."""
         assert "Sprite" in preview_html
         assert "CanvasTexture" in preview_html
 
@@ -149,17 +149,17 @@ class TestStretchBehavior:
     """Tests for stretch behavior on geometry vs bounding box."""
 
     def test_stretch_applies_to_mesh_group(self, preview_html: str) -> None:
-        """Setting scale applies to meshGroup scale, not bounding box."""
+        """Preview HTML contains meshGroup.scale.set."""
         assert "meshGroup.scale.set" in preview_html
 
     def test_stretch_applies_to_cloud_points(self, preview_html: str) -> None:
-        """Setting scale applies to cloudPoints scale."""
+        """Preview HTML contains cloudPoints.scale.set."""
         assert "cloudPoints.scale.set" in preview_html
 
     def test_bounding_box_not_affected_by_stretch(
         self, preview_html: str
     ) -> None:
-        """Bounding box is not affected by stretch values."""
+        """The applyStretch function body does not mention bboxHelper."""
         # Extract full applyStretch function body up to next function keyword
         stretch_fn = preview_html.split("function applyStretch")[1].split(
             "\nfunction "
@@ -169,7 +169,7 @@ class TestStretchBehavior:
     def test_stretch_persists_across_regeneration(
         self, preview_html: str
     ) -> None:
-        """Stretch values persist across regeneration via applyStretch call."""
+        """displayGenerateResult calls applyStretch()."""
         # displayGenerateResult must call applyStretch after loading the geometry.
         # This checks only that the call is present.
         display_fn = preview_html.split("async function displayGenerateResult")[

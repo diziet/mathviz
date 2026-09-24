@@ -34,13 +34,7 @@ def test_default_produces_nonempty_mesh() -> None:
 
 
 def test_self_intersections_present() -> None:
-    """Roman surface has self-intersections in R³.
-
-    We detect this by checking that the trimesh representation reports
-    the mesh as non-watertight or has degenerate faces due to the
-    self-intersecting immersion, and that spatially close but
-    topologically distant vertices exist.
-    """
+    """More than one mesh vertex lies within 0.05 of the origin."""
     gen = RomanSurfaceGenerator()
     obj = gen.generate(grid_resolution=64)
     obj.validate_or_raise()
@@ -50,8 +44,7 @@ def test_self_intersections_present() -> None:
     assert len(verts) > 0
 
     # The Roman surface passes through the origin multiple times.
-    # Vertices near origin from different grid regions confirm
-    # self-intersection.
+    # Count the vertices within 0.05 of the origin.
     origin_dist = np.linalg.norm(verts, axis=1)
     near_origin = np.where(origin_dist < 0.05)[0]
     assert len(near_origin) > 1, "Expected multiple vertices near origin"

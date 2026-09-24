@@ -91,7 +91,7 @@ def test_wav(tmp_path: Path) -> Path:
 
 
 def test_heightmap_from_png_produces_mesh_with_z_range(test_png: Path) -> None:
-    """Heightmap from a test PNG produces a mesh with z-range proportional to pixel values."""
+    """Heightmap from a 16x16 gradient PNG gives a 16x16 scalar field from 0 to 1."""
     gen = HeightmapGenerator()
     obj = gen.generate(params={"input_file": str(test_png), "height_scale": 1.0})
     obj.validate_or_raise()
@@ -106,7 +106,7 @@ def test_heightmap_from_png_produces_mesh_with_z_range(test_png: Path) -> None:
     assert z_min == pytest.approx(0.0, abs=1e-6)
     assert z_max == pytest.approx(1.0, abs=1e-6)
 
-    # Top rows should have higher values than bottom rows
+    # The last row should be higher than the first row
     assert obj.scalar_field[-1, 0] > obj.scalar_field[0, 0]
 
 
@@ -277,7 +277,7 @@ def test_soundwave_representation() -> None:
 
 
 def test_missing_input_file_raises_error() -> None:
-    """Missing input file raises a clear error before any computation."""
+    """A missing input file raises FileNotFoundError ("Input file not found")."""
     cases = [
         (HeightmapGenerator, "/nonexistent/file.png"),
         (BuildingExtrudeGenerator, "/nonexistent/file.geojson"),

@@ -70,7 +70,8 @@ class TestPostTransformSamplingDensity:
     """Post-transform sampling produces more points than pre-transform."""
 
     def test_dense_produces_more_points(self, client: TestClient) -> None:
-        """Dense mode cloud has significantly more points than default."""
+        """The post_transform cloud has more points than the default cloud, if
+        any."""
         # Default sampling (pre-transform)
         default_data = _generate(client)
         default_id = default_data["geometry_id"]
@@ -116,7 +117,8 @@ class TestExistingViewModesUnaffected:
     """Existing view modes are unaffected by the dense cloud addition."""
 
     def test_default_sampling_unchanged(self, client: TestClient) -> None:
-        """Default request (no sampling field) works as before."""
+        """A request with no sampling field returns a geometry_id and a mesh or
+        cloud URL."""
         data = _generate(client)
         assert "geometry_id" in data
         assert data.get("mesh_url") is not None or data.get("cloud_url") is not None

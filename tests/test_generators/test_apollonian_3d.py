@@ -39,7 +39,7 @@ _TEST_MAX_DEPTH = 2
 def test_produces_mesh_with_multiple_spheres(
     gasket: Apollonian3DGenerator,
 ) -> None:
-    """Default params (low depth) produce a mesh with multiple sphere meshes."""
+    """max_depth=2 produces a non-empty mesh and more than 4 spheres."""
     obj = gasket.generate(params={"max_depth": _TEST_MAX_DEPTH})
     obj.validate_or_raise()
 
@@ -113,7 +113,7 @@ def test_alias_registered() -> None:
 
 
 def test_full_pipeline_renders(tmp_path: Path) -> None:
-    """Full pipeline with SURFACE_SHELL produces a valid STL."""
+    """Full pipeline with SURFACE_SHELL writes a non-empty STL file."""
     out_path = tmp_path / "apollonian.stl"
 
     result = run(

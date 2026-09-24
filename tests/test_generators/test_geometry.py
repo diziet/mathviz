@@ -62,7 +62,7 @@ def test_voronoi_different_seeds_differ() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Voronoi 3D: cell count scales with seed points
+# Voronoi 3D: edge count grows with seed points
 # ---------------------------------------------------------------------------
 
 

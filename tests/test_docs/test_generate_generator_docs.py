@@ -3,7 +3,7 @@
 Verifies that:
 - The script runs without errors and produces docs/generators.md
 - Every registered generator has a section in the output
-- Parameter tables match actual defaults from the registry
+- Each generator's section names its parameters and contains their defaults
 - Thumbnail images exist for all generators
 """
 
@@ -80,7 +80,7 @@ class TestScriptRuns:
         )
 
     def test_generators_md_exists(self) -> None:
-        """docs/generators.md exists after script has run."""
+        """docs/generators.md exists."""
         assert GENERATORS_MD.is_file(), "docs/generators.md not found"
 
 
@@ -108,7 +108,7 @@ class TestEveryGeneratorHasSection:
 
 
 class TestParameterTablesMatchDefaults:
-    """Parameter tables in the docs match actual defaults from the registry."""
+    """Each generator's section names its parameters and their defaults."""
 
     @pytest.mark.parametrize(
         "meta",
@@ -116,7 +116,11 @@ class TestParameterTablesMatchDefaults:
         ids=[m.name for m in _get_all_generators()],
     )
     def test_defaults_match(self, meta: GeneratorMeta) -> None:
-        """Each parameter's default value in the doc matches the registry."""
+        """The section names each parameter and contains its default as text.
+
+        Only float, bool, int and non-empty str defaults are checked, anywhere
+        in the section.
+        """
         content = _read_generators_md()
         section = _get_section(content, meta.name)
         assert section, f"No section found for {meta.name}"
@@ -169,7 +173,7 @@ class TestThumbnailsExist:
         ids=[m.name for m in _get_all_generators()],
     )
     def test_thumbnail_not_empty(self, meta: GeneratorMeta) -> None:
-        """Each thumbnail file has non-zero size (valid PNG)."""
+        """Each thumbnail that exists is larger than 100 bytes."""
         thumb_path = IMAGES_DIR / f"{meta.name}.png"
         if thumb_path.is_file():
             assert thumb_path.stat().st_size > 100, (
@@ -215,7 +219,7 @@ class TestDocStructure:
             )
 
     def test_generator_count_in_header(self) -> None:
-        """The header mentions the correct generator count."""
+        """generators.md contains "<N> generators" for the registered count N."""
         content = _read_generators_md()
         total = len(_get_all_generators())
         assert f"{total} generators" in content

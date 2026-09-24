@@ -1,4 +1,4 @@
-"""Tests for subprocess-based thumbnail generation and render-thumbnail CLI."""
+"""Tests for subprocess-based thumbnail generation and the endpoint's 503 errors."""
 
 import subprocess
 from unittest.mock import MagicMock, patch
@@ -37,7 +37,8 @@ class TestThumbnailSubprocessGeneratesWebp:
     """Test that subprocess generation produces a valid WebP file."""
 
     def test_subprocess_generates_webp(self) -> None:
-        """Subprocess produces a valid WebP file in the cache directory."""
+        """generate_thumbnail_subprocess returns the path of the WebP that the
+        stubbed subprocess.run wrote."""
         with patch(
             "mathviz.preview.thumbnails.subprocess.run",
             side_effect=_mock_subprocess_success("torus", "vertex"),
@@ -54,7 +55,7 @@ class TestThumbnailCachedSkipsSubprocess:
     """Test that cached thumbnails skip subprocess spawning."""
 
     def test_cached_skips_subprocess(self) -> None:
-        """Cached thumbnail returns immediately without spawning a subprocess."""
+        """A cached thumbnail is returned without calling subprocess.run."""
         create_fake_thumbnail("torus", "vertex")
 
         with patch("mathviz.preview.thumbnails.subprocess.run") as mock_run:
@@ -86,7 +87,8 @@ class TestThumbnailSubprocessTimeout:
     """A thumbnail subprocess timeout raises ThumbnailTimeoutError."""
 
     def test_subprocess_timeout_raises(self) -> None:
-        """Long-running generation is killed after timeout."""
+        """When subprocess.run raises TimeoutExpired, generate_thumbnail_subprocess
+        raises ThumbnailTimeoutError."""
         with patch(
             "mathviz.preview.thumbnails.subprocess.run",
             side_effect=subprocess.TimeoutExpired(cmd=["test"], timeout=5),

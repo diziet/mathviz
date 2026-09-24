@@ -114,7 +114,7 @@ class TestRenderToPng:
     """Tests for render_to_png producing PNG output."""
 
     def test_render_produces_png_file(self, tmp_path: Path) -> None:
-        """Render command produces a PNG file at the specified dimensions."""
+        """render_to_png writes the output file and opens an off-screen 800x600 Plotter."""
         mock_pv = _make_mock_pyvista()
         output_file = tmp_path / "output.png"
 
@@ -150,7 +150,7 @@ class TestRenderToPng:
         )
 
     def test_render_output_is_non_trivial(self, tmp_path: Path) -> None:
-        """Render output is non-trivial (not all-black or all-white)."""
+        """The output file holds the fake screenshot's bytes: more than 10 distinct values."""
         mock_pv = _make_mock_pyvista()
         output_file = tmp_path / "output.png"
 
@@ -240,7 +240,7 @@ class TestRender2dProjection:
         assert mock_plotter.camera.up == (0, 1, 0)
 
     def test_all_projection_views(self, tmp_path: Path) -> None:
-        """All projection views produce output files."""
+        """The top, front, side and angle projections each write an output file."""
         for view in ("top", "front", "side", "angle"):
             mock_pv = _make_mock_pyvista()
             output_file = tmp_path / f"{view}.png"
@@ -258,11 +258,9 @@ class TestRender2dProjection:
             assert output_file.exists(), f"View {view} did not produce output"
 
     def test_2d_top_projection_of_sphere_produces_circular_outline(self, tmp_path: Path) -> None:
-        """2D top projection of a sphere produces a circular outline.
+        """2D top projection of a unit sphere uses parallel projection and a Z-axis camera.
 
-        We verify by checking that the mesh is set up correctly for a top-down
-        view (parallel projection, camera on Z axis), which geometrically
-        produces a circular outline for a sphere.
+        That view gives a sphere a circular outline.
         """
         mock_pv = _make_mock_pyvista()
         output_file = tmp_path / "sphere_top.png"
@@ -365,7 +363,7 @@ class TestRenderStyles:
         return mock_plotter, output_file
 
     def test_shaded_style_produces_png(self, tmp_path: Path) -> None:
-        """Shaded style produces a non-trivial PNG."""
+        """Shaded style writes the file; add_mesh gets smooth_shading=True and no style."""
         mock_plotter, output_file = self._render_with_style(tmp_path, "shaded")
         assert output_file.exists()
         assert output_file.stat().st_size > 0
@@ -375,7 +373,7 @@ class TestRenderStyles:
         assert "style" not in call_kwargs
 
     def test_wireframe_style_produces_png(self, tmp_path: Path) -> None:
-        """Wireframe style produces a non-trivial PNG."""
+        """Wireframe style writes the file; add_mesh gets style="wireframe"."""
         mock_plotter, output_file = self._render_with_style(tmp_path, "wireframe")
         assert output_file.exists()
         assert output_file.stat().st_size > 0
@@ -384,7 +382,8 @@ class TestRenderStyles:
         assert call_kwargs.get("style") == "wireframe"
 
     def test_vertex_style_produces_png(self, tmp_path: Path) -> None:
-        """Vertex style produces a non-trivial PNG."""
+        """Vertex style writes the file; add_mesh gets style="points" and
+        render_points_as_spheres=True."""
         mock_plotter, output_file = self._render_with_style(tmp_path, "vertex")
         assert output_file.exists()
         assert output_file.stat().st_size > 0
@@ -413,7 +412,7 @@ class TestRenderStyles:
         assert custom_size == 5.0
 
     def test_default_render_uses_vertex_style(self, tmp_path: Path) -> None:
-        """Default render (no explicit style) uses vertex style."""
+        """Rendering with style="vertex" calls add_mesh with style="points"."""
         mock_plotter, _ = self._render_with_style(tmp_path, "vertex")
         call_kwargs = mock_plotter.add_mesh.call_args[1]
         assert call_kwargs.get("style") == "points"

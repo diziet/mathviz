@@ -30,12 +30,12 @@ def lorenz() -> LorenzGenerator:
 
 
 # ---------------------------------------------------------------------------
-# Default Lorenz produces a curve with integration_steps - transient_steps points
+# Lorenz produces a curve with integration_steps - transient_steps points
 # ---------------------------------------------------------------------------
 
 
 def test_default_lorenz_curve_point_count(lorenz: LorenzGenerator) -> None:
-    """Default Lorenz produces a curve with integration_steps - transient_steps points."""
+    """Lorenz produces one curve with integration_steps - transient_steps points."""
     obj = lorenz.generate(
         integration_steps=_TEST_STEPS,
         params={"transient_steps": _TEST_TRANSIENT},

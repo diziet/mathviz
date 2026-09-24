@@ -46,7 +46,7 @@ class TestCollapsiblePanelHTML:
     """Tests that the preview HTML contains collapsible panel markup and JS."""
 
     def test_html_contains_toggle_header(self, preview_html: str) -> None:
-        """HTML contains a clickable toggle header with chevron."""
+        """HTML contains container-toggle, the Dimensions / Margins label and a chevron."""
         assert 'id="container-toggle"' in preview_html
         assert "Dimensions / Margins" in preview_html
         assert "chevron" in preview_html
@@ -90,12 +90,12 @@ class TestStretchCollapsiblePanel:
         assert 'id="stretch-panel" class="collapsed"' in preview_html
 
     def test_stretch_panel_has_toggle_button(self, preview_html: str) -> None:
-        """Stretch panel has a clickable toggle header with chevron."""
+        """HTML contains stretch-toggle and the collapsible-toggle class."""
         assert 'id="stretch-toggle"' in preview_html
         assert "collapsible-toggle" in preview_html
 
     def test_stretch_panel_has_collapsible_body(self, preview_html: str) -> None:
-        """Stretch sliders are inside a collapsible body."""
+        """HTML contains stretch-body and the stretch-x, stretch-y and stretch-z inputs."""
         assert 'id="stretch-body"' in preview_html
         assert 'id="stretch-x"' in preview_html
         assert 'id="stretch-y"' in preview_html

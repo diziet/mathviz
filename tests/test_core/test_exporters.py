@@ -83,10 +83,10 @@ class TestPointCloudExportNoCloud:
 
 
 class TestStlRoundTrip:
-    """STL round-trip: export then reimport via trimesh, vertex count matches."""
+    """STL round-trip: export then reimport via trimesh."""
 
     def test_stl_round_trip_vertex_count(self, tmp_path: Path) -> None:
-        """Export STL, reimport with trimesh, verify vertex count matches."""
+        """Reimported STL has the same face count and at least as many vertices."""
         obj = _make_mesh_obj()
         out_path = tmp_path / "cube.stl"
         export_mesh(obj, out_path)
@@ -174,7 +174,7 @@ class TestPcdImportError:
 
 
 class TestPlyCloudRoundTrip:
-    """PLY cloud export produces valid point data."""
+    """PLY cloud export writes one data line per point."""
 
     def test_ply_cloud_point_count(self, tmp_path: Path) -> None:
         """PLY cloud export contains correct number of points."""
@@ -192,7 +192,7 @@ class TestPlyCloudRoundTrip:
 
 
 class TestXyzExport:
-    """XYZ export produces valid point data."""
+    """XYZ export writes one line per point."""
 
     def test_xyz_point_count(self, tmp_path: Path) -> None:
         """XYZ export produces correct number of lines."""

@@ -1,6 +1,7 @@
 """Tests for the Möbius trefoil generator.
 
-Covers mesh validity, non-orientability, registry integration, and rendering.
+Covers mesh validity, boundary edges (the mesh is not watertight), registry
+integration and parameter validation.
 """
 
 import numpy as np
@@ -83,17 +84,17 @@ def test_vertices_within_bounding_box(mesh_obj_128) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Surface is non-orientable (single-sided)
+# Surface is open: not watertight, with boundary edges
 # ---------------------------------------------------------------------------
 
 
 def test_surface_not_watertight(tri_mesh_256) -> None:
-    """Möbius trefoil has a Möbius half-twist and is not watertight."""
+    """Möbius trefoil mesh is not watertight."""
     assert not tri_mesh_256.is_watertight
 
 
 def test_surface_has_single_boundary(tri_mesh_256) -> None:
-    """A Möbius strip has boundary edges (non-orientable sign)."""
+    """The mesh has at least one boundary edge (an edge used by one face)."""
     edges = tri_mesh_256.edges_sorted
     edge_counts: dict[tuple[int, int], int] = {}
     for edge in edges:
@@ -106,7 +107,7 @@ def test_surface_has_single_boundary(tri_mesh_256) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Registers and renders successfully
+# Registry, default representation and metadata
 # ---------------------------------------------------------------------------
 
 
@@ -190,7 +191,7 @@ def test_grid_resolution_below_minimum_raises() -> None:
 
 
 def test_custom_width() -> None:
-    """Custom width produces a valid mesh with different geometry."""
+    """Width 0.8 gives a larger extent than width 0.1 on at least one axis."""
     gen = MobiusTrefoilGenerator()
     obj_narrow = gen.generate(
         params={"width": 0.1}, grid_resolution=16, curve_points=64,

@@ -72,7 +72,7 @@ class TestEveryGeneratorDocumented:
 
 
 class TestEntryContents:
-    """Every entry includes name, category, parameters, and description."""
+    """Every entry has a description, a parameter table or note, and a command."""
 
     def _get_section(self, gen_doc: str, name: str) -> str:
         """Extract the section for a generator between its h3 and the next h2/h3."""

@@ -67,7 +67,7 @@ class TestGenerationTimeout:
     """Tests for generation timeout behavior."""
 
     def test_timeout_returns_504(self, client: TestClient) -> None:
-        """Generation that exceeds timeout returns HTTP 504."""
+        """When the executor raises TimeoutError, /api/generate returns 504."""
         def slow_submit(*args: Any, **kwargs: Any) -> None:
             from concurrent.futures import TimeoutError
             raise TimeoutError("timed out")
@@ -80,7 +80,7 @@ class TestGenerationTimeout:
         assert resp.status_code == 504
 
     def test_timeout_response_has_error_message(self, client: TestClient) -> None:
-        """Response body contains a meaningful error message."""
+        """The timeout response detail contains "timed out"."""
         from concurrent.futures import TimeoutError
 
         with patch.object(server_mod._executor, "submit", side_effect=TimeoutError()):
@@ -123,7 +123,7 @@ class TestGenerationTimeout:
     def test_no_timeout_field_falls_back_to_default(
         self, client: TestClient, captured_submit_kwargs: dict[str, Any]
     ) -> None:
-        """Request without timeout field falls back to env var / 300s default."""
+        """A request without a timeout field passes DEFAULT_TIMEOUT_SECONDS to the executor."""
         resp = client.post(
             "/api/generate",
             json={"generator": "torus", "seed": 42},
@@ -220,7 +220,7 @@ class TestPreviewUI:
     def test_preview_html_has_cancel_endpoint_call(
         self, client: TestClient
     ) -> None:
-        """Preview HTML contains JS that calls the cancel endpoint."""
+        """Preview HTML contains /api/generate/cancel."""
         resp = client.get("/")
         html = resp.text
         assert "/api/generate/cancel" in html
@@ -234,7 +234,7 @@ class TestPreviewUI:
     def test_preview_html_persists_timeout_in_localstorage(
         self, client: TestClient
     ) -> None:
-        """Preview HTML uses localStorage to persist the timeout setting."""
+        """Preview HTML contains mathviz_generation_timeout and localStorage."""
         resp = client.get("/")
         html = resp.text
         assert "mathviz_generation_timeout" in html
@@ -269,13 +269,14 @@ class TestThreadBasedExecution:
     """Tests that single generation uses threads, not subprocesses."""
 
     def test_single_generation_uses_thread_pool(self) -> None:
-        """Single generation runs in a ThreadPoolExecutor, not ProcessPoolExecutor."""
+        """_ensure_thread_pool returns a ThreadPoolExecutor."""
         executor = GenerationExecutor()
         pool = executor._ensure_thread_pool()
         assert isinstance(pool, ThreadPoolExecutor)
 
     def test_executor_has_no_process_pool_for_single(self) -> None:
-        """GenerationExecutor does not create a ProcessPoolExecutor for single generation."""
+        """GenerationExecutor has no _pool attribute, and its thread pool is a
+        ThreadPoolExecutor."""
         executor = GenerationExecutor()
         # _thread_pool is used for single, _batch_pool for batch
         assert not hasattr(executor, "_pool"), "Should not have _pool attribute (old process pool)"
@@ -283,7 +284,7 @@ class TestThreadBasedExecution:
         assert isinstance(executor._thread_pool, ThreadPoolExecutor)
 
     def test_cancel_stops_running_generation(self) -> None:
-        """Cancel request stops a running thread-based generation within a few seconds."""
+        """After cancel, the stubbed pipeline stops before it finishes."""
         executor = GenerationExecutor()
         started = threading.Event()
         finished = threading.Event()

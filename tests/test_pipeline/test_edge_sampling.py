@@ -104,19 +104,19 @@ class TestEdgeSamplingCap:
         assert len(cloud.points) <= cap
 
     def test_large_cap(self) -> None:
-        """With a large cap, all budget is used."""
+        """With max_samples=1000 on a cube, edge sampling returns more than 100 points."""
         mesh = _make_cube_mesh()
         obj = _make_obj_with_mesh(mesh)
         cloud = _sample_mesh_edges(obj, max_samples=1000)
-        # Cube has 18 unique edges; with 1000 budget, should use most of it
+        # Cube has 18 unique edges; the check requires more than 100 of the 1000
         assert len(cloud.points) > 100
 
 
 class TestEdgeSamplingProportional:
-    """Longer edges receive proportionally more points."""
+    """The long edge of an elongated triangle receives more than 30% of the points."""
 
     def test_longer_edges_get_more_points(self) -> None:
-        """An elongated triangle allocates more points to its longer edge."""
+        """More than 30% of 200 edge samples lie on edge 0-1, of length 10."""
         mesh = _make_elongated_mesh()
         obj = _make_obj_with_mesh(mesh)
         cloud = _sample_mesh_edges(obj, max_samples=200)
@@ -133,16 +133,16 @@ class TestEdgeSamplingProportional:
             if dist < 1e-6:
                 near_long += 1
 
-        # Edge 0-1 is about 50% of the total edge length, so it should get about
-        # half the points.
+        # Edge 0-1 is about 50% of the total edge length; the check requires
+        # more than 30% of the points.
         assert near_long > len(cloud.points) * 0.3
 
 
 class TestDenseCombined:
-    """Dense Cloud includes both surface and edge points."""
+    """Dense Cloud point counts."""
 
     def test_dense_has_both_surface_and_edge(self) -> None:
-        """Dense sampling combines surface and edge points in a single cloud."""
+        """Dense sampling of a cube with max_samples=1000 returns a non-empty cloud."""
         mesh = _make_cube_mesh()
         obj = _make_obj_with_mesh(mesh)
 
@@ -157,7 +157,8 @@ class TestDenseCombined:
     def test_dense_includes_more_sources_than_edge_only(
         self, client: TestClient,
     ) -> None:
-        """Dense Cloud (surface+edge) has points from both sources."""
+        """With max_samples=5000, the dense cloud has more than 80% of the edge-only
+        count and more than half the cap."""
         # Use a low cap so neither source saturates
         cap = 5000
         edge_data = _generate(client, sampling="edge", max_samples=cap)
@@ -175,7 +176,7 @@ class TestDenseCombined:
         # Dense sampling gives 70% of the budget to surface points and 30% to edge
         # points, so its total should be close to the cap.
         assert dense_count > edge_count * 0.8
-        # Dense should have more points than edge-only's 30% share
+        # Dense should have more than half the cap
         assert dense_count > cap * 0.5
 
 

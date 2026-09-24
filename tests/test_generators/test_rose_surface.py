@@ -42,11 +42,8 @@ def test_integer_k1_produces_valid_mesh(default_obj) -> None:
 
 
 def test_integer_k1_symmetric_petals() -> None:
-    """Integer k1 values produce geometry symmetric about the z-axis.
-
-    The rose surface should be centered at the origin and have equal
-    positive and negative extents along each horizontal axis.
-    """
+    """For k1 = 2, 3 and 5, the mean x and mean y of the vertices are
+    within 0.05 of 0."""
     gen = RoseSurfaceGenerator()
     for k1 in (2, 3, 5):
         obj = gen.generate(params={"k1": k1, "k2": 2}, grid_resolution=64)

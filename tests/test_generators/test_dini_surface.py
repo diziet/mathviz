@@ -60,7 +60,7 @@ def test_more_turns_longer_spiral() -> None:
 
 
 def test_turns_scales_u_range() -> None:
-    """More turns increase the maximum u value used in generation."""
+    """The z extent at turns=5 is more than 1.3 times that at turns=2."""
     gen = DiniSurfaceGenerator()
     obj2 = gen.generate(params={"turns": 2}, grid_resolution=16)
     obj5 = gen.generate(params={"turns": 5}, grid_resolution=16)
@@ -216,7 +216,7 @@ def test_invalid_grid_resolution_raises() -> None:
 
 
 def test_pseudospherical_shape() -> None:
-    """Surface has cylindrical xy-extent bounded by a (pseudospherical)."""
+    """With a=1.0, every vertex lies within xy radius 1.0 of the z axis."""
     gen = DiniSurfaceGenerator()
     obj = gen.generate(params={"a": 1.0}, grid_resolution=64)
     assert obj.mesh is not None

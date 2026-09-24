@@ -94,7 +94,7 @@ class TestThumbnailEndpoint:
     def test_thumbnail_generates_webp(
         self, _mock_rendering: MagicMock, client: TestClient,
     ) -> None:
-        """Generated thumbnail is a valid WebP file."""
+        """With generation stubbed, the endpoint serves a file Pillow opens as WebP."""
         resp = _fetch_torus_thumbnail(client)
         img = Image.open(io.BytesIO(resp.content))
         assert img.format == "WEBP"
@@ -187,7 +187,7 @@ class TestBatchThumbnails:
     """Tests for GET /api/generators/thumbnails."""
 
     def test_returns_urls_for_all_generators(self, client: TestClient) -> None:
-        """Batch endpoint returns thumbnail URLs for all registered generators."""
+        """Batch endpoint returns a dict with the torus vertex thumbnail URL."""
         resp = client.get("/api/generators/thumbnails")
         assert resp.status_code == 200
         data = resp.json()

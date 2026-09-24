@@ -1,7 +1,7 @@
 """Tests for point cloud density slider.
 
-Verifies that the density slider is present in the preview HTML,
-defaults to 1.0, and correctly controls point cloud display density.
+Verifies that the density slider is present in the preview HTML and
+defaults to 1.0, and that the page script contains the code that applies it.
 """
 
 import re
@@ -106,12 +106,12 @@ class TestDensitySliderDefault:
 
 
 class TestDensityHalfPoints:
-    """Tests that setting density to 0.5 shows approximately half the points."""
+    """Tests for the display count and buffer copy code of the density filter."""
 
     def test_density_filter_uses_every_nth_sampling(
         self, client: TestClient,
     ) -> None:
-        """applyDensityFilter computes displayCount from density fraction."""
+        """Preview HTML contains Math.round(totalPoints * density)."""
         html = _get_html(client)
         assert "Math.round(totalPoints * density)" in html
 
@@ -126,10 +126,10 @@ class TestDensityHalfPoints:
 
 
 class TestDensityOnePercent:
-    """Tests that setting density to 0.01 shows approximately 1% of points."""
+    """Tests for the one-point minimum."""
 
     def test_density_min_clamps_to_one_point(self, client: TestClient) -> None:
-        """At minimum density, at least 1 point is always shown."""
+        """Preview HTML contains Math.max(1,."""
         html = _get_html(client)
         assert "Math.max(1," in html
 
@@ -176,7 +176,7 @@ class TestDensitySliderHiddenWhenNotPoints:
     def test_density_visibility_updates_on_view_mode_change(
         self, client: TestClient,
     ) -> None:
-        """View mode change listener calls updateDensitySliderVisibility."""
+        """Preview HTML calls updateDensitySliderVisibility()."""
         html = _get_html(client)
         assert "updateDensitySliderVisibility()" in html
 
@@ -192,7 +192,7 @@ class TestDensitySliderHiddenWhenNotPoints:
 
 
 class TestInfoPanelDensity:
-    """Tests that info panel shows filtered vs total point count."""
+    """Tests for updateDensityInfo."""
 
     def test_update_density_info_function_exists(
         self, client: TestClient,
@@ -204,7 +204,7 @@ class TestInfoPanelDensity:
     def test_density_info_shows_fraction_format(
         self, client: TestClient,
     ) -> None:
-        """updateDensityInfo formats as 'displayed / total (pct%)'."""
+        """updateDensityInfo contains toLocaleString(), info-points and Points:."""
         html = _get_html(client)
         body = _extract_js_function(html, "updateDensityInfo")
         assert "toLocaleString()" in body
@@ -224,7 +224,7 @@ class TestDensityPerformance:
     """Tests for density slider performance optimizations."""
 
     def test_dirty_flag_coalesces_raf(self, client: TestClient) -> None:
-        """Slider uses a dirty flag to avoid redundant rAF calls."""
+        """Preview HTML contains densityDirty."""
         html = _get_html(client)
         assert "densityDirty" in html
 
@@ -250,7 +250,7 @@ class TestDensityCompareMode:
     def test_compare_mode_density_propagation(
         self, client: TestClient,
     ) -> None:
-        """Slider listener calls updateDensityInPanels in compare mode."""
+        """Preview HTML calls updateDensityInPanels()."""
         html = _get_html(client)
         assert "updateDensityInPanels()" in html
 

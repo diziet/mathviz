@@ -154,7 +154,7 @@ class TestResolutionGenerate:
         assert low < default
 
     def test_no_resolution_uses_defaults(self, client: TestClient) -> None:
-        """POST without resolution field uses generator defaults."""
+        """POST without a resolution field returns 200 with a geometry_id and a mesh_url."""
         resp = client.post(
             "/api/generate",
             json={"generator": "torus", "seed": 42},
@@ -193,10 +193,10 @@ class TestResolutionHTML:
         assert 'id="info-points"' in preview_html
 
     def test_html_populates_resolution_from_api(self, preview_html: str) -> None:
-        """JavaScript populates resolution fields from API data."""
+        """Preview HTML contains param-resolution-fields and populateParamFields."""
         assert "param-resolution-fields" in preview_html
         assert "populateParamFields" in preview_html
 
     def test_html_sends_resolution_in_generate(self, preview_html: str) -> None:
-        """Apply sends resolution in POST body."""
+        """Preview HTML contains getEditorResolution."""
         assert "getEditorResolution" in preview_html

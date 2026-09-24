@@ -60,7 +60,11 @@ def test_higher_frequency_produces_more_faces() -> None:
 
 
 def test_dual_mode_produces_pentagonal_and_hexagonal_faces() -> None:
-    """Dual mode produces pentagonal and hexagonal faces."""
+    """_count_dual_face_sides finds five-sided and six-sided dual faces.
+
+    It counts sides on the frequency-2 mesh that _get_pre_dual_mesh builds;
+    the generator's dual output is only validated.
+    """
     gen = GeodesicSphereGenerator()
     # Use frequency 2 for a simple Goldberg polyhedron
     obj = gen.generate(params={"frequency": 2, "dual": True})
@@ -123,7 +127,7 @@ def test_dual_mode_vertices_on_sphere() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Registration and rendering
+# Registration and default representation
 # ---------------------------------------------------------------------------
 
 
@@ -207,7 +211,7 @@ def test_default_params() -> None:
 
 
 def test_dual_string_true_activates_dual_mode() -> None:
-    """dual='true', the string form the CLI passes, turns dual mode on."""
+    """dual='true', the string form the CLI passes, gives a mesh that validates."""
     gen = GeodesicSphereGenerator()
     obj = gen.generate(params={"frequency": 2, "dual": "true"})
     obj.validate_or_raise()

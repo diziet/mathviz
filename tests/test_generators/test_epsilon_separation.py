@@ -156,7 +156,7 @@ def test_bounding_box_within_tolerance(gen_cls: type) -> None:
 
 
 # ------------------------------------------------------------------
-# Existing test suites still pass (smoke test at low resolution)
+# Meshes with separation pass validate_or_raise (smoke test at low resolution)
 # ------------------------------------------------------------------
 
 

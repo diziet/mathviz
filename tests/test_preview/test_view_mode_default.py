@@ -85,7 +85,7 @@ class TestViewModeDefault:
     def test_display_generate_guards_empty_response(
         self, client: TestClient,
     ) -> None:
-        """displayGenerateResult returns early when no mesh or cloud data."""
+        """The preview HTML contains the guard if (!hasMesh && !hasCloud)."""
         html = _get_html(client)
         assert "if (!hasMesh && !hasCloud)" in html
 
@@ -94,7 +94,7 @@ class TestViewModeNotOverridden:
     """Tests that view mode is preserved when compatible with available data."""
 
     def test_view_mode_needs_mesh_helper_exists(self, client: TestClient) -> None:
-        """The viewModeNeedsMesh helper is defined and checks shaded/wireframe."""
+        """The viewModeNeedsMesh helper is defined, and the page has 'shaded' and 'wireframe'."""
         html = _get_html(client)
         assert "function viewModeNeedsMesh()" in html
         assert "'shaded'" in html
@@ -117,7 +117,7 @@ class TestViewModeNotOverridden:
         assert gen_fn is not None
         fn_body = gen_fn.group(0)
         assert "state.viewMode = 'shaded'" not in fn_body
-        # The guard uses the helper and only fires when no mesh is available
+        # The function calls the viewModeNeedsMesh() helper
         assert "viewModeNeedsMesh()" in fn_body
 
     def test_cloud_only_preserves_vertex_mode(self, client: TestClient) -> None:
@@ -137,9 +137,8 @@ class TestViewModeNotOverridden:
         assert "document.getElementById('view-mode').value = state.viewMode" in fn_body
 
     def test_dropdown_synced_after_generation(self, client: TestClient) -> None:
-        """Dropdown value is synced from state.viewMode after generation."""
+        """The preview HTML sets the view-mode dropdown's value from state.viewMode."""
         html = _get_html(client)
-        # After the compatibility check, the dropdown is always synced
         assert (
             "document.getElementById('view-mode').value = state.viewMode"
             in html
@@ -148,9 +147,8 @@ class TestViewModeNotOverridden:
     def test_incompatible_mode_falls_back_to_vertex(
         self, client: TestClient,
     ) -> None:
-        """When viewMode needs mesh but no mesh is available, fall back to vertex."""
+        """The preview HTML has the guard viewModeNeedsMesh() && !hasMesh."""
         html = _get_html(client)
-        # The guard uses the extracted helper and falls back to vertex
         pattern = r"viewModeNeedsMesh\(\)\s*&&\s*!hasMesh"
         assert re.search(pattern, html), (
             "Missing incompatibility guard for mesh-requiring view modes"
@@ -210,7 +208,7 @@ class TestViewModeNotOverridden:
     def test_switching_generators_preserves_compatible_mode(
         self, client: TestClient,
     ) -> None:
-        """Switching generators preserves view mode when compatible."""
+        """displayGenerateResult's body names neither schwarz nor lorenz."""
         html = _get_html(client)
         # The function must not have generator-specific mode logic
         gen_fn = re.search(

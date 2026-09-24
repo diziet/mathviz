@@ -131,7 +131,7 @@ class TestCacheMiss:
 
 
 class TestForceRegenerate:
-    """force: true should bypass cache and overwrite the entry."""
+    """force: true should bypass the cache."""
 
     def test_force_bypasses_cache(self, client: TestClient) -> None:
         """Request with force=true returns MISS even on second call."""
@@ -241,7 +241,7 @@ class TestRegenerateButton:
 
 
 class TestCachedBadge:
-    """UI should show a Cached badge when result is from cache."""
+    """Preview HTML should contain the Cached badge element."""
 
     def test_cache_badge_in_html(self, client: TestClient) -> None:
         """The viewer HTML contains a cache badge element."""

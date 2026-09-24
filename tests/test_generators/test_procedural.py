@@ -29,7 +29,7 @@ _TEST_TIMESTEPS = 2000
 
 
 # ---------------------------------------------------------------------------
-# Noise surface: same seed produces identical mesh
+# Noise surface: same seed produces identical scalar field
 # ---------------------------------------------------------------------------
 
 

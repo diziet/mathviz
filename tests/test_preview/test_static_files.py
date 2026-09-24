@@ -31,7 +31,7 @@ def test_preview_root_returns_200(client: TestClient) -> None:
 
 
 def test_html_contains_threejs_import(client: TestClient) -> None:
-    """The HTML content contains a Three.js script import."""
+    """The HTML content contains "three" (any case) and "THREE"."""
     response = client.get("/")
     assert response.status_code == 200
     assert "three" in response.text.lower()

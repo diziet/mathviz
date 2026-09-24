@@ -35,7 +35,7 @@ class TestExportDemoHelp:
         assert "--quiet" in result.output
 
     def test_help_shows_description(self) -> None:
-        """Help text includes a meaningful description."""
+        """Help text contains the word demo."""
         result = runner.invoke(app, ["export-demo", "--help"])
         assert "demo" in result.output.lower()
 
@@ -85,7 +85,7 @@ class TestExportDemoRun:
 
     @patch("mathviz.cli_demo.build_demo", return_value=_OK_RESULT)
     def test_default_generators(self, mock_build: object, tmp_path: Path) -> None:
-        """Default generators list is the curated set of ~15."""
+        """Default generators list has 15 names, including lorenz."""
         out = tmp_path / "demo-out"
         runner.invoke(app, ["export-demo", "--output", str(out)])
         call_args = mock_build.call_args
@@ -147,7 +147,8 @@ class TestExportDemoOutputStructure:
         mock_static: object,
         tmp_path: Path,
     ) -> None:
-        """Output directory has data/<name>/ with expected files and index.html."""
+        """Output has data/lorenz/ mesh.glb, cloud.ply and thumbnail.png, and a one-entry
+        manifest.json; _copy_static_assets is called with the output dir."""
         import numpy as np
 
         from mathviz.core.generator import GeneratorMeta
@@ -239,14 +240,14 @@ class TestResolveGeneratorsAll:
 
 
 class TestValidateGeneratorNames:
-    """Test that unknown generator names are rejected up front."""
+    """Test the CLI exit code when build_demo rejects an unknown generator name."""
 
     @patch("mathviz.demo_builder.validate_generator_names", return_value=["typo_gen"])
     @patch("mathviz.cli_demo.build_demo", side_effect=ValueError("Unknown generator(s): typo_gen"))
     def test_unknown_generator_reports_error(
         self, mock_build: object, mock_validate: object, tmp_path: Path
     ) -> None:
-        """CLI reports an error for unknown generator names."""
+        """When build_demo raises ValueError for an unknown name, the CLI exits nonzero."""
         out = tmp_path / "demo-out"
         result = runner.invoke(
             app,

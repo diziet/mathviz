@@ -140,16 +140,15 @@ def test_vertices_within_bounding_box(gen_cls: type) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Klein bottle: self-intersection (not watertight) is not an error
+# Klein bottle: self-intersection is not an error
 # ---------------------------------------------------------------------------
 
 
 def test_klein_bottle_self_intersection_not_error() -> None:
-    """Klein bottle has self-intersection — generates without error.
+    """Klein bottle generates a valid, non-empty mesh although it self-intersects.
 
-    The figure-8 immersion is topologically closed (mesh is manifold), but
-    geometrically self-intersects in R³. We verify the mesh is valid and
-    that duplicate spatial positions exist (sign of self-intersection).
+    The figure-8 immersion is topologically closed but geometrically
+    self-intersects in R³.
     """
     gen = KleinBottleGenerator()
     obj = gen.generate(grid_resolution=64)

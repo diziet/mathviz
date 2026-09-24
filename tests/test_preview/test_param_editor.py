@@ -176,16 +176,16 @@ class TestParamEditorHTML:
         assert 'id="param-reset-btn"' in preview_html
 
     def test_html_fetches_params_on_generator_change(self, preview_html: str) -> None:
-        """Generator selection triggers param fetch."""
+        """Preview HTML contains fetchAndPopulateParams."""
         assert "fetchAndPopulateParams" in preview_html
 
     def test_html_apply_sends_params(self, preview_html: str) -> None:
-        """Apply button collects and sends params in POST body."""
+        """Preview HTML contains getEditorParams and getEditorResolution."""
         assert "getEditorParams" in preview_html
         assert "getEditorResolution" in preview_html
 
     def test_html_reset_restores_defaults(self, preview_html: str) -> None:
-        """Reset button restores default param values."""
+        """Preview HTML contains resetParamDefaults."""
         assert "resetParamDefaults" in preview_html
 
     def test_html_shows_error_display(self, preview_html: str) -> None:

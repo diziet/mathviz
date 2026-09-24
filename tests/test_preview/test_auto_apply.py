@@ -59,7 +59,8 @@ def _extract_script(html: str) -> str:
 
 
 def test_html_contains_auto_apply_checkbox(preview_html: str) -> None:
-    """Preview HTML contains an Auto-Apply checkbox with id auto-apply."""
+    """Preview HTML contains id="auto-apply", type="checkbox" and the text
+    Auto-Apply."""
     assert 'id="auto-apply"' in preview_html
     assert 'type="checkbox"' in preview_html
     assert "Auto-Apply" in preview_html
@@ -80,7 +81,8 @@ def test_state_includes_auto_apply(preview_html: str) -> None:
 
 
 def test_auto_apply_input_listener(preview_html: str) -> None:
-    """When auto-apply is enabled, input events trigger regeneration."""
+    """The script adds an input listener, reads state.autoApply and calls
+    applyParams()."""
     script = _extract_script(preview_html)
     assert re.search(
         r"addEventListener\s*\(\s*['\"]input['\"]", script
@@ -97,7 +99,8 @@ def test_auto_apply_input_listener(preview_html: str) -> None:
 
 
 def test_auto_apply_uses_debounce(preview_html: str) -> None:
-    """Regeneration is debounced (not fired on every input immediately)."""
+    """The script has setTimeout, clearTimeout and an AUTO_APPLY_DEBOUNCE_MS
+    constant."""
     script = _extract_script(preview_html)
     assert re.search(
         r"setTimeout\s*\(", script
@@ -114,7 +117,7 @@ def test_auto_apply_uses_debounce(preview_html: str) -> None:
 
 
 def test_auto_apply_disabled_no_trigger(preview_html: str) -> None:
-    """When auto-apply is disabled, changing inputs does not trigger."""
+    """The script returns early with if (!state.autoApply) return."""
     script = _extract_script(preview_html)
     assert re.search(
         r"if\s*\(\s*!state\.autoApply\s*\)\s*return", script
@@ -122,7 +125,7 @@ def test_auto_apply_disabled_no_trigger(preview_html: str) -> None:
 
 
 def test_pending_timer_cleared_on_disable(preview_html: str) -> None:
-    """Unchecking auto-apply cancels any pending debounce timer."""
+    """The script checks !state.autoApply && autoApplyTimer !== null."""
     script = _extract_script(preview_html)
     assert re.search(
         r"!state\.autoApply\s*&&\s*autoApplyTimer\s*!==\s*null", script
@@ -130,9 +133,8 @@ def test_pending_timer_cleared_on_disable(preview_html: str) -> None:
 
 
 def test_auto_apply_skips_only_own_checkbox(preview_html: str) -> None:
-    """Auto-apply input handler skips only the auto-apply checkbox, not all."""
+    """The script compares e.target.id with 'auto-apply'."""
     script = _extract_script(preview_html)
-    # Should check e.target.id === 'auto-apply', not e.target.type === 'checkbox'
     assert re.search(
         r"""e\.target\.id\s*===?\s*['"]auto-apply['"]""", script
     ), "Handler should skip only the auto-apply checkbox by id"
@@ -153,7 +155,7 @@ def test_param_panel_below_container_in_dom(preview_html: str) -> None:
 
 
 def test_panels_wrapped_in_left_column(preview_html: str) -> None:
-    """Both panels are wrapped in a scrollable left-column container."""
+    """Both panels come after the left-column opening tag."""
     assert 'id="left-column"' in preview_html
     left_col_start = preview_html.find('id="left-column"')
     assert left_col_start > 0, "left-column not found"

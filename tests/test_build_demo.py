@@ -130,7 +130,7 @@ class TestBuildDemoOutput:
 
     @pytest.mark.usefixtures("_mock_pipeline", "_mock_generators_two")
     def test_produces_index_html_and_manifest(self, output_dir: Path) -> None:
-        """Script produces dist/index.html and dist/manifest.json."""
+        """Script produces dist/manifest.json."""
         build_demo.build_demo("all", output_dir, "preview")
 
         # index.html comes from _copy_static_assets, which is mocked, so only the
@@ -249,7 +249,8 @@ class TestFailureHandling:
     def test_partial_directory_cleaned_on_export_failure(
         self, output_dir: Path
     ) -> None:
-        """If export fails after data_dir is created, the directory is cleaned up."""
+        """When run_pipeline raises OSError, build_demo returns 0 and no data/failing
+        exists."""
         meta = _make_generator_meta("failing", "attractors")
         metas = {"failing": meta}
 

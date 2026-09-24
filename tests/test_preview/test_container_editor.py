@@ -96,7 +96,7 @@ class TestGenerateWithContainer:
         assert resp_default.json()["geometry_id"] != resp_custom.json()["geometry_id"]
 
     def test_default_container_matches_no_container(self, client: TestClient) -> None:
-        """Omitting container uses default (100x100x100, 5mm margins)."""
+        """Generating without a container returns 200 and a mesh_url."""
         resp = client.post(
             "/api/generate",
             json={"generator": "torus", "seed": 42},
@@ -188,13 +188,14 @@ class TestContainerEditorHTML:
         assert "Reset" in preview_html
 
     def test_html_apply_triggers_generate(self, preview_html: str) -> None:
-        """Apply button triggers a POST /api/generate with container params."""
+        """Preview HTML contains container-apply-btn, loadFromAPI and
+        getContainerParams."""
         assert "container-apply-btn" in preview_html
         assert "loadFromAPI" in preview_html
         assert "getContainerParams" in preview_html
 
     def test_html_reset_restores_defaults(self, preview_html: str) -> None:
-        """Reset button restores default values in the input fields."""
+        """Preview HTML contains container-reset-btn and resetContainerDefaults."""
         assert "container-reset-btn" in preview_html
         assert "resetContainerDefaults" in preview_html
 

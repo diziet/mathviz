@@ -61,7 +61,7 @@ def test_ridges_only_returns_curves_not_mesh() -> None:
 
 
 def test_num_cells_6_icosahedron_like() -> None:
-    """num_cells=6 produces a structure with roughly 6 cells."""
+    """num_cells=6 gives a mesh with at least 6 and fewer than 100 faces."""
     gen = VoronoiSphereGenerator()
     obj = gen.generate(
         params={"num_cells": 6, "cell_style": "cells_only"}, seed=42,
@@ -255,7 +255,7 @@ def test_default_representation() -> None:
 
 
 def test_min_cells_validation() -> None:
-    """Rejects fewer than 4 cells."""
+    """Rejects num_cells=2 with ValueError."""
     gen = VoronoiSphereGenerator()
     with pytest.raises(ValueError, match="num_cells must be"):
         gen.generate(params={"num_cells": 2})

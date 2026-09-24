@@ -59,7 +59,7 @@ def gen() -> _DummyGenerator:
 
 
 def test_unknown_param_raises_valueerror(gen: _DummyGenerator) -> None:
-    """Unknown param key raises ValueError with valid param names."""
+    """Unknown param key raises ValueError naming that key."""
     with pytest.raises(ValueError, match="Unknown parameter.*'bad_key'"):
         gen.validate_param_keys({"bad_key": 42})
 
@@ -179,7 +179,7 @@ def _collect_generator_classes() -> list[type[GeneratorBase]]:
 
 
 def test_all_generators_pass_validation_with_defaults() -> None:
-    """Every registered generator's default params pass validation."""
+    """Every named, concrete GeneratorBase subclass accepts its own default params."""
     classes = _collect_generator_classes()
     assert len(classes) > 0, "No generators discovered"
 

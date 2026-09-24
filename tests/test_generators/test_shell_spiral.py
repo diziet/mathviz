@@ -42,7 +42,8 @@ def test_produces_valid_mesh(default_obj) -> None:
 
 
 def test_spiral_structure_vertices_spread_radially(default_obj) -> None:
-    """Vertices spread outward from the origin — spiral structure."""
+    """The largest vertex distance from the z-axis is over twice the
+    smallest."""
     verts = default_obj.mesh.vertices
     distances = np.sqrt(verts[:, 0] ** 2 + verts[:, 1] ** 2)
     # A spiral should have vertices at various distances
@@ -76,7 +77,7 @@ def test_vertices_within_bounding_box(default_obj) -> None:
 
 
 def test_more_turns_produce_longer_shell() -> None:
-    """Increasing turns extends the spiral, producing more vertices."""
+    """5 turns reach farther from the origin than 2 turns."""
     gen = ShellSpiralGenerator()
     obj_2 = gen.generate(
         params={"turns": 2}, curve_points=64, radial_segments=8,

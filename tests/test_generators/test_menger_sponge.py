@@ -1,6 +1,6 @@
 """Tests for the Menger sponge fractal generator.
 
-Covers: level 0 single cube, level 1 sub-cube count, level 3 vertex count,
+Covers: level 0 single cube, level 1 and 3 sub-cube counts, level 3 mesh counts,
 registration, representation, determinism, parameter validation, and
 bounding box.
 """
@@ -29,7 +29,7 @@ def _clean_registry():
 
 
 def test_level_0_single_cube() -> None:
-    """Level 0 produces a single cube with 8 vertices and 12 triangles."""
+    """Level 0 is a single cube: 24 vertices (4 per face) and 12 triangles."""
     gen = MengerSpongeGenerator()
     obj = gen.generate(params={"level": 0})
     obj.validate_or_raise()
@@ -71,7 +71,7 @@ def test_level_3_cube_count() -> None:
 
 
 def test_level_3_valid_mesh() -> None:
-    """Level 3 produces a valid mesh with expected vertex count."""
+    """Level 3 mesh: valid, vertices a multiple of 4, triangles half as many."""
     gen = MengerSpongeGenerator()
     obj = gen.generate(params={"level": 3})
     obj.validate_or_raise()
@@ -185,7 +185,7 @@ def test_level_exceeds_max_raises() -> None:
 
 
 def test_nonpositive_size_raises() -> None:
-    """Non-positive or too-small size raises ValueError."""
+    """Size 0.0 and size -1.0 raise ValueError."""
     gen = MengerSpongeGenerator()
     with pytest.raises(ValueError, match="size must be"):
         gen.generate(params={"size": 0.0})

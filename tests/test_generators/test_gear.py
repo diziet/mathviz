@@ -18,7 +18,7 @@ def _clean_registry():
 
 
 # ---------------------------------------------------------------------------
-# Valid mesh with expected number of teeth
+# Valid mesh; vertex count and extent grow with teeth and module
 # ---------------------------------------------------------------------------
 
 
@@ -37,7 +37,7 @@ def test_produces_valid_mesh_default_params() -> None:
 
 
 def test_mesh_extent_matches_tooth_count() -> None:
-    """Gear with more teeth produces more vertices and a larger mesh."""
+    """A 30-tooth gear has more vertices than an 8-tooth gear."""
     gen = GearGenerator()
     obj_small = gen.generate(params={"num_teeth": 8, "module": 1.0})
     obj_large = gen.generate(params={"num_teeth": 30, "module": 1.0})
@@ -150,7 +150,7 @@ def test_helical_gear_multiple_layers() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Registration and rendering
+# Registration and default representation
 # ---------------------------------------------------------------------------
 
 

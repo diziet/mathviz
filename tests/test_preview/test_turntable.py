@@ -1,7 +1,8 @@
 """Tests for turntable animation and export feature.
 
-Verifies that the turntable toggle, speed slider, export controls,
-and related JS logic are present and correctly wired in the preview HTML.
+Verifies that the turntable toggle, speed slider and export controls are
+present in the preview HTML, and that the related JS functions contain the
+expected statements.
 """
 
 import re
@@ -151,7 +152,7 @@ class TestSpeedSlider:
 
 
 class TestExportButtonVisibility:
-    """Tests that export button is visible only when turntable is active."""
+    """Tests for the export section's default state and the export controls."""
 
     def test_export_section_hidden_by_default(self, client: TestClient) -> None:
         """Export section is not visible when turntable is off."""
@@ -165,21 +166,20 @@ class TestExportButtonVisibility:
         assert 'id="export-btn"' in html
 
     def test_set_turntable_shows_export(self, client: TestClient) -> None:
-        """setTurntable adds 'visible' class to export section."""
+        """setTurntable's body refers to turntable-export-section and 'visible'."""
         html = _get_html(client)
         body = _extract_js_function(html, "setTurntable")
         assert "turntable-export-section" in body
         assert "visible" in body
 
     def test_export_format_select_exists(self, client: TestClient) -> None:
-        """Export format selector exists with GIF and WebM options."""
+        """Export format selector exists, and the page contains GIF and WebM."""
         html = _get_html(client)
         assert 'id="export-format"' in html
         assert "GIF" in html
         assert "WebM" in html
 
     def test_export_resolution_select_exists(self, client: TestClient) -> None:
-        """Export resolution selector exists with 1x and 2x options."""
         html = _get_html(client)
         assert 'id="export-resolution"' in html
 
@@ -198,7 +198,7 @@ class TestDisablingTurntable:
     def test_set_turntable_false_hides_export(
         self, client: TestClient,
     ) -> None:
-        """setTurntable(false) removes 'visible' from export section."""
+        """setTurntable's body calls classList.remove('visible')."""
         html = _get_html(client)
         body = _extract_js_function(html, "setTurntable")
         assert "classList.remove('visible')" in body
@@ -206,14 +206,14 @@ class TestDisablingTurntable:
     def test_speed_slider_disabled_when_off(
         self, client: TestClient,
     ) -> None:
-        """setTurntable disables speed slider when turntable is off."""
+        """setTurntable's body contains "disabled"."""
         html = _get_html(client)
         body = _extract_js_function(html, "setTurntable")
         assert "disabled" in body
 
 
 class TestTurntableWithViewModes:
-    """Tests that turntable works with all view modes."""
+    """Tests that rotation goes through OrbitControls and renderFrameAtAngle's mode checks."""
 
     def test_turntable_uses_controls_auto_rotate(
         self, client: TestClient,
@@ -233,7 +233,7 @@ class TestTurntableWithViewModes:
     def test_render_frame_handles_compare_mode(
         self, client: TestClient,
     ) -> None:
-        """renderFrameAtAngle handles compare mode rendering."""
+        """renderFrameAtAngle's body refers to compareMode."""
         html = _get_html(client)
         body = _extract_js_function(html, "renderFrameAtAngle")
         assert "compareMode" in body
@@ -241,7 +241,7 @@ class TestTurntableWithViewModes:
     def test_render_frame_handles_crystal_mode(
         self, client: TestClient,
     ) -> None:
-        """renderFrameAtAngle handles crystal preview mode."""
+        """renderFrameAtAngle's body refers to crystalActive."""
         html = _get_html(client)
         body = _extract_js_function(html, "renderFrameAtAngle")
         assert "crystalActive" in body
@@ -267,7 +267,7 @@ class TestExportProgress:
         assert 'id="export-progress-fill"' in html
 
     def test_export_updates_progress(self, client: TestClient) -> None:
-        """exportWebM updates progress text during capture."""
+        """exportWebM's body contains updateCaptureProgress."""
         html = _get_html(client)
         body = _extract_js_function(html, "exportWebM")
         assert "updateCaptureProgress" in body

@@ -216,11 +216,11 @@ def test_cinquefoil_knot_produces_closed_curve() -> None:
 
 
 def test_cinquefoil_knot_distinct_from_trefoil() -> None:
-    """Cinquefoil knot curve is distinct from a trefoil (2,3) knot."""
+    """Cinquefoil points differ by more than 0.01 from the pretzel knot's at p=2, q=3."""
     cinquefoil = CinquefoilKnotGenerator()
     obj_cinq = cinquefoil.generate(curve_points=_TEST_CURVE_POINTS)
 
-    # Generate a trefoil-like curve for comparison (2,3 torus knot)
+    # Compare with the pretzel knot generator at p=2, q=3
     pretzel = PretzelKnotGenerator()
     obj_tref = pretzel.generate(
         params={"p": 2, "q": 3}, curve_points=_TEST_CURVE_POINTS,
