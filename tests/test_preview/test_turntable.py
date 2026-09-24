@@ -118,7 +118,7 @@ class TestSpeedSlider:
         assert 'id="turntable-speed"' in html
 
     def test_speed_slider_is_range(self, client: TestClient) -> None:
-        """Speed slider is a range input with correct min/max."""
+        """The turntable-speed tag has type="range", min="0.5" and max="5"."""
         html = _get_html(client)
         tag = _extract_element(html, "turntable-speed")
         assert 'type="range"' in tag

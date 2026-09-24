@@ -137,7 +137,7 @@ def test_gallery_exports_resolve_paths(gallery_js: str) -> None:
     assert "export function resolveItemPaths" in gallery_js
 
 
-# ── Card rendering: gallery creates DOM elements with correct classes ──
+# ── Card rendering: card dataset, thumbnail, title and description code ──
 
 
 def test_gallery_creates_card_elements_with_dataset_name(gallery_js: str) -> None:
@@ -167,7 +167,7 @@ def test_gallery_renders_description_when_present(gallery_js: str) -> None:
     assert "gallery-card-desc" in gallery_js
 
 
-# ── Card click triggers onSelect with the correct item ──
+# ── Card click: item lookup by dataset name, selected-name check, _highlightCard ──
 
 
 def test_card_click_finds_item_by_dataset_name(gallery_js: str) -> None:
