@@ -66,8 +66,8 @@ class TestViewportSplitting:
     """Tests for viewport splitting with setViewport/setScissor."""
 
     def test_2x2_creates_4_viewports(self, preview_html: str) -> None:
-        """Preview HTML calls setViewport and setScissor and loops over
-        state.comparePanels."""
+        """Preview HTML contains setViewport, setScissor and
+        for (const panel of state.comparePanels)."""
         assert "setViewport" in preview_html
         assert "setScissor" in preview_html
         assert "for (const panel of state.comparePanels)" in preview_html
@@ -165,7 +165,7 @@ class TestExitCompareMode:
         assert "state.compareMode = null" in exit_fn
 
     def test_exit_cleans_up_panel_dom(self, preview_html: str) -> None:
-        """exitCompareMode calls removeAllPanelDOM."""
+        """exitCompareMode's body contains removeAllPanelDOM."""
         exit_fn = preview_html.split("function exitCompareMode")[1].split(
             "/* Compare mode toggle */"
         )[0]

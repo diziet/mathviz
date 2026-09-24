@@ -267,7 +267,7 @@ class TestExportProgress:
         assert 'id="export-progress-fill"' in html
 
     def test_export_updates_progress(self, client: TestClient) -> None:
-        """exportWebM calls updateCaptureProgress."""
+        """exportWebM's body contains updateCaptureProgress."""
         html = _get_html(client)
         body = _extract_js_function(html, "exportWebM")
         assert "updateCaptureProgress" in body

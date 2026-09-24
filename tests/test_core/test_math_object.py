@@ -172,7 +172,8 @@ class TestMathObjectValidation:
         assert any(e.startswith("point_cloud:") for e in errors)
 
     def test_validate_or_raise_joins_all_errors(self) -> None:
-        """validate_or_raise raises "Invalid MathObject:" with the error text."""
+        """validate_or_raise raises ValueError containing "Invalid MathObject:" and
+        "no geometry"."""
         obj = MathObject()  # no geometry
         with pytest.raises(ValueError) as exc_info:
             obj.validate_or_raise()

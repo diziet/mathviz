@@ -98,7 +98,7 @@ class TestGeneratorSelectorHTML:
         assert "/api/generate" in preview_html
 
     def test_html_updates_url_on_selection(self, preview_html: str) -> None:
-        """Preview HTML calls history.replaceState."""
+        """Preview HTML contains history.replaceState."""
         assert "history.replaceState" in preview_html
 
     def test_html_has_type_ahead_filtering(self, preview_html: str) -> None:

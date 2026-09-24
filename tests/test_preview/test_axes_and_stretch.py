@@ -149,11 +149,11 @@ class TestStretchBehavior:
     """Tests for stretch behavior on geometry vs bounding box."""
 
     def test_stretch_applies_to_mesh_group(self, preview_html: str) -> None:
-        """Preview HTML calls meshGroup.scale.set."""
+        """Preview HTML contains meshGroup.scale.set."""
         assert "meshGroup.scale.set" in preview_html
 
     def test_stretch_applies_to_cloud_points(self, preview_html: str) -> None:
-        """Preview HTML calls cloudPoints.scale.set."""
+        """Preview HTML contains cloudPoints.scale.set."""
         assert "cloudPoints.scale.set" in preview_html
 
     def test_bounding_box_not_affected_by_stretch(
