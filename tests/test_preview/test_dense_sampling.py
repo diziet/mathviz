@@ -7,6 +7,7 @@ sample cap, doesn't break existing modes, and uses separate cache keys.
 import re
 from typing import Any
 
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
@@ -192,3 +193,29 @@ class TestDenseCacheKeySeparation:
         cache = get_cache()
         assert cache.get(default_data["geometry_id"]) is not None
         assert cache.get(dense_data["geometry_id"]) is not None
+
+
+class TestSurfaceSamplingSeed:
+    """Dense Cloud and Surface Cloud points depend only on the request seed."""
+
+    @pytest.mark.parametrize("sampling", ["post_transform", "resolution_scaled"])
+    def test_same_seed_regenerates_identical_cloud(
+        self, client: TestClient, sampling: str
+    ) -> None:
+        """A forced regeneration with seed 42 returns the same 1000 points; seed 43 moves them."""
+        clouds = []
+        for seed in (42, 42, 43):
+            data = _generate(
+                client, sampling=sampling, seed=seed, max_samples=1000, force=True
+            )
+            entry = get_cache().get(data["geometry_id"])
+            assert entry is not None
+            assert entry.math_object.point_cloud is not None
+            clouds.append(entry.math_object.point_cloud)
+
+        first, second, other = clouds
+        assert first.points.shape == (1000, 3)
+        np.testing.assert_array_equal(first.points, second.points)
+        np.testing.assert_array_equal(first.normals, second.normals)
+        assert other.points.shape == first.points.shape
+        assert not np.array_equal(first.points, other.points)

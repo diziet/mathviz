@@ -1,7 +1,6 @@
 """Post-transform dense sampling: sample mesh surface and edges after physical-space scaling."""
 
 import logging
-import threading
 from dataclasses import replace
 from typing import Any, Literal
 
@@ -22,13 +21,11 @@ MAX_RESOLUTION_SCALED_SAMPLES = 5_000_000
 # Sample count used when the client does not specify one.
 DEFAULT_DENSE_SAMPLES = 500_000
 _DENSE_SURFACE_DENSITY = 100.0
-_DENSE_SEED = 42
 _MIN_SAMPLES = 10
 _DENSE_EDGE_FRACTION = 0.3
-
-# trimesh.sample relies on numpy's legacy global RNG.  Protect the
-# seed-then-sample sequence so concurrent threads don't interleave.
-_rng_lock = threading.Lock()
+# np.random.default_rng rejects negative seeds. Reducing MathObject.seed modulo 2**64 lets a
+# negative seed sample and leaves seeds 0 to 2**64 - 1 unchanged.
+_DENSE_SEED_MODULUS = 2**64
 
 
 def _sample_mesh_surface(
@@ -39,7 +36,7 @@ def _sample_mesh_surface(
     """Sample mesh surface, returning (cloud, total_area).
 
     Builds a trimesh, computes sample count from area × density (capped),
-    and uses deterministic RNG-locked sampling.
+    and samples with a generator seeded by obj.seed.
     """
     assert obj.mesh is not None  # caller must check  # noqa: S101
 
@@ -53,9 +50,12 @@ def _sample_mesh_surface(
     sample_count = max(_MIN_SAMPLES, int(total_area * surface_density))
     sample_count = min(sample_count, max_samples)
 
-    with _rng_lock:
-        np.random.seed(_DENSE_SEED)
-        points, face_indices = tm.sample(sample_count, return_index=True)
+    # Pass the seed to sample_surface: Trimesh.sample has no seed argument in trimesh 4.4.9, and
+    # trimesh 5 does not read np.random.seed. An int seed makes both draw from a new
+    # default_rng(seed), so concurrent calls share no RNG state and need no lock.
+    points, face_indices = trimesh.sample.sample_surface(
+        tm, sample_count, seed=int(obj.seed) % _DENSE_SEED_MODULUS
+    )
     normals = tm.face_normals[face_indices]
 
     cloud = PointCloud(
