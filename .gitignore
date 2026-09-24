@@ -16,3 +16,5 @@ node_modules/
 .mypy_cache/
 .claude
 .autopilot/logs/
+# Autopilot writes its state, logs and test artifacts under .autopilot/ in every task worktree.
+.autopilot/
