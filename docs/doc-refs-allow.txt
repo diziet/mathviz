@@ -17,6 +17,9 @@ mathviz-spec.md | .meta.json | sidecar written next to each export by src/mathvi
 docs/demo.md | manifest.json | written into the output directory by src/mathviz/demo_builder.py
 docs/preview*.md | mathviz-screenshot.png | download name set by the Screenshot button in src/mathviz/static/index.html
 
+# A path in another repository.
+CLAUDE.md | lib/merger.sh | autopilot's merger, in the autopilot repository
+
 # Not repository paths or commands.
 mathviz-spec.md | dx/dt | a derivative in the Lorenz ODE notation
 mathviz-spec.md | @react-three/* | npm package names
