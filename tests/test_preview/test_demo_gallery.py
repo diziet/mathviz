@@ -307,7 +307,11 @@ def test_gallery_toggle_uses_css_class_not_inline_style(scene_js: str) -> None:
 
 
 def test_manifest_schema_fields(gallery_js: str) -> None:
-    """demo-gallery.js contains each manifest field name."""
+    """demo-gallery.js contains the names of seven manifest fields.
+
+    They are name, category, display_name, thumbnail, mesh, cloud and description.
+    Manifest entries also have params and seed, which the test does not check.
+    """
     for field in ["name", "category", "display_name", "thumbnail", "mesh", "cloud", "description"]:
         assert field in gallery_js, f"Gallery JS missing handling for '{field}'"
 

@@ -86,7 +86,7 @@ class TestBenchmarkCommand:
     def test_generator_rows_have_timing_columns(
         self, shared_benchmark: BenchmarkResult,
     ) -> None:
-        """The report names both generators and the five stages, Generate to Total."""
+        """The report names both generators, the four stages Generate to Validate, and Total."""
         assert shared_benchmark.result.exit_code == 0
         for name in FAST_GENERATORS.split(","):
             assert name in shared_benchmark.html_content

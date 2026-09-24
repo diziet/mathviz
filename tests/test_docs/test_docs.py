@@ -75,7 +75,7 @@ class TestDocsStructure:
 
     @pytest.mark.parametrize("filename", EXPECTED_DOC_FILES)
     def test_doc_file_valid_markdown(self, filename: str) -> None:
-        """Each doc file starts with a level-1 heading and has no empty heading line."""
+        """Each expected doc file starts with a level-1 heading and has no empty heading line."""
         path = DOCS_DIR / filename
         content = read_text(path)
         lines = content.strip().split("\n")
