@@ -5,8 +5,11 @@ artifacts of Frenet-Serret frames. Handles closed curves by blending
 the last frame back into the first to eliminate seam gaps.
 """
 
+import itertools
 import logging
+import math
 import warnings
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -18,6 +21,10 @@ DEFAULT_SIDES = 16
 MIN_CURVE_POINTS = 2
 MIN_CLOSED_CURVE_POINTS = 3
 EPSILON = 1e-12
+
+# A 3-vector of Python floats: a tuple, or a row from ndarray.tolist().
+Vec3 = Sequence[float]
+_AXES: tuple[Vec3, ...] = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
 
 
 def thicken_curve(
@@ -85,31 +92,57 @@ def _compute_tangents(points: np.ndarray, closed: bool) -> np.ndarray:
     return tangents / norms
 
 
-def _initial_normal(tangent: np.ndarray) -> np.ndarray:
+def _cross(a: Vec3, b: Vec3) -> Vec3:
+    """Cross product of two 3-vectors, in the operation order np.cross uses."""
+    return (
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    )
+
+
+def _dot(a: Vec3, b: Vec3) -> float:
+    """Dot product of two 3-vectors."""
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def _norm(v: Vec3) -> float:
+    """Length of a 3-vector, as np.linalg.norm computes it: sqrt(v . v)."""
+    return math.sqrt(_dot(v, v))
+
+
+def _divide(v: Vec3, divisor: float) -> Vec3:
+    """Divide each component of a 3-vector by divisor."""
+    return (v[0] / divisor, v[1] / divisor, v[2] / divisor)
+
+
+def _initial_normal(tangent: Vec3) -> Vec3:
     """Find an initial normal vector perpendicular to the tangent."""
-    candidates = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
-    dots = np.abs(candidates @ tangent)
-    least_parallel = candidates[np.argmin(dots)]
-    normal = np.cross(tangent, least_parallel)
-    return normal / np.linalg.norm(normal)
+    abs_components = [abs(c) for c in tangent]
+    # min() and index() pick the first axis on a tie, as np.argmin does.
+    least_parallel = _AXES[abs_components.index(min(abs_components))]
+    normal = _cross(tangent, least_parallel)
+    return _divide(normal, _norm(normal))
 
 
 def _compute_bishop_frames(
     tangents: np.ndarray, closed: bool
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Build parallel-transport frames along the curve."""
-    n = len(tangents)
-    normals = np.empty_like(tangents)
-    binormals = np.empty_like(tangents)
+    """Build parallel-transport frames along the curve.
 
-    normals[0] = _initial_normal(tangents[0])
-    binormals[0] = np.cross(tangents[0], normals[0])
+    Each normal depends on the previous one, so the loop cannot be vectorized.
+    It uses Python floats because per-step NumPy calls on 3-vectors were
+    about 20 times slower (lorenz, 99,000 points).
+    """
+    tangent_rows = tangents.tolist()
+    normal = _initial_normal(tangent_rows[0])
+    normal_rows = [normal]
+    for prev_tangent, curr_tangent in itertools.pairwise(tangent_rows):
+        normal = _parallel_transport(normal, prev_tangent, curr_tangent)
+        normal_rows.append(normal)
 
-    for i in range(1, n):
-        normals[i] = _parallel_transport(
-            normals[i - 1], tangents[i - 1], tangents[i]
-        )
-        binormals[i] = np.cross(tangents[i], normals[i])
+    normals = np.array(normal_rows, dtype=np.float64)
+    binormals = np.cross(tangents, normals)
 
     if closed:
         normals, binormals = _close_frames(
@@ -120,47 +153,52 @@ def _compute_bishop_frames(
 
 
 def _parallel_transport(
-    prev_normal: np.ndarray,
-    prev_tangent: np.ndarray,
-    curr_tangent: np.ndarray,
-) -> np.ndarray:
+    prev_normal: Vec3,
+    prev_tangent: Vec3,
+    curr_tangent: Vec3,
+) -> Vec3:
     """Transport a normal from one tangent to the next via rotation."""
-    axis = np.cross(prev_tangent, curr_tangent)
-    axis_len = np.linalg.norm(axis)
-    cos_angle = np.clip(np.dot(prev_tangent, curr_tangent), -1.0, 1.0)
+    axis = _cross(prev_tangent, curr_tangent)
+    axis_len = _norm(axis)
+    cos_angle = min(max(_dot(prev_tangent, curr_tangent), -1.0), 1.0)
 
     if axis_len < EPSILON:
         if cos_angle < -0.99:
             # Anti-parallel (hairpin): rotate 180° around any perpendicular axis
             perp = _initial_normal(prev_tangent)
-            rotated = _rotate_around_axis(prev_normal, perp, np.pi)
+            rotated = _rotate_around_axis(prev_normal, perp, math.pi)
         else:
             # Nearly parallel: no rotation needed
-            return prev_normal.copy()
+            return prev_normal
     else:
-        axis /= axis_len
-        angle = np.arccos(cos_angle)
-        rotated = _rotate_around_axis(prev_normal, axis, angle)
+        rotated = _rotate_around_axis(
+            prev_normal, _divide(axis, axis_len), math.acos(cos_angle)
+        )
 
     # Re-orthogonalize against current tangent
-    rotated -= np.dot(rotated, curr_tangent) * curr_tangent
-    norm = np.linalg.norm(rotated)
+    along = _dot(rotated, curr_tangent)
+    rotated = (
+        rotated[0] - along * curr_tangent[0],
+        rotated[1] - along * curr_tangent[1],
+        rotated[2] - along * curr_tangent[2],
+    )
+    norm = _norm(rotated)
     if norm < EPSILON:
         # Fallback: find a fresh perpendicular to current tangent
         return _initial_normal(curr_tangent)
-    return rotated / norm
+    return _divide(rotated, norm)
 
 
-def _rotate_around_axis(
-    vec: np.ndarray, axis: np.ndarray, angle: float
-) -> np.ndarray:
+def _rotate_around_axis(vec: Vec3, axis: Vec3, angle: float) -> Vec3:
     """Rodrigues' rotation formula."""
-    cos_a = np.cos(angle)
-    sin_a = np.sin(angle)
+    cos_a = math.cos(angle)
+    sin_a = math.sin(angle)
+    cx, cy, cz = _cross(axis, vec)
+    along_axis = _dot(axis, vec)
     return (
-        vec * cos_a
-        + np.cross(axis, vec) * sin_a
-        + axis * np.dot(axis, vec) * (1.0 - cos_a)
+        vec[0] * cos_a + cx * sin_a + axis[0] * along_axis * (1.0 - cos_a),
+        vec[1] * cos_a + cy * sin_a + axis[1] * along_axis * (1.0 - cos_a),
+        vec[2] * cos_a + cz * sin_a + axis[2] * along_axis * (1.0 - cos_a),
     )
 
 
@@ -172,7 +210,11 @@ def _close_frames(
     """Blend frames for closed curves so last frame matches first."""
     n = len(normals)
     # Transport last normal forward to see the mismatch angle
-    transported = _parallel_transport(normals[-1], tangents[-1], tangents[0])
+    transported = np.array(
+        _parallel_transport(
+            normals[-1].tolist(), tangents[-1].tolist(), tangents[0].tolist()
+        )
+    )
     correction = _angle_between(transported, normals[0])
 
     # Determine sign of correction
