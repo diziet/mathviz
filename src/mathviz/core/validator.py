@@ -14,6 +14,11 @@ from mathviz.core.math_object import Mesh, PointCloud
 
 logger = logging.getLogger(__name__)
 
+# float64 rounding in transformer.fit can put a point slightly past a margin plane (at most
+# 1e-13 mm in 300 random fits), so container_bounds accepts overshoot up to this tolerance.
+# The transformer's _warn_if_outside_container uses the same tolerance.
+_BOUNDS_TOLERANCE_MM = 1e-9
+
 
 class Severity(str, Enum):
     """Severity level for a validation check."""
@@ -351,25 +356,24 @@ def _check_geometry_in_container(
         )
         return
 
-    usable = container.usable_volume
-    half_extents = np.array([usable[0] / 2, usable[1] / 2, usable[2] / 2])
+    # PHYSICAL coordinates put the container center at (width/2, height/2, depth/2), so the
+    # usable volume spans [margin, dimension - margin] on each axis.
+    low = np.array([container.margin_x_mm, container.margin_y_mm, container.margin_z_mm])
+    high = np.array([container.width_mm, container.height_mm, container.depth_mm]) - low
 
     mins = points.min(axis=0)
     maxs = points.max(axis=0)
-    outside = bool(np.any(mins < -half_extents) or np.any(maxs > half_extents))
+    overshoot = float(max(np.max(low - mins), np.max(maxs - high)))
 
-    if outside:
+    if overshoot > _BOUNDS_TOLERANCE_MM:
         result.checks.append(
             CheckResult(
                 "container_bounds",
                 False,
                 Severity.ERROR,
                 f"{label} extends outside container usable volume "
-                f"(extents: [{mins[0]:.2f}..{maxs[0]:.2f}], "
-                f"[{mins[1]:.2f}..{maxs[1]:.2f}], "
-                f"[{mins[2]:.2f}..{maxs[2]:.2f}]; "
-                f"half-extents: {half_extents[0]:.2f}, {half_extents[1]:.2f}, "
-                f"{half_extents[2]:.2f})",
+                f"(extents: {_format_ranges(mins, maxs)}; usable: {_format_ranges(low, high)}; "
+                f"overshoot: {overshoot:.3g} mm)",
             )
         )
     else:
@@ -381,3 +385,8 @@ def _check_geometry_in_container(
                 f"{label} fits within container usable volume",
             )
         )
+
+
+def _format_ranges(low: np.ndarray, high: np.ndarray) -> str:
+    """Format per-axis ranges in mm as "[low..high], [low..high], [low..high]"."""
+    return ", ".join(f"[{lo:.2f}..{hi:.2f}]" for lo, hi in zip(low, high))

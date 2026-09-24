@@ -160,8 +160,10 @@ class TestMeshValidation:
         assert "container_bounds" in error_names
 
     def test_mesh_inside_container_passes(self) -> None:
-        """Mesh fitting inside container passes bounds check."""
-        mesh = _make_cube_mesh()  # extends from -1 to 1
+        """Mesh at the center of the block passes the bounds check."""
+        mesh = _make_cube_mesh()
+        # Physical coordinates put the block center at (50, 50, 50); the cube spans 49..51.
+        mesh.vertices += 50.0
         big_container = Container(
             width_mm=100.0, height_mm=100.0, depth_mm=100.0,
             margin_x_mm=5.0, margin_y_mm=5.0, margin_z_mm=5.0,
@@ -223,9 +225,9 @@ class TestEngravingValidation:
         assert "container_bounds" in error_names
 
     def test_points_inside_container_passes(self) -> None:
-        """Point cloud inside container passes bounds check."""
+        """Point cloud at the center of the block passes the bounds check."""
         cloud = PointCloud(
-            points=np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], dtype=np.float64)
+            points=np.array([[50.0, 50.0, 50.0], [51.0, 51.0, 51.0]], dtype=np.float64)
         )
         big_container = Container(
             width_mm=100.0, height_mm=100.0, depth_mm=100.0,
