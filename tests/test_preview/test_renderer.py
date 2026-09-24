@@ -114,7 +114,8 @@ class TestRenderToPng:
     """Tests for render_to_png producing PNG output."""
 
     def test_render_produces_png_file(self, tmp_path: Path) -> None:
-        """render_to_png writes the output file and opens an off-screen 800x600 Plotter."""
+        """With RenderConfig(width=800, height=600), render_to_png writes the output
+        file and opens an off-screen 800x600 Plotter."""
         mock_pv = _make_mock_pyvista()
         output_file = tmp_path / "output.png"
 

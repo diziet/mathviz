@@ -35,7 +35,9 @@ def _assert_idempotent(
 ) -> None:
     """Assert that a second optimize changes the point count by under tolerance.
 
-    With check_intensities, the intensities must also match within 1e-10.
+    The tolerance is a fraction of the first run's point count. With check_intensities,
+    both runs must have intensities that pass np.testing.assert_allclose with atol=1e-10
+    and the default rtol=1e-7.
     """
     cloud = _make_cloud(num_points, seed=seed)
     obj = _make_obj(cloud)

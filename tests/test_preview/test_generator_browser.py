@@ -57,8 +57,8 @@ class TestBrowserModalStructure:
         assert "openBrowser" in preview_html
 
     def test_browser_shows_all_categories(self, preview_html: str) -> None:
-        """Preview HTML contains the browser ids, getGroupedGenerators and
-        renderCategoryGrid."""
+        """Preview HTML contains the generator-browser and browser-content ids,
+        getGroupedGenerators and renderCategoryGrid."""
         assert 'id="generator-browser"' in preview_html
         assert 'id="browser-content"' in preview_html
         assert "getGroupedGenerators" in preview_html

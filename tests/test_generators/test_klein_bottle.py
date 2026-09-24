@@ -145,8 +145,12 @@ def test_seam_normal_consistency(
     """Not every adjacent face pair at the u-seam has opposite normals.
 
     The Klein bottle is non-orientable, so perfect winding consistency
-    is impossible. The naive wrapping flipped all 256 seam pairs before the
-    fix; the assert requires fewer flipped pairs than pairs checked.
+    is impossible. The test checks each pair of faces that share an edge
+    where at least one face straddles the u-seam. It requires fewer pairs
+    with a negative normal dot product than pairs checked. Before the
+    Task 96 fix, all 256 pairs of two seam faces had a negative dot product,
+    but only 334 of the 512 pairs this test checks did, so the assert passed
+    then too.
     """
     vertices, faces = klein_mesh
     seam_mask = _seam_face_mask(faces, _GRID_RES, _GRID_RES)
