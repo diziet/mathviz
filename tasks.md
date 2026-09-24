@@ -7380,3 +7380,695 @@ when both rows match `cli_render.py` and `renderer.py`.
 - `make doc-refs-check` passes.
 
 ---
+
+## Task 182: Preview keyboard and browser tests that find a name anywhere in the page
+
+**Class:** weak test
+**Source:** test docstring audit, 2026-09-24 (branch docs/test-docstring-audit), recorded in prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, "Test docstring audit".
+
+**Objective:**
+
+Each test name promises runtime behavior of the preview page: a key that does something, a handler
+that runs in one state. Each assert finds a name or statement anywhere in the served HTML. The audit
+rewrote their docstrings to name the text matched.
+
+- `tests/test_preview/test_browser_keyboard.py`: `tests/test_preview/test_browser_keyboard.py:56`
+  (`test_cmd_k_toggles_browser`), `tests/test_preview/test_browser_keyboard.py:79`
+  (`test_number_keys_work_in_generator_view`), `tests/test_preview/test_browser_keyboard.py:86`
+  (`test_number_keys_skip_when_search_focused`), `tests/test_preview/test_browser_keyboard.py:100`
+  (`test_digit_timeout_configured`), `tests/test_preview/test_browser_keyboard.py:110`
+  (`test_single_digit_timeout_fires`), `tests/test_preview/test_browser_keyboard.py:119`
+  (`test_digit_buffer_cleared_on_state_transitions`),
+  `tests/test_preview/test_browser_keyboard.py:145` (`test_arrow_wrapping`),
+  `tests/test_preview/test_browser_keyboard.py:190` (`test_backspace_only_from_generators`),
+  `tests/test_preview/test_browser_keyboard.py:226` (`test_focus_scrolls_into_view`). Examples:
+  `test_digit_timeout_configured` finds `"500"` anywhere, and
+  `test_digit_buffer_cleared_on_state_transitions` counts at least 5 `resetDigitBuffer()`
+  occurrences, one of them the definition, without checking where they are.
+- `tests/test_preview/test_generator_browser.py`: `tests/test_preview/test_generator_browser.py:52`
+  (`test_cmd_k_opens_browser`), `tests/test_preview/test_generator_browser.py:59`
+  (`test_browser_shows_all_categories`), `tests/test_preview/test_generator_browser.py:76`
+  (`test_clicking_category_shows_generators`), `tests/test_preview/test_generator_browser.py:84`
+  (`test_clicking_generator_loads_and_closes`), `tests/test_preview/test_generator_browser.py:91`
+  (`test_search_filters_generators`), `tests/test_preview/test_generator_browser.py:98`
+  (`test_escape_closes_from_category_grid`), `tests/test_preview/test_generator_browser.py:114`
+  (`test_selected_generator_highlighted`), `tests/test_preview/test_generator_browser.py:149`
+  (`test_thumbnail_lazy_loading`), `tests/test_preview/test_generator_browser.py:159`
+  (`test_number_key_shortcuts`), `tests/test_preview/test_generator_browser.py:167`
+  (`test_backdrop_click_closes`). Examples: `"selected"` and `"loading"` anywhere.
+- `tests/test_preview/test_generator_switcher.py`:
+  `tests/test_preview/test_generator_switcher.py:95` (`test_html_calls_generate_on_selection`),
+  `tests/test_preview/test_generator_switcher.py:100` (`test_html_updates_url_on_selection`),
+  `tests/test_preview/test_generator_switcher.py:104` (`test_html_has_type_ahead_filtering`),
+  `tests/test_preview/test_generator_switcher.py:124` (`test_seed_change_triggers_regeneration`),
+  `tests/test_preview/test_generator_switcher.py:129` (`test_seed_input_preloads_from_url`),
+  `tests/test_preview/test_generator_switcher.py:141` (`test_dropdown_has_overlay_styling`),
+  `tests/test_preview/test_generator_switcher.py:146` (`test_category_display_in_dropdown`).
+- `tests/test_preview/test_enter_key.py`: `tests/test_preview/test_enter_key.py:72`
+  (`test_enter_on_seed_triggers_generation`), `tests/test_preview/test_enter_key.py:117`
+  (`test_non_enter_keys_do_not_trigger`), `tests/test_preview/test_enter_key.py:125`
+  (`test_checkbox_inputs_excluded`). The `applyGenerator` call is not tied to the `#controls`
+  handler.
+- `tests/test_preview/test_auto_apply.py`: `tests/test_preview/test_auto_apply.py:127`
+  (`test_pending_timer_cleared_on_disable`), `tests/test_preview/test_auto_apply.py:135`
+  (`test_auto_apply_skips_only_own_checkbox`), `tests/test_preview/test_auto_apply.py:157`
+  (`test_panels_wrapped_in_left_column`). The pending-timer test finds the condition but not the
+  `clearTimeout` inside it; the left-column test does not locate the closing tag, as its own comment
+  says.
+
+**Suggested path:**
+
+For each test, slice the function or branch its name names by matching braces (the helper in
+`tests/test_preview/test_lock_camera.py` takes a fixed 500-character window, which runs past a short
+function) and assert the statement inside that slice. Some named behavior has no function to slice
+(static markup, constants, CSS, top-level wiring); record those in this task.
+
+**Tests:** the five files above
+
+- Each test asserts inside the code its name names.
+- `make test` passes.
+
+---
+
+## Task 183: Preview color map, compare, crystal and container tests that find a name anywhere
+
+**Class:** weak test
+**Source:** test docstring audit, 2026-09-24 (branch docs/test-docstring-audit), recorded in prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, "Test docstring audit".
+
+**Objective:**
+
+As in Task 182, each name promises runtime behavior and most asserts find text anywhere in the
+served HTML, or match a regex such as `a.*b` that any later occurrence satisfies (the color map and
+crystal tests):
+
+- `tests/test_preview/test_color_map.py`: `tests/test_preview/test_color_map.py:60`
+  (`test_enter_colormap_shows_controls`), `tests/test_preview/test_color_map.py:104`
+  (`test_metric_change_calls_update`), `tests/test_preview/test_color_map.py:110`
+  (`test_gradient_change_calls_update`), `tests/test_preview/test_color_map.py:169`
+  (`test_exit_restores_materials`), `tests/test_preview/test_color_map.py:173`
+  (`test_exit_disposes_colormap_materials`), `tests/test_preview/test_color_map.py:179`
+  (`test_exit_removes_color_attribute`), `tests/test_preview/test_color_map.py:185`
+  (`test_exit_hides_controls`), `tests/test_preview/test_color_map.py:191`
+  (`test_mode_transition_triggers_exit`), `tests/test_preview/test_color_map.py:208`
+  (`test_swap_disposes_previous_colormap_material`), `tests/test_preview/test_color_map.py:214`
+  (`test_exit_scoped_to_modified_objects`).
+- `tests/test_preview/test_compare_view.py`: `tests/test_preview/test_compare_view.py:68`
+  (`test_2x2_creates_4_viewports`), `tests/test_preview/test_compare_view.py:75`
+  (`test_3x3_creates_9_viewports`), `tests/test_preview/test_compare_view.py:129`
+  (`test_panel_overlay_created_for_each_viewport`), `tests/test_preview/test_compare_view.py:148`
+  (`test_overlay_collapses_on_escape`), `tests/test_preview/test_compare_view.py:244`
+  (`test_spinner_shown_during_generation`). `test_overlay_collapses_on_escape` finds "Escape"
+  anywhere. `tests/test_preview/test_compare_view.py:227`
+  (`test_overlay_apply_only_regenerates_one_panel`) slices `applyPanelOverlay`, but nothing checks
+  that only one panel regenerates.
+- `tests/test_preview/test_crystal_mode.py`: `tests/test_preview/test_crystal_mode.py:137`
+  (`test_exit_removes_glass_block`), `tests/test_preview/test_crystal_mode.py:143`
+  (`test_exit_disposes_composer`), `tests/test_preview/test_crystal_mode.py:149`
+  (`test_exit_restores_materials`), `tests/test_preview/test_crystal_mode.py:153`
+  (`test_exit_disposes_env_render_target`), `tests/test_preview/test_crystal_mode.py:167`
+  (`test_template_material_disposed_on_exit`), `tests/test_preview/test_crystal_mode.py:233`
+  (`test_entering_crystal_exits_compare`), `tests/test_preview/test_crystal_mode.py:239`
+  (`test_entering_compare_exits_crystal`).
+- `tests/test_preview/test_density_slider.py`: `tests/test_preview/test_density_slider.py:111`
+  (`test_density_filter_uses_every_nth_sampling`), `tests/test_preview/test_density_slider.py:131`
+  (`test_density_min_clamps_to_one_point`), `tests/test_preview/test_density_slider.py:226`
+  (`test_dirty_flag_coalesces_raf`).
+- `tests/test_preview/test_axes_and_stretch.py`: `tests/test_preview/test_axes_and_stretch.py:63`
+  (`test_enabling_axes_adds_helper`), and `tests/test_preview/test_axes_and_stretch.py:169`
+  (`test_stretch_persists_across_regeneration`), which checks only that the `displayGenerateResult`
+  body contains `applyStretch()`; the call order and persistence are not checked, as the comment
+  pass 4 restored says.
+- `tests/test_preview/test_bounding_box.py`: `tests/test_preview/test_bounding_box.py:198`
+  (`test_bbox_visibility_wired_to_checkbox`).
+- `tests/test_preview/test_container_editor.py`: `tests/test_preview/test_container_editor.py:190`
+  (`test_html_apply_triggers_generate`), `tests/test_preview/test_container_editor.py:197`
+  (`test_html_reset_restores_defaults`).
+- `tests/test_preview/test_generation_timeout.py`:
+  `tests/test_preview/test_generation_timeout.py:234`
+  (`test_preview_html_persists_timeout_in_localstorage`).
+  `tests/test_preview/test_generation_timeout.py:172`
+  (`test_cancel_sets_event_and_does_not_leave_threads`) is not an HTML test: it sets
+  `executor._current_task` to a `MagicMock`, so no thread exists, and asserts only that
+  `cancel_event` is set.
+
+**Suggested path:**
+
+As in Task 182: slice the named function or branch and assert inside it. For the cancel test, submit
+a real job with a stubbed pipeline and assert that its future is done after `cancel()`.
+
+**Tests:** the eight files above
+
+- Each test asserts inside the code its name names.
+- `make test` passes.
+
+---
+
+## Task 184: Preview parameter, reset, snapshot and lighting tests that find a name anywhere
+
+**Class:** weak test
+**Source:** test docstring audit, 2026-09-24 (branch docs/test-docstring-audit), recorded in prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, "Test docstring audit".
+
+**Objective:**
+
+As in Task 182, each name promises runtime behavior or placement and each assert finds text anywhere
+in the served HTML:
+
+- `tests/test_preview/test_param_ui.py`: `tests/test_preview/test_param_ui.py:74`
+  (`test_boolean_params_use_checkbox`), `tests/test_preview/test_param_ui.py:82`
+  (`test_number_params_use_number_input`), `tests/test_preview/test_param_ui.py:105`
+  (`test_resolution_title`), `tests/test_preview/test_param_ui.py:109`
+  (`test_resolution_descriptions_shown`), `tests/test_preview/test_param_ui.py:113`
+  (`test_resolution_high_value_warning`), `tests/test_preview/test_param_ui.py:174`
+  (`test_int_params_have_step_1`), `tests/test_preview/test_param_ui.py:178`
+  (`test_float_params_have_step_01`), `tests/test_preview/test_param_ui.py:193`
+  (`test_apply_collects_params`), `tests/test_preview/test_param_ui.py:197`
+  (`test_apply_collects_resolution`), `tests/test_preview/test_param_ui.py:201`
+  (`test_apply_sends_both_in_body`), `tests/test_preview/test_param_ui.py:206`
+  (`test_apply_shows_loading_indicator`), `tests/test_preview/test_param_ui.py:241`
+  (`test_reset_uses_cached_defaults`), `tests/test_preview/test_param_ui.py:245`
+  (`test_reset_clears_error`), `tests/test_preview/test_param_ui.py:256`
+  (`test_select_generator_calls_fetch`), `tests/test_preview/test_param_ui.py:261`
+  (`test_populate_clears_fields`). Some asserts are close to vacuous: `'1'` and `'0.1'` anywhere,
+  `'number'` anywhere, and `"checkbox" in preview_html` as the last operand of an `or`, which makes
+  the other operands redundant.
+- `tests/test_preview/test_param_editor.py`: `tests/test_preview/test_param_editor.py:178`
+  (`test_html_fetches_params_on_generator_change`), `tests/test_preview/test_param_editor.py:182`
+  (`test_html_apply_sends_params`), `tests/test_preview/test_param_editor.py:187`
+  (`test_html_reset_restores_defaults`).
+- `tests/test_preview/test_param_ranges.py`: `tests/test_preview/test_param_ranges.py:171`
+  (`test_fetch_and_populate_calls_range_fetch`), `tests/test_preview/test_param_ranges.py:175`
+  (`test_populate_range_fields_called`), `tests/test_preview/test_param_ranges.py:186`
+  (`test_randomize_reads_min_input`), `tests/test_preview/test_param_ranges.py:191`
+  (`test_randomize_reads_max_input`), `tests/test_preview/test_param_ranges.py:203`
+  (`test_no_auto_apply_guard`), `tests/test_preview/test_param_ranges.py:209`
+  (`test_retry_on_validation_error`), `tests/test_preview/test_param_ranges.py:213`
+  (`test_exhausted_retries_show_error`). `test_no_auto_apply_guard` checks only that
+  `MAX_RANDOMIZE_ATTEMPTS` exists; nothing checks that the `autoApply` guard is gone.
+- `tests/test_preview/test_randomize_params.py`: `tests/test_preview/test_randomize_params.py:61`
+  (`test_randomize_button_in_param_buttons`), `tests/test_preview/test_randomize_params.py:71`
+  (`test_randomize_fetches_ranges`), `tests/test_preview/test_randomize_params.py:86`
+  (`test_randomize_iterates_param_inputs`), `tests/test_preview/test_randomize_params.py:138`
+  (`test_randomize_sets_seed`), `tests/test_preview/test_randomize_params.py:265`
+  (`test_shortcut_checks_active_element`), `tests/test_preview/test_randomize_params.py:269`
+  (`test_shortcut_calls_randomize`). `test_randomize_button_in_param_buttons` checks the order of
+  two strings, not containment.
+- `tests/test_preview/test_reset_view.py`: `tests/test_preview/test_reset_view.py:55`
+  (`test_html_contains_fit_camera_in_reset`), `tests/test_preview/test_reset_view.py:77`
+  (`test_html_disables_reset_on_clear_scene`), `tests/test_preview/test_reset_view.py:81`
+  (`test_html_contains_home_key_shortcut`), `tests/test_preview/test_reset_view.py:86`
+  (`test_html_shortcut_checks_modifier_keys`), `tests/test_preview/test_reset_view.py:92`
+  (`test_html_shortcut_checks_disabled_state`), `tests/test_preview/test_reset_view.py:96`
+  (`test_html_shortcut_guards_editable_elements`).
+- `tests/test_preview/test_resolution_controls.py`:
+  `tests/test_preview/test_resolution_controls.py:195` (`test_html_populates_resolution_from_api`),
+  `tests/test_preview/test_resolution_controls.py:200` (`test_html_sends_resolution_in_generate`).
+- `tests/test_preview/test_snapshots_browse.py`: `tests/test_preview/test_snapshots_browse.py:269`
+  (`test_load_button_opens_gallery`), `tests/test_preview/test_snapshots_browse.py:278`
+  (`test_gallery_has_delete_with_confirmation`).
+- `tests/test_preview/test_snapshots.py`: `tests/test_preview/test_snapshots.py:243`
+  (`test_gallery_card_shows_view_mode_from_ui_state`), `tests/test_preview/test_snapshots.py:267`
+  (`test_load_calls_restore_ui_state`), `tests/test_preview/test_snapshots.py:286`
+  (`test_capture_includes_stretch`), `tests/test_preview/test_snapshots.py:291`
+  (`test_capture_includes_show_axes`), `tests/test_preview/test_snapshots.py:295`
+  (`test_restore_applies_stretch`).
+- `tests/test_preview/test_lock_camera.py`: `tests/test_preview/test_lock_camera.py:120`
+  (`test_clipping_planes_in_else_branch`), `tests/test_preview/test_lock_camera.py:159`
+  (`test_save_returns_null_when_off`). Both read a fixed 500-character window from the function
+  signature; the else-branch test has no branch check, and the null-return test checks only the
+  comparison.
+- `tests/test_preview/test_lighting.py`: `tests/test_preview/test_lighting.py:84`
+  (`test_shadow_on_both_light_and_mesh`): counts `castShadow = true` at least twice, which two mesh
+  occurrences would satisfy.
+- `tests/test_preview/test_static_files.py`: `tests/test_preview/test_static_files.py:33`
+  (`test_html_contains_threejs_import`): "three" and "THREE" anywhere; no import is checked.
+
+**Suggested path:**
+
+As in Task 182: slice the named function or branch and assert inside it.
+
+**Tests:** the eleven files above
+
+- Each test asserts inside the code its name names.
+- `make test` passes.
+
+---
+
+## Task 185: Demo gallery, turntable, volume and view-mode tests that find a name anywhere
+
+**Class:** weak test
+**Source:** test docstring audit, 2026-09-24 (branch docs/test-docstring-audit), recorded in prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, "Test docstring audit".
+
+**Objective:**
+
+- `tests/test_preview/test_demo_gallery.py`: `tests/test_preview/test_demo_gallery.py:179`
+  (`test_card_click_skips_already_selected`), `tests/test_preview/test_demo_gallery.py:184`
+  (`test_card_click_highlights_and_calls_onselect`), `tests/test_preview/test_demo_gallery.py:215`
+  (`test_query_param_selects_or_falls_back`), `tests/test_preview/test_demo_gallery.py:220`
+  (`test_gallery_select_by_name_returns_bool`), `tests/test_preview/test_demo_gallery.py:253`
+  (`test_gallery_all_category_shows_all_cards`), `tests/test_preview/test_demo_gallery.py:294`
+  (`test_gallery_close_wired_in_scene`), `tests/test_preview/test_demo_gallery.py:300`
+  (`test_gallery_toggle_uses_css_class_not_inline_style`),
+  `tests/test_preview/test_demo_gallery.py:309` (`test_manifest_schema_fields`),
+  `tests/test_preview/test_demo_gallery.py:324` (`test_gallery_module_listed_in_demo_page_test`).
+  Examples: `return false` and `return true` anywhere in `src/mathviz/static/demo-gallery.js`;
+  `"name"` anywhere; the inline style test does not check that the style is absent; the test that
+  says it is listed in the demo page test only reads the file.
+- `tests/test_preview/test_turntable.py:168` (`test_set_turntable_shows_export`): finds
+  `turntable-export-section` and `visible` in the `setTurntable` body, which also calls
+  `classList.remove('visible')`, so the test passes without the `classList.add('visible')` line.
+- `tests/test_preview/test_turntable.py:206` (`test_speed_slider_disabled_when_off`),
+  `tests/test_preview/test_turntable.py:233` (`test_render_frame_handles_compare_mode`) and
+  `tests/test_preview/test_turntable.py:241` (`test_render_frame_handles_crystal_mode`): find the
+  words `disabled`, `compareMode` and `crystalActive` in the function body.
+- `tests/test_preview/test_usable_volume.py:126` (`test_margin_input_triggers_update`): finds
+  `onMarginInput` and `updateUsableVolume()` anywhere. That text also matches the definition, the
+  call in `resetContainerDefaults` and the call at init, so the test passes with the call in
+  `onMarginInput` removed.
+- `tests/test_preview/test_view_mode_default.py:208`
+  (`test_switching_generators_preserves_compatible_mode`): checks that the `displayGenerateResult`
+  body does not contain "schwarz" or "lorenz".
+- `tests/test_preview/test_viewer.py:133` (`test_generator_param_in_html`): status 200 and
+  `parseQueryParams` in the page, which holds for any query string on `/`.
+
+**Suggested path:**
+
+As in Task 182: assert the statement inside the named function or branch, for example
+`classList.add('visible')` in the `if (enabled)` branch, `.disabled = !enabled`, the call inside
+`onMarginInput`, and the `generator` read in `parseQueryParams`.
+
+**Tests:** the files above
+
+- Each test asserts inside the code its name names.
+- `make test` passes.
+
+---
+
+## Task 186: Preview server, renderer and snapshot tests that check less than their names
+
+**Class:** weak test
+**Source:** test docstring audit, 2026-09-24 (branch docs/test-docstring-audit), recorded in prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, "Test docstring audit".
+
+**Objective:**
+
+- `tests/test_preview/test_batch_generate.py:180` (`test_cached_panels_skip_generation`): two
+  identical requests return the same `geometry_id`. The id is the cache key, so it matches whether
+  or not generation ran. `tests/test_preview/test_batch_generate.py:132`
+  (`test_batch_respects_timeout`): `submit_batch` is patched to return a timed-out result.
+- `tests/test_preview/test_bounding_box.py:235` (`test_generated_cloud_centered_via_api`): checks
+  status 200, or skips; no position is read. It always skips today: the torus generator gives no
+  point cloud.
+- `tests/test_preview/test_container_editor.py:98` (`test_default_container_matches_no_container`):
+  200 and a `mesh_url`; nothing is compared with an explicit default container.
+- `tests/test_preview/test_dense_sampling.py:119` (`test_default_sampling_unchanged`): checks that
+  fields are present; nothing is compared with earlier output.
+- `tests/test_preview/test_renderer.py:152` (`test_render_output_is_non_trivial`): more than 10
+  distinct bytes in content that the test's own fake screenshot wrote.
+  `tests/test_preview/test_renderer.py:260`
+  (`test_2d_top_projection_of_sphere_produces_circular_outline`): checks the projection mode and
+  camera; no image is examined. `tests/test_preview/test_renderer.py:414`
+  (`test_default_render_uses_vertex_style`): the helper passes `style="vertex"` explicitly, so the
+  default is not used.
+- `tests/test_preview/test_resolution_scaled_sampling.py:115`
+  (`test_default_resolution_matches_base_density`): two calls of `apply_resolution_scaled_sampling`,
+  not a comparison with base sampling. `tests/test_preview/test_resolution_scaled_sampling.py:133`
+  (`test_no_resolution_kwarg_uses_scale_1`): a non-empty point cloud.
+  `tests/test_preview/test_resolution_scaled_sampling.py:188` (`test_default_sampling_unchanged`)
+  and `tests/test_preview/test_resolution_scaled_sampling.py:193` (`test_dense_sampling_unchanged`):
+  200 and a `geometry_id`.
+- `tests/test_preview/test_resolution_controls.py:156` (`test_no_resolution_uses_defaults`): 200,
+  `geometry_id` and `mesh_url`.
+- `tests/test_preview/test_snapshots_browse.py:200` (`test_returns_404_for_missing_file`): asserts
+  only if the status is 404; a 200 passes with no assert.
+  `tests/test_preview/test_snapshots_browse.py:222` (`test_loading_snapshot_restores_values`): only
+  the snapshot list is read; no load runs.
+- `tests/test_preview/test_snapshots.py:105` (`test_save_enabled_after_load_and_regenerate`): no
+  load and no button state are checked.
+- `tests/test_preview/test_thumbnail_subprocess.py:39` (`test_subprocess_generates_webp`): the WebP
+  comes from the stubbed `subprocess.run`.
+- `tests/test_preview/test_thumbnails.py:189` (`test_returns_urls_for_all_generators`): checks the
+  torus entry only.
+
+**Suggested path:**
+
+For each test, assert what its name says: count stubbed generation calls, run a short real timeout,
+parse the served cloud of a generator that produces one, compare with an explicit default request,
+examine a rendered image or rename, render with a default `RenderConfig()`, compare with base
+sampling, request a file known to be absent, and assert every generator's key. Loading a snapshot
+happens only in the page's `loadSnapshot` script, with no server endpoint, so that test slices
+`loadSnapshot` or is renamed.
+
+**Tests:** the files above
+
+- Each test asserts what its name says, or is renamed in its own PR.
+- `make test` passes.
+
+---
+
+## Task 187: Generator tests whose names promise a geometric property the asserts do not check
+
+**Class:** weak test
+**Source:** test docstring audit, 2026-09-24 (branch docs/test-docstring-audit), recorded in prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, "Test docstring audit".
+
+**Objective:**
+
+- `tests/test_generators/test_cross_cap.py:45` (`test_self_intersections_present`) and
+  `tests/test_generators/test_roman_surface.py:36` (`test_self_intersections_present`): more than
+  one vertex within 0.05 of the origin; neighboring vertices of one grid region would pass.
+- `tests/test_generators/test_data_driven.py:93`
+  (`test_heightmap_from_png_produces_mesh_with_z_range`): checks the scalar field; no mesh is built.
+- `tests/test_generators/test_dini_surface.py:218` (`test_pseudospherical_shape`): every vertex
+  within xy radius 1.0; curvature is not checked.
+- `tests/test_generators/test_dupin_cyclide.py:50` (`test_torus_like_shape`),
+  `tests/test_generators/test_dupin_cyclide.py:68` (`test_horn_like_shape`) and
+  `tests/test_generators/test_dupin_cyclide.py:187` (`test_a_affects_scale`): an extent ratio, a
+  mean-x shift, and vertices that differ; no torus hole, horn point or extent is checked.
+- `tests/test_generators/test_exotic_knots.py:218` (`test_cinquefoil_knot_distinct_from_trefoil`):
+  compares with the pretzel knot generator at p=2, q=3, not a trefoil.
+- `tests/test_generators/test_gear.py:39` (`test_mesh_extent_matches_tooth_count`): compares vertex
+  counts, not the extent.
+- `tests/test_generators/test_geodesic_sphere.py:62`
+  (`test_dual_mode_produces_pentagonal_and_hexagonal_faces`): counts sides on a mesh the test
+  builds; the generator's dual output is only validated.
+  `tests/test_generators/test_geodesic_sphere.py:213` (`test_dual_string_true_activates_dual_mode`):
+  a mesh that validates, which a non-dual mesh also gives.
+- `tests/test_generators/test_implicit_surfaces.py:42` (`test_tpms_produces_manifold_mesh`):
+  `validate_or_raise` checks shapes, dtypes, NaN and index bounds, not manifoldness.
+- `tests/test_generators/test_klein_bottle.py:142` (`test_seam_normal_consistency`): passes with all
+  but one seam pair flipped.
+- `tests/test_generators/test_knots.py:246` (`test_negative_p_raises`) and
+  `tests/test_generators/test_knots.py:252` (`test_negative_q_raises`): pass 0, not a negative
+  value.
+- `tests/test_generators/test_koch_3d.py:34` (`test_level_0_produces_equilateral_triangle`): counts
+  vertices and faces; no side length is compared.
+- `tests/test_generators/test_lsystem.py:74` (`test_different_presets_produce_distinct_geometries`):
+  at least 2 unique bounding-box sizes (extents rounded to 4 decimals) among 3 presets.
+  `tests/test_generators/test_lsystem.py:162` (`test_hilbert3d_space_filling`): an extent above 0.1
+  on each axis.
+- `tests/test_generators/test_magnetic_field.py:42` (`test_dipole_lines_loop_between_poles`): each
+  line has points above and below z = 0. `tests/test_generators/test_magnetic_field.py:69`
+  (`test_quadrupole_more_complex_pattern`): the extents are not all close within 0.1.
+- `tests/test_generators/test_mobius_trefoil.py:96` (`test_surface_has_single_boundary`): at least
+  one boundary edge; loops are not counted.
+- `tests/test_generators/test_number_theory.py:188` (`test_intensities_proportional_to_digits`):
+  intensities between 0 and 1.
+- `tests/test_generators/test_penrose_3d.py:56` (`test_has_two_distinct_heights`): at least 3
+  distinct z values; more pass.
+- `tests/test_generators/test_physics.py:154` (`test_two_bodies_produces_orbital_curves`): 2 curves
+  of 1000 points without NaN; the orbit shape is not checked.
+- `tests/test_generators/test_rd_surface.py:165` (`test_zero_displacement_matches_base`): compares
+  with a displaced run, not the base; `test_zero_displacement_preserves_base_geometry` compares with
+  the base.
+- `tests/test_generators/test_rose_surface.py:44` (`test_integer_k1_symmetric_petals`): the mean x
+  and y are near 0. `tests/test_generators/test_rose_surface.py:58`
+  (`test_different_k1_produce_different_vertex_counts`): compares positions, as its docstring says;
+  the counts are equal.
+- `tests/test_generators/test_seifert_surface.py:48` (`test_trefoil_boundary_near_knot`): the median
+  distance from knot samples to any vertex, not the boundary.
+- `tests/test_generators/test_strange_attractors.py:241` (`test_sprott_bounded_trajectories`):
+  finite bounding boxes; no upper bound.
+- `tests/test_generators/test_twisted_torus.py:69`
+  (`test_twist_zero_geometry_matches_standard_torus`): the z range only.
+- `tests/test_generators/test_voronoi_sphere.py:63` (`test_num_cells_6_icosahedron_like`): between 6
+  and 99 faces.
+
+Read 2026-09-24, from the verification of this task:
+
+- The Hilbert 3D preset sets `default_angle=90.0`, but the generator uses `_DEFAULT_ANGLE = 25.0`
+  (`src/mathviz/generators/procedural/lsystem.py`), so the preset does not draw a grid. This looks
+  like a generator bug.
+- For the Seifert trefoil, no grid row of the mesh follows `_trefoil_reference_knot(200)`: the last
+  row has a median distance of 1.31 from it.
+- The magnetic field is one point dipole at the origin, so there are no separate poles; each line
+  starts and ends in opposite z hemispheres.
+- The rose surface has only a half-turn symmetry about z, which comes from `k2=2`; a rotation by
+  2π/k1 does not map it onto itself.
+
+**Suggested path:**
+
+For the Hilbert 3D preset, first a test with the preset's 90-degree angle that fails today, then the
+fix. For the Seifert test, a generator change or a rename. For the others, assert the property the
+name states: two vertices far apart in (u, v) at the same point, the mesh z-range, curvature, the
+shape feature, a trefoil comparison, the extent against the pitch diameter, the generator's dual
+faces, edge-manifoldness, a bound on flipped pairs, negative values, equal sides, 3 unique presets,
+line endpoints in opposite z hemispheres, a complexity measure, one boundary loop, `digit / 9`,
+exactly two tile heights, a bounded orbit, the base mesh, the half-turn symmetry, an extent bound,
+the torus parameterization and the cell structure. Where the name is wrong rather than the assert,
+rename the test in its own PR.
+
+**Tests:** `tests/test_generators/`
+
+- Each test asserts what its name says, or is renamed.
+- `make test` passes.
+
+---
+
+## Task 188: Generator `test_registers_and_renders` tests that render nothing
+
+**Class:** weak test
+**Source:** test docstring audit, 2026-09-24 (branch docs/test-docstring-audit), recorded in prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, "Test docstring audit".
+
+**Objective:**
+
+Each test looks the generator up in the registry and validates its output. Most also check that it
+is not empty; the gear and geodesic sphere tests check the mesh, name, category and bounding box
+instead. Nothing renders or exports:
+
+- `tests/test_generators/test_dna_helix.py:93` (`test_registers_and_renders`)
+- `tests/test_generators/test_gear.py:157` (`test_registers_and_renders`)
+- `tests/test_generators/test_geodesic_sphere.py:134` (`test_registers_and_renders`)
+- `tests/test_generators/test_gravitational_lensing.py:128` (`test_registers_and_renders`)
+- `tests/test_generators/test_hopf_fibration.py:99` (`test_registers_and_renders`)
+- `tests/test_generators/test_magnetic_field.py:143` (`test_registers_and_renders`)
+- `tests/test_generators/test_penrose_3d.py:120` (`test_registers_and_renders`)
+- `tests/test_generators/test_wave_interference.py:115` (`test_registers_and_renders`)
+
+**Suggested path:**
+
+Run `pipeline.runner.run(...)` and assert the output mesh, as
+`tests/test_generators/test_hilbert_3d.py` `test_registers_and_renders` does; add an `ExportConfig`
+to cover export.
+
+**Tests:** the eight files above
+
+- Each test runs the pipeline and asserts the output.
+- `make test` passes.
+
+---
+
+## Task 189: Pipeline sampling and export-routing tests that check less than their names
+
+**Class:** weak test
+**Source:** test docstring audit, 2026-09-24 (branch docs/test-docstring-audit), recorded in prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, "Test docstring audit".
+
+**Objective:**
+
+- `tests/test_pipeline/test_dense_sampling.py:85` (`test_hard_cap_enforced_on_post_transform`) and
+  `tests/test_pipeline/test_dense_sampling.py:101` (`test_hard_cap_enforced_on_resolution_scaled`):
+  assert a point count at or below the cap. Read, not run: on the unit cube both totals stay below
+  the cap whether or not the clamp in `src/mathviz/pipeline/dense_sampling.py` exists.
+- `tests/test_pipeline/test_edge_sampling.py:118` (`test_longer_edges_get_more_points`): more than
+  30% of the points on the long edge, which equal allocation (33% each) also gives.
+  `tests/test_pipeline/test_edge_sampling.py:144` (`test_dense_has_both_surface_and_edge`): a
+  non-empty cloud. `tests/test_pipeline/test_edge_sampling.py:157`
+  (`test_dense_includes_more_sources_than_edge_only`): counts only; surface and edge points are not
+  told apart.
+- `tests/test_pipeline/test_export_routing.py:176` (`test_explicit_mesh_forces_mesh`) and
+  `tests/test_pipeline/test_export_routing.py:183` (`test_explicit_cloud_forces_cloud`): the file
+  exists. `.stl` and `.xyz` already route to mesh and cloud without `export_type`, so both pass if
+  it is ignored. `tests/test_pipeline/test_export_routing.py:283`
+  (`test_cloud_only_cloud_url_serves_ply`): status 200 only.
+- `tests/test_pipeline/test_representation_fallback.py:116` (`test_tube_radius_based_on_bbox`): one
+  curve's radius in (0.01, 0.1); a constant radius passes.
+  `tests/test_pipeline/test_representation_fallback.py:161`
+  (`test_sparse_shell_passes_through_cloud`): the points are not compared with the input.
+
+**Suggested path:**
+
+Use a surface large enough that the unclamped count exceeds the cap, or inspect the budget passed to
+the sampler; compare the long edge with the short one; count on-edge and off-edge points; use `.ply`
+for the cloud test, which auto-detection routes to mesh, and an explicit format for the mesh test,
+since the extensions that route to cloud are rejected by the mesh exporter; check the PLY header;
+compare radii for two curve sizes; compare the output points with the input.
+
+**Tests:** `tests/test_pipeline/`
+
+- Each test asserts what its name says.
+- `make test` passes.
+
+---
+
+## Task 190: Core, CLI and demo-build tests that check less than their names
+
+**Class:** weak test
+**Source:** test docstring audit, 2026-09-24 (branch docs/test-docstring-audit), recorded in prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, "Test docstring audit".
+
+**Objective:**
+
+- `tests/test_core/test_math_object.py:174` (`test_validate_or_raise_joins_all_errors`): one error
+  only; `test_validate_or_raise_multiple_errors_joined` checks the joining.
+- `tests/test_core/test_pipeline.py:157` (`test_duplicate_stage_overwrites`): the second timing is
+  not compared with the first.
+- `tests/test_core/test_representation.py:126` (`test_curve_to_watertight_mesh`): shapes and
+  non-empty; not watertight. `tests/test_core/test_representation.py:284`
+  (`test_produces_discrete_layers`): at least 4 distinct z values, with no upper bound.
+- `tests/test_core/test_engraving.py:254` (`test_budget_prefers_high_intensity_points`): mean
+  intensity above 0.6; nothing is compared with the dropped points.
+- `tests/test_core/test_transformer.py:270` (`test_rotation_applies_before_scaling`): the rotated
+  result fits the container. Read, not run: an unrotated bar also fits, so neither the order nor the
+  rotation is checked.
+- `tests/test_core/test_validator.py:269` (`test_min_spacing_warning`) and
+  `tests/test_core/test_validator.py:282` (`test_max_gap_warning`): the check fails; its severity is
+  not asserted.
+- `tests/test_cli_utils.py:204` (`test_schema_has_generator_schemas`): the dict check runs only if
+  the generators schema directory exists.
+- `tests/test_cli/test_benchmark.py:86` (`test_generator_rows_have_timing_columns`) and
+  `tests/test_cli/test_benchmark.py:96` (`test_report_contains_exactly_requested_generators`): names
+  anywhere in the HTML and at least 3 `<tr>` tags; rows are not parsed.
+- `tests/test_cli/test_render_all.py:109` (`test_workers_1_runs_sequentially`): exit 0 only.
+  `tests/test_cli/test_render_all.py:196` (`test_aliases_resolved_to_canonical`): passes a canonical
+  name, not an alias.
+- `tests/test_build_demo.py:213` (`test_failing_generator_skipped_with_warning`): no log is checked.
+  `tests/test_build_demo.py:249` (`test_partial_directory_cleaned_on_export_failure`):
+  `run_pipeline` raises before the data directory is created, so `_cleanup_partial_data` finds no
+  directory to remove. `tests/test_build_demo.py:132` (`test_produces_index_html_and_manifest`):
+  `_copy_static_assets` is mocked; only `manifest.json` is checked.
+- `tests/test_fixtures.py:192` (`test_wrong_seed_produces_mismatch`): the reference `min_corner`
+  already differs at the correct seed on this machine (Task 178), so the assert passes whatever the
+  seed while that holds.
+
+**Suggested path:**
+
+Assert what each name says: compare two timings with a patched clock, check `is_watertight`, bound
+the layer count, compare kept and dropped intensities, use a shape where only rotation-then-scale
+fits and assert the result's shape, assert `Severity.WARNING`, require the schema directory, parse
+the report rows, check that no pool is used with `--workers 1`, pass a registered alias, check the
+warning with `caplog`, fail after the directory is created, let `_copy_static_assets` run, and
+revisit the seed test after Task 178. Where a test is covered elsewhere, remove or rename it in its
+own PR.
+
+**Tests:** the files above
+
+- Each test asserts what its name says.
+- `make test` passes.
+
+---
+
+## Task 191: Docs tests that match a word anywhere in a document
+
+**Class:** weak test
+**Source:** test docstring audit, 2026-09-24 (branch docs/test-docstring-audit), recorded in prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, "Test docstring audit".
+
+**Objective:**
+
+- `tests/test_docs/test_docs.py:35` (`test_readme_has_install_section`),
+  `tests/test_docs/test_docs.py:40` (`test_readme_has_quickstart_section`),
+  `tests/test_docs/test_docs.py:45` (`test_readme_has_generators_section`),
+  `tests/test_docs/test_docs.py:50` (`test_readme_has_cli_section`),
+  `tests/test_docs/test_docs_completeness.py:45` (`test_readme_has_install_section`),
+  `tests/test_docs/test_docs_completeness.py:50` (`test_readme_has_run_section`) and
+  `tests/test_docs/test_docs_completeness.py:57` (`test_readme_has_test_section`): each finds a word
+  anywhere in the lower-cased README ("install", "quickstart", "generator", "cli", "quickstart" or
+  "run", "testing" or "pytest"); "cli" and "run" also match inside other words.
+- `tests/test_docs/test_generate_generator_docs.py:118` (`test_defaults_match`): the default's text
+  anywhere in the generator's section, so a default of 1 matches any "1" there; list defaults are
+  not checked.
+- `tests/test_docs/test_preview_ui_docs.py:123` (`test_shortcut_documented`): a lower-cased
+  substring of the whole doc; the entry "r" matches any letter r.
+
+**Suggested path:**
+
+Assert a heading line for each README section, parse the parameter table row for each default, and
+check the shortcut column of the keyboard-shortcuts table.
+
+**Tests:** `tests/test_docs`
+
+- Each test asserts what its name says.
+- `pytest tests/test_docs` and `make test` pass.
+
+---
+
+## Task 192: More preview, sampling and core tests that check less than their names
+
+**Class:** weak test
+**Source:** test docstring audit, 2026-09-24 (branch docs/test-docstring-audit), recorded in prose-rollout report `~/projects/devops/prose-rollout/mathviz.md`, "Test docstring audit".
+
+**Objective:**
+
+The audit rewrote these docstrings to state the narrower check, and Tasks 182-191 did not list
+the tests. As in Tasks 182-185, each preview test name promises runtime behavior, and its asserts
+only find a name or statement in the served HTML:
+
+- `tests/test_preview/test_browser_keyboard.py`: `tests/test_preview/test_browser_keyboard.py:154`
+  (`test_enter_activates_focused`), `tests/test_preview/test_browser_keyboard.py:161`
+  (`test_enter_requires_focus`), `tests/test_preview/test_browser_keyboard.py:169`
+  (`test_escape_closes_from_categories`), `tests/test_preview/test_browser_keyboard.py:174`
+  (`test_escape_goes_back_from_generators`), `tests/test_preview/test_browser_keyboard.py:185`
+  (`test_backspace_goes_back`), `tests/test_preview/test_browser_keyboard.py:202`
+  (`test_backspace_skips_when_search_focused`). `test_escape_closes_from_categories` has the same
+  two asserts as `test_escape_closes_from_category_grid` in Task 182: "Escape" and `closeBrowser`
+  anywhere.
+- `tests/test_preview/test_generator_browser.py:187` (`test_backspace_goes_back`): "Backspace" and
+  `browserGoBack` anywhere.
+- `tests/test_preview/test_enter_key.py:133` (`test_input_blurred_after_enter`): `e.target.blur()`
+  anywhere in the script, not tied to the Enter branch.
+- `tests/test_preview/test_compare_view.py`: `tests/test_preview/test_compare_view.py:144`
+  (`test_overlay_expands_on_click`) finds `overlay.classList.toggle('expanded')` anywhere; no click
+  handler is checked. `tests/test_preview/test_compare_view.py:178`
+  (`test_view_mode_applies_to_all_panels`), `tests/test_preview/test_compare_view.py:182`
+  (`test_point_size_applies_to_all_panels`), `tests/test_preview/test_compare_view.py:186`
+  (`test_background_applies_to_all_panels`) and `tests/test_preview/test_compare_view.py:190`
+  (`test_bbox_applies_to_all_panels`) each find one function name anywhere, for example
+  `updatePanelBackgrounds`.
+- `tests/test_preview/test_crystal_mode.py`: `tests/test_preview/test_crystal_mode.py:160`
+  (`test_exit_disposes_canvas_textures`), `tests/test_preview/test_crystal_mode.py:216`
+  (`test_exit_restores_bg_from_darkbg_state`), `tests/test_preview/test_crystal_mode.py:222`
+  (`test_bg_toggle_respects_crystal_mode`). Each regex runs over the whole page. Two of the failure
+  messages name `exitCrystalMode`, but no assert is limited to it.
+- `tests/test_preview/test_density_slider.py`: `tests/test_preview/test_density_slider.py:176`
+  (`test_density_visibility_updates_on_view_mode_change`) and
+  `tests/test_preview/test_density_slider.py:250` (`test_compare_mode_density_propagation`) find
+  `updateDensitySliderVisibility()` and `updateDensityInPanels()` anywhere.
+- `tests/test_preview/test_axes_and_stretch.py`: `tests/test_preview/test_axes_and_stretch.py:151`
+  (`test_stretch_applies_to_mesh_group`) and `tests/test_preview/test_axes_and_stretch.py:155`
+  (`test_stretch_applies_to_cloud_points`) find `meshGroup.scale.set` and `cloudPoints.scale.set`
+  anywhere, not in `applyStretch`.
+- `tests/test_preview/test_snapshots.py:271` (`test_load_preserves_geometry_id`):
+  `state.geometryId = snap.geometry_id` anywhere, not in `loadSnapshot`.
+- `tests/test_preview/test_view_mode_default.py`: `tests/test_preview/test_view_mode_default.py:85`
+  (`test_display_generate_guards_empty_response`) finds the guard `if (!hasMesh && !hasCloud)`
+  anywhere, not in `displayGenerateResult`. `tests/test_preview/test_view_mode_default.py:139`
+  (`test_dropdown_synced_after_generation`) finds the dropdown assignment anywhere.
+  `tests/test_preview/test_view_mode_default.py:147` (`test_incompatible_mode_falls_back_to_vertex`)
+  finds the guard `viewModeNeedsMesh() && !hasMesh` anywhere; nothing checks that the mode becomes
+  `vertex`.
+- `tests/test_preview/test_view_mode_params.py`: `tests/test_preview/test_view_mode_params.py:88`
+  (`test_sets_generated_with`) and `tests/test_preview/test_view_mode_params.py:94`
+  (`test_sets_geometry_id`) find `state.generatedWith` and `state.geometryId` in the `_doGenerate`
+  body; no assignment is checked. `tests/test_preview/test_view_mode_params.py:144`
+  (`test_view_mode_handler_checks_sampling_change`) finds `samplingChanged` and `samplingFor`
+  anywhere.
+
+Three tests outside the served HTML:
+
+- `tests/test_preview/test_dense_sampling.py:72` (`test_dense_produces_more_points`): the counts
+  are compared only if the default request cached a point cloud. Run 2026-09-24: the default torus
+  request (`major_radius` 1.0, `minor_radius` 0.4, seed 42) caches no point cloud, so the test
+  checks only that the dense cloud is not empty.
+- `tests/test_core/test_pipeline.py:251` (`test_pipeline_uses_default_representation_when_none`):
+  a result and a `represent` timing; which representation ran is not checked.
+- `tests/test_core/test_representation.py:330` (`test_produces_tube_mesh_along_edges`): a
+  non-empty mesh; no vertex is compared with the cube's edges.
+
+**Suggested path:**
+
+For the preview tests, as in Task 182: slice the function or branch the name names and assert
+inside it. For the dense test, use a request whose default sampling caches a point cloud, so the
+counts are compared. For the other two, assert which representation ran and that the mesh follows
+the cube's edges. Where the name is wrong rather than the assert, rename the test in its own PR.
+
+**Tests:** the files above
+
+- Each test asserts what its name says, or is renamed.
+- `make test` passes.
+
+---
