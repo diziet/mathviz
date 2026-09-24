@@ -137,7 +137,8 @@ class TestRepresentation:
 
 
 class TestMetadata:
-    """Generated MathObject has correct metadata."""
+    """The MathObject has generator_name "wave_interference", category "physics", the
+    num_sources passed to generate and a bounding box with finite corners."""
 
     def test_metadata_fields(self, gen: WaveInterferenceGenerator) -> None:
         """MathObject contains generator name, category, and params."""

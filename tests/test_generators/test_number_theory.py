@@ -159,7 +159,7 @@ class TestDigitEncoding:
     """Tests for the digit encoding generator."""
 
     def test_pi_first_10_digits(self) -> None:
-        """Digit encoding with π produces correct digit sequence."""
+        """The first 10 π points have z = 3, 1, 4, 1, 5, 9, 2, 6, 5, 3 at height_scale 1.0."""
         gen = DigitEncodingGenerator()
         obj = gen.generate(
             num_digits=10,
@@ -173,7 +173,7 @@ class TestDigitEncoding:
         np.testing.assert_array_almost_equal(z_values, expected_digits)
 
     def test_e_first_10_digits(self) -> None:
-        """Digit encoding with e produces correct digit sequence."""
+        """The first 10 e points have z = 2, 7, 1, 8, 2, 8, 1, 8, 2, 8 at height_scale 1.0."""
         gen = DigitEncodingGenerator()
         obj = gen.generate(
             num_digits=10,

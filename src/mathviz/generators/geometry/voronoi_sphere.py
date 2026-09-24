@@ -262,7 +262,7 @@ def _build_math_object(
     cell_style: str, arc_resolution: int,
     merged: dict[str, Any], seed: int,
 ) -> MathObject:
-    """Build the MathObject with correct geometry type per cell_style."""
+    """Return curves for "ridges_only", a mesh for "cells_only", and both otherwise."""
     if cell_style == "ridges_only":
         return _build_ridges_only(
             gen, sv, radius, edge_height, arc_resolution, merged, seed,

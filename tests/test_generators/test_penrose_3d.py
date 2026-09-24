@@ -138,7 +138,8 @@ class TestRepresentation:
 
 
 class TestMetadata:
-    """Generated MathObject has correct metadata."""
+    """The MathObject has generator_name "penrose_3d", category "procedural", the
+    parameters passed to generate and a bounding box with finite corners."""
 
     def test_metadata_fields(self, gen: PenroseTiling3D) -> None:
         """MathObject contains generator name, category, and params."""

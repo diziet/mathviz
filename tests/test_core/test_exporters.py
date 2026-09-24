@@ -195,7 +195,7 @@ class TestXyzExport:
     """XYZ export writes one line per point."""
 
     def test_xyz_point_count(self, tmp_path: Path) -> None:
-        """XYZ export produces correct number of lines."""
+        """XYZ export of a 5-point cloud writes 5 lines."""
         obj = _make_cloud_obj()
         out_path = tmp_path / "cloud.xyz"
         export_point_cloud(obj, out_path)

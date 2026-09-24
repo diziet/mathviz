@@ -171,7 +171,7 @@ class TestHeightmapRelief:
     """HEIGHTMAP_RELIEF representation tests."""
 
     def test_scalar_field_to_mesh(self) -> None:
-        """HEIGHTMAP_RELIEF on a scalar field produces a mesh with correct z-range."""
+        """HEIGHTMAP_RELIEF on a 10x10 field of values 0 to 1 gives a mesh with z from 0 to 1."""
         rows, cols = 10, 10
         # Simple gradient: z ranges from 0 to 1
         field = np.linspace(0, 1, rows * cols).reshape(rows, cols)
@@ -199,7 +199,7 @@ class TestHeightmapRelief:
             apply(obj, config)
 
     def test_correct_face_count(self) -> None:
-        """HEIGHTMAP_RELIEF produces correct number of faces for grid."""
+        """HEIGHTMAP_RELIEF on a 5x6 field gives 40 faces, two per grid cell."""
         rows, cols = 5, 6
         field = np.ones((rows, cols))
         obj = MathObject(

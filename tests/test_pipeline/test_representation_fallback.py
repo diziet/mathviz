@@ -46,7 +46,8 @@ def _simple_cloud() -> PointCloud:
 
 
 class TestNamedGeneratorDefaults:
-    """Verify specific generators get the correct representation type."""
+    """get_default gives TUBE for kepler_orbit, cardioid and voronoi_sphere, SPARSE_SHELL
+    for sacks_spiral, and SURFACE_SHELL for torus."""
 
     def test_kepler_orbit_gets_tube(self) -> None:
         """kepler_orbit (curve) gets TUBE representation by default."""

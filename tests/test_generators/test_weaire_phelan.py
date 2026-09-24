@@ -105,7 +105,7 @@ def test_more_cells_produces_more_geometry() -> None:
 
 
 def test_generator_name_and_category() -> None:
-    """Output has correct generator name and category."""
+    """Output has generator_name "weaire_phelan" and category "geometry"."""
     gen = WeairePhelanGenerator()
     obj = gen.generate(params={"cells_per_axis": 1})
     assert obj.generator_name == "weaire_phelan"
