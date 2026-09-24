@@ -121,9 +121,10 @@ FRAME_CASES = {
                                                  np.zeros(20)]), False), False),
     "helix": (_tangents(_helix_points(), False), False),
     "nearly_parallel": (_nearly_parallel_tangents(), False),
-    # Tangents +x, +x, -x, -x, -x: the second step takes the anti-parallel branch.
-    "hairpin": (_tangents([[0, 0, 0], [2, 0, 0], [1, 0, 0], [-1, 0, 0], [-3, 0, 0]], False),
-                False),
+    # Tangents turn from +z to +x, then reverse to -x, which takes the anti-parallel branch.
+    # The normal there is +y, so the 180-degree turn about +z changes it.
+    "hairpin": (_tangents([[0, 0, 0], [0, 0, 1], [1, 0, 1], [3, 0, 1], [2, 0, 1], [0, 0, 1],
+                           [-2, 0, 1]], False), False),
     # A zero tangent carries the +z normal onto a +z tangent, so the next step falls back to
     # a fresh perpendicular.
     "zero_tangent_fallback": (_tangents([[0, 0, 0], [1, 0, 0], [0, 0, 0], [1, 0, 1],
