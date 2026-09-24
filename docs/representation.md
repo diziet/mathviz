@@ -55,6 +55,11 @@ Best for: simple convex shapes, fractals where interior structure matters.
 Like surface_shell, but with a lower point density. The engraving looks sparser
 and more transparent in the glass.
 
+The sampled points depend on the seed (`--seed`, default 42). The same mesh and seed give the
+same points, and a different seed gives different points. This also applies to generators whose
+mesh does not depend on the seed, such as julia3d and mandelbulb. A point-cloud input passes
+through unchanged.
+
 Best for: surfaces that should look lighter and less dense.
 
 **Config options:**

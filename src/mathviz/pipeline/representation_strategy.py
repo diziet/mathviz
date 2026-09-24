@@ -289,7 +289,9 @@ def _build_grid_faces(rows: int, cols: int) -> np.ndarray:
 # sample_count = total_mesh_area * surface_density.
 _SPARSE_SHELL_DEFAULT_SURFACE_DENSITY = 100.0
 _SPARSE_SHELL_MIN_SAMPLES = 10
-_SPARSE_SHELL_SEED = 42
+# np.random.default_rng rejects negative seeds. Reducing MathObject.seed modulo 2**64 lets a
+# negative seed sample and leaves seeds 0 to 2**64 - 1 unchanged.
+_SPARSE_SHELL_SEED_MODULUS = 2**64
 
 
 def _apply_sparse_shell(
@@ -297,7 +299,7 @@ def _apply_sparse_shell(
 ) -> MathObject:
     """Sample mesh surface or pass through an existing point cloud.
 
-    For mesh inputs: samples surface at reduced density.
+    For mesh inputs: samples surface at reduced density, seeded by obj.seed.
     For point-cloud-only inputs: passes through the existing cloud.
     """
     if obj.mesh is None and obj.point_cloud is not None:
@@ -325,9 +327,11 @@ def _apply_sparse_shell(
         int(total_area * density),
     )
 
-    # trimesh uses numpy's legacy RNG; seed it for deterministic output.
-    np.random.seed(_SPARSE_SHELL_SEED)
-    points, face_indices = tm.sample(sample_count, return_index=True)
+    # Pass the seed to sample_surface: Trimesh.sample has no seed argument in trimesh 4.4.9, and
+    # trimesh 5 does not read np.random.seed. An int seed makes both draw from default_rng(seed).
+    points, face_indices = trimesh.sample.sample_surface(
+        tm, sample_count, seed=int(obj.seed) % _SPARSE_SHELL_SEED_MODULUS
+    )
     normals = tm.face_normals[face_indices]
 
     cloud = PointCloud(
