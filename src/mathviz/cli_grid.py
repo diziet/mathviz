@@ -287,6 +287,7 @@ def _export_single_block(
             seed=seed,
             container=resolved.container,
             placement=resolved.placement,
+            representation_config=resolved.representation,
             sampler_config=resolved.sampler_config,
             export_config=export_config,
         )

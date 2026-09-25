@@ -132,6 +132,19 @@ slice_count = 50
 slice_axis = "z"
 ```
 
+The `[representation]` section applies to `mathviz generate`, `mathviz validate`, `mathviz render`,
+`mathviz render-2d` and `mathviz grid export-all`. `mathviz render` and `mathviz render-2d` read
+it only from `mathviz.toml`, because they have no `--config` option. A key in a per-object config
+overrides the same key in `mathviz.toml`.
+
+The section replaces the generator's default strategy, including its default tube radius. A
+section with `type = "tube"` therefore needs `tube_radius`.
+
+MathViz validates the section as a `RepresentationConfig` before it runs the generator. A missing
+or unknown `type`, or an invalid value such as `tube_sides = 0`, stops the command with exit code
+2 and an error that names the field. `mathviz grid export-all` marks that block as `error` and
+exports the other blocks.
+
 ## Default Strategies
 
 Without a representation config, MathViz uses the generator's default strategy.

@@ -13,6 +13,7 @@ from mathviz.core.config import (
     merge_configs,
     resolve_config,
 )
+from mathviz.core.representation import RepresentationConfig, RepresentationType
 from mathviz.pipeline.sampler import SamplingMethod
 
 # --- Fixtures ---
@@ -207,3 +208,57 @@ class TestMergeOrder:
         """Without sampling config, sampler_config should be None."""
         resolved = resolve_config()
         assert resolved.sampler_config is None
+
+
+# --- Tests: Representation section ---
+
+
+class TestRepresentationConfig:
+    """Test that resolve_config validates the [representation] section."""
+
+    def test_representation_section_builds_representation_config(self) -> None:
+        """A [representation] section resolves to a RepresentationConfig with its values."""
+        resolved = resolve_config(
+            object_config={
+                "representation": {"type": "tube", "tube_radius": 0.15, "tube_sides": 24},
+            },
+        )
+        assert resolved.representation == RepresentationConfig(
+            type=RepresentationType.TUBE, tube_radius=0.15, tube_sides=24
+        )
+
+    def test_no_representation_config_when_section_absent(self) -> None:
+        """Without a [representation] section, representation is None."""
+        resolved = resolve_config(object_config={"seed": 1})
+        assert resolved.representation is None
+
+    def test_object_representation_overrides_project_keys(self) -> None:
+        """Per-object [representation] keys override project keys and keep the others."""
+        resolved = resolve_config(
+            project={"representation": {"type": "tube", "tube_radius": 0.1, "tube_sides": 8}},
+            object_config={"representation": {"tube_radius": 0.3}},
+        )
+        assert resolved.representation is not None
+        assert resolved.representation.type == RepresentationType.TUBE
+        assert resolved.representation.tube_radius == 0.3
+        assert resolved.representation.tube_sides == 8
+
+    def test_non_positive_tube_sides_raises_value_error(self) -> None:
+        """tube_sides = 0 raises a ValueError that names the section and the field."""
+        with pytest.raises(ValueError, match=r"Invalid representation config.*tube_sides"):
+            resolve_config(object_config={"representation": {"type": "tube", "tube_sides": 0}})
+
+    def test_unknown_type_raises_value_error(self) -> None:
+        """An unknown representation type raises a ValueError that names the type field."""
+        with pytest.raises(ValueError, match=r"Invalid representation config.*type"):
+            resolve_config(object_config={"representation": {"type": "bogus"}})
+
+    def test_missing_type_raises_value_error(self) -> None:
+        """A [representation] section without type raises a ValueError."""
+        with pytest.raises(ValueError, match=r"representation config: type: Field required"):
+            resolve_config(object_config={"representation": {"tube_radius": 0.2}})
+
+    def test_non_table_representation_raises_value_error(self) -> None:
+        """A representation value that is not a TOML table raises a ValueError."""
+        with pytest.raises(ValueError, match=r"Invalid representation config"):
+            resolve_config(object_config={"representation": "tube"})
