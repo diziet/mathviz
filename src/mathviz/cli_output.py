@@ -7,6 +7,7 @@ from typing import Any
 import typer
 from rich.console import Console
 from rich.table import Table
+from rich.text import Text
 
 from mathviz.core.validator import CheckResult
 from mathviz.pipeline.runner import PipelineResult
@@ -102,5 +103,7 @@ def error_exit(message: str, json_output: bool) -> None:
     if json_output:
         typer.echo(json.dumps({"error": message}))
     else:
-        console.print(f"[red]Error: {message}[/red]", highlight=False)
+        # Rich prints a Text without parsing markup or emoji codes, so "tube[radius]" and
+        # ":fire:" in message print as written.
+        console.print(Text(f"Error: {message}", style="red"))
     raise typer.Exit(code=EXIT_ERROR)
