@@ -14,7 +14,10 @@ import trimesh
 from mathviz.core.generator import get_generator_meta
 from mathviz.core.math_object import Curve, MathObject, Mesh, PointCloud
 from mathviz.core.representation import RepresentationConfig, RepresentationType
-from mathviz.pipeline.representation_defaults import GENERATOR_DEFAULTS
+from mathviz.pipeline.representation_defaults import (
+    GENERATOR_DEFAULTS,
+    TUBE_RADIUS_PARAMS,
+)
 from mathviz.pipeline.representation_handlers import (
     apply_slice_stack,
     apply_volume_fill,
@@ -69,15 +72,26 @@ def get_default(
 ) -> RepresentationConfig:
     """Return the recommended representation config for a generator."""
     config = GENERATOR_DEFAULTS.get(generator_name)
+    if config is None:
+        config = GENERATOR_DEFAULTS.get(_resolve_canonical(generator_name))
     if config is not None:
-        return config
-    canonical = _resolve_canonical(generator_name)
-    config = GENERATOR_DEFAULTS.get(canonical)
-    if config is not None:
-        return config
+        return _with_param_tube_radius(config, generator_name, obj)
     if obj is not None:
         return _get_fallback(obj)
     return RepresentationConfig(type=RepresentationType.SURFACE_SHELL)
+
+
+def _with_param_tube_radius(
+    config: RepresentationConfig, generator_name: str, obj: MathObject | None
+) -> RepresentationConfig:
+    """Set tube_radius from the obj parameter that TUBE_RADIUS_PARAMS names for the generator."""
+    if obj is None:
+        return config
+    param = TUBE_RADIUS_PARAMS.get(_resolve_canonical(generator_name))
+    if param is None or param not in obj.parameters:
+        return config
+    # Copy, because several generators share one config object in GENERATOR_DEFAULTS.
+    return config.model_copy(update={"tube_radius": float(obj.parameters[param])})
 
 
 def apply(

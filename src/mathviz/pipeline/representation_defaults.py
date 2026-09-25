@@ -9,6 +9,10 @@ _HEIGHTMAP_CONFIG = RepresentationConfig(type=RepresentationType.HEIGHTMAP_RELIE
 _KNOT_TUBE_CONFIG = RepresentationConfig(
     type=RepresentationType.TUBE, tube_radius=0.1
 )
+# Matches the ring_thickness default in BorromeanRingsGenerator.get_default_params.
+_BORROMEAN_TUBE_CONFIG = RepresentationConfig(
+    type=RepresentationType.TUBE, tube_radius=0.08
+)
 
 GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     # Parametric surfaces (mesh)
@@ -67,7 +71,7 @@ GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     "seven_crossing_knots": _KNOT_TUBE_CONFIG,
     "pretzel_knot": _KNOT_TUBE_CONFIG,
     "cinquefoil_knot": _KNOT_TUBE_CONFIG,
-    "borromean_rings": _KNOT_TUBE_CONFIG,
+    "borromean_rings": _BORROMEAN_TUBE_CONFIG,
     "chain_links": _KNOT_TUBE_CONFIG,
     "trefoil_on_torus": _KNOT_TUBE_CONFIG,
     # Curves
@@ -115,4 +119,11 @@ GENERATOR_DEFAULTS: dict[str, RepresentationConfig] = {
     "rd_surface": _SURFACE_CONFIG,
     "penrose_3d": _SURFACE_CONFIG,
     "weaire_phelan": _TUBE_CONFIG,
+}
+
+# Generator parameters that set the TUBE radius, keyed by canonical generator name. get_default
+# reads the parameter from the generated object, so a caller's value replaces the radius above.
+TUBE_RADIUS_PARAMS: dict[str, str] = {
+    "borromean_rings": "ring_thickness",
+    "chain_links": "link_thickness",
 }
