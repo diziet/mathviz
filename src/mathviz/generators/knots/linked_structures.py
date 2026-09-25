@@ -115,6 +115,11 @@ class BorromeanRingsGenerator(GeneratorBase):
         ring_radius = float(merged["ring_radius"])
         if ring_radius <= 0:
             raise ValueError(f"ring_radius must be positive, got {ring_radius}")
+        ring_thickness = float(merged["ring_thickness"])
+        if ring_thickness <= 0:
+            raise ValueError(
+                f"ring_thickness must be positive, got {ring_thickness}"
+            )
 
         merged["curve_points"] = curve_points
 
@@ -195,6 +200,11 @@ class ChainLinksGenerator(GeneratorBase):
         if link_radius <= 0:
             raise ValueError(
                 f"link_radius must be positive, got {link_radius}"
+            )
+        link_thickness = float(merged["link_thickness"])
+        if link_thickness <= 0:
+            raise ValueError(
+                f"link_thickness must be positive, got {link_thickness}"
             )
 
         merged["curve_points"] = curve_points
