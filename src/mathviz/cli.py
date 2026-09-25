@@ -157,11 +157,15 @@ def _run_pipeline(
         container_height,
         container_depth,
     )
-    resolved = resolve_config(
-        project=project_cfg,
-        object_config=object_cfg,
-        cli_overrides=cli_overrides,
-    )
+    try:
+        resolved = resolve_config(
+            project=project_cfg,
+            object_config=object_cfg,
+            cli_overrides=cli_overrides,
+        )
+    except ValueError as exc:
+        error_exit(str(exc), json_output)
+        raise  # unreachable
 
     effective_seed = resolved.seed if resolved.seed is not None else 42
 
@@ -171,6 +175,7 @@ def _run_pipeline(
         seed=effective_seed,
         container=resolved.container,
         placement=resolved.placement,
+        representation_config=resolved.representation,
         sampler_config=resolved.sampler_config,
         export_config=export_config,
     )
