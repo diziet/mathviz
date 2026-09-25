@@ -138,3 +138,6 @@ Without a representation config, MathViz uses the generator's default strategy.
 Curve generators (attractors, knots, spirals) default to `tube`. Surface
 generators default to `surface_shell`. Point-based generators default to
 `raw_point_cloud`.
+
+The default tube radius of `borromean_rings` is its `ring_thickness` parameter, and the default
+tube radius of `chain_links` is its `link_thickness` parameter.
