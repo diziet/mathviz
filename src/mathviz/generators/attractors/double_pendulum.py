@@ -20,12 +20,22 @@ correlated with ω₁ through conservation constraints, so little information is
 lost.
 """
 
+import math
 from typing import Any
 
 import numpy as np
 
 from mathviz.core.generator import register
 from mathviz.generators.attractors._base import AttractorGeneratorBase
+
+# Params that set the start state (θ₁, θ₂, ω₁, ω₂), in state-vector order.
+_INITIAL_STATE_PARAMS = ("theta1", "theta2", "omega1", "omega2")
+
+
+def _validate_finite(name: str, value: float) -> None:
+    """Raise ValueError if value is NaN or infinite."""
+    if not math.isfinite(value):
+        raise ValueError(f"{name} must be finite, got {value}")
 
 
 def _validate_positive(name: str, value: float) -> None:
@@ -43,7 +53,6 @@ class DoublePendulumGenerator(AttractorGeneratorBase):
     description = "Double pendulum chaotic trajectory (4D phase space → 3D)"
 
     _t_span_end = 100.0
-    _default_initial_condition = (2.5, 2.0, 0.0, 0.0)
     _perturbation_scale = 1e-2
     _output_dims = 3  # Project 4D → 3D: (θ₁, θ₂, ω₁)
 
@@ -61,10 +70,16 @@ class DoublePendulumGenerator(AttractorGeneratorBase):
         }
 
     def _validate_ode_params(self, params: dict[str, Any]) -> None:
-        """Validate double pendulum ODE parameters."""
+        """Validate double pendulum ODE parameters and initial state."""
         _validate_positive("mass", float(params["mass"]))
         _validate_positive("length", float(params["length"]))
         _validate_positive("gravity", float(params["gravity"]))
+        for name in _INITIAL_STATE_PARAMS:
+            _validate_finite(name, float(params[name]))
+
+    def _get_initial_condition(self, params: dict[str, Any]) -> np.ndarray:
+        """Return the start state (θ₁, θ₂, ω₁, ω₂) from the initial-state params."""
+        return np.array([float(params[name]) for name in _INITIAL_STATE_PARAMS])
 
     def _rhs(
         self, _t: float, state: np.ndarray, params: dict[str, Any],
