@@ -5,6 +5,7 @@ linked.
 """
 
 import logging
+import math
 from typing import Any
 
 import numpy as np
@@ -18,6 +19,14 @@ from mathviz.generators.knots._knot_utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_thickness(name: str, value: float) -> None:
+    """Raise ValueError if a tube thickness is NaN, infinite, or not positive."""
+    if not math.isfinite(value):
+        raise ValueError(f"{name} must be finite, got {value}")
+    if value <= 0:
+        raise ValueError(f"{name} must be positive, got {value}")
 
 
 def _compute_borromean_ring(
@@ -115,11 +124,7 @@ class BorromeanRingsGenerator(GeneratorBase):
         ring_radius = float(merged["ring_radius"])
         if ring_radius <= 0:
             raise ValueError(f"ring_radius must be positive, got {ring_radius}")
-        ring_thickness = float(merged["ring_thickness"])
-        if ring_thickness <= 0:
-            raise ValueError(
-                f"ring_thickness must be positive, got {ring_thickness}"
-            )
+        _validate_thickness("ring_thickness", float(merged["ring_thickness"]))
 
         merged["curve_points"] = curve_points
 
@@ -201,11 +206,7 @@ class ChainLinksGenerator(GeneratorBase):
             raise ValueError(
                 f"link_radius must be positive, got {link_radius}"
             )
-        link_thickness = float(merged["link_thickness"])
-        if link_thickness <= 0:
-            raise ValueError(
-                f"link_thickness must be positive, got {link_thickness}"
-            )
+        _validate_thickness("link_thickness", float(merged["link_thickness"]))
 
         merged["curve_points"] = curve_points
 

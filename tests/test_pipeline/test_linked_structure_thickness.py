@@ -64,6 +64,18 @@ def test_non_positive_thickness_raises(
 
 
 @pytest.mark.parametrize(("generator_name", "param"), _THICKNESS_PARAMS)
+@pytest.mark.parametrize("thickness", [float("nan"), float("inf"), float("-inf")])
+def test_non_finite_thickness_raises(
+    generator_name: str, param: str, thickness: float,
+) -> None:
+    """A NaN or infinite thickness raises ValueError before any geometry is built."""
+    with pytest.raises(ValueError, match=f"{param} must be finite"):
+        _create(generator_name).generate(
+            params={param: thickness}, curve_points=_CURVE_POINTS,
+        )
+
+
+@pytest.mark.parametrize(("generator_name", "param"), _THICKNESS_PARAMS)
 def test_default_tube_radius_equals_thickness_param(
     generator_name: str, param: str,
 ) -> None:
