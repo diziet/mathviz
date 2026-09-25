@@ -197,29 +197,29 @@ class TestParamParsing:
         """Integer values are coerced from strings."""
         result = runner.invoke(
             app,
-            ["generate", "torus", "--dry-run", "--json", "--param", "count=10"],
+            ["generate", "koch_3d", "--dry-run", "--json", "--param", "level=3"],
         )
         data = json.loads(result.output)
-        assert data["parameters"]["count"] == 10
-        assert isinstance(data["parameters"]["count"], int)
+        assert data["parameters"]["level"] == 3
+        assert isinstance(data["parameters"]["level"], int)
 
     def test_param_float_coercion(self) -> None:
         """Float values are coerced from strings."""
         result = runner.invoke(
             app,
-            ["generate", "torus", "--dry-run", "--json", "--param", "scale=1.5"],
+            ["generate", "koch_3d", "--dry-run", "--json", "--param", "height=1.5"],
         )
         data = json.loads(result.output)
-        assert data["parameters"]["scale"] == 1.5
+        assert data["parameters"]["height"] == 1.5
 
     def test_param_string_passthrough(self) -> None:
         """Non-numeric values stay as strings."""
         result = runner.invoke(
             app,
-            ["generate", "torus", "--dry-run", "--json", "--param", "mode=fast"],
+            ["generate", "koch_3d", "--dry-run", "--json", "--param", "mode=revolve"],
         )
         data = json.loads(result.output)
-        assert data["parameters"]["mode"] == "fast"
+        assert data["parameters"]["mode"] == "revolve"
 
     def test_invalid_param_format(self) -> None:
         """Invalid param format (no =) exits with error."""

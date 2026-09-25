@@ -23,11 +23,24 @@ mathviz generate <generator_name> [OPTIONS]
 | `--width` | float | 100.0 | Container width in mm |
 | `--height` | float | 100.0 | Container height in mm |
 | `--depth` | float | 100.0 | Container depth in mm |
-| `--dry-run` | flag | | Show what would happen without running |
+| `--dry-run` | flag | | Print the resolved seed and parameters without running the pipeline |
 | `--report` | path | | Write JSON report to file |
 | `--json` | flag | | Output as JSON |
 | `--verbose` | flag | | Enable debug logging |
 | `--quiet` | flag | | Suppress non-error output |
+
+`--dry-run` resolves the seed and parameters the same way as a real run. It merges
+`mathviz.toml`, `--config`, `--profile` and the CLI flags in the order that
+[configuration.md](configuration.md) gives. It then prints the generator, seed, parameters, output
+path and stages, and exits with code 0. It generates no geometry and writes no file. These errors
+stop it with exit code 2:
+
+- a `--config` file or `--profile` name that does not exist
+- an invalid config value, such as `--width 0` or an invalid `[representation]` section
+- a `--param` or `[params]` key that the generator does not define
+
+A real run stops on the same errors. `--dry-run` checks parameter names only. A generator that
+checks parameter values does so during generation, which `--dry-run` skips.
 
 Examples:
 
