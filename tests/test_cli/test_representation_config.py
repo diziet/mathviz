@@ -20,6 +20,8 @@ CURVE_GENERATOR = "trefoil"
 TUBE_5_SIDES_TOML = '[representation]\ntype = "tube"\ntube_radius = 0.15\ntube_sides = 5\n'
 RAW_POINT_CLOUD_TOML = '[representation]\ntype = "raw_point_cloud"\n'
 INVALID_TUBE_SIDES_TOML = '[representation]\ntype = "tube"\ntube_sides = 0\n'
+MISSPELLED_TUBE_RADIUS_TOML = '[representation]\ntype = "tube"\ntube_radious = 0.15\n'
+UNKNOWN_KEY_ERROR = "Invalid representation config: tube_radious: unknown key. Valid keys: "
 TUBE_5_SIDES = RepresentationConfig(type=RepresentationType.TUBE, tube_radius=0.15, tube_sides=5)
 
 
@@ -113,6 +115,33 @@ class TestGenerateRepresentationConfig:
         assert result.exit_code == 2
         assert "Invalid representation config: tube_sides" in result.output
 
+    def test_unknown_key_exits_2_with_json_error(self, tmp_path: Path) -> None:
+        """A misspelled --config [representation] key exits 2 with a JSON error that names it."""
+        config = _write(tmp_path / "typo.toml", MISSPELLED_TUBE_RADIUS_TOML)
+        result = runner.invoke(
+            app, ["generate", CURVE_GENERATOR, "--json", "--config", str(config)]
+        )
+        assert result.exit_code == 2
+        assert json.loads(result.output)["error"].startswith(
+            UNKNOWN_KEY_ERROR + "type, tube_radius, tube_sides,"
+        )
+
+    def test_unknown_project_key_exits_2_with_json_error(self, isolated_cwd: Path) -> None:
+        """A misspelled [representation] key in mathviz.toml exits 2 with a JSON error."""
+        _write(isolated_cwd / "mathviz.toml", MISSPELLED_TUBE_RADIUS_TOML)
+        result = runner.invoke(app, ["generate", CURVE_GENERATOR, "--json"])
+        assert result.exit_code == 2
+        assert json.loads(result.output)["error"].startswith(UNKNOWN_KEY_ERROR)
+
+    def test_unknown_key_rich_output_names_key_and_valid_keys(self, tmp_path: Path) -> None:
+        """A misspelled key without --json exits 2 and prints the key and the valid keys."""
+        config = _write(tmp_path / "typo.toml", MISSPELLED_TUBE_RADIUS_TOML)
+        result = runner.invoke(app, ["generate", CURVE_GENERATOR, "--config", str(config)])
+        assert result.exit_code == 2
+        # Rich wraps the long line at the console width, so compare with line breaks removed.
+        output = " ".join(result.output.split())
+        assert UNKNOWN_KEY_ERROR + "type, tube_radius, tube_sides," in output
+
 
 class TestValidateRepresentationConfig:
     """Test that validate applies [representation] from a per-object config."""
@@ -171,3 +200,9 @@ class TestGridExportRepresentationConfig:
         block = _export_single_block(tmp_path, INVALID_TUBE_SIDES_TOML)
         assert block["success"] is False
         assert "tube_sides" in block["error"]
+
+    def test_unknown_block_key_marks_block_error(self, tmp_path: Path) -> None:
+        """A block config with a misspelled [representation] key fails with an error naming it."""
+        block = _export_single_block(tmp_path, MISSPELLED_TUBE_RADIUS_TOML)
+        assert block["success"] is False
+        assert block["error"].startswith(UNKNOWN_KEY_ERROR)
