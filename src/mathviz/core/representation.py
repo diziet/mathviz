@@ -3,7 +3,7 @@
 from enum import Enum
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class RepresentationType(str, Enum):
@@ -22,6 +22,10 @@ class RepresentationType(str, Enum):
 
 class RepresentationConfig(BaseModel):
     """Configuration for how geometry is represented for engraving."""
+
+    # Reject unknown keys, so a misspelled TOML key such as tube_radious is an error
+    # instead of a silent default.
+    model_config = ConfigDict(extra="forbid")
 
     type: RepresentationType
     tube_radius: Optional[float] = Field(default=None, gt=0)

@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 
 PROJECT_CONFIG_NAME = "mathviz.toml"
 
+# Pydantic error type for a key that the model does not declare (extra="forbid").
+_UNKNOWN_KEY_ERROR_TYPE = "extra_forbidden"
+
 # Built-in defaults for the full config hierarchy
 _BUILTIN_DEFAULTS: dict[str, Any] = {
     "container": {
@@ -151,9 +154,10 @@ def _build_representation_config(cfg: dict[str, Any]) -> RepresentationConfig | 
         return RepresentationConfig.model_validate(cfg["representation"])
     except ValidationError as exc:
         # No square brackets in the message: Rich reads "[representation]" as a markup tag.
-        raise ValueError(
-            f"Invalid representation config: {_format_validation_errors(exc)}"
-        ) from exc
+        message = f"Invalid representation config: {_format_validation_errors(exc)}"
+        if any(error["type"] == _UNKNOWN_KEY_ERROR_TYPE for error in exc.errors()):
+            message += f". Valid keys: {', '.join(RepresentationConfig.model_fields)}"
+        raise ValueError(message) from exc
 
 
 def _format_validation_errors(exc: ValidationError) -> str:
@@ -161,7 +165,8 @@ def _format_validation_errors(exc: ValidationError) -> str:
     entries: list[str] = []
     for error in exc.errors():
         location = ".".join(str(part) for part in error["loc"])
-        entries.append(f"{location}: {error['msg']}" if location else error["msg"])
+        message = "unknown key" if error["type"] == _UNKNOWN_KEY_ERROR_TYPE else error["msg"]
+        entries.append(f"{location}: {message}" if location else message)
     return "; ".join(entries)
 
 

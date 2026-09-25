@@ -244,9 +244,12 @@ class TestRepresentationConfig:
         assert resolved.representation.tube_sides == 8
 
     def test_non_positive_tube_sides_raises_value_error(self) -> None:
-        """tube_sides = 0 raises a ValueError that names the section and the field."""
-        with pytest.raises(ValueError, match=r"Invalid representation config.*tube_sides"):
+        """tube_sides = 0 raises a ValueError that names the field and lists no valid keys."""
+        with pytest.raises(ValueError) as exc_info:
             resolve_config(object_config={"representation": {"type": "tube", "tube_sides": 0}})
+        message = str(exc_info.value)
+        assert message.startswith("Invalid representation config: tube_sides")
+        assert "Valid keys" not in message
 
     def test_unknown_type_raises_value_error(self) -> None:
         """An unknown representation type raises a ValueError that names the type field."""
@@ -262,3 +265,35 @@ class TestRepresentationConfig:
         """A representation value that is not a TOML table raises a ValueError."""
         with pytest.raises(ValueError, match=r"Invalid representation config"):
             resolve_config(object_config={"representation": "tube"})
+
+    def test_unknown_object_key_error_names_key_and_lists_valid_keys(self) -> None:
+        """A misspelled per-object key raises a ValueError that names it and the valid keys."""
+        with pytest.raises(ValueError) as exc_info:
+            resolve_config(
+                object_config={"representation": {"type": "tube", "tube_radious": 0.2}},
+            )
+        valid_keys = ", ".join(RepresentationConfig.model_fields)
+        assert str(exc_info.value) == (
+            f"Invalid representation config: tube_radious: unknown key. Valid keys: {valid_keys}"
+        )
+
+    def test_unknown_project_key_raises_value_error(self) -> None:
+        """A misspelled key in the project [representation] raises a ValueError naming it."""
+        with pytest.raises(ValueError, match=r"Invalid representation config: tube_radious"):
+            resolve_config(project={"representation": {"type": "tube", "tube_radious": 0.2}})
+
+    def test_unknown_project_key_raises_when_object_section_is_valid(self) -> None:
+        """A project typo stays in the merged section when the per-object section is valid."""
+        with pytest.raises(ValueError, match=r"tube_radious"):
+            resolve_config(
+                project={"representation": {"type": "tube", "tube_radious": 0.2}},
+                object_config={"representation": {"type": "tube", "tube_radius": 0.3}},
+            )
+
+    def test_unknown_key_and_missing_type_are_both_named(self) -> None:
+        """The error names every invalid field when a section has several problems."""
+        with pytest.raises(ValueError) as exc_info:
+            resolve_config(object_config={"representation": {"tube_radious": 0.2}})
+        message = str(exc_info.value)
+        assert "type: Field required" in message
+        assert "tube_radious" in message

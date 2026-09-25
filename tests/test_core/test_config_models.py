@@ -61,6 +61,19 @@ class TestRepresentationConfig:
         cfg = RepresentationConfig(type="wireframe")
         assert cfg.type == RepresentationType.WIREFRAME
 
+    def test_unknown_field_rejected(self) -> None:
+        """A misspelled field name raises a ValidationError at the misspelled field."""
+        with pytest.raises(ValidationError) as exc_info:
+            RepresentationConfig(type=RepresentationType.TUBE, tube_radious=0.2)
+        errors = exc_info.value.errors()
+        assert [(error["type"], error["loc"]) for error in errors] == [
+            ("extra_forbidden", ("tube_radious",))
+        ]
+
+    def test_json_schema_forbids_additional_properties(self) -> None:
+        """The JSON schema forbids unknown keys, so an editor can flag a misspelled key."""
+        assert RepresentationConfig.model_json_schema()["additionalProperties"] is False
+
 
 class TestEngravingProfile:
     """Test EngravingProfile model."""
