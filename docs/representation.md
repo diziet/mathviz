@@ -141,9 +141,10 @@ The section replaces the generator's default strategy, including its default tub
 section with `type = "tube"` therefore needs `tube_radius`.
 
 MathViz validates the section as a `RepresentationConfig` before it runs the generator. A missing
-or unknown `type`, or an invalid value such as `tube_sides = 0`, stops the command with exit code
-2 and an error that names the field. `mathviz grid export-all` marks that block as `error` and
-exports the other blocks.
+or unknown `type`, an invalid value such as `tube_sides = 0`, or an unknown key such as the
+misspelling `tube_radious` stops the command with exit code 2 and an error that names the field.
+For an unknown key, the error also lists the valid keys. `mathviz grid export-all` marks that
+block as `error` and exports the other blocks.
 
 ## Default Strategies
 
