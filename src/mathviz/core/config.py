@@ -6,7 +6,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 from mathviz.core.container import Container, PlacementPolicy
+from mathviz.core.representation import RepresentationConfig
 from mathviz.pipeline.sampler import SamplerConfig, SamplingMethod
 
 logger = logging.getLogger(__name__)
@@ -37,7 +40,7 @@ class ResolvedConfig:
     container: Container = field(default_factory=Container)
     placement: PlacementPolicy = field(default_factory=PlacementPolicy)
     sampler_config: SamplerConfig | None = None
-    representation: dict[str, Any] = field(default_factory=dict)
+    representation: RepresentationConfig | None = None
 
 
 def load_toml(path: Path) -> dict[str, Any]:
@@ -140,13 +143,38 @@ def _build_sampler_config(cfg: dict[str, Any]) -> SamplerConfig | None:
     return SamplerConfig(**kwargs)
 
 
+def _build_representation_config(cfg: dict[str, Any]) -> RepresentationConfig | None:
+    """Validate the [representation] section, if present, as a RepresentationConfig."""
+    if "representation" not in cfg:
+        return None
+    try:
+        return RepresentationConfig.model_validate(cfg["representation"])
+    except ValidationError as exc:
+        raise ValueError(
+            f"Invalid [representation] config: {_format_validation_errors(exc)}"
+        ) from exc
+
+
+def _format_validation_errors(exc: ValidationError) -> str:
+    """Join pydantic errors into one line of 'field: message' entries."""
+    entries: list[str] = []
+    for error in exc.errors():
+        location = ".".join(str(part) for part in error["loc"])
+        entries.append(f"{location}: {error['msg']}" if location else error["msg"])
+    return "; ".join(entries)
+
+
 def resolve_config(
     *,
     project: dict[str, Any] | None = None,
     object_config: dict[str, Any] | None = None,
     cli_overrides: dict[str, Any] | None = None,
 ) -> ResolvedConfig:
-    """Merge all config layers and build typed config objects."""
+    """Merge all config layers and build typed config objects.
+
+    Raises ValueError when the merged [representation] section is not a valid
+    RepresentationConfig.
+    """
     merged = merge_configs(
         project=project,
         object_config=object_config,
@@ -159,5 +187,5 @@ def resolve_config(
         container=_build_container(merged),
         placement=_build_placement(merged),
         sampler_config=_build_sampler_config(merged),
-        representation=merged.get("representation", {}),
+        representation=_build_representation_config(merged),
     )
