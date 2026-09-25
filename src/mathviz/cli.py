@@ -11,6 +11,7 @@ from rich.table import Table
 
 from mathviz.cli_benchmark import register_benchmark_command
 from mathviz.cli_cache import register_cache_commands
+from mathviz.cli_config import ConfigFlags, resolve_cli_config
 from mathviz.cli_demo import register_export_demo_command
 from mathviz.cli_grid import grid_app
 from mathviz.cli_output import (
@@ -26,13 +27,7 @@ from mathviz.cli_render import register_render_commands
 from mathviz.cli_render_batch import register_render_all_command
 from mathviz.cli_thumbnail import register_render_thumbnail_command
 from mathviz.cli_utils import register_util_commands
-from mathviz.core.config import (
-    deep_merge,
-    load_object_config,
-    load_project_config,
-    load_sampling_profile,
-    resolve_config,
-)
+from mathviz.core.config import ResolvedConfig
 from mathviz.core.generator import (
     GeneratorBase,
     get_generator_meta,
@@ -109,26 +104,6 @@ def _resolve_generator(generator_name: str, json_output: bool) -> GeneratorBase:
     return meta.generator_class.create(resolved_name=generator_name)
 
 
-def _build_cli_overrides(
-    params: dict[str, Any],
-    seed: int | None = None,
-    width: float | None = None,
-    height: float | None = None,
-    depth: float | None = None,
-) -> dict[str, Any]:
-    """Build CLI override dict from explicitly provided flag values."""
-    overrides: dict[str, Any] = {}
-    if params:
-        overrides["params"] = params
-    if seed is not None:
-        overrides["seed"] = seed
-    dims = {"width_mm": width, "height_mm": height, "depth_mm": depth}
-    container_overrides = {k: v for k, v in dims.items() if v is not None}
-    if container_overrides:
-        overrides["container"] = container_overrides
-    return overrides
-
-
 def _run_pipeline(
     generator_name: str,
     params: dict[str, Any],
@@ -141,53 +116,29 @@ def _run_pipeline(
     container_height: float | None = None,
     container_depth: float | None = None,
 ) -> PipelineResult:
-    """Shared pipeline execution for generate and validate commands."""
+    """Shared pipeline execution for generate, validate, render and render-2d commands."""
     gen_instance = _resolve_generator(generator_name, json_output)
-
-    project_cfg = load_project_config()
-    object_cfg = _load_safe(load_object_config, json_output, config_path) if config_path else None
-    if profile_name:
-        profile_cfg = _load_safe(load_sampling_profile, json_output, profile_name)
-        object_cfg = deep_merge(object_cfg, profile_cfg) if object_cfg else profile_cfg
-
-    cli_overrides = _build_cli_overrides(
-        params,
-        seed,
-        container_width,
-        container_height,
-        container_depth,
+    flags = ConfigFlags(
+        params=params,
+        seed=seed,
+        config_path=config_path,
+        profile_name=profile_name,
+        container_width=container_width,
+        container_height=container_height,
+        container_depth=container_depth,
     )
-    try:
-        resolved = resolve_config(
-            project=project_cfg,
-            object_config=object_cfg,
-            cli_overrides=cli_overrides,
-        )
-    except ValueError as exc:
-        error_exit(str(exc), json_output)
-        raise  # unreachable
-
-    effective_seed = resolved.seed if resolved.seed is not None else 42
+    resolved = resolve_cli_config(flags, json_output)
 
     return run(
         generator=gen_instance,
         params=resolved.params if resolved.params else None,
-        seed=effective_seed,
+        seed=resolved.seed,
         container=resolved.container,
         placement=resolved.placement,
         representation_config=resolved.representation,
         sampler_config=resolved.sampler_config,
         export_config=export_config,
     )
-
-
-def _load_safe(loader: Any, json_output: bool, *args: Any) -> dict[str, Any]:
-    """Load a config/profile, calling error_exit on FileNotFoundError."""
-    try:
-        return loader(*args)
-    except FileNotFoundError as exc:
-        error_exit(str(exc), json_output)
-        raise  # unreachable
 
 
 @app.command()
@@ -218,8 +169,17 @@ def generate(
 
     if dry_run:
         gen_instance = _resolve_generator(generator_name, json_output)
-        effective_seed = seed if seed is not None else 42
-        _handle_dry_run(gen_instance, generator_name, params, effective_seed, output, json_output)
+        flags = ConfigFlags(
+            params=params,
+            seed=seed,
+            config_path=config,
+            profile_name=profile,
+            container_width=container_width,
+            container_height=container_height,
+            container_depth=container_depth,
+        )
+        resolved = resolve_cli_config(flags, json_output)
+        _handle_dry_run(gen_instance, generator_name, resolved, output, json_output)
         return
 
     export_config = None
@@ -255,14 +215,19 @@ def generate(
 def _handle_dry_run(
     gen_instance: GeneratorBase,
     generator_name: str,
-    params: dict[str, Any],
-    seed: int,
+    resolved: ResolvedConfig,
     output: Optional[Path],
     json_output: bool,
 ) -> None:
     """Report what --dry-run would do, without running the pipeline."""
+    # runner.run() rejects unknown parameter keys before it generates, so the dry run does too.
+    try:
+        gen_instance.validate_param_keys(resolved.params)
+    except ValueError as exc:
+        error_exit(str(exc), json_output)
     merged = gen_instance.get_default_params()
-    merged.update(params)
+    merged.update(resolved.params)
+    seed = resolved.seed
     stages = list(_BASE_STAGES)
     if output is not None:
         stages.append("export")
