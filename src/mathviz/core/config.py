@@ -150,8 +150,9 @@ def _build_representation_config(cfg: dict[str, Any]) -> RepresentationConfig | 
     try:
         return RepresentationConfig.model_validate(cfg["representation"])
     except ValidationError as exc:
+        # No square brackets in the message: Rich reads "[representation]" as a markup tag.
         raise ValueError(
-            f"Invalid [representation] config: {_format_validation_errors(exc)}"
+            f"Invalid representation config: {_format_validation_errors(exc)}"
         ) from exc
 
 

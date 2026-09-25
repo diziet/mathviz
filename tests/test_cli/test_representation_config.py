@@ -104,15 +104,14 @@ class TestGenerateRepresentationConfig:
         )
         assert result.exit_code == 2
         error = json.loads(result.output)["error"]
-        assert "[representation]" in error
-        assert "tube_sides" in error
+        assert "Invalid representation config: tube_sides" in error
 
     def test_invalid_representation_rich_output_names_field(self, tmp_path: Path) -> None:
-        """An invalid [representation] without --json exits 2 and prints the field."""
+        """An invalid [representation] without --json exits 2 and prints the full error."""
         config = _write(tmp_path / "bad.toml", INVALID_TUBE_SIDES_TOML)
         result = runner.invoke(app, ["generate", CURVE_GENERATOR, "--config", str(config)])
         assert result.exit_code == 2
-        assert "tube_sides" in result.output
+        assert "Invalid representation config: tube_sides" in result.output
 
 
 class TestValidateRepresentationConfig:
