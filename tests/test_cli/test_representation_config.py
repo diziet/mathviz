@@ -9,6 +9,7 @@ from typer.testing import CliRunner
 from mathviz.cli import app
 from mathviz.core.container import Container, PlacementPolicy
 from mathviz.core.representation import RepresentationConfig, RepresentationType
+from mathviz.pipeline.geometry_loader import has_mesh, load_geometry
 from mathviz.pipeline.runner import run
 
 runner = CliRunner()
@@ -134,3 +135,40 @@ class TestValidateRepresentationConfig:
         )
         assert result.exit_code == 2
         assert "tube_sides" in json.loads(result.output)["error"]
+
+
+def _export_single_block(tmp_path: Path, config_text: str) -> dict:
+    """Assign trefoil with a per-block config to a 1x1 grid, run export-all, return its result."""
+    manifest = tmp_path / "grid.toml"
+    config = _write(tmp_path / "block.toml", config_text)
+    for args in (
+        ["grid", "init", "1", "1", "--path", str(manifest)],
+        ["grid", "assign", "0", "0", CURVE_GENERATOR, "--config", str(config),
+         "--path", str(manifest)],
+    ):
+        assert runner.invoke(app, args).exit_code == 0
+    result = runner.invoke(
+        app,
+        ["grid", "export-all", "--path", str(manifest),
+         "--output-dir", str(tmp_path / "export"), "--json"],
+    )
+    assert result.exit_code == 0, result.output
+    return json.loads(result.output)["results"][0]
+
+
+class TestGridExportRepresentationConfig:
+    """Test that grid export-all applies [representation] from a per-block config."""
+
+    def test_block_config_raw_point_cloud_exports_point_cloud(self, tmp_path: Path) -> None:
+        """A block config with raw_point_cloud exports a point cloud instead of a tube mesh."""
+        block = _export_single_block(tmp_path, RAW_POINT_CLOUD_TOML)
+        assert block["success"] is True, block
+        exported = load_geometry(Path(block["path"]))
+        assert not has_mesh(exported)
+        assert exported.point_cloud is not None
+
+    def test_invalid_block_representation_marks_block_error(self, tmp_path: Path) -> None:
+        """A block config with an invalid [representation] fails with an error naming the field."""
+        block = _export_single_block(tmp_path, INVALID_TUBE_SIDES_TOML)
+        assert block["success"] is False
+        assert "tube_sides" in block["error"]
